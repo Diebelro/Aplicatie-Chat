@@ -103,7 +103,10 @@ export async function POST(request: Request) {
       try {
         const prismaUser = await prismaFindUserByEmail(emailStr);
         if (prismaUser) {
-          user = prismaUser;
+          user = {
+            id: prismaUser.id,
+            email: prismaUser.email ?? undefined
+          };
           const hash = await prismaGetPasswordHash(prismaUser.id);
           if (!hash || !verifyPassword(String(password), hash)) {
             recordLoginFailure(ip, fp);
