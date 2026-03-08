@@ -94,6 +94,16 @@ export default function MessagesPage() {
     })();
   }, []);
 
+  // Polling listă conversații + prieteni la ~2s (ca WhatsApp)
+  useEffect(() => {
+    if (loading) return;
+    const t = setInterval(() => {
+      fetchConversations();
+      fetchFriends();
+    }, 2000);
+    return () => clearInterval(t);
+  }, [loading]);
+
   useEffect(() => {
     const onFocus = () => {
       fetchConversations();

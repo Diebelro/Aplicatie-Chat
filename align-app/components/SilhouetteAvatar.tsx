@@ -1,6 +1,7 @@
 "use client";
 
 import { User } from "lucide-react";
+import { OptimizedImage } from "@/components/OptimizedImage";
 import type { Gender } from "@/lib/store";
 
 function getGradient(gender?: Gender | null): string {
@@ -37,11 +38,9 @@ export function SilhouetteAvatar({
 }: SilhouetteAvatarProps) {
   if (photoUrl) {
     return (
-      <img
-        src={photoUrl}
-        alt=""
-        className={imgClassName}
-      />
+      <div className={`relative ${imgClassName}`}>
+        <OptimizedImage src={photoUrl} alt="" fill className="object-cover" />
+      </div>
     );
   }
 

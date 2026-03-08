@@ -9,8 +9,8 @@ const LIMITS: Record<string, number> = {
   default: 120,
   "/api/swipe": 60,
   "/api/feed": 30,
-  "/api/auth/login": 10,
-  "/api/auth/signup": 5,
+  "/api/auth/login": 3,
+  "/api/auth/signup": 3,
   "/api/messages": 100,
 };
 

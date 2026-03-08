@@ -59,7 +59,7 @@ function RemoteVideo({ participant }: { participant: RemoteParticipant }) {
   );
 }
 
-const OUTGOING_POLL_MS = 2000;
+const OUTGOING_POLL_MS = 1000;
 
 type CallUIProps = {
   roomId: string;

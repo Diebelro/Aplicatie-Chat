@@ -77,6 +77,16 @@ export default function ChatPage() {
     })();
   }, [otherId]);
 
+  // Polling mesaje + online (ca WhatsApp) – reîmprospătare la ~1.5s
+  useEffect(() => {
+    if (!otherId || loading) return;
+    const t = setInterval(() => {
+      fetchMessages();
+      fetchOther();
+    }, 1500);
+    return () => clearInterval(t);
+  }, [otherId, loading]);
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);

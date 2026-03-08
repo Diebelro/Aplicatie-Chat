@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useCookieConsent } from "@/contexts/CookieConsentContext";
+import { OptimizedImage } from "@/components/OptimizedImage";
 import { getStoredUserRaw } from "@/lib/store";
 import type { User } from "@/lib/store";
 
@@ -137,12 +138,14 @@ export default function AdSlot({
             href={directAd.link || "#"}
             target="_blank"
             rel="noopener noreferrer sponsored"
-            className="block w-full h-full min-h-[50px]"
+            className="block relative w-full h-full min-h-[50px]"
           >
-            <img
+            <OptimizedImage
               src={directAd.imageUrl}
               alt={directAd.alt || "Reclama"}
-              className="w-full h-full object-contain"
+              fill
+              sizes="(max-width: 768px) 100vw, 336px"
+              className="object-contain"
             />
           </a>
         ) : isDiscrete ? (

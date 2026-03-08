@@ -376,6 +376,15 @@ export type FeedFilters = {
   name?: string;
 };
 
+/** Normalizează pentru potrivire strictă: trim, lowercase, fără diacritice (București = Bucuresti). */
+function normalizeStrict(s: string): string {
+  return (s ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "");
+}
+
 function ageFromBirthDate(birthDate: string | null): number | null {
   if (!birthDate) return null;
   const t = new Date(birthDate).getTime();
@@ -446,12 +455,12 @@ export async function prismaGetFeedCandidates(
     });
   }
   if (filters.country && filters.country.trim() !== "") {
-    const c = filters.country.trim().toLowerCase();
-    list = list.filter((p) => (p.country ?? "").toLowerCase().includes(c));
+    const want = normalizeStrict(filters.country);
+    list = list.filter((p) => normalizeStrict(p.country ?? "") === want);
   }
   if (filters.city && filters.city.trim() !== "") {
-    const c = filters.city.trim().toLowerCase();
-    list = list.filter((p) => (p.city ?? "").toLowerCase().includes(c));
+    const want = normalizeStrict(filters.city);
+    list = list.filter((p) => normalizeStrict(p.city ?? "") === want);
   }
   if (filters.name && filters.name.trim() !== "") {
     const n = filters.name.trim().toLowerCase();
@@ -674,7 +683,7 @@ export async function prismaUpsertProfilePhotos(userId: string, photoUrls: strin
 }
 
 export async function prismaUpdateLastActive(userId: string): Promise<void> {
-  await prisma.profile.update({
+  await prisma.profile.updateMany({
     where: { userId },
     data: { lastActiveAt: new Date() },
   });

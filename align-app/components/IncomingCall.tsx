@@ -7,7 +7,7 @@ import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
 import { getAuthHeaders } from "@/lib/authClient";
 
-const POLL_MS = 2000;
+const POLL_MS = 1000;
 
 interface IncomingCallData {
   fromId: string;

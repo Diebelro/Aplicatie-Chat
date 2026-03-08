@@ -11,6 +11,7 @@ import { AddFriendButton } from "@/components/AddFriendButton";
 import { track } from "@/lib/tracking";
 import { displayName } from "@/lib/displayName";
 import AdSlot from "@/components/AdSlot";
+import { OptimizedImage } from "@/components/OptimizedImage";
 import { useCookieConsent } from "@/contexts/CookieConsentContext";
 import {
   buildFeed,
@@ -72,7 +73,6 @@ const FAST_SWIPE_MS = 2500;
 export default function AppDiscoverPage() {
   const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [swiping, setSwiping] = useState<string | null>(null);
   const [retriedAfterEmpty, setRetriedAfterEmpty] = useState(false);
   const [intervals, setIntervals] = useState<{ internal: number; external: number }>({ internal: 12, external: 22 });
   const [feedConfig, setFeedConfig] = useState<{
@@ -87,6 +87,18 @@ export default function AppDiscoverPage() {
   const [filters, setFilters] = useSearchFilters();
   const lastViewedId = useRef<string | null>(null);
   const cardShownAtRef = useRef<number>(0);
+  const [dragOffset, setDragOffset] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartX = useRef(0);
+  const isDraggingRef = useRef(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const SWIPE_THRESHOLD = 55;
+  const SWIPE_EXIT_OFFSET = 400;
+  const FLY_OUT_MS = 100;
+
+  const triggerHaptic = () => {
+    if (typeof navigator !== "undefined" && navigator.vibrate?.(8)) return;
+  };
 
   const currentItem = feedItems[0];
   const isProfile = currentItem?.type === "profile";
@@ -230,37 +242,91 @@ export default function AppDiscoverPage() {
     setFeedItems((prev) => prev.slice(1));
   };
 
-  const swipe = async (toId: string, liked: boolean) => {
-    setSwiping(toId);
+  const getClientX = (e: React.MouseEvent | React.TouchEvent): number =>
+    "touches" in e && e.touches.length ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+
+  const onSwipeStart = (e: React.MouseEvent | React.TouchEvent) => {
+    if ((e.target as HTMLElement).closest("button")) return;
+    isDraggingRef.current = true;
+    setIsDragging(true);
+    dragStartX.current = getClientX(e);
+  };
+
+  const onSwipeMove = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!isDraggingRef.current) return;
+    const x = "touches" in e && e.touches.length ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+    const delta = Math.max(-260, Math.min(260, x - dragStartX.current));
+    setDragOffset(delta);
+  };
+
+  const onSwipeEnd = () => {
+    if (!isDraggingRef.current) return;
+    isDraggingRef.current = false;
+    setIsDragging(false);
+    const offset = dragOffset;
+    if (Math.abs(offset) >= SWIPE_THRESHOLD && current) {
+      triggerHaptic();
+      const liked = offset > 0;
+      const toId = current.id;
+      setDragOffset(liked ? SWIPE_EXIT_OFFSET : -SWIPE_EXIT_OFFSET);
+      setTimeout(() => {
+        swipe(toId, liked);
+        setDragOffset(0);
+      }, FLY_OUT_MS);
+    } else {
+      setDragOffset(0);
+    }
+  };
+
+  const onButtonSwipe = (liked: boolean) => {
+    if (!current) return;
+    triggerHaptic();
+    setDragOffset(liked ? SWIPE_EXIT_OFFSET : -SWIPE_EXIT_OFFSET);
+    setIsDragging(false);
+    setTimeout(() => {
+      swipe(current.id, liked);
+      setDragOffset(0);
+    }, FLY_OUT_MS);
+  };
+
+  useEffect(() => {
+    const el = cardRef.current;
+    if (!el) return;
+    const preventScroll = (e: TouchEvent) => {
+      if (isDraggingRef.current) e.preventDefault();
+    };
+    el.addEventListener("touchmove", preventScroll, { passive: false });
+    return () => el.removeEventListener("touchmove", preventScroll);
+  }, [current?.id]);
+
+  const swipe = (toId: string, liked: boolean) => {
     const swipeDurationMs = Date.now() - cardShownAtRef.current;
+    advanceToNext();
 
-    if (!liked && swipeDurationMs < FAST_SWIPE_MS) {
-      setIntervals((prev) => adjustAfterFastSwipeState(prev));
-    }
-
-    const body: { toId: string; liked: boolean; internalInterval?: number; externalInterval?: number } = { toId, liked };
-    if (liked) {
-      body.internalInterval = intervals.internal;
-      body.externalInterval = intervals.external;
-    }
-    const res = await fetch("/api/swipe", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-      body: JSON.stringify(body),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (liked) track.like_sent(toId);
-    if (data.matchCreated) {
-      track.match_created(toId);
-      router.push(`/app/chat/${toId}`);
-    }
-
-    if (typeof data.internalInterval === "number" && typeof data.externalInterval === "number") {
-      setIntervals({ internal: data.internalInterval, external: data.externalInterval });
-    }
-
-    setFeedItems((prev) => prev.slice(1));
-    setSwiping(null);
+    (async () => {
+      if (!liked && swipeDurationMs < FAST_SWIPE_MS) {
+        setIntervals((prev) => adjustAfterFastSwipeState(prev));
+      }
+      const body: { toId: string; liked: boolean; internalInterval?: number; externalInterval?: number } = { toId, liked };
+      if (liked) {
+        body.internalInterval = intervals.internal;
+        body.externalInterval = intervals.external;
+      }
+      const res = await fetch("/api/swipe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (liked) track.like_sent(toId);
+      if (data.matchCreated) {
+        track.match_created(toId);
+        router.push(`/app/chat/${toId}`);
+      }
+      if (typeof data.internalInterval === "number" && typeof data.externalInterval === "number") {
+        setIntervals({ internal: data.internalInterval, external: data.externalInterval });
+      }
+    })();
   };
 
   const refreshCurrentUser = () => {
@@ -275,7 +341,6 @@ export default function AppDiscoverPage() {
     );
   }
 
-  const busy = swiping !== null;
   const hasItems = feedItems.length > 0;
   const profilesRemaining = feedItems.filter((i) => i.type === "profile").length;
 
@@ -284,7 +349,7 @@ export default function AppDiscoverPage() {
       <h2 className="text-xl font-semibold mb-4 w-full">Descoperă</h2>
 
       <div className="w-full mb-6 p-4 rounded-xl bg-dark-800 border border-dark-600">
-        <p className="text-sm text-dark-400 mb-3">Filtrează după gen, vârstă, distanță, locație, online, nume</p>
+        <p className="text-sm text-dark-400 mb-3">Filtrează după gen, vârstă, distanță, țară, oraș, online, nume</p>
         <div className="flex flex-wrap gap-3 items-end">
           <div>
             <label className="block text-xs text-dark-500 mb-1">Nume</label>
@@ -322,14 +387,14 @@ export default function AppDiscoverPage() {
             <label className="block text-xs text-dark-500 mb-1">Vârstă min</label>
             <input
               type="number"
-              min={1}
+              min={18}
               max={filters.maxAge ? Math.min(100, Number(filters.maxAge)) : 100}
-              placeholder="1"
+              placeholder="18"
               value={filters.minAge}
               onChange={(e) => {
                 const v = e.target.value;
                 setFilters((f) => {
-                  const minNum = v === "" ? 0 : Number(v);
+                  const minNum = v === "" ? 18 : Math.max(18, Math.min(100, Number(v) || 18));
                   const maxNum = f.maxAge ? Number(f.maxAge) : 100;
                   const minAge = v;
                   const maxAge = f.maxAge && minNum > maxNum ? String(minNum) : f.maxAge;
@@ -343,15 +408,15 @@ export default function AppDiscoverPage() {
             <label className="block text-xs text-dark-500 mb-1">Vârstă max</label>
             <input
               type="number"
-              min={filters.minAge ? Math.max(1, Number(filters.minAge)) : 1}
+              min={filters.minAge ? Math.max(18, Number(filters.minAge)) : 18}
               max={100}
               placeholder="100"
               value={filters.maxAge}
               onChange={(e) => {
                 const v = e.target.value;
                 setFilters((f) => {
-                  const maxNum = v === "" ? 100 : Number(v);
-                  const minNum = f.minAge ? Number(f.minAge) : 1;
+                  const maxNum = v === "" ? 100 : Math.max(18, Math.min(100, Number(v) || 100));
+                  const minNum = f.minAge ? Number(f.minAge) : 18;
                   const maxAge = v;
                   const minAge = f.minAge && maxNum < minNum ? String(maxNum) : f.minAge;
                   return { ...f, minAge, maxAge };
@@ -372,6 +437,16 @@ export default function AppDiscoverPage() {
             />
           </div>
           <div>
+            <label className="block text-xs text-dark-500 mb-1">Țară</label>
+            <input
+              type="text"
+              placeholder="ex. România"
+              value={filters.country}
+              onChange={(e) => setFilters((f) => ({ ...f, country: e.target.value }))}
+              className="w-36 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+          </div>
+          <div>
             <label className="block text-xs text-dark-500 mb-1">Oraș</label>
             <input
               type="text"
@@ -389,9 +464,51 @@ export default function AppDiscoverPage() {
           {currentItem.type === "profile" && current && (
             <>
               <div
-                className="w-full max-w-sm aspect-[3/4] rounded-2xl overflow-hidden bg-dark-800 border border-dark-600 relative card-hover"
-                style={current.photos?.[0] ? { backgroundImage: `url(${current.photos[0]})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
+                ref={cardRef}
+                className="w-full max-w-sm touch-none select-none"
+                style={{ touchAction: "none" }}
+                onMouseDown={onSwipeStart}
+                onMouseMove={onSwipeMove}
+                onMouseUp={onSwipeEnd}
+                onMouseLeave={onSwipeEnd}
+                onTouchStart={onSwipeStart}
+                onTouchMove={onSwipeMove}
+                onTouchEnd={onSwipeEnd}
               >
+                <div
+                  className="w-full aspect-[3/4] rounded-2xl overflow-hidden bg-dark-800 border border-dark-600 relative card-hover will-change-transform"
+                  style={{
+                    transform: `translateX(${dragOffset}px) rotate(${dragOffset * 0.06}deg)`,
+                    transition: isDragging ? "none" : "transform 0.18s cubic-bezier(0.34, 1.2, 0.64, 1)",
+                  }}
+                >
+                {Math.abs(dragOffset) > 25 && (
+                  <div
+                    className={`absolute inset-0 flex items-center justify-center pointer-events-none z-10 ${
+                      dragOffset > 0 ? "bg-brand-500/20" : "bg-red-500/20"
+                    }`}
+                    aria-hidden
+                  >
+                    <span
+                      className={`text-2xl font-black uppercase tracking-widest border-2 rounded-xl px-6 py-2 ${
+                        dragOffset > 0
+                          ? "text-brand-400 border-brand-400/80"
+                          : "text-red-400 border-red-400/80"
+                      }`}
+                    >
+                      {dragOffset > 0 ? "Like" : "Nope"}
+                    </span>
+                  </div>
+                )}
+                {current.photos?.[0] ? (
+                  <OptimizedImage
+                    src={current.photos[0]}
+                    alt=""
+                    fill
+                    sizes="(max-width: 480px) 100vw, 384px"
+                    className="object-cover"
+                  />
+                ) : null}
                 {!current.photos?.[0] && (
                   <div className="absolute inset-0 flex items-center justify-center p-8">
                     <SilhouetteAvatar
@@ -457,19 +574,20 @@ export default function AppDiscoverPage() {
 
                 <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-6">
                   <button
-                    disabled={busy}
-                    onClick={() => swipe(current.id, false)}
-                    className="w-14 h-14 rounded-full bg-dark-600 hover:bg-red-500/20 flex items-center justify-center text-red-400 border border-dark-500 disabled:opacity-50 transition"
+                    type="button"
+                    onClick={() => onButtonSwipe(false)}
+                    className="w-14 h-14 rounded-full bg-dark-600 hover:bg-red-500/25 active:scale-90 flex items-center justify-center text-red-400 border-2 border-red-500/50 transition-[transform,background-color] duration-75 touch-none"
                   >
                     <X className="w-7 h-7" />
                   </button>
                   <button
-                    disabled={busy}
-                    onClick={() => swipe(current.id, true)}
-                    className="w-14 h-14 rounded-full bg-brand-500 hover:bg-brand-400 flex items-center justify-center text-dark-900 disabled:opacity-50 transition"
+                    type="button"
+                    onClick={() => onButtonSwipe(true)}
+                    className="w-14 h-14 rounded-full bg-brand-500 hover:bg-brand-400 active:scale-90 flex items-center justify-center text-dark-900 border-2 border-brand-400/50 transition-[transform,background-color] duration-75 touch-none"
                   >
                     <Heart className="w-7 h-7" />
                   </button>
+                </div>
                 </div>
               </div>
             </>
@@ -483,11 +601,13 @@ export default function AppDiscoverPage() {
                     href={currentItem.data.link || "#"}
                     target="_blank"
                     rel="noopener noreferrer sponsored"
-                    className="block w-full h-full"
+                    className="block relative w-full h-full min-h-[200px]"
                   >
-                    <img
+                    <OptimizedImage
                       src={currentItem.data.imageUrl}
                       alt={currentItem.data.alt || "Reclamă"}
+                      fill
+                      sizes="384px"
                       className="w-full h-full object-contain"
                     />
                   </a>

@@ -374,11 +374,21 @@ export interface ProfileFilters {
   minAge?: number;
   maxAge?: number;
   maxDistanceKm?: number;
+  country?: string;
   city?: string;
   /** Doar utilizatori online */
   onlineOnly?: boolean;
   /** Caută în nume (substring, ignoră majuscule) */
   name?: string;
+}
+
+/** Normalizează pentru potrivire strictă: trim, lowercase, fără diacritice. */
+function normalizeStrictMatch(s: string): string {
+  return (s ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "");
 }
 
 /** Filtrează utilizatori după gen, vârstă, distanță, țară, oraș, online, nume. */
@@ -396,14 +406,10 @@ export function filterUsers(
     if (filters.maxAge != null && (u.age == null || u.age > filters.maxAge))
       return false;
     if (filters.country && filters.country.trim() !== "") {
-      const countryLower = filters.country.trim().toLowerCase();
-      const uCountry = (u.country ?? "").toLowerCase();
-      if (!uCountry.includes(countryLower)) return false;
+      if (normalizeStrictMatch(u.country ?? "") !== normalizeStrictMatch(filters.country)) return false;
     }
     if (filters.city && filters.city.trim() !== "") {
-      const cityLower = filters.city.trim().toLowerCase();
-      const uCity = (u.city ?? "").toLowerCase();
-      if (!uCity.includes(cityLower)) return false;
+      if (normalizeStrictMatch(u.city ?? "") !== normalizeStrictMatch(filters.city)) return false;
     }
     if (filters.maxDistanceKm != null && filters.maxDistanceKm > 0) {
       const km = getDistanceKm(myId, u.id);

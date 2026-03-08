@@ -70,8 +70,8 @@ function parseFilters(searchParams: URLSearchParams): {
   const name = searchParams.get("name") ?? "";
   const minAgeNum = minAge != null && minAge !== "" ? Number(minAge) : NaN;
   const maxAgeNum = maxAge != null && maxAge !== "" ? Number(maxAge) : NaN;
-  const minAgeOk = !Number.isNaN(minAgeNum) && minAgeNum >= 1 && minAgeNum <= 100;
-  const maxAgeOk = !Number.isNaN(maxAgeNum) && maxAgeNum >= 1 && maxAgeNum <= 100;
+  const minAgeOk = !Number.isNaN(minAgeNum) && minAgeNum >= 18 && minAgeNum <= 100;
+  const maxAgeOk = !Number.isNaN(maxAgeNum) && maxAgeNum >= 18 && maxAgeNum <= 100;
   let finalMin = minAgeOk ? minAgeNum : undefined;
   let finalMax = maxAgeOk ? maxAgeNum : undefined;
   if (finalMin != null && finalMax != null && finalMin > finalMax) finalMax = finalMin;

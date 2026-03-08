@@ -7,6 +7,7 @@ import { Plus, X } from "lucide-react";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
 import { getAuthHeaders } from "@/lib/authClient";
+import { OptimizedImage } from "@/components/OptimizedImage";
 
 const MAX_PHOTOS = 5;
 const PHOTO_MAX_SIZE = 800;
@@ -325,7 +326,7 @@ export default function ProfilePage() {
           <div className="flex flex-wrap gap-3 items-start">
             {photos.map((src, i) => (
               <div key={i} className="relative group">
-                <img src={src} alt="" className="w-24 h-24 object-cover rounded-xl border border-dark-600" />
+                <OptimizedImage src={src} alt="" width={96} height={96} className="w-24 h-24 object-cover rounded-xl border border-dark-600" />
                 <button
                   type="button"
                   onClick={() => handlePhotoRemove(i)}

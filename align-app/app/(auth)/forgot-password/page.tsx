@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { OptimizedImage } from "@/components/OptimizedImage";
 
 type Mode = "choose" | "email" | "email_sent" | "scan" | "scan_confirmed";
 
@@ -117,9 +118,12 @@ export default function ForgotPasswordPage() {
             Deschide aplicația Align pe telefon (sau acest site în browser pe telefon), fii logat, apoi scanează codul de mai jos sau deschide linkul.
           </p>
           <div className="mt-6 flex justify-center">
-            <img
+            <OptimizedImage
               src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrUrl)}`}
               alt="QR recuperare"
+              width={200}
+              height={200}
+              priority
               className="w-[200px] h-[200px] rounded-xl border border-dark-600"
             />
           </div>

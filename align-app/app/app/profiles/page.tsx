@@ -264,14 +264,14 @@ export default function ProfilesPage() {
             <label className="block text-xs text-dark-500 mb-1">Vârstă min</label>
             <input
               type="number"
-              min={1}
+              min={18}
               max={filters.maxAge ? Math.min(100, Number(filters.maxAge)) : 100}
-              placeholder="1"
+              placeholder="18"
               value={filters.minAge}
               onChange={(e) => {
                 const v = e.target.value;
                 setFilters((f) => {
-                  const minNum = v === "" ? 0 : Number(v);
+                  const minNum = v === "" ? 18 : Math.max(18, Math.min(100, Number(v) || 18));
                   const maxNum = f.maxAge ? Number(f.maxAge) : 100;
                   const minAge = v;
                   const maxAge = f.maxAge && minNum > maxNum ? String(minNum) : f.maxAge;
@@ -285,15 +285,15 @@ export default function ProfilesPage() {
             <label className="block text-xs text-dark-500 mb-1">Vârstă max</label>
             <input
               type="number"
-              min={filters.minAge ? Math.max(1, Number(filters.minAge)) : 1}
+              min={filters.minAge ? Math.max(18, Number(filters.minAge)) : 18}
               max={100}
               placeholder="100"
               value={filters.maxAge}
               onChange={(e) => {
                 const v = e.target.value;
                 setFilters((f) => {
-                  const maxNum = v === "" ? 100 : Number(v);
-                  const minNum = f.minAge ? Number(f.minAge) : 1;
+                  const maxNum = v === "" ? 100 : Math.max(18, Math.min(100, Number(v) || 100));
+                  const minNum = f.minAge ? Number(f.minAge) : 18;
                   const maxAge = v;
                   const minAge = f.minAge && maxNum < minNum ? String(maxNum) : f.minAge;
                   return { ...f, minAge, maxAge };

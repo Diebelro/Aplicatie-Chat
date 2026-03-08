@@ -18,8 +18,8 @@ export type SearchFilters = {
 
 const defaultFilters: SearchFilters = {
   gender: "",
-  minAge: "",
-  maxAge: "",
+  minAge: "18",
+  maxAge: "100",
   maxDistanceKm: "",
   country: "",
   city: "",
@@ -28,17 +28,25 @@ const defaultFilters: SearchFilters = {
   sortBy: "",
 };
 
+function clampAge(val: number): number {
+  return Math.max(18, Math.min(100, val));
+}
+
 function loadFilters(): SearchFilters {
   if (typeof window === "undefined") return defaultFilters;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return defaultFilters;
     const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const minAgeRaw = parsed.minAge != null ? Number(parsed.minAge) : NaN;
+    const maxAgeRaw = parsed.maxAge != null ? Number(parsed.maxAge) : NaN;
+    const minAge = !Number.isNaN(minAgeRaw) ? String(clampAge(minAgeRaw)) : defaultFilters.minAge;
+    const maxAge = !Number.isNaN(maxAgeRaw) ? String(clampAge(maxAgeRaw)) : defaultFilters.maxAge;
     return {
       ...defaultFilters,
       gender: typeof parsed.gender === "string" ? parsed.gender : defaultFilters.gender,
-      minAge: parsed.minAge != null ? String(parsed.minAge) : defaultFilters.minAge,
-      maxAge: parsed.maxAge != null ? String(parsed.maxAge) : defaultFilters.maxAge,
+      minAge,
+      maxAge,
       maxDistanceKm: parsed.maxDistanceKm != null ? String(parsed.maxDistanceKm) : defaultFilters.maxDistanceKm,
       country: typeof parsed.country === "string" ? parsed.country : defaultFilters.country,
       city: typeof parsed.city === "string" ? parsed.city : defaultFilters.city,

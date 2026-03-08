@@ -76,14 +76,14 @@ export default function AppLayout({
     return () => { cancelled = true; };
   }, [router]);
 
-  // Heartbeat la ~8s → online în timp real (doar cât e pe site)
+  // Heartbeat la ~5s → online în timp real (ca WhatsApp)
   useEffect(() => {
     if (!user?.id) return;
     const tick = () => {
       fetch("/api/heartbeat", { method: "POST", headers: getAuthHeaders() }).catch(() => {});
     };
     tick();
-    heartbeatRef.current = setInterval(tick, 8000);
+    heartbeatRef.current = setInterval(tick, 5000);
     return () => {
       if (heartbeatRef.current) clearInterval(heartbeatRef.current);
     };
@@ -123,7 +123,7 @@ export default function AppLayout({
     if (!user?.id) return;
     fetchUnread();
     fetchMissed();
-    const t = setInterval(() => { fetchUnread(); fetchMissed(); }, 2000);
+    const t = setInterval(() => { fetchUnread(); fetchMissed(); }, 1000);
     const onFocus = () => { fetchUnread(); fetchMissed(); };
     window.addEventListener("focus", onFocus);
     return () => { clearInterval(t); window.removeEventListener("focus", onFocus); };
