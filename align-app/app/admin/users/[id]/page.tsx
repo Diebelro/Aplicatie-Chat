@@ -59,9 +59,11 @@ export default function AdminUserDetailPage() {
 
   const grantPremium = (type: "lifetime" | "trial") => {
     const days = type === "trial" ? premiumDays : undefined;
-    if (type === "trial" && (days < 1 || days > 3650)) {
-      setError("Introdu un numar de zile intre 1 si 3650.");
-      return;
+    if (type === "trial") {
+      if (!days || days < 1 || days > 3650) {
+        setError("Introdu un numar de zile intre 1 si 3650.");
+        return;
+      }
     }
     setBusy(true);
     setError(null);
