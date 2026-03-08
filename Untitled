@@ -1,0 +1,82 @@
+# Enterprise Documentation: European Premium Dating Platform
+
+## Overview
+This repository contains the source code and technical documentation for a premium, security‑focused dating platform designed for scalable deployment across the European market. The system is engineered with a modular architecture, strict security controls, GDPR compliance, and enterprise‑grade operational standards.
+
+The platform is initially launched in Romania, with infrastructure hosted in Germany to ensure data protection, low latency, and regulatory alignment with EU requirements.
+
+## Core Principles
+- Security-first architecture
+- Modular and maintainable codebase
+- High performance and low latency
+- GDPR-compliant data handling
+- Scalable infrastructure for multi-region deployment
+- Clear separation of concerns across all engines and services
+
+## Technology Stack
+- Next.js (App Router)
+- TypeScript
+- PostgreSQL with Prisma ORM
+- CDN-backed media delivery
+- URL signing for secure asset access
+- Advanced anti-bot and anti-abuse systems
+- TailwindCSS for UI consistency
+- Node.js runtime
+
+## System Architecture
+The platform is organized into independent engines, each responsible for a critical domain:
+
+- Feed Engine: relevance, distance, filtering, and anti-scraping protections
+- Swipe Engine: action validation, rate limiting, behavioral analysis
+- Match Engine: atomic match creation and consistency guarantees
+- Premium Engine: subscription logic, temporary premium, rewarded ads
+- Profile System: identity, photos, preferences, visibility rules
+- Security Layer: API hardening, build security, URL signing
+- Anti-Bot System: device fingerprinting, behavioral detection, blocking logic
+
+Each engine is fully documented in the `/docs` directory.
+
+## Repository Structure
+/src  
+/docs  
+/public  
+package.json  
+next.config.js  
+tsconfig.json  
+tailwind.config.ts  
+README.md  
+
+## Documentation
+All technical and operational documentation is located in the `/docs` directory. It includes:
+
+- Architecture Overview
+- Feed, Swipe, Match, Premium, and Profile Engines
+- API Security Rules
+- Anti-Bot System
+- Build Security
+- Build and Deploy Pipeline
+- URL Signing
+- Legal Protection
+- Index of all documents
+
+Each document is designed to be a standalone reference and part of a unified enterprise documentation system.
+
+## Build and Deployment
+The complete build and deployment workflow is defined in `/docs/BUILD_AND_DEPLOY.md`.  
+It includes:
+
+- Environment validation
+- Secure build pipeline
+- Sourcemap removal
+- DevTools deactivation
+- Watermark injection
+- Staging deployment
+- Production deployment
+- Rollback procedures
+- Post-deploy monitoring
+
+## Security Standards
+The platform implements strict security controls:
+
+- No sourcemaps in production
+- DevTools disabled

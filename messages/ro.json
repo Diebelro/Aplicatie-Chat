@@ -1,0 +1,37 @@
+{
+  "cookieConsent": {
+    "bannerText": "Folosim cookie-uri pentru funcționare, statistici și reclame personalizate. Poți accepta, refuza sau gestiona preferințele.",
+    "accept": "Accept",
+    "refuse": "Refuz",
+    "preferences": "Preferințe",
+    "settingsButton": "Setări cookies",
+    "necessary": "Necesare",
+    "functional": "Funcționale",
+    "statistics": "Statistici",
+    "marketing": "Marketing",
+    "necessaryDesc": "Esențiale pentru funcționarea site-ului. Nu pot fi dezactivate.",
+    "functionalDesc": "Permit funcționalități îmbunătățite și personalizare.",
+    "statisticsDesc": "Ne ajută să înțelegem cum sunt folosite serviciile (ex. Google Analytics).",
+    "marketingDesc": "Folosite pentru reclame personalizate (ex. Meta Pixel, Google Ads)."
+  },
+  "common": {
+    "buttons": {
+      "save": "Salvează",
+      "cancel": "Anulare",
+      "close": "Închide"
+    },
+    "labels": {
+      "language": "Limba"
+    }
+  },
+  "legal": {
+    "links": {
+      "terms": "Termeni și Condiții",
+      "privacy": "Politica de Confidențialitate",
+      "cookies": "Politica de Cookie-uri"
+    },
+    "termsTitle": "Termeni și Condiții",
+    "privacyTitle": "Politica de Confidențialitate",
+    "cookiesTitle": "Politica de Cookie-uri"
+  }
+}

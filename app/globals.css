@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #0f1419;
+  --card: #15202b;
+  --border: #22303c;
+  --text: #e7e9ea;
+  --muted: #8b98a5;
+  --accent: #14b8a6;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* Text secundar (dark-500, dark-400) mai ușor de citit – aceleași tonuri, mai deschise */
+.text-dark-500 {
+  color: #8b98a5;
+}
+.text-dark-400 {
+  color: #9ca8b5;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Card hover */
+.card-hover {
+  @apply transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-brand-500/10;
+}
+
+/* Gradient text */
+.gradient-text {
+  @apply bg-gradient-to-r from-brand-400 via-teal-300 to-emerald-400 bg-clip-text text-transparent;
+}

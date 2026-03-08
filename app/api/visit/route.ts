@@ -1,0 +1,23 @@
+import { NextRequest, NextResponse } from "next/server";
+import { addVisit, findUserById } from "@/lib/store";
+
+export async function POST(request: NextRequest) {
+  const userId = request.headers.get("x-user-id");
+  if (!userId) {
+    return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
+  }
+  const body = await request.json();
+  const profileId = body?.profileId;
+  if (!profileId || typeof profileId !== "string") {
+    return NextResponse.json(
+      { error: "Lipsește profileId." },
+      { status: 400 }
+    );
+  }
+  const viewer = findUserById(userId);
+  if (viewer?.show_profile_visits === false) {
+    return NextResponse.json({ ok: true });
+  }
+  addVisit(userId, profileId);
+  return NextResponse.json({ ok: true });
+}

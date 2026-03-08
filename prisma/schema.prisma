@@ -1,0 +1,211 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String?
+  emailVerified DateTime?
+  role         String   @default("USER")
+  isBanned     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  profile      Profile?
+  locations    Location[]
+  swipesFrom   Swipe[]  @relation("SwipeFrom")
+  swipesTo     Swipe[]  @relation("SwipeTo")
+  matchesA     Match[]  @relation("MatchA")
+  matchesB     Match[]  @relation("MatchB")
+  messagesFrom Message[] @relation("MessageFrom")
+  messagesTo   Message[] @relation("MessageTo")
+  premiumSubscriptions PremiumSubscription[]
+  boosts       Boost[]
+  deviceFingerprints DeviceFingerprint[]
+  blocksInitiated Block[] @relation("Blocker")
+  blocksReceived  Block[] @relation("Blocked")
+  reportsMade     Report[] @relation("Reporter")
+  reportsReceived Report[] @relation("Reported")
+  adminLogs       AdminLog[]
+}
+
+model Profile {
+  id                    String    @id @default(cuid())
+  userId                String    @unique
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name                  String    @default("")
+  username              String    @unique
+  realName              String?
+  bio                   String    @default("")
+  birthDate             String?
+  gender                String?
+  country               String?
+  city                  String?
+  postalCode            String?
+  educationLevel        String?
+  occupation            String?
+  maritalStatus         String?
+  wantsChildren         String?
+  height                Int?
+  weight                Int?
+  eyeColor              String?
+  hairColor             String?
+  bodyType              String?
+  clothingStyle         String?
+  distinctiveFeatures   String?
+  partnerPhysicalPreferences String?
+  partnerLifestyle      String?
+  partnerDealBreakers   String?
+  showDistance          Boolean   @default(true)
+  showOnline            Boolean   @default(true)
+  showProfileVisits    Boolean   @default(true)
+  showReadReceipts     Boolean   @default(true)
+  allowFriendRequests  Boolean   @default(true)
+  completedAt           DateTime?
+  lastActiveAt          DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  photos                ProfilePhoto[]
+}
+
+model ProfilePhoto {
+  id        String   @id @default(cuid())
+  profileId String
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  order     Int      @default(0)
+  url       String
+  createdAt DateTime @default(now())
+}
+
+model Location {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  latitude  Float
+  longitude Float
+  updatedAt DateTime @updatedAt
+}
+
+model Swipe {
+  id         String   @id @default(cuid())
+  fromUserId String
+  toUserId   String
+  fromUser   User     @relation("SwipeFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser     User     @relation("SwipeTo", fields: [toUserId], references: [id], onDelete: Cascade)
+  liked      Boolean
+  createdAt  DateTime @default(now())
+  @@unique([fromUserId, toUserId])
+  @@index([fromUserId])
+  @@index([toUserId])
+}
+
+model Match {
+  id        String   @id @default(cuid())
+  userAId   String
+  userBId   String
+  userA     User     @relation("MatchA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB     User     @relation("MatchB", fields: [userBId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  @@unique([userAId, userBId])
+  @@index([userAId])
+  @@index([userBId])
+}
+
+model Message {
+  id          String   @id @default(cuid())
+  fromUserId  String
+  toUserId    String
+  fromUser    User     @relation("MessageFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser      User     @relation("MessageTo", fields: [toUserId], references: [id], onDelete: Cascade)
+  text        String
+  status      String   @default("SENT")
+  createdAt   DateTime @default(now())
+  deliveredAt DateTime?
+  seenAt      DateTime?
+  @@index([fromUserId, toUserId])
+  @@index([toUserId, fromUserId])
+}
+
+model PremiumSubscription {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId           String?
+  status           String   @default("active")
+  currentPeriodEnd DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  @@index([userId])
+}
+
+model Boost {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  @@index([userId])
+}
+
+model DeviceFingerprint {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fingerprint String
+  userAgent   String?
+  ip          String?
+  trusted     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@unique([userId, fingerprint])
+  @@index([userId])
+}
+
+model RateLimitLog {
+  id        String   @id @default(cuid())
+  identifier String
+  endpoint  String
+  count     Int      @default(1)
+  windowStart DateTime
+  createdAt DateTime @default(now())
+  @@index([identifier, endpoint])
+}
+
+model Block {
+  id        String   @id @default(cuid())
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+  blocker   User     @relation("Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked   User     @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+  @@unique([blockerId, blockedId])
+  @@index([blockerId])
+  @@index([blockedId])
+}
+
+model Report {
+  id         String   @id @default(cuid())
+  reporterId String
+  reportedId String
+  reason     String
+  createdAt  DateTime @default(now())
+  reporter   User     @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reported   User     @relation("Reported", fields: [reportedId], references: [id], onDelete: Cascade)
+  @@index([reporterId])
+  @@index([reportedId])
+}
+
+model AdminLog {
+  id        String   @id @default(cuid())
+  adminId   String
+  action    String
+  targetId  String?
+  createdAt DateTime @default(now())
+  admin     User     @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  @@index([adminId])
+}

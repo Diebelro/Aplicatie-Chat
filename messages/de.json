@@ -1,0 +1,37 @@
+{
+  "cookieConsent": {
+    "bannerText": "Wir verwenden Cookies für Betrieb, Statistiken und personalisierte Werbung. Sie können akzeptieren, ablehnen oder Ihre Einstellungen verwalten.",
+    "accept": "Akzeptieren",
+    "refuse": "Ablehnen",
+    "preferences": "Einstellungen",
+    "settingsButton": "Cookie-Einstellungen",
+    "necessary": "Notwendig",
+    "functional": "Funktional",
+    "statistics": "Statistik",
+    "marketing": "Marketing",
+    "necessaryDesc": "Für die Funktion der Website unerlässlich. Sie können nicht deaktiviert werden.",
+    "functionalDesc": "Ermöglichen erweiterte Funktionalität und Personalisierung.",
+    "statisticsDesc": "Helfen uns zu verstehen, wie der Dienst genutzt wird (z. B. Google Analytics).",
+    "marketingDesc": "Werden für personalisierte Werbung verwendet (z. B. Meta Pixel, Google Ads)."
+  },
+  "common": {
+    "buttons": {
+      "save": "Speichern",
+      "cancel": "Abbrechen",
+      "close": "Schließen"
+    },
+    "labels": {
+      "language": "Sprache"
+    }
+  },
+  "legal": {
+    "links": {
+      "terms": "Allgemeine Geschäftsbedingungen",
+      "privacy": "Datenschutzrichtlinie",
+      "cookies": "Cookie-Richtlinie"
+    },
+    "termsTitle": "Allgemeine Geschäftsbedingungen",
+    "privacyTitle": "Datenschutzrichtlinie",
+    "cookiesTitle": "Cookie-Richtlinie"
+  }
+}
