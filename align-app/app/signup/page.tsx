@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import AuthProviders from "@/components/AuthProviders";
+import { InLucruReminder } from "@/components/InLucruBanner";
 import { getDeviceFingerprint } from "@/lib/deviceFingerprint";
 import { displayName } from "@/lib/displayName";
 
@@ -228,7 +229,8 @@ function SignUpContent() {
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-8 bg-dark-900">
       <div className="max-w-sm mx-auto px-4 flex flex-col w-full">
-        <Link href="/" className="inline-block text-brand-400 font-bold">
+        <InLucruReminder />
+        <Link href="/" className="inline-block text-brand-400 font-bold mt-4">
           ← Align
         </Link>
         <h1 className="text-2xl font-semibold text-white mt-4">Creează cont</h1>

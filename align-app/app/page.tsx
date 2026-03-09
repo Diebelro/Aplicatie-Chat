@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { APP_AUTHOR, APP_CREDIT } from "@/lib/site";
 import { CardUltra } from "@/components/CardUltra";
+import { InLucruReminder } from "@/components/InLucruBanner";
 
 export default function HomePage() {
   return (
@@ -24,6 +25,10 @@ export default function HomePage() {
           </nav>
         </div>
       </header>
+
+      <div className="px-4 pt-2 pb-1">
+        <InLucruReminder />
+      </div>
 
       <main className="flex-1 flex flex-col items-center justify-center px-4 py-16">
         <h1 className="text-4xl md:text-6xl font-bold text-center max-w-3xl mb-6">
