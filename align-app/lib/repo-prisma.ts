@@ -413,7 +413,7 @@ export async function prismaGetFeedCandidates(
   const myLng = me?.locations[0]?.longitude;
   const hasMyLocation = myLat != null && myLng != null && Number.isFinite(myLat) && Number.isFinite(myLng);
 
-  const ONLINE_MS = 15 * 60 * 1000;
+  const ONLINE_MS = 60 * 1000; // sub 1 min = instant ca WhatsApp
   const onlineCutoff = new Date(Date.now() - ONLINE_MS);
 
   const profiles = await prisma.profile.findMany({
@@ -535,7 +535,7 @@ export async function prismaGetVisibleUsersForMap(
     where: { userId: { in: userIds } },
   });
   const locByUser = new Map(locations.map((l) => [l.userId, l]));
-  const ONLINE_MS = 15 * 60 * 1000;
+  const ONLINE_MS = 60 * 1000; // sub 1 min = instant ca WhatsApp
   const cutoff = new Date(Date.now() - ONLINE_MS);
   const withActivity = await prisma.profile.findMany({
     where: { userId: { in: userIds }, lastActiveAt: { gte: cutoff } },

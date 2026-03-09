@@ -9,7 +9,7 @@ export function getDeviceFingerprint(): string {
   const s = [
     navigator.userAgent,
     navigator.language,
-    (navigator as { languages?: string[] }).languages?.join(",") ?? "",
+    (navigator.languages ? [...navigator.languages].join(",") : ""),
     screen.width,
     screen.height,
     screen.colorDepth,

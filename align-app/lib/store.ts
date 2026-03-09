@@ -193,7 +193,7 @@ export function getTrustScore(user: User): number {
 }
 
 /** Online doar dacă utilizatorul e pe site acum (heartbeat în ultimele 15 secunde). */
-const ONLINE_SECONDS = 15;
+const ONLINE_SECONDS = 60; // sub 1 min = instant ca WhatsApp
 
 export function setUserActive(userId: string): void {
   const now = Date.now();

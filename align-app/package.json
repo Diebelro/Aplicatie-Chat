@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --port 3000",
-    "build": "prisma generate && next build",
-    "start": "next start",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start --port 3000",
     "lint": "next lint",
     "verify-i18n": "node scripts/verify-i18n-keys.cjs",
     "postinstall": "prisma generate",
@@ -25,7 +25,8 @@
     "next-auth": "^4.24.10",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-leaflet": "^4.2.1"
+    "react-leaflet": "^4.2.1",
+    "resend": "^6.9.3"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

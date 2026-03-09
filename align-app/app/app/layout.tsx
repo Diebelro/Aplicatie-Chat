@@ -238,7 +238,7 @@ export default function AppLayout({
               Ieșire
             </button>
             <span
-              className="ml-2 px-2.5 py-1 rounded border border-amber-500/60 bg-amber-500/10 text-amber-400 text-xs font-medium"
+              className="ml-2 px-2.5 py-1 rounded border border-red-500/60 bg-red-600/30 text-white text-xs font-medium"
               title="Aplicația este în dezvoltare"
             >
               În lucru

@@ -88,7 +88,7 @@ function parseFilters(searchParams: URLSearchParams): {
   };
 }
 
-const ONLINE_MS = 15 * 60 * 1000;
+const ONLINE_MS = 60 * 1000; // sub 1 min = instant ca WhatsApp
 
 function distanceHaversine(
   lat1: number,

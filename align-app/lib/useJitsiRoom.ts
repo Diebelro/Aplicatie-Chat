@@ -195,8 +195,8 @@ export function useJitsiRoom({
           .then((tracks: unknown[]) => {
             if (cancelled) return;
             localTracksRef.current = tracks;
-            const audioTrack = tracks.find((tr: { type: string }) => tr.type === "audio");
-            const videoTrack = tracks.find((tr: { type: string }) => tr.type === "video") as { setMuted?: (m: boolean) => void } | undefined;
+            const audioTrack = tracks.find((tr: unknown) => (tr as { type: string }).type === "audio");
+            const videoTrack = tracks.find((tr: unknown) => (tr as { type: string }).type === "video") as { setMuted?: (m: boolean) => void } | undefined;
             if (audioOnly && videoTrack) videoTrack.setMuted?.(true);
             setState((s) => ({ ...s, localVideoTrack: videoTrack ?? null, localAudioTrack: audioTrack ?? null }));
             return Promise.all(tracks.map((track) => room.addTrack(track)));

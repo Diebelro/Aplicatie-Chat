@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 
-export default function ResetPasswordViaScanPage() {
+function ResetPasswordViaScanContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const sessionId = searchParams.get("sessionId") ?? "";
@@ -141,5 +141,13 @@ export default function ResetPasswordViaScanPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function ResetPasswordViaScanPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-dark-900 text-dark-400">Se încarcă...</div>}>
+      <ResetPasswordViaScanContent />
+    </Suspense>
   );
 }

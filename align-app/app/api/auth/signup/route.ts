@@ -167,7 +167,7 @@ export async function POST(request: Request) {
     const ip = getClientIp(request);
     const userAgent = request.headers.get("user-agent") ?? "";
     const fingerprintForDevice = fp && fp.length > 0 ? fp : `no-fp-${ip}`;
-    let user: { id: string; email: string; name: string; username: string; [key: string]: unknown };
+    let user: { id: string; email: string; name: string; username: string };
     let deviceId: string;
     let persistent: boolean;
 

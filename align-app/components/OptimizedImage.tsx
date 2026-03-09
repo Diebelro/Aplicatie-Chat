@@ -2,10 +2,6 @@
 
 import Image from "next/image";
 
-/** Blur placeholder mic (gri) pentru tranziție la încărcare */
-const BLUR_DATA =
-  "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBmaWxsPSIjMjIzMDNjIi8+PC9zdmc+";
-
 type OptimizedImageProps = {
   src: string;
   alt?: string;
@@ -20,9 +16,9 @@ type OptimizedImageProps = {
 };
 
 /**
- * Imagine optimizată: lazy load, blur la încărcare.
+ * Imagine optimizată: lazy load, fără blur.
  * - data: → <img> lazy
- * - URL relativ (/) → next/image cu blur
+ * - URL relativ (/) → next/image
  * - URL extern (http(s)) → <img> lazy (fără config remotePatterns)
  */
 export function OptimizedImage({
@@ -59,8 +55,6 @@ export function OptimizedImage({
         fill
         sizes={sizes ?? "100vw"}
         className={`object-cover ${className}`}
-        placeholder="blur"
-        blurDataURL={BLUR_DATA}
         loading={priority ? "eager" : "lazy"}
         priority={priority}
       />
@@ -77,8 +71,6 @@ export function OptimizedImage({
       height={h}
       sizes={sizes ?? "(max-width: 768px) 96px, 96px"}
       className={className}
-      placeholder="blur"
-      blurDataURL={BLUR_DATA}
       loading={priority ? "eager" : "lazy"}
       priority={priority}
     />

@@ -119,7 +119,10 @@ export async function POST(request: Request) {
       }
     }
     if (!user && !usePrisma) {
-      user = findUserByEmail(emailStr) ?? null;
+      const localUser = findUserByEmail(emailStr);
+      user = localUser
+        ? { id: localUser.id, email: localUser.email }
+        : null;
       if (user) {
         const hash = getPasswordHash(user.id);
         if (!hash || !verifyPassword(String(password), hash)) {

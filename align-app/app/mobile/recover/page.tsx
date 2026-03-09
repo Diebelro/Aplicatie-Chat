@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
-export default function MobileRecoverPage() {
+function MobileRecoverContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token") ?? "";
   const [loading, setLoading] = useState(false);
@@ -98,5 +98,13 @@ export default function MobileRecoverPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function MobileRecoverPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-dark-900 text-dark-400">Se încarcă...</div>}>
+      <MobileRecoverContent />
+    </Suspense>
   );
 }

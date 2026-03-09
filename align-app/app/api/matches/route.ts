@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { findUserById, getMutualMatches, isUserOnlineVisible, getDistanceKmForDisplay } from "@/lib/store";
 import { isPrismaAvailable, findUserOrPrisma, prismaGetMutualMatches, prismaGetMyLocation } from "@/lib/repo-prisma";
 
-const ONLINE_MS = 15 * 60 * 1000;
+const ONLINE_MS = 60 * 1000; // sub 1 min = instant ca WhatsApp
 
 function distanceHaversine(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371;
