@@ -6,7 +6,6 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import AuthProviders from "@/components/AuthProviders";
-import { InLucruReminder } from "@/components/InLucruBanner";
 import { getDeviceFingerprint } from "@/lib/deviceFingerprint";
 
 const RECAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY ?? "";
@@ -67,9 +66,17 @@ function LoginContent() {
   const [retryAfterSeconds, setRetryAfterSeconds] = useState(0);
 
   useEffect(() => {
+    const e = searchParams.get("email");
+    if (e) setEmail(decodeURIComponent(e));
+  }, [searchParams]);
+
+  useEffect(() => {
     const auth = searchParams.get("auth");
     const soon = searchParams.get("soon");
-    if (soon === "1" && auth && AUTH_PROVIDER_NAMES[auth]) {
+    const reason = searchParams.get("reason");
+    if (reason === "session_expired") {
+      setSoonMessage("Sesiunea a expirat. Introdu același email și parola ca la înregistrare.");
+    } else if (soon === "1" && auth && AUTH_PROVIDER_NAMES[auth]) {
       setSoonMessage(`Autentificarea cu ${AUTH_PROVIDER_NAMES[auth]} va fi disponibilă în curând.`);
     }
   }, [searchParams]);
@@ -96,17 +103,32 @@ function LoginContent() {
         getRecaptchaToken(),
         RECAPTCHA_SITE_KEY ? loadRecaptchaScript() : Promise.resolve(),
       ]);
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: email.trim(),
-          password,
-          rememberDevice: rememberDevice,
-          recaptchaToken: recaptchaToken || undefined,
-          deviceFingerprint: getDeviceFingerprint() || undefined,
-        }),
-      });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 20000);
+      let res: Response;
+      try {
+        res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            email: email.trim(),
+            password,
+            rememberDevice: rememberDevice,
+            recaptchaToken: recaptchaToken || undefined,
+            deviceFingerprint: getDeviceFingerprint() || undefined,
+          }),
+          signal: controller.signal,
+        });
+      } catch (fetchErr) {
+        clearTimeout(timeoutId);
+        if (fetchErr instanceof Error && fetchErr.name === "AbortError") {
+          setError("Conectarea durează prea mult. Verifică internetul și încearcă din nou.");
+          return;
+        }
+        throw fetchErr;
+      }
+      clearTimeout(timeoutId);
       const contentType = res.headers.get("content-type") ?? "";
       let data: { error?: string; user?: unknown; sessionType?: string; sessionToken?: string; deviceId?: string; profileComplete?: boolean } = {};
       if (contentType.includes("application/json")) {
@@ -152,8 +174,12 @@ function LoginContent() {
       other.removeItem("align_device_id");
       other.removeItem("align_device_fingerprint");
       const profileComplete = data.profileComplete !== false;
-      router.push(profileComplete ? "/app" : "/completeaza-profilul");
-      router.refresh();
+      const redirectTo = searchParams.get("redirect");
+      const safeRedirect = redirectTo?.startsWith("/") && !redirectTo.startsWith("//") ? redirectTo : null;
+      const target = safeRedirect ?? (profileComplete ? "/app" : "/completeaza-profilul");
+      // DEV ONLY: allow browser time to persist Set-Cookie before redirect
+      await new Promise((r) => setTimeout(r, 500));
+      window.location.href = target;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Eroare");
     } finally {
@@ -164,7 +190,6 @@ function LoginContent() {
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-8 bg-dark-900">
       <div className="max-w-sm mx-auto px-4 flex flex-col w-full">
-        <InLucruReminder />
         <Link href="/" className="inline-block text-brand-400 font-bold mt-4">
           ← Align
         </Link>
@@ -188,6 +213,9 @@ function LoginContent() {
         <div className="mt-6">
           <AuthProviders compact />
         </div>
+        <p className="text-xs text-dark-400 text-center mt-2">
+          Google, Facebook etc. vor fi disponibile în curând. Folosește email și parola mai jos.
+        </p>
 
         <p className="text-sm text-dark-300 opacity-70 text-center mt-4">
           sau continuă cu email

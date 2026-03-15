@@ -1,8 +1,16 @@
 "use client";
 
+/**
+ * REGULĂ FIXĂ (vezi .cursor/rules/avatar-defaults-fixed.mdc):
+ * Când userul nu are poză: femei → female-default.jpg, bărbați → male-default-1.jpg.
+ * NU schimba această logică fără cerere explicită.
+ */
 import { User } from "lucide-react";
 import { OptimizedImage } from "@/components/OptimizedImage";
 import type { Gender } from "@/lib/store";
+
+const DEFAULT_AVATAR_FEMALE = "/avatars/female-default.jpg";
+const DEFAULT_AVATAR_MALE = "/avatars/male-default-1.jpg";
 
 function getGradient(gender?: Gender | null): string {
   switch (gender) {
@@ -18,16 +26,16 @@ function getGradient(gender?: Gender | null): string {
 interface SilhouetteAvatarProps {
   /** URL poză sau data URL – dacă există, se afișează poza */
   photoUrl?: string | null;
-  /** Gen pentru culoarea avatarului când nu e poză */
+  /** Gen – când nu e poză, se afișează imaginea implicită femeie/bărbat */
   gender?: Gender | null;
-  /** Nume pentru inițială în avatar */
+  /** Nume pentru inițială în avatar (când nu e poză și nu e imagine implicită) */
   name?: string;
   className?: string;
   imgClassName?: string;
 }
 
 /**
- * Afișează fie poza utilizatorului, fie un avatar cu gradient și inițială (sau pictogramă).
+ * Afișează poza utilizatorului, sau imaginea implicită după gen (femeie/bărbat), sau gradient + inițială.
  */
 export function SilhouetteAvatar({
   photoUrl,
@@ -36,10 +44,14 @@ export function SilhouetteAvatar({
   className = "",
   imgClassName = "w-full h-full object-cover",
 }: SilhouetteAvatarProps) {
-  if (photoUrl) {
+  const defaultByGender =
+    gender === "female" ? DEFAULT_AVATAR_FEMALE : gender === "male" ? DEFAULT_AVATAR_MALE : null;
+  const src = photoUrl || defaultByGender;
+
+  if (src) {
     return (
-      <div className={`relative ${imgClassName}`}>
-        <OptimizedImage src={photoUrl} alt="" fill className="object-cover" />
+      <div className={`relative w-full h-full rounded-full overflow-hidden ${className}`.trim()}>
+        <OptimizedImage src={src} alt="" fill className="object-cover object-center" />
       </div>
     );
   }

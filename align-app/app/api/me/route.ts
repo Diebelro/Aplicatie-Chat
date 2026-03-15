@@ -4,6 +4,7 @@ import { getAuthenticatedUserId } from "@/lib/sessionAuth";
 import {
   isPrismaAvailable,
   findUserOrPrisma,
+  prismaFindUserByIdForMe,
   prismaUpdateProfile,
   prismaUpsertProfilePhotos,
   prismaSetProfileCompleted,
@@ -22,7 +23,7 @@ export async function GET(request: NextRequest) {
   setUserActive(userId);
   if (isPrismaAvailable()) {
     try {
-      const user = await findUserOrPrisma(userId);
+      const user = await prismaFindUserByIdForMe(userId);
       if (user) {
         await prismaUpdateLastActive(userId);
         return NextResponse.json({ user });
@@ -89,6 +90,9 @@ export async function PATCH(request: NextRequest) {
   }
   const body = await request.json().catch(() => ({}));
 
+  const nameVal = body.name != null ? String(body.name).trim() : "";
+  const nameValid = nameVal.length >= 3 && /^\p{L}+$/u.test(nameVal);
+
   if (body.username != null) {
     const raw = String(body.username).trim().toLowerCase();
     if (raw.length < 2 || raw.length > 30) {
@@ -126,7 +130,7 @@ export async function PATCH(request: NextRequest) {
         profileData.username = raw;
         profileData.name = raw;
       }
-      if (body.name != null) profileData.name = String(body.name).trim();
+      if (body.name != null && nameValid) profileData.name = String(body.name).trim();
       if (body.bio != null) profileData.bio = String(body.bio).trim();
       if (body.country != null) profileData.country = body.country === "" ? null : String(body.country).trim();
       if (body.city != null) profileData.city = body.city === "" ? undefined : String(body.city).trim();
@@ -152,6 +156,8 @@ export async function PATCH(request: NextRequest) {
       if (body.bodyType != null) profileData.bodyType = body.bodyType === "" ? undefined : String(body.bodyType).trim();
       if (body.clothingStyle != null) profileData.clothingStyle = body.clothingStyle === "" ? undefined : String(body.clothingStyle).trim();
       if (body.distinctiveFeatures != null) profileData.distinctiveFeatures = body.distinctiveFeatures === "" ? undefined : String(body.distinctiveFeatures).trim();
+      if (body.physical_asset != null) profileData.physicalAsset = body.physical_asset === "" ? undefined : String(body.physical_asset).trim();
+      if (body.physical_asset_detail != null) profileData.physicalAssetDetail = body.physical_asset_detail === "" ? undefined : String(body.physical_asset_detail).trim().slice(0, 40);
       if (body.partnerPhysicalPreferences != null) profileData.partnerPhysicalPreferences = body.partnerPhysicalPreferences === "" ? undefined : String(body.partnerPhysicalPreferences).trim();
       if (body.partnerLifestyle != null) profileData.partnerLifestyle = body.partnerLifestyle === "" ? undefined : String(body.partnerLifestyle).trim();
       if (body.partnerDealBreakers != null) profileData.partnerDealBreakers = body.partnerDealBreakers === "" ? undefined : String(body.partnerDealBreakers).trim();
@@ -167,27 +173,70 @@ export async function PATCH(request: NextRequest) {
       }
       if (Object.keys(profileData).length > 0) await prismaUpdateProfile(userId, profileData);
       if (body.photos !== undefined) {
-        const photos = Array.isArray(body.photos)
-          ? body.photos.slice(0, 5).filter((p: unknown) => typeof p === "string" && (p as string).length > 0)
+        const rawCount = Array.isArray(body.photos) ? body.photos.length : 0;
+        const photoUrls: string[] = Array.isArray(body.photos)
+          ? body.photos
+              .slice(0, 5)
+              .filter((p: unknown) => typeof p === "string" && String(p).trim().length > 0)
+              .map((p) => String(p).trim())
           : [];
-        await prismaUpsertProfilePhotos(userId, photos as string[]);
+        if (process.env.NODE_ENV === "development" && rawCount > 0 && photoUrls.length === 0) {
+          console.warn("[api/me PATCH] Pozele au fost eliminate la validare (body.photos avea", rawCount, "elemente). Verifică că sunt string-uri și că nu depășesc ~2MB fiecare.");
+        }
+        await prismaUpsertProfilePhotos(userId, photoUrls);
+        if (process.env.NODE_ENV === "development") {
+          const { prisma } = await import("@/lib/db");
+          const profileAfter = await prisma.profile.findUnique({
+            where: { userId },
+            include: { photos: true },
+          });
+          console.log(
+            "[api/me PATCH] body.photos length:",
+            photoUrls.length,
+            "| DB profile.photos length:",
+            profileAfter?.photos?.length ?? 0
+          );
+        }
       }
 
       const { prisma } = await import("@/lib/db");
-      const profile = await prisma.profile.findUnique({ where: { userId }, include: { photos: true } });
+      let profile = await prisma.profile.findUnique({ where: { userId }, include: { photos: true } });
+      if (profile && !profile.username?.trim()) {
+        const base = (profile.name?.trim() || "user").toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 20) || "user";
+        let candidate = base;
+        let found = false;
+        for (let i = 0; i < 10; i++) {
+          candidate = i === 0 ? base : `${base}_${i}`;
+          if (candidate.length < 2) continue;
+          const existing = await prismaFindUserByUsername(candidate);
+          if (!existing || existing.id === userId) {
+            await prisma.profile.update({ where: { userId }, data: { username: candidate } });
+            profile = await prisma.profile.findUnique({ where: { userId }, include: { photos: true } });
+            found = true;
+            break;
+          }
+        }
+        if (!found) {
+          return NextResponse.json(
+            { error: "Nu s-a putut genera un username unic. Completează Prenumele cu o valoare mai unică și salvează din nou." },
+            { status: 400 }
+          );
+        }
+      }
       const hadCompleted = await prismaProfileCompleted(userId);
       const nameOk = !!(profile?.name?.trim());
-      const usernameOk = !!(profile?.username?.trim());
-      const birthOk = !!(profile?.birthDate?.trim());
       const genderOk = !!(profile?.gender?.trim());
-      const photosOk = (profile?.photos?.length ?? 0) >= 1;
-      const nowComplete = nameOk && usernameOk && birthOk && genderOk && photosOk;
+      const nowComplete = nameOk && genderOk;
       if (nowComplete && !hadCompleted) await prismaSetProfileCompleted(userId);
 
-      const user = await findUserOrPrisma(userId);
-      return NextResponse.json({ user: user ?? me });
-    } catch {
-      return NextResponse.json({ error: "Eroare server." }, { status: 500 });
+      const user = (await prismaFindUserByIdForMe(userId)) ?? (await findUserOrPrisma(userId)) ?? me;
+      return NextResponse.json({ user });
+    } catch (err) {
+      console.error("[api/me PATCH]", err);
+      return NextResponse.json(
+        { error: "Eroare la salvare. Încearcă poze mai mici sau mai puține." },
+        { status: 500 }
+      );
     }
   }
 
@@ -232,6 +281,8 @@ export async function PATCH(request: NextRequest) {
   if (body.bodyType != null) updates.bodyType = body.bodyType === "" ? undefined : String(body.bodyType).trim();
   if (body.clothingStyle != null) updates.clothingStyle = body.clothingStyle === "" ? undefined : String(body.clothingStyle).trim();
   if (body.distinctiveFeatures != null) updates.distinctiveFeatures = body.distinctiveFeatures === "" ? undefined : String(body.distinctiveFeatures).trim();
+  if (body.physical_asset != null) updates.physicalAsset = body.physical_asset === "" ? undefined : String(body.physical_asset).trim();
+  if (body.physical_asset_detail != null) updates.physicalAssetDetail = body.physical_asset_detail === "" ? undefined : String(body.physical_asset_detail).trim().slice(0, 40);
   if (body.partnerPhysicalPreferences != null) updates.partnerPhysicalPreferences = body.partnerPhysicalPreferences === "" ? undefined : String(body.partnerPhysicalPreferences).trim();
   if (body.partnerLifestyle != null) updates.partnerLifestyle = body.partnerLifestyle === "" ? undefined : String(body.partnerLifestyle).trim();
   if (body.partnerDealBreakers != null) updates.partnerDealBreakers = body.partnerDealBreakers === "" ? undefined : String(body.partnerDealBreakers).trim();

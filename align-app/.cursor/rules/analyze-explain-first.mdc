@@ -1,0 +1,14 @@
+---
+description: Mod de lucru implicit – analizează și explică mai întâi, fără modificări de cod
+---
+
+# Analizează și explică mai întâi
+
+**Regulă implicită în acest proiect:**
+
+1. **Analizează** cererea utilizatorului și codul/fișierele relevante.
+2. **Explică** ce ai face și de ce (plan, pași, motivare). **Nu modifica niciun cod** și nu scrie în fișiere.
+3. **Oprește-te** după explicare. Nu executa editări, aplică modificări sau rulează comenzi care schimbă codul.
+4. **Fă modificări DOAR** când utilizatorul scrie explicit: **MAKE THE CHANGE**.
+
+Până la acel moment, răspunde doar cu analiză și explicație.

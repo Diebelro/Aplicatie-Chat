@@ -58,6 +58,8 @@ model Profile {
   bodyType              String?
   clothingStyle         String?
   distinctiveFeatures   String?
+  physicalAsset        String?
+  physicalAssetDetail  String?
   partnerPhysicalPreferences String?
   partnerLifestyle      String?
   partnerDealBreakers   String?

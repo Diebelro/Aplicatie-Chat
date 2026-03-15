@@ -31,6 +31,8 @@ function profileToUserDTO(
     bodyType: string | null;
     clothingStyle: string | null;
     distinctiveFeatures: string | null;
+    physicalAsset: string | null;
+    physicalAssetDetail: string | null;
     partnerPhysicalPreferences: string | null;
     partnerLifestyle: string | null;
     partnerDealBreakers: string | null;
@@ -87,6 +89,8 @@ function profileToUserDTO(
     bodyType: p.bodyType ?? undefined,
     clothingStyle: p.clothingStyle ?? undefined,
     distinctiveFeatures: p.distinctiveFeatures ?? undefined,
+    physicalAsset: p.physicalAsset ?? undefined,
+    physicalAssetDetail: p.physicalAssetDetail ?? undefined,
     partnerPhysicalPreferences: p.partnerPhysicalPreferences ?? undefined,
     partnerLifestyle: p.partnerLifestyle ?? undefined,
     partnerDealBreakers: p.partnerDealBreakers ?? undefined,
@@ -153,6 +157,68 @@ export async function prismaFindUserById(id: string): Promise<User | null> {
   } as Parameters<typeof profileToUserDTO>[0]);
 }
 
+/** Găsește user doar după id (pentru /api/me). Dacă are Profile, returnează DTO complet; altfel returnează minim (id, email, photos: []). */
+export async function prismaFindUserByIdForMe(userId: string): Promise<User | null> {
+  const full = await prismaFindUserById(userId);
+  if (full) return full;
+  const row = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { profile: { include: { photos: true } } },
+  });
+  if (!row) return null;
+  const profile = row.profile;
+  const photos = profile?.photos?.sort((a, b) => a.order - b.order).map((ph) => ph.url) ?? [];
+  return {
+    id: row.id,
+    email: row.email,
+    name: profile?.name ?? row.email.split("@")[0],
+    username: profile?.username ?? row.email.split("@")[0],
+    real_name: profile?.realName ?? null,
+    bio: profile?.bio ?? "",
+    age: undefined,
+    birthDate: profile?.birthDate ?? undefined,
+    gender: (profile?.gender as Gender) ?? undefined,
+    country: profile?.country ?? null,
+    city: profile?.city ?? undefined,
+    latitude: null,
+    longitude: null,
+    location_enabled: false,
+    show_distance: true,
+    show_online: true,
+    show_profile_visits: true,
+    show_read_receipts: true,
+    allow_friend_requests: true,
+    last_active: profile?.lastActiveAt ? profile.lastActiveAt.getTime() : null,
+    postalCode: profile?.postalCode ?? undefined,
+    educationLevel: profile?.educationLevel ?? undefined,
+    occupation: profile?.occupation ?? undefined,
+    maritalStatus: profile?.maritalStatus ?? undefined,
+    wantsChildren: profile?.wantsChildren ?? undefined,
+    height: profile?.height ?? undefined,
+    weight: profile?.weight ?? undefined,
+    eyeColor: profile?.eyeColor ?? undefined,
+    hairColor: profile?.hairColor ?? undefined,
+    bodyType: profile?.bodyType ?? undefined,
+    clothingStyle: profile?.clothingStyle ?? undefined,
+    distinctiveFeatures: profile?.distinctiveFeatures ?? undefined,
+    partnerPhysicalPreferences: profile?.partnerPhysicalPreferences ?? undefined,
+    partnerLifestyle: profile?.partnerLifestyle ?? undefined,
+    partnerDealBreakers: profile?.partnerDealBreakers ?? undefined,
+    photos,
+    createdAt: row.createdAt.toISOString(),
+    premium_permanent: false,
+    premium_until: null,
+    rewarded_activations_today: 0,
+    rewarded_activations_date: new Date().toISOString().slice(0, 10),
+    subscription_plan_id: null,
+    subscription_status: null,
+    subscription_current_period_end: null,
+    trust_score: null,
+    role: row.role ?? "USER",
+    isBanned: row.isBanned ?? false,
+  };
+}
+
 export async function prismaCreateUserWithProfile(data: {
   email: string;
   passwordHash: string;
@@ -185,6 +251,15 @@ export async function prismaCreateUserWithProfile(data: {
     user: { id: user.id, email: user.email, createdAt: user.createdAt, role: user.role, isBanned: user.isBanned },
     photos: user.profile!.photos.map((ph) => ({ url: ph.url, order: ph.order })),
   } as Parameters<typeof profileToUserDTO>[0]);
+}
+
+/** Găsește user doar după email (pentru login). Nu cere Profile – astfel conturile existente sunt găsite mereu. */
+export async function prismaFindUserByEmailForLogin(email: string): Promise<{ id: string; email: string } | null> {
+  const user = await prisma.user.findUnique({
+    where: { email: email.trim().toLowerCase() },
+    select: { id: true, email: true },
+  });
+  return user ? { id: user.id, email: user.email } : null;
 }
 
 export async function prismaGetPasswordHash(userId: string): Promise<string | null> {
@@ -618,6 +693,8 @@ export async function prismaUpdateProfile(
     bodyType: string | null;
     clothingStyle: string | null;
     distinctiveFeatures: string | null;
+    physicalAsset: string | null;
+    physicalAssetDetail: string | null;
     partnerPhysicalPreferences: string | null;
     partnerLifestyle: string | null;
     partnerDealBreakers: string | null;
@@ -652,6 +729,8 @@ export async function prismaUpdateProfile(
   if (data.bodyType !== undefined) update.bodyType = data.bodyType;
   if (data.clothingStyle !== undefined) update.clothingStyle = data.clothingStyle;
   if (data.distinctiveFeatures !== undefined) update.distinctiveFeatures = data.distinctiveFeatures;
+  if (data.physicalAsset !== undefined) update.physicalAsset = data.physicalAsset;
+  if (data.physicalAssetDetail !== undefined) update.physicalAssetDetail = data.physicalAssetDetail;
   if (data.partnerPhysicalPreferences !== undefined) update.partnerPhysicalPreferences = data.partnerPhysicalPreferences;
   if (data.partnerLifestyle !== undefined) update.partnerLifestyle = data.partnerLifestyle;
   if (data.partnerDealBreakers !== undefined) update.partnerDealBreakers = data.partnerDealBreakers;
@@ -669,15 +748,31 @@ export async function prismaUpdateProfile(
 }
 
 const MAX_PHOTOS = 5;
+const MAX_URL_LENGTH = 2 * 1024 * 1024; // 2MB per URL (limită DB/text)
 
 export async function prismaUpsertProfilePhotos(userId: string, photoUrls: string[]): Promise<void> {
-  const urls = photoUrls.slice(0, MAX_PHOTOS).filter((u) => typeof u === "string" && u.length > 0);
-  const profile = await prisma.profile.findUnique({ where: { userId } });
-  if (!profile) return;
+  const urls = photoUrls
+    .slice(0, MAX_PHOTOS)
+    .filter((u) => typeof u === "string" && u.length > 0 && u.length <= MAX_URL_LENGTH);
+  let profile = await prisma.profile.findUnique({ where: { userId } });
+  if (!profile) {
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+    if (!user) return;
+    const base = user.email.split("@")[0].replace(/[^a-z0-9]/gi, "") || "user";
+    let username = base.toLowerCase().slice(0, 30);
+    let n = 0;
+    while (await prisma.profile.findUnique({ where: { username } })) {
+      username = `${base.slice(0, 26)}${n}`.toLowerCase();
+      n++;
+    }
+    profile = await prisma.profile.create({
+      data: { userId, name: username, username },
+    });
+  }
   await prisma.profilePhoto.deleteMany({ where: { profileId: profile.id } });
   for (let i = 0; i < urls.length; i++) {
     await prisma.profilePhoto.create({
-      data: { profileId: profile.id, url: urls[i], order: i },
+      data: { profileId: profile.id, url: urls[i].slice(0, MAX_URL_LENGTH), order: i },
     });
   }
 }

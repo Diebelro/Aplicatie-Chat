@@ -21,6 +21,7 @@ const PUBLIC_API_PREFIXES = [
   "/api/auth/recovery-confirm",
   "/api/auth/logout-all",
   "/api/check-username",
+  "/api/check-email",
   "/api/subscription/plans",
   "/api/rewarded",
 ];
@@ -40,19 +41,30 @@ export function middleware(request: NextRequest) {
   if (!pathname.startsWith("/api/")) {
     return NextResponse.next();
   }
+  // Doar în development: rute /api/dev/* fără auth (ex. delete-user). În producție nu se aplică.
+  if (process.env.NODE_ENV === "development" && pathname.startsWith("/api/dev/")) {
+    return NextResponse.next();
+  }
   if (isPublicApi(pathname)) {
     return NextResponse.next();
   }
   const userId = request.headers.get("x-user-id");
   const sessionToken = request.headers.get("x-session-token");
   const deviceId = request.headers.get("x-device-id");
-  if (!userId?.trim() || !sessionToken?.trim() || !deviceId?.trim()) {
-    return NextResponse.json(
-      { error: "Lipsesc header-ele de autentificare (x-user-id, x-session-token, x-device-id)." },
-      { status: 401 }
-    );
+  const hasHeaders = userId?.trim() && sessionToken?.trim() && deviceId?.trim();
+  if (hasHeaders) {
+    return NextResponse.next();
   }
-  return NextResponse.next();
+  if (pathname === "/api/me") {
+    const sessionCookie = request.cookies.get("align_sid");
+    if (sessionCookie?.value) {
+      return NextResponse.next();
+    }
+  }
+  return NextResponse.json(
+    { error: "Lipsesc header-ele de autentificare (x-user-id, x-session-token, x-device-id)." },
+    { status: 401 }
+  );
 }
 
 export const config = {

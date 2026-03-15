@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Trash2, MessageCircle, Video, Phone, Users, Clock, UserPlus, Eye, ArrowUpFromLine, MessageSquare, CheckCheck, Heart, ShieldOff, Flag } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { getVideoRoomId } from "@/lib/videoCall";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
@@ -73,6 +73,8 @@ function buildQuery(f: SearchFilters): string {
 
 export default function ProfilesPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const previewMe = searchParams.get("preview") === "me";
   const [profiles, setProfiles] = useState<ProfileWithOnline[]>([]);
   const [loading, setLoading] = useState(true);
   const [myLocationEnabled, setMyLocationEnabled] = useState(false);
@@ -376,6 +378,40 @@ export default function ProfilesPage() {
         </span>
         <span>Distanța (m/km) apare dacă ai permis locația.</span>
       </div>
+      {previewMe && me && (
+        <section className="mb-6">
+          <h3 className="text-sm font-semibold text-dark-300 mb-3">Profilul tău (așa te văd alții)</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 max-w-md">
+            <div className="border rounded-2xl overflow-hidden flex flex-col bg-dark-800 border-dark-600">
+              <div className="w-full h-32 bg-dark-700 overflow-hidden">
+                <SilhouetteAvatar
+                  photoUrl={me.photos?.[0]}
+                  gender={me.gender}
+                  name={me.name}
+                  className="w-full h-32"
+                  imgClassName="w-full h-32 object-cover"
+                />
+              </div>
+              <div className="flex-1 min-w-0 p-4">
+                <p className="font-semibold text-white truncate">{displayName(me.username ?? me.name)}</p>
+                <p className="text-xs mt-0.5 text-brand-400">Tu</p>
+                {me.bio?.trim() && (
+                  <p className="text-sm text-dark-500 mt-1 line-clamp-2">{me.bio.trim()}</p>
+                )}
+                <p className="text-xs text-dark-400 mt-1 flex flex-wrap gap-x-2 gap-y-0">
+                  {me.age != null && <span>{me.age} ani</span>}
+                  {me.gender && <span>{me.gender === "male" ? "Bărbat" : me.gender === "female" ? "Femeie" : "Altul"}</span>}
+                  {me.height != null && <span>{me.height} cm</span>}
+                  {me.eyeColor && <span>ochi {me.eyeColor}</span>}
+                  {me.hairColor && <span>păr {me.hairColor}</span>}
+                  {me.city && <span>{me.city}</span>}
+                  <span>—</span>
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
         {profiles.map((u) => {
           const { border, statusKey } = getSmallCardState({
@@ -413,9 +449,11 @@ export default function ProfilesPage() {
                   {statusLabel}
                 </p>
               )}
-              <p className="text-sm text-dark-500 mt-1 line-clamp-2">
-                {u.bio || "—"}
-              </p>
+              {u.bio?.trim() && (
+                <p className="text-sm text-dark-500 mt-1 line-clamp-2">
+                  {u.bio.trim()}
+                </p>
+              )}
               <p className="text-xs text-dark-400 mt-1 flex flex-wrap gap-x-2 gap-y-0">
                 {u.age != null && <span>{u.age} ani</span>}
                 {u.gender && <span>{u.gender === "male" ? "Bărbat" : u.gender === "female" ? "Femeie" : "Altul"}</span>}

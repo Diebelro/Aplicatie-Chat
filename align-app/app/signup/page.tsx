@@ -5,9 +5,9 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import AuthProviders from "@/components/AuthProviders";
-import { InLucruReminder } from "@/components/InLucruBanner";
 import { getDeviceFingerprint } from "@/lib/deviceFingerprint";
 import { displayName } from "@/lib/displayName";
+import { validateUsername, USERNAME_HELP_TEXT } from "@/lib/usernameFormat";
 
 const RECAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY ?? "";
 
@@ -41,25 +41,43 @@ function SignUpContent() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [usernameCheck, setUsernameCheck] = useState<"idle" | "checking" | "available" | "taken">("idle");
+  const [emailCheck, setEmailCheck] = useState<"idle" | "checking" | "available" | "taken">("idle");
   useEffect(() => {
     const e = searchParams.get("email");
     if (e) setEmail(decodeURIComponent(e));
   }, [searchParams]);
 
   useEffect(() => {
-    if (!username.trim() || username.length < 2) {
+    const validation = validateUsername(username);
+    if (!validation.ok) {
       setUsernameCheck("idle");
       return;
     }
     const t = setTimeout(() => {
       setUsernameCheck("checking");
-      fetch(`/api/check-username?value=${encodeURIComponent(username.trim())}`)
+      fetch(`/api/check-username?value=${encodeURIComponent(validation.value)}`)
         .then((r) => r.json())
         .then((d) => setUsernameCheck(d.available ? "available" : "taken"))
         .catch(() => setUsernameCheck("idle"));
     }, 400);
     return () => clearTimeout(t);
   }, [username]);
+
+  useEffect(() => {
+    const raw = email.trim().toLowerCase();
+    if (!raw || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw)) {
+      setEmailCheck("idle");
+      return;
+    }
+    const t = setTimeout(() => {
+      setEmailCheck("checking");
+      fetch(`/api/check-email?value=${encodeURIComponent(raw)}`)
+        .then((r) => r.json())
+        .then((d) => setEmailCheck(d.available ? "available" : "taken"))
+        .catch(() => setEmailCheck("idle"));
+    }, 400);
+    return () => clearTimeout(t);
+  }, [email]);
 
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -71,7 +89,7 @@ function SignUpContent() {
   const [birthMonth, setBirthMonth] = useState("");
   const [birthYear, setBirthYear] = useState("");
   const [gender, setGender] = useState("");
-  const [rememberDevice, setRememberDevice] = useState(false);
+  const [rememberDevice, setRememberDevice] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [acceptTerms, setAcceptTerms] = useState(false);
@@ -150,8 +168,9 @@ function SignUpContent() {
       setError("Trebuie să ai cel puțin 18 ani pentru a crea un cont.");
       return;
     }
-    if (!username.trim()) {
-      setError("Introdu un username (litere, cifre, punct, liniuță jos).");
+    const usernameValidation = validateUsername(username);
+    if (!usernameValidation.ok) {
+      setError(usernameValidation.error);
       return;
     }
     if (usernameCheck === "taken") {
@@ -173,7 +192,7 @@ function SignUpContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: email.trim(),
-          username: username.trim(),
+          username: usernameValidation.value,
           password,
           gender: gender || undefined,
           birthDate: birthDateStr,
@@ -217,8 +236,9 @@ function SignUpContent() {
       other.removeItem("align_session_token");
       other.removeItem("align_device_id");
       other.removeItem("align_device_fingerprint");
-      router.push("/onboarding/location");
-      router.refresh();
+      // Pauză minimă ca browserul să salveze cookie-ul (aprox. 0,1 s) – apoi redirect full page ca să nu ajungi iar la login
+      await new Promise((r) => setTimeout(r, 100));
+      window.location.href = "/onboarding/location";
     } catch (err) {
       setError(err instanceof Error ? err.message : "Eroare");
     } finally {
@@ -229,7 +249,6 @@ function SignUpContent() {
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-8 bg-dark-900">
       <div className="max-w-sm mx-auto px-4 flex flex-col w-full">
-        <InLucruReminder />
         <Link href="/" className="inline-block text-brand-400 font-bold mt-4">
           ← Align
         </Link>
@@ -246,6 +265,9 @@ function SignUpContent() {
         <div className="mt-6">
           <AuthProviders compact />
         </div>
+        <p className="text-xs text-dark-400 text-center mt-2">
+          Google, Facebook etc. vor fi disponibile în curând. Folosește email și parola mai jos.
+        </p>
 
         <p className="text-sm text-dark-300 opacity-70 text-center mt-4">
           sau continuă cu email
@@ -264,6 +286,8 @@ function SignUpContent() {
               autoComplete="email"
               className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-white placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
+            {emailCheck === "available" && <p className="text-green-400 text-xs mt-1">Acest email este liber. Poți crea cont.</p>}
+            {emailCheck === "taken" && <p className="text-red-400 text-xs mt-1">Există deja un cont cu acest email. <Link href="/login" className="underline">Loghează-te</Link>.</p>}
           </div>
           <div>
             <label htmlFor="signup-username" className="block text-xs text-dark-400 mb-1">Username (nu email-ul — ex: ana_maria)</label>
@@ -279,6 +303,7 @@ function SignUpContent() {
               autoComplete="username"
               className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-white placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
+            <p className="text-dark-500 text-xs mt-1">{USERNAME_HELP_TEXT}</p>
             {usernameCheck === "available" && <p className="text-green-400 text-xs mt-1">{displayName(username.trim().toLowerCase())} este disponibil</p>}
             {usernameCheck === "taken" && <p className="text-red-400 text-xs mt-1">Acest username este folosit. Alege altul (ex: ana_maria2).</p>}
           </div>

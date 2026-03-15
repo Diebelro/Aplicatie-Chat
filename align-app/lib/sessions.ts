@@ -1,6 +1,7 @@
 /**
  * Sesiuni în memorie: sessionId -> { userId, deviceId, expiresAt }.
  * Cookie-ul align_sid conține sessionId. La request autenticat actualizăm lastUsedAt pe device.
+ * Folosim globalThis ca același Map să fie folosit de toate rutele API (login și /api/me).
  */
 
 const SESSION_COOKIE_NAME = "align_sid";
@@ -15,7 +16,9 @@ interface SessionEntry {
   expiresAt: number;
 }
 
-const sessions = new Map<string, SessionEntry>();
+const globalStore = (typeof globalThis !== "undefined" ? globalThis : typeof window !== "undefined" ? window : {}) as { __align_sessions?: Map<string, SessionEntry> };
+if (!globalStore.__align_sessions) globalStore.__align_sessions = new Map();
+const sessions = globalStore.__align_sessions;
 
 function generateSessionId(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36) + Math.random().toString(36).slice(2);

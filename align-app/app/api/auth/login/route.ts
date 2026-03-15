@@ -9,7 +9,7 @@ import { findDevice, createDevice, setDeviceTrusted } from "@/lib/devices";
 import { createSession, SESSION_COOKIE, getSessionCookieOptions } from "@/lib/sessions";
 import {
   isPrismaAvailable,
-  prismaFindUserByEmail,
+  prismaFindUserByEmailForLogin,
   prismaGetPasswordHash,
   prismaProfileCompleted,
   prismaUpsertDevice,
@@ -101,12 +101,9 @@ export async function POST(request: Request) {
 
     if (usePrisma) {
       try {
-        const prismaUser = await prismaFindUserByEmail(emailStr);
+        const prismaUser = await prismaFindUserByEmailForLogin(emailStr);
         if (prismaUser) {
-          user = {
-            id: prismaUser.id,
-            email: prismaUser.email ?? undefined
-          };
+          user = { id: prismaUser.id, email: prismaUser.email };
           const hash = await prismaGetPasswordHash(prismaUser.id);
           if (!hash || !verifyPassword(String(password), hash)) {
             recordLoginFailure(ip, fp);
@@ -114,20 +111,21 @@ export async function POST(request: Request) {
           }
           profileComplete = await prismaProfileCompleted(prismaUser.id);
         }
-      } catch {
-        usePrisma = false;
+      } catch (err) {
+        console.error("[auth login] Prisma error", err);
+        return NextResponse.json(
+          { error: "Eroare la conexiunea cu baza de date. Verifică DATABASE_URL în .env și rulează npm run db:setup." },
+          { status: 503 }
+        );
       }
     }
-    if (!user && !usePrisma) {
+    if (!user) {
       const localUser = findUserByEmail(emailStr);
-      user = localUser
-        ? { id: localUser.id, email: localUser.email }
-        : null;
-      if (user) {
-        const hash = getPasswordHash(user.id);
-        if (!hash || !verifyPassword(String(password), hash)) {
-          recordLoginFailure(ip, fp);
-          return NextResponse.json({ error: "Parolă incorectă." }, { status: 401 });
+      if (localUser) {
+        const hash = getPasswordHash(localUser.id);
+        if (hash && verifyPassword(String(password), hash)) {
+          user = { id: localUser.id, email: localUser.email };
+          usePrisma = false;
         }
       }
     }

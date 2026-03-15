@@ -9,6 +9,10 @@ out/
 build/
 dist/
 
+# Local DB (nu pune pe GitHub)
+*.db
+prisma/prisma/
+
 # Env (secrets, local config)
 .env
 .env.local

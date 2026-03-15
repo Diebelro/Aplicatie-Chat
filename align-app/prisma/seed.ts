@@ -12,12 +12,19 @@ function hashPassword(password: string): string {
 }
 
 async function main() {
+  // REGULĂ: Utilizatorii reali NU sunt niciodată șterși aici. Doar demo1…demo110@align.local.
+  // Ștergerea utilizatorilor reali: doar prin "Șterge contul" (utilizator) sau "Sterge user" (admin).
+  const demoEmails = Array.from({ length: 110 }, (_, i) => `demo${i + 1}${DEMO_EMAIL_DOMAIN}`);
   const existing = await prisma.user.findMany({
-    where: { email: { endsWith: DEMO_EMAIL_DOMAIN } },
-    select: { id: true },
+    where: { email: { in: demoEmails } },
+    select: { id: true, email: true },
   });
   const ids = existing.map((u) => u.id);
+  const onlyDemo = existing.every((u) => demoEmails.includes(u.email));
   if (ids.length > 0) {
+    if (!onlyDemo || ids.length > 110) {
+      throw new Error("Seed safety: only demo1…demo110@align.local may be deleted. Aborting.");
+    }
     await prisma.message.deleteMany({ where: { OR: [{ fromUserId: { in: ids } }, { toUserId: { in: ids } }] } });
     await prisma.match.deleteMany({ where: { OR: [{ userAId: { in: ids } }, { userBId: { in: ids } }] } });
     await prisma.swipe.deleteMany({ where: { OR: [{ fromUserId: { in: ids } }, { toUserId: { in: ids } }] } });
@@ -75,6 +82,15 @@ async function main() {
     [45.7983, 24.1256],
   ];
 
+  const fakeFirstNames = ["Maria", "Andrei", "Elena", "Alex", "Ioana", "Mihai", "Ana", "David", "Sofia", "Stefan", "Diana", "George", "Cristina", "Radu", "Laura", "Bogdan", "Andreea", "Vlad", "Raluca", "Adrian"];
+  const fakeBios = ["Călătorii, cafea.", "Sport, muzică.", "Filme, natură.", "Fotografie.", "Yoga, citit.", "Gaming, prieteni.", "Concerte.", "Drumeții.", "Travel, food.", "Tech, filme."];
+  const fakeCities = ["București", "Cluj-Napoca", "Timișoara", "Iași", "Brașov", "Constanța", "Sibiu", "Craiova", "Galați", "Oradea"];
+  const fakeLatLngs: [number, number][] = [
+    [44.43, 26.10], [46.77, 23.62], [45.75, 21.21], [47.16, 27.58], [45.64, 25.59],
+    [44.16, 28.63], [45.80, 24.13], [44.32, 23.82], [45.44, 28.04], [47.05, 21.92],
+  ];
+  const years = [1990, 1992, 1994, 1995, 1996, 1997, 1998, 1999, 2000];
+
   const userIds: string[] = [];
   for (let i = 0; i < 10; i++) {
     const email = `demo${i + 1}${DEMO_EMAIL_DOMAIN}`;
@@ -114,13 +130,52 @@ async function main() {
     }
   }
 
+  for (let i = 10; i < 110; i++) {
+    const email = `demo${i + 1}${DEMO_EMAIL_DOMAIN}`;
+    const name = `${fakeFirstNames[i % fakeFirstNames.length]} Fake${i + 1}`;
+    const username = `fake_${i + 1}`.slice(0, 30);
+    const user = await prisma.user.create({
+      data: {
+        email,
+        passwordHash,
+        profile: {
+          create: {
+            name,
+            username,
+            bio: fakeBios[i % fakeBios.length],
+            birthDate: `${years[i % years.length]}-${String((i % 12) + 1).padStart(2, "0")}-15`,
+            gender: i % 2 === 0 ? "female" : "male",
+            country: "România",
+            city: fakeCities[i % fakeCities.length],
+            completedAt: now,
+            lastActiveAt: i % 3 === 0 ? recentActive : olderActive,
+            showDistance: true,
+            showOnline: true,
+            showProfileVisits: true,
+            showReadReceipts: true,
+            allowFriendRequests: true,
+          },
+        },
+      },
+      include: { profile: true },
+    });
+    userIds.push(user.id);
+    const profileId = user.profile!.id;
+    const loc = fakeLatLngs[i % fakeLatLngs.length];
+    await prisma.location.createMany({
+      data: [{ userId: user.id, latitude: loc[0], longitude: loc[1] }],
+    });
+    await prisma.profilePhoto.create({
+      data: { profileId, url: `https://picsum.photos/seed/fake${user.id}/200/200`, order: 0 },
+    });
+  }
+
   await prisma.location.createMany({
-    data: userIds.map((id, idx) => ({
+    data: userIds.slice(0, 10).map((id, idx) => ({
       userId: id,
       latitude: latLngs[idx][0],
       longitude: latLngs[idx][1],
     })),
-    skipDuplicates: true,
   });
 
   await prisma.swipe.createMany({
@@ -137,7 +192,6 @@ async function main() {
       { fromUserId: userIds[5], toUserId: userIds[6], liked: true },
       { fromUserId: userIds[6], toUserId: userIds[5], liked: true },
     ],
-    skipDuplicates: true,
   });
 
   const matchPairs: [string, string][] = [
@@ -170,7 +224,6 @@ async function main() {
       { userId: userIds[0], planId: "lifetime", status: "active", currentPeriodEnd: null },
       { userId: userIds[1], planId: "yearly", status: "active", currentPeriodEnd: new Date(now.getFullYear() + 1, now.getMonth(), now.getDate()) },
     ],
-    skipDuplicates: true,
   });
 }
 

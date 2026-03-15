@@ -7,7 +7,7 @@ import { createDevice, setDeviceTrusted } from "@/lib/devices";
 import { createSession, SESSION_COOKIE, getSessionCookieOptions } from "@/lib/sessions";
 import {
   isPrismaAvailable,
-  prismaFindUserByEmail,
+  prismaFindUserByEmailForLogin,
   prismaFindUserByUsername,
   prismaCreateUserWithProfile,
   prismaUpsertDevice,
@@ -78,10 +78,10 @@ export async function POST(request: Request) {
     let usePrisma = isPrismaAvailable();
     if (usePrisma) {
       try {
-        const existingEmail = await prismaFindUserByEmail(emailStr);
-        if (existingEmail) {
+        const existingUser = await prismaFindUserByEmailForLogin(emailStr);
+        if (existingUser) {
           return NextResponse.json(
-            { error: "Există deja un cont cu acest email. Ai deja cont? Loghează-te." },
+            { error: "Există deja un cont cu acest email. Loghează-te." },
             { status: 409 }
           );
         }
@@ -99,7 +99,7 @@ export async function POST(request: Request) {
     if (!usePrisma) {
       if (findUserByEmail(emailStr)) {
         return NextResponse.json(
-          { error: "Există deja un cont cu acest email. Ai deja cont? Loghează-te." },
+          { error: "Există deja un cont cu acest email. Loghează-te." },
           { status: 409 }
         );
       }

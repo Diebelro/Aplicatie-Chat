@@ -1,0 +1,31 @@
+---
+description: Pagina profil – salvare automată, fără buton Salvează. NU modifica acest comportament.
+globs: app/app/profile/page.tsx
+---
+
+# Profil – salvare automată (FĂRĂ buton Salvează)
+
+**Regulă: acest comportament rămâne. Nu readăuga butonul „Salvează” și nu scoate salvarea automată.**
+
+## Comportament obligatoriu
+
+1. **Salvare automată la modificare**  
+   La orice schimbare în câmpuri (prenume, sex, oraș, bio, poze, etc.) se pornește un timer (debounce ~400 ms). După ce utilizatorul nu mai modifică nimic, se trimite singura salvare (PATCH /api/me). **Nu există buton „Salvează”.**
+
+2. **Salvare la ieșire din pagină**  
+   Când utilizatorul părăsește pagina (navigare în app sau beforeunload): dacă există modificări nesalvate (`hasUnsavedChanges`), se apelează `saveProfile()` înainte de plecare (flush). Timer-ul pending se anulează și se face o salvare cu datele curente.
+
+3. **Feedback**  
+   Mesaje: „Modificările se salvează automat.”, „Se salvează…” în timpul salvării, „Salvat automat.” după succes. **Nu readăuga** un buton principal de tip „Salvează”.
+
+## Obligatoriu vs opțional pe formular
+
+- **Obligatoriu (minim pentru „profil complet”):** Prenume (name), Sex (gender).  
+- **Opțional:** toate celelalte câmpuri (data nașterii, oraș, cod poștal, educație, ocupatie, aspect fizic, preferințe, poze, etc.).  
+- Toate câmpurile opționale au „(opțional)” în label. Vârsta se calculează din data nașterii.
+
+## Ce NU face
+
+- Nu readăuga butonul „Salvează” pe pagina de profil.
+- Nu elimina debounce-ul și salvare la ieșire (flushSave / saveProfileRef).
+- Nu face salvarea condiționată de un click (totul rămâne automat).

@@ -2,14 +2,15 @@
 
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
 import { getAuthHeaders } from "@/lib/authClient";
+import { getProfileImageUrl } from "@/lib/profileImage";
+import { SilhouetteAvatar } from "@/components/SilhouetteAvatar";
 import IncomingCall from "@/components/IncomingCall";
 import { Watermark } from "@/components/Watermark";
 import { displayName } from "@/lib/displayName";
-import { APP_CREDIT } from "@/lib/site";
 
 export default function AppLayout({
   children,
@@ -17,8 +18,10 @@ export default function AppLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [storageRetry, setStorageRetry] = useState(0);
   const [totalUnread, setTotalUnread] = useState(0);
   const [missedCallsCount, setMissedCallsCount] = useState(0);
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -26,9 +29,15 @@ export default function AppLayout({
   useEffect(() => {
     const raw = typeof window !== "undefined" ? getStoredUserRaw() : null;
     if (!raw) {
-      router.replace("/login");
-      setLoading(false);
-      return;
+      // După login, storage poate apărea cu o mică întârziere – așteptăm o dată înainte de redirect
+      if (storageRetry > 0) {
+        const redirect = pathname ? `/login?redirect=${encodeURIComponent(pathname)}` : "/login";
+        router.replace(redirect);
+        setLoading(false);
+        return;
+      }
+      const t = setTimeout(() => setStorageRetry((r) => r + 1), 100);
+      return () => clearTimeout(t);
     }
     let cancelled = false;
     (async () => {
@@ -38,11 +47,25 @@ export default function AppLayout({
           if (!cancelled) router.replace("/cont-blocat");
           return;
         }
-        const res = await fetch("/api/me", { headers: getAuthHeaders() });
+        let res = await fetch("/api/me", { headers: getAuthHeaders(), credentials: "include" });
         if (cancelled) return;
         if (res.status === 401) {
-          router.replace("/login");
-          return;
+          await new Promise((r) => setTimeout(r, 400));
+          res = await fetch("/api/me", { headers: getAuthHeaders(), credentials: "include" });
+          if (cancelled) return;
+          if (res.status === 401) {
+            if (typeof window !== "undefined") {
+              localStorage.removeItem("align_user");
+              sessionStorage.removeItem("align_user");
+              localStorage.removeItem("align_session_token");
+              sessionStorage.removeItem("align_session_token");
+              localStorage.removeItem("align_device_id");
+              sessionStorage.removeItem("align_device_id");
+            }
+            router.replace("/login");
+            setLoading(false);
+            return;
+          }
         }
         if (!res.ok) {
           setUser(u);
@@ -66,7 +89,8 @@ export default function AppLayout({
             const u = JSON.parse(raw) as User;
             setUser(u);
           } catch {
-            router.replace("/login");
+            const redirect = pathname ? `/login?redirect=${encodeURIComponent(pathname)}` : "/login";
+            router.replace(redirect);
           }
         }
       } finally {
@@ -74,7 +98,41 @@ export default function AppLayout({
       }
     })();
     return () => { cancelled = true; };
-  }, [router]);
+  }, [router, storageRetry, pathname]);
+
+  // Dacă userul din state nu are poze (ex. după login cu răspuns minimal), refetch /api/me pentru avatar
+  useEffect(() => {
+    if (!user?.id || (user.photos?.length ?? 0) > 0) return;
+    let cancelled = false;
+    fetch("/api/me", { headers: getAuthHeaders(), credentials: "include" })
+      .then((r) => (cancelled ? null : r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled || !data?.user) return;
+        const full = data.user as User;
+        if (full.photos?.length) {
+          setUser(full);
+          const fromLocal = !!localStorage.getItem("align_user");
+          (fromLocal ? localStorage : sessionStorage).setItem("align_user", JSON.stringify(full));
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [user?.id, user?.photos?.length]);
+
+  // Actualizare avatar în header când utilizatorul salvează profilul (ex. poză nouă)
+  useEffect(() => {
+    const onUserUpdated = (e: Event) => {
+      const detail = (e as CustomEvent<User | undefined>).detail;
+      if (detail && typeof detail === "object" && detail.id) {
+        setUser(detail as User);
+        return;
+      }
+      const raw = typeof window !== "undefined" ? getStoredUserRaw() : null;
+      if (raw) try { setUser(JSON.parse(raw) as User); } catch { /* ignore */ }
+    };
+    window.addEventListener("align_user_updated", onUserUpdated);
+    return () => window.removeEventListener("align_user_updated", onUserUpdated);
+  }, []);
 
   // Heartbeat la ~5s → online în timp real (ca WhatsApp)
   useEffect(() => {
@@ -230,28 +288,30 @@ export default function AppLayout({
             >
               Setări cont
             </Link>
-            <span className="text-dark-400 text-sm border-l border-dark-600 pl-3">{displayName(user.username ?? user.name)}</span>
+            <div className="flex items-center gap-2 border-l border-dark-600 pl-3">
+              <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 bg-dark-700">
+                <SilhouetteAvatar
+                  photoUrl={getProfileImageUrl(user) ?? undefined}
+                  gender={user.gender}
+                  name={user.name}
+                  className="w-full h-full"
+                  imgClassName="w-full h-full object-cover object-center"
+                />
+              </div>
+              <span className="text-dark-400 text-sm">{displayName(user.username ?? user.name)}</span>
+            </div>
             <button
               onClick={logout}
               className="text-dark-400 hover:text-red-400 text-sm transition"
             >
               Ieșire
             </button>
-            <span
-              className="ml-2 px-2.5 py-1 rounded border border-red-500/60 bg-red-600/30 text-white text-xs font-medium"
-              title="Aplicația este în dezvoltare"
-            >
-              În lucru
-            </span>
           </nav>
         </div>
       </header>
       <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-6">
         {children}
       </main>
-      <footer className="border-t border-dark-600 py-3 px-4 text-center text-dark-500 text-xs">
-        {APP_CREDIT}
-      </footer>
       <Watermark />
       <IncomingCall />
     </div>

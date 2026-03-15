@@ -63,6 +63,10 @@ export interface User {
   clothingStyle?: string;
   /** Trăsături distinctive (ochelari, tatuaje etc.) */
   distinctiveFeatures?: string;
+  /** Atu fizic (opțional) */
+  physicalAsset?: string;
+  /** Detaliu atu fizic (opțional, max 40 caractere) */
+  physicalAssetDetail?: string;
   /** Preferințe fizice în partener */
   partnerPhysicalPreferences?: string;
   /** Stil de viață dorit la partener */

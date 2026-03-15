@@ -12,7 +12,18 @@ const LIMITS: Record<string, number> = {
   "/api/auth/login": 3,
   "/api/auth/signup": 3,
   "/api/messages": 100,
+  "/api/check-email": 60,
+  "/api/check-username": 60,
 };
+
+/** IP client pentru rate limit (x-forwarded-for / x-real-ip). */
+export function getClientIpForRateLimit(request: Request): string {
+  const xff = request.headers.get("x-forwarded-for");
+  if (xff) return xff.split(",")[0].trim();
+  const xri = request.headers.get("x-real-ip");
+  if (xri) return xri.trim();
+  return "unknown";
+}
 
 function getLimit(pathname: string): number {
   for (const [path, limit] of Object.entries(LIMITS)) {
