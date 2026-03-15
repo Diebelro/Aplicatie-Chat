@@ -6,6 +6,19 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+/** Rute de pagină publice – trec mereu, înainte de orice verificare auth. */
+const PUBLIC_PAGE_PATHS = [
+  "/",
+  "/login",
+  "/signup",
+  "/terms",
+  "/privacy",
+  "/cookies",
+  "/forgot-password",
+  "/reset-password",
+  "/verify-email",
+];
+
 const PUBLIC_API_PREFIXES = [
   "/api/media", // acces doar cu URL semnat (s=)
   "/api/admin/setup-status",
@@ -38,6 +51,9 @@ function isPublicApi(pathname: string): boolean {
 
 export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
+  if (PUBLIC_PAGE_PATHS.includes(pathname)) {
+    return NextResponse.next();
+  }
   if (!pathname.startsWith("/api/")) {
     return NextResponse.next();
   }
@@ -68,5 +84,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/api/:path*"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };
