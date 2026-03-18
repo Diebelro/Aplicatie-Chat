@@ -69,6 +69,12 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+    if (!emailStr.includes("@")) {
+      return NextResponse.json(
+        { error: "Introdu emailul, nu username-ul." },
+        { status: 400 }
+      );
+    }
     if (!password) {
       return NextResponse.json(
         { error: "Lipsește parola." },

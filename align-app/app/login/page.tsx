@@ -33,11 +33,14 @@ function getRecaptchaToken(): Promise<string> {
   return w.grecaptcha.execute(RECAPTCHA_SITE_KEY, { action: "login" });
 }
 
+const LAST_EMAIL_KEY = "align_last_email";
+
 function getDisplayError(res: Response, data: { error?: string }): string {
   const msg = data.error ?? "Eroare la logare";
   if (res.status === 429) return "Prea multe încercări, încearcă mai târziu.";
+  if (msg.includes("Introdu emailul") || msg.includes("username-ul")) return "Introdu emailul, nu username-ul.";
   if (res.status === 404 || msg.includes("Nu există cont")) return "Nu există cont cu acest email. Înregistrează-te mai întâi sau verifică adresa.";
-  if (res.status === 401 || msg.includes("Parolă") || msg.includes("incorectă")) return "Parolă incorectă. Încearcă din nou.";
+  if (res.status === 401 || msg.includes("Parolă") || msg.includes("incorectă")) return "Email sau parolă incorecte.";
   if (msg.includes("reCAPTCHA") || msg.includes("Verificarea")) return "Verificarea reCAPTCHA a eșuat.";
   if (msg.includes("suspect") || msg.includes("Activitate")) return "Activitate suspectă detectată.";
   return msg;
@@ -67,8 +70,20 @@ function LoginContent() {
 
   useEffect(() => {
     const e = searchParams.get("email");
-    if (e) setEmail(decodeURIComponent(e));
+    if (e) {
+      const decoded = decodeURIComponent(e).trim();
+      if (decoded.includes("@")) setEmail(decoded);
+    }
   }, [searchParams]);
+
+  useEffect(() => {
+    try {
+      const last = typeof window !== "undefined" ? localStorage.getItem(LAST_EMAIL_KEY) : null;
+      if (last && last.trim().includes("@")) setEmail((prev) => (prev ? prev : last.trim()));
+    } catch {
+      // ignore
+    }
+  }, []);
 
   useEffect(() => {
     const auth = searchParams.get("auth");
@@ -93,6 +108,11 @@ function LoginContent() {
     e.preventDefault();
     setError("");
     setRetryAfterSeconds(0);
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail.includes("@")) {
+      setError("Introdu emailul, nu username-ul.");
+      return;
+    }
     if (!acceptTerms) {
       setError("Trebuie să accepți Termenii și Politica de Confidențialitate.");
       return;
@@ -169,6 +189,13 @@ function LoginContent() {
       if (data.deviceId) storage.setItem("align_device_id", data.deviceId);
       const fp = getDeviceFingerprint();
       if (fp) storage.setItem("align_device_fingerprint", fp);
+      if (data.sessionType === "persistent" && trimmedEmail) {
+        try {
+          localStorage.setItem(LAST_EMAIL_KEY, trimmedEmail);
+        } catch {
+          // ignore
+        }
+      }
       other.removeItem("align_user");
       other.removeItem("align_session_token");
       other.removeItem("align_device_id");
@@ -222,9 +249,15 @@ function LoginContent() {
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+          <label htmlFor="login-email" className="block text-sm font-medium text-dark-300">
+            Email
+          </label>
           <input
+            id="login-email"
             type="email"
-            placeholder="Email"
+            name="email"
+            autoComplete="email"
+            placeholder="email@domain.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
