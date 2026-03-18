@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { put } from "@vercel/blob";
-import { CHAT_ATTACHMENT, isAllowedAttachmentType } from "@/lib/chatAttachments";
+import {
+  CHAT_ATTACHMENT,
+  isAllowedAttachmentType,
+  isImageContentType,
+  isPdfContentType,
+} from "@/lib/chatAttachments";
 import { getAuthenticatedUserId } from "@/lib/sessionAuth";
 
 /**
- * Upload un singur fișier pentru chat. Doar imagini (jpeg, png, webp), max 10MB.
+ * Upload un singur fișier pentru chat. Imagini (jpeg, png, webp) → public; PDF → private. Max 10MB.
  */
 export async function POST(request: NextRequest) {
   const userId = getAuthenticatedUserId(request);
@@ -13,9 +18,10 @@ export async function POST(request: NextRequest) {
   }
 
   const tokenImages = process.env.BLOB_READ_WRITE_TOKEN;
-  if (!tokenImages) {
+  const tokenPdf = process.env.BLOB_READ_WRITE_TOKEN_PDF;
+  if (!tokenImages && !tokenPdf) {
     return NextResponse.json(
-      { error: "Upload-ul nu este configurat (lipsește BLOB_READ_WRITE_TOKEN)." },
+      { error: "Upload-ul nu este configurat (lipsesc token-uri Blob)." },
       { status: 503 }
     );
   }
@@ -41,7 +47,10 @@ export async function POST(request: NextRequest) {
   const contentType = (file.type || "").trim().toLowerCase();
   if (!isAllowedAttachmentType(contentType)) {
     return NextResponse.json(
-      { error: "Tip fișier nepermis. Permise doar imagini: JPEG, PNG, WebP." },
+      {
+        error:
+          "Tip fișier nepermis. Permise: imagini (JPEG, PNG, WebP) și PDF.",
+      },
       { status: 400 }
     );
   }
@@ -69,16 +78,16 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const access = isPdf ? "private" as const : "public" as const;
+  const access = isPdf ? ("private" as const) : ("public" as const);
   const ext = isPdf ? "pdf" : contentType.split("/")[1] || "bin";
   const pathname = `chat/${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`;
 
   try {
     const blob = await put(pathname, file, {
-      access: "public",
+      access,
       contentType,
       addRandomSuffix: true,
-      token: tokenImages,
+      token,
     });
     return NextResponse.json({
       url: blob.url,

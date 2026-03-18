@@ -11,7 +11,7 @@ import { track } from "@/lib/tracking";
 import { displayName } from "@/lib/displayName";
 import { getAuthHeaders } from "@/lib/authClient";
 
-const ALLOWED_ATTACH_ACCEPT = "image/jpeg,image/png,image/webp";
+const ALLOWED_ATTACH_ACCEPT = "image/jpeg,image/png,image/webp,application/pdf";
 const MAX_ATTACH_MB = 10;
 
 interface Message {
@@ -157,7 +157,7 @@ export default function ChatPage() {
       setSendError(`Fișierul depășește ${MAX_ATTACH_MB} MB.`);
       return;
     }
-    const allowed = ["image/jpeg", "image/png", "image/webp"];
+    const allowed = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
     if (!allowed.includes(file.type)) {
       setSendError("Tip permis: JPEG, PNG, WebP sau PDF.");
       return;
