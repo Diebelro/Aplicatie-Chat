@@ -92,7 +92,7 @@ export default function AppDiscoverPage() {
   const [filters, setFilters] = useSearchFilters();
   const [debouncedName, setDebouncedName] = useState(filters.name);
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedName(filters.name), 400);
+    const t = setTimeout(() => setDebouncedName(filters.name), 600);
     return () => clearTimeout(t);
   }, [filters.name]);
   const lastViewedId = useRef<string | null>(null);
@@ -364,13 +364,18 @@ export default function AppDiscoverPage() {
         <div className="flex flex-wrap gap-3 items-end">
           <div>
             <label className="block text-xs text-dark-500 mb-1">Nume</label>
-            <input
-              type="text"
-              placeholder="Caută după nume..."
-              value={filters.name}
-              onChange={(e) => setFilters((f) => ({ ...f, name: e.target.value }))}
-              className="w-40 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
-            />
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                placeholder="Caută după nume..."
+                value={filters.name}
+                onChange={(e) => setFilters((f) => ({ ...f, name: e.target.value }))}
+                className="w-40 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              />
+              {filters.name !== debouncedName && filters.name.trim() !== "" && (
+                <span className="text-xs text-dark-500">Se caută...</span>
+              )}
+            </div>
           </div>
           <label className="flex items-center gap-2 cursor-pointer">
             <input

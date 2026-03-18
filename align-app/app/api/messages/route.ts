@@ -53,7 +53,8 @@ export async function GET(request: NextRequest) {
       });
       const matchId = await prismaGetMatchIdBetween(userId, withId);
       return NextResponse.json({ messages: list, areFriends: !!matchId, matchId });
-    } catch {
+    } catch (err) {
+      console.error("[api/messages GET]", err);
       return NextResponse.json({ error: "Eroare server." }, { status: 500 });
     }
   }
@@ -123,7 +124,8 @@ export async function POST(request: NextRequest) {
         hasAttachment ? String(attachmentContentType) : undefined
       );
       return NextResponse.json({ message: msg });
-    } catch {
+    } catch (err) {
+      console.error("[api/messages POST]", err);
       return NextResponse.json({ error: "Eroare server." }, { status: 500 });
     }
   }
