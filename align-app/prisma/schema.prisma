@@ -119,16 +119,18 @@ model Match {
 }
 
 model Message {
-  id          String   @id @default(cuid())
-  fromUserId  String
-  toUserId    String
-  fromUser    User     @relation("MessageFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
-  toUser      User     @relation("MessageTo", fields: [toUserId], references: [id], onDelete: Cascade)
-  text        String
-  status      String   @default("SENT")
-  createdAt   DateTime @default(now())
-  deliveredAt DateTime?
-  seenAt      DateTime?
+  id                    String   @id @default(cuid())
+  fromUserId            String
+  toUserId              String
+  fromUser              User     @relation("MessageFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser                User     @relation("MessageTo", fields: [toUserId], references: [id], onDelete: Cascade)
+  text                  String   @default("")
+  attachmentUrl         String?
+  attachmentContentType String?
+  status                String   @default("SENT")
+  createdAt             DateTime @default(now())
+  deliveredAt           DateTime?
+  seenAt                DateTime?
   @@index([fromUserId, toUserId])
   @@index([toUserId, fromUserId])
 }

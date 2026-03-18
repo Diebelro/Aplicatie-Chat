@@ -111,6 +111,8 @@ export interface Message {
   toId: string;
   text: string;
   at: string;
+  attachmentUrl?: string | null;
+  attachmentContentType?: string | null;
 }
 
 /** Singleton pe globalThis ca login și signup (chiar din chunk-uri diferite Next.js) să partajeze aceleași date. */
@@ -607,13 +609,21 @@ export function isMutualMatch(userId1: string, userId2: string): boolean {
   return myLikes.has(userId2) && theyLikedMe;
 }
 
-export function addMessage(fromId: string, toId: string, text: string): Message {
+export function addMessage(
+  fromId: string,
+  toId: string,
+  text: string,
+  attachmentUrl?: string | null,
+  attachmentContentType?: string | null
+): Message {
   const msg: Message = {
     id: generateId(),
     fromId,
     toId,
-    text: text.trim(),
+    text: (text ?? "").trim(),
     at: new Date().toISOString(),
+    attachmentUrl: attachmentUrl ?? undefined,
+    attachmentContentType: attachmentContentType ?? undefined,
   };
   getState().messages.push(msg);
   return msg;

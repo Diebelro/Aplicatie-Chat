@@ -34,6 +34,7 @@ function getRecaptchaToken(): Promise<string> {
 }
 
 const LAST_EMAIL_KEY = "align_last_email";
+const PREFILL_KEYS_TO_CLEAN = ["username", "identifier", "align_username", "align_identifier"];
 
 function getDisplayError(res: Response, data: { error?: string }): string {
   const msg = data.error ?? "Eroare la logare";
@@ -69,17 +70,21 @@ function LoginContent() {
   const [retryAfterSeconds, setRetryAfterSeconds] = useState(0);
 
   useEffect(() => {
-    const e = searchParams.get("email");
-    if (e) {
-      const decoded = decodeURIComponent(e).trim();
-      if (decoded.includes("@")) setEmail(decoded);
-    }
-  }, [searchParams]);
-
-  useEffect(() => {
+    if (typeof window === "undefined") return;
     try {
-      const last = typeof window !== "undefined" ? localStorage.getItem(LAST_EMAIL_KEY) : null;
-      if (last && last.trim().includes("@")) setEmail((prev) => (prev ? prev : last.trim()));
+      const loc = window.localStorage;
+      const ses = window.sessionStorage;
+      PREFILL_KEYS_TO_CLEAN.forEach((k) => {
+        loc.removeItem(k);
+        ses.removeItem(k);
+      });
+      const last = loc.getItem(LAST_EMAIL_KEY);
+      if (last != null && !String(last).trim().includes("@")) {
+        loc.removeItem(LAST_EMAIL_KEY);
+        ses.removeItem(LAST_EMAIL_KEY);
+      }
+      const lastTrim = last != null ? String(last).trim() : "";
+      if (lastTrim.includes("@")) setEmail((prev) => (prev ? prev : lastTrim));
     } catch {
       // ignore
     }
@@ -270,7 +275,7 @@ function LoginContent() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              autoComplete={rememberDevice ? "on" : "off"}
+              autoComplete="current-password"
               className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 pr-12 text-white placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
             <button

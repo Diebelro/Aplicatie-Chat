@@ -196,6 +196,12 @@ export default function AppLayout({
     sessionStorage.removeItem("align_session_token");
     sessionStorage.removeItem("align_device_id");
     sessionStorage.removeItem("align_device_fingerprint");
+    localStorage.removeItem("align_last_email");
+    sessionStorage.removeItem("align_last_email");
+    ["username", "identifier", "align_username", "align_identifier"].forEach((k) => {
+      localStorage.removeItem(k);
+      sessionStorage.removeItem(k);
+    });
     router.replace("/");
     router.refresh();
   };

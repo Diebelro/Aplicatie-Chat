@@ -342,10 +342,19 @@ export type MessageWithStatus = Message & { status?: string };
 export async function prismaAddMessage(
   fromId: string,
   toId: string,
-  text: string
+  text: string,
+  attachmentUrl?: string | null,
+  attachmentContentType?: string | null
 ): Promise<MessageWithStatus> {
   const m = await prisma.message.create({
-    data: { fromUserId: fromId, toUserId: toId, text: text.trim(), status: "SENT" },
+    data: {
+      fromUserId: fromId,
+      toUserId: toId,
+      text: (text ?? "").trim(),
+      status: "SENT",
+      attachmentUrl: attachmentUrl ?? undefined,
+      attachmentContentType: attachmentContentType ?? undefined,
+    },
   });
   return {
     id: m.id,
@@ -354,6 +363,8 @@ export async function prismaAddMessage(
     text: m.text,
     at: m.createdAt.toISOString(),
     status: m.status,
+    attachmentUrl: m.attachmentUrl ?? undefined,
+    attachmentContentType: m.attachmentContentType ?? undefined,
   };
 }
 
@@ -377,7 +388,22 @@ export async function prismaGetMessagesBetween(
     text: m.text,
     at: m.createdAt.toISOString(),
     status: m.status,
+    attachmentUrl: m.attachmentUrl ?? undefined,
+    attachmentContentType: m.attachmentContentType ?? undefined,
   }));
+}
+
+export async function prismaGetMessageById(messageId: string): Promise<{
+  fromUserId: string;
+  toUserId: string;
+  attachmentUrl: string | null;
+  attachmentContentType: string | null;
+} | null> {
+  const m = await prisma.message.findUnique({
+    where: { id: messageId },
+    select: { fromUserId: true, toUserId: true, attachmentUrl: true, attachmentContentType: true },
+  });
+  return m;
 }
 
 export async function prismaUpdateMessageStatus(

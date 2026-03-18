@@ -43,7 +43,14 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ messages: [], areFriends: false, matchId: null });
       }
       await prismaUpdateLastActive(userId);
-      const list = await prismaGetMessagesBetween(userId, withId);
+      let list = await prismaGetMessagesBetween(userId, withId);
+      list = list.map((m) => {
+        const out = { ...m };
+        if (m.attachmentContentType === "application/pdf" && m.attachmentUrl) {
+          (out as { attachmentUrl: string }).attachmentUrl = `/api/chat/attachment?messageId=${m.id}`;
+        }
+        return out;
+      });
       const matchId = await prismaGetMatchIdBetween(userId, withId);
       return NextResponse.json({ messages: list, areFriends: !!matchId, matchId });
     } catch {
@@ -63,6 +70,9 @@ export async function GET(request: NextRequest) {
       const readAt = getMessageReadAt(m.id, withId);
       if (readAt) (base as Record<string, unknown>).readAt = readAt;
     }
+    if (base.attachmentContentType === "application/pdf" && base.attachmentUrl) {
+      (base as Record<string, unknown>).attachmentUrl = `/api/chat/attachment?messageId=${m.id}`;
+    }
     return base;
   });
   return NextResponse.json({ messages, areFriends });
@@ -81,10 +91,18 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Utilizator negăsit." }, { status: 404 });
       }
       const body = await request.json();
-      const { toId, text } = body;
-      if (!toId || !text || typeof text !== "string") {
+      const { toId, text, attachmentUrl, attachmentContentType } = body;
+      const textStr = typeof text === "string" ? text : "";
+      const hasAttachment = attachmentUrl && attachmentContentType;
+      if (!toId) {
         return NextResponse.json(
-          { error: "Lipsesc toId sau text." },
+          { error: "Lipsește toId." },
+          { status: 400 }
+        );
+      }
+      if (!textStr.trim() && !hasAttachment) {
+        return NextResponse.json(
+          { error: "Adaugă text sau un atașament (poză/PDF)." },
           { status: 400 }
         );
       }
@@ -97,7 +115,13 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Nu poți trimite mesaje acestui utilizator." }, { status: 403 });
       }
       await prismaUpdateLastActive(userId);
-      const msg = await prismaAddMessage(userId, toId, text);
+      const msg = await prismaAddMessage(
+        userId,
+        toId,
+        textStr,
+        hasAttachment ? String(attachmentUrl) : undefined,
+        hasAttachment ? String(attachmentContentType) : undefined
+      );
       return NextResponse.json({ message: msg });
     } catch {
       return NextResponse.json({ error: "Eroare server." }, { status: 500 });
@@ -107,16 +131,30 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Utilizator negăsit." }, { status: 404 });
   }
   const body = await request.json();
-  const { toId, text } = body;
-  if (!toId || !text || typeof text !== "string") {
+  const { toId, text, attachmentUrl, attachmentContentType } = body;
+  const textStr = typeof text === "string" ? text : "";
+  const hasAttachment = attachmentUrl && attachmentContentType;
+  if (!toId) {
     return NextResponse.json(
-      { error: "Lipsesc toId sau text." },
+      { error: "Lipsește toId." },
+      { status: 400 }
+    );
+  }
+  if (!textStr.trim() && !hasAttachment) {
+    return NextResponse.json(
+      { error: "Adaugă text sau un atașament (poză/PDF)." },
       { status: 400 }
     );
   }
   if (!findUserById(toId)) {
     return NextResponse.json({ error: "Destinatar negăsit." }, { status: 404 });
   }
-  const msg = addMessage(userId, toId, text);
+  const msg = addMessage(
+    userId,
+    toId,
+    textStr,
+    hasAttachment ? String(attachmentUrl) : undefined,
+    hasAttachment ? String(attachmentContentType) : undefined
+  );
   return NextResponse.json({ message: msg });
 }

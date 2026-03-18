@@ -1,0 +1,29 @@
+---
+description: Gândește și construiește aplicații ca un super-creier sistematic (om robot de top)
+alwaysApply: true
+---
+
+# Super-creier: cum să gândești și să construiești aplicații
+
+## Mentalitate
+
+- **Precizie de robot:** Fiecare schimbare e minimă, intenționată, reversibilă. Nu „mai bine” vag, ci „fix asta rezolvă asta”.
+- **Ordine de super-creier:** Înainte de cod: 1) Ce e problema exact? 2) Ce cauză e probabilă? 3) Un singur fix, măsurabil. Apoi implementare.
+- **Zero degradare:** Nu schimbi comportament care merge. Nu adaugi retry/fallback/UX fără cerere. Nu refactorizezi „ca să fie mai bine”.
+
+## Reguli de acțiune
+
+1. **Analizează înainte.** Explică problema, cauza, fixul. Oprește-te. Așteaptă „MAKE THE CHANGE” înainte de orice editare.
+2. **Un fix per problemă.** Un commit = un scop. Nu combina auth + styling + cleanup.
+3. **Atins doar ce trebuie.** Dacă cerința e „doar middleware.ts”, nu atingi layout, API, auth.
+4. **Verifică după.** După editare: lint, și dacă e cazul build/run rapid. Dacă ceva se strică, revin sau corectez imediat.
+
+## Calitate aplicație
+
+- **Rute și deploy:** Rutele App Router (layout, page) clare; config (next, vercel) fără contradicții. La 404/500: cauză (middleware, root dir, env), apoi un singur fix.
+- **Auth și state:** Sesiune = o sursă de adevăr (ex. globalThis pentru Map). Cookie vs headers clar. La 401: un motiv (middleware vs handler vs cookie lipsă), apoi remediu minim.
+- **Persistență:** Salvare (profil, poze) = request trimis + răspuns 200 + state actualizat. Dacă „nu rămâne”: fie request blocat (validare), fie 401, fie DB/env – identifici una, o rezolvi.
+
+## Rezumat
+
+Gândește ca un super om-robot: sistematic, precis, un pas măsurabil, fără a strica ce merge. Explică → propune un fix → așteaptă aprobare → aplici doar atât.

@@ -3,13 +3,16 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Send, Video, Phone, CheckCheck } from "lucide-react";
+import { Send, Video, Phone, CheckCheck, Paperclip, X, FileText } from "lucide-react";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
 import { getVideoRoomId } from "@/lib/videoCall";
 import { track } from "@/lib/tracking";
 import { displayName } from "@/lib/displayName";
 import { getAuthHeaders } from "@/lib/authClient";
+
+const ALLOWED_ATTACH_ACCEPT = "image/jpeg,image/png,image/webp,application/pdf";
+const MAX_ATTACH_MB = 10;
 
 interface Message {
   id: string;
@@ -18,6 +21,12 @@ interface Message {
   text: string;
   at: string;
   readAt?: string;
+  attachmentUrl?: string | null;
+  attachmentContentType?: string | null;
+}
+
+function isImageType(ct: string | null | undefined): boolean {
+  return ct === "image/jpeg" || ct === "image/png" || ct === "image/webp";
 }
 
 export default function ChatPage() {
@@ -34,6 +43,9 @@ export default function ChatPage() {
   const [sendError, setSendError] = useState<string | null>(null);
   const [calling, setCalling] = useState<"video" | "audio" | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
+  const [pendingAttachment, setPendingAttachment] = useState<{ url: string; contentType: string } | null>(null);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const meRaw = typeof window !== "undefined" ? getStoredUserRaw() : null;
@@ -93,7 +105,9 @@ export default function ChatPage() {
 
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!text.trim() || sending) return;
+    const hasText = text.trim().length > 0;
+    const hasAttach = !!pendingAttachment;
+    if ((!hasText && !hasAttach) || sending) return;
     setSending(true);
     setSendError(null);
     try {
@@ -102,15 +116,28 @@ export default function ChatPage() {
         setSendError("Nu ești autentificat. Reconectează-te.");
         return;
       }
+      const body: { toId: string; text: string; attachmentUrl?: string; attachmentContentType?: string } = {
+        toId: otherId,
+        text: text.trim(),
+      };
+      if (pendingAttachment) {
+        body.attachmentUrl = pendingAttachment.url;
+        body.attachmentContentType = pendingAttachment.contentType;
+      }
       const res = await fetch("/api/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...headers },
-        body: JSON.stringify({ toId: otherId, text: text.trim() }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (res.ok && data.message) {
-        setMessages((prev) => [...prev, data.message]);
+        const msg = data.message as Message;
+        if (msg.attachmentContentType === "application/pdf" && msg.attachmentUrl) {
+          msg.attachmentUrl = `/api/chat/attachment?messageId=${msg.id}`;
+        }
+        setMessages((prev) => [...prev, msg]);
         setText("");
+        setPendingAttachment(null);
         track.message_sent(otherId);
       } else {
         setSendError(data.error || "Eroare la trimitere. Încearcă din nou.");
@@ -119,6 +146,42 @@ export default function ChatPage() {
       setSendError("Eroare de rețea. Verifică conexiunea.");
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (file.size > MAX_ATTACH_MB * 1024 * 1024) {
+      setSendError(`Fișierul depășește ${MAX_ATTACH_MB} MB.`);
+      return;
+    }
+    const allowed = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
+    if (!allowed.includes(file.type)) {
+      setSendError("Tip permis: JPEG, PNG, WebP sau PDF.");
+      return;
+    }
+    setUploadingAttachment(true);
+    setSendError(null);
+    try {
+      const formData = new FormData();
+      formData.set("file", file);
+      const res = await fetch("/api/chat/upload", {
+        method: "POST",
+        headers: getAuthHeaders() as Record<string, string>,
+        body: formData,
+      });
+      const data = await res.json();
+      if (res.ok && data.url && data.contentType) {
+        setPendingAttachment({ url: data.url, contentType: data.contentType });
+      } else {
+        setSendError(data.error || "Eroare la încărcare.");
+      }
+    } catch {
+      setSendError("Eroare la încărcare.");
+    } finally {
+      setUploadingAttachment(false);
     }
   };
 
@@ -348,9 +411,30 @@ export default function ChatPage() {
                     : "bg-dark-700 text-gray-200"
                 }`}
               >
-                <p className="text-sm whitespace-pre-wrap break-words">
-                  {m.text}
-                </p>
+                {m.attachmentUrl && (
+                  <div className="mb-2">
+                    {isImageType(m.attachmentContentType) ? (
+                      <a href={m.attachmentUrl} target="_blank" rel="noopener noreferrer" className="block rounded-lg overflow-hidden max-w-full">
+                        <img src={m.attachmentUrl} alt="" className="max-h-48 w-auto object-contain rounded-lg" />
+                      </a>
+                    ) : (
+                      <a
+                        href={m.attachmentUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 text-sm underline"
+                      >
+                        <FileText className="w-4 h-4 shrink-0" />
+                        Deschide PDF
+                      </a>
+                    )}
+                  </div>
+                )}
+                {(m.text?.trim() ?? "") && (
+                  <p className="text-sm whitespace-pre-wrap break-words">
+                    {m.text}
+                  </p>
+                )}
                 {showReadReceipt && (
                   <p className="text-xs mt-1 flex justify-end items-center gap-1 text-dark-700" title={`Citit ${new Date(m.readAt!).toLocaleString("ro-RO")}`}>
                     <CheckCheck className="w-3.5 h-3.5 text-[#4DABF7]" />
@@ -369,7 +453,40 @@ export default function ChatPage() {
             {sendError}
           </p>
         )}
+        {pendingAttachment && (
+          <div className="flex items-center gap-2 text-sm text-dark-300">
+            {isImageType(pendingAttachment.contentType) ? (
+              <img src={pendingAttachment.url} alt="" className="h-12 w-auto rounded object-cover" />
+            ) : (
+              <span className="flex items-center gap-1"><FileText className="w-4 h-4" /> PDF atașat</span>
+            )}
+            <button
+              type="button"
+              onClick={() => setPendingAttachment(null)}
+              className="p-1 rounded hover:bg-dark-600 text-dark-400"
+              aria-label="Elimină atașament"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
         <div className="flex gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={ALLOWED_ATTACH_ACCEPT}
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploadingAttachment || sending}
+            className="p-3 rounded-xl bg-dark-700 hover:bg-dark-600 text-dark-300 disabled:opacity-50 transition shrink-0"
+            title="Atașează poză sau PDF (max 10 MB)"
+          >
+            <Paperclip className="w-5 h-5" />
+          </button>
           <input
             type="text"
             value={text}
@@ -382,7 +499,7 @@ export default function ChatPage() {
           />
           <button
             type="submit"
-            disabled={!text.trim() || sending}
+            disabled={(!text.trim() && !pendingAttachment) || sending || uploadingAttachment}
             className="p-3 rounded-xl bg-brand-500 hover:bg-brand-400 text-dark-900 disabled:opacity-50 transition"
           >
             <Send className="w-5 h-5" />
