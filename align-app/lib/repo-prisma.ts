@@ -510,7 +510,8 @@ export async function prismaGetFeedCandidates(
   excludeIds.add(userId);
   const blockedIds = await prismaGetBlockedUserIds(userId);
   blockedIds.forEach((id) => excludeIds.add(id));
-  if (!isTestMode()) {
+  const searchingByName = !!(filters.name && filters.name.trim() !== "");
+  if (!isTestMode() && !searchingByName) {
     swipedToIds.forEach((s) => excludeIds.add(s.toUserId));
   }
 

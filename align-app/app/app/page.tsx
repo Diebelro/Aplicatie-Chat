@@ -90,6 +90,11 @@ export default function AppDiscoverPage() {
   const router = useRouter();
   const { consent } = useCookieConsent();
   const [filters, setFilters] = useSearchFilters();
+  const [debouncedName, setDebouncedName] = useState(filters.name);
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedName(filters.name), 400);
+    return () => clearTimeout(t);
+  }, [filters.name]);
   const lastViewedId = useRef<string | null>(null);
   const cardShownAtRef = useRef<number>(0);
   const [dragOffset, setDragOffset] = useState(0);
@@ -189,7 +194,8 @@ export default function AppDiscoverPage() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    fetch(`/api/feed${buildQuery(filters)}`, { headers: getAuthHeaders() })
+    const queryFilters = { ...filters, name: debouncedName };
+    fetch(`/api/feed${buildQuery(queryFilters)}`, { headers: getAuthHeaders() })
       .then(async (res) => {
         const data = await res.json();
         if (!res.ok) return null;
@@ -241,7 +247,7 @@ export default function AppDiscoverPage() {
         setLoading(false);
       });
     return () => { cancelled = true; };
-  }, [filters.gender, filters.minAge, filters.maxAge, filters.maxDistanceKm, filters.country, filters.city, filters.onlineOnly, filters.name, filters.sortBy]);
+  }, [filters.gender, filters.minAge, filters.maxAge, filters.maxDistanceKm, filters.country, filters.city, filters.onlineOnly, debouncedName, filters.sortBy]);
 
   const advanceToNext = () => {
     setFeedItems((prev) => prev.slice(1));

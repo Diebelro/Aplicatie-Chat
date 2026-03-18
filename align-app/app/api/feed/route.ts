@@ -222,9 +222,10 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const all = getAllUsersExcept(userId);
-  const toFilter = isTestMode() ? all : all.filter((u) => !hasSwiped(userId, u.id));
   const filters = parseFilters(request.nextUrl.searchParams);
+  const searchingByName = !!(filters.name && filters.name.trim() !== "");
+  const all = getAllUsersExcept(userId);
+  const toFilter = isTestMode() || searchingByName ? all : all.filter((u) => !hasSwiped(userId, u.id));
   let filtered = filterUsers(toFilter, userId, filters);
   const sortBy = request.nextUrl.searchParams.get("sortBy") ?? "";
   if (sortBy === "distance") {
