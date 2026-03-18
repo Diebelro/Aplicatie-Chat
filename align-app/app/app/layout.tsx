@@ -24,14 +24,38 @@ export default function AppLayout({
   const [storageRetry, setStorageRetry] = useState(0);
   const [totalUnread, setTotalUnread] = useState(0);
   const [missedCallsCount, setMissedCallsCount] = useState(0);
+  const [newMatchToast, setNewMatchToast] = useState<{ id: string; name: string } | null>(null);
+  const matchSeenInitializedRef = useRef(false);
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const SEEN_MATCH_IDS_KEY = "align_seen_match_ids";
+  const getSeenMatchIds = (): Set<string> => {
+    if (typeof window === "undefined") return new Set();
+    try {
+      const raw = sessionStorage.getItem(SEEN_MATCH_IDS_KEY);
+      const arr = raw ? (JSON.parse(raw) as string[]) : [];
+      return new Set(Array.isArray(arr) ? arr : []);
+    } catch {
+      return new Set();
+    }
+  };
+  const setSeenMatchIds = (ids: string[]) => {
+    if (typeof window === "undefined") return;
+    try {
+      sessionStorage.setItem(SEEN_MATCH_IDS_KEY, JSON.stringify(ids));
+    } catch {}
+  };
+
+  // Validare sesiune o singură dată la montare / când avem storage; NU la fiecare schimbare pathname,
+  // ca după match → redirect la chat să nu retriggere un /api/me care poate 401 și să pară „m-a scos”.
+  const pathnameRef = useRef(pathname);
+  pathnameRef.current = pathname;
 
   useEffect(() => {
     const raw = typeof window !== "undefined" ? getStoredUserRaw() : null;
     if (!raw) {
-      // După login, storage poate apărea cu o mică întârziere – așteptăm o dată înainte de redirect
       if (storageRetry > 0) {
-        const redirect = pathname ? `/login?redirect=${encodeURIComponent(pathname)}` : "/login";
+        const redirect = pathnameRef.current ? `/login?redirect=${encodeURIComponent(pathnameRef.current)}` : "/login";
         router.replace(redirect);
         setLoading(false);
         return;
@@ -54,21 +78,13 @@ export default function AppLayout({
           res = await fetch("/api/me", { headers: getAuthHeaders(), credentials: "include" });
           if (cancelled) return;
           if (res.status === 401) {
-            if (typeof window !== "undefined") {
-              localStorage.removeItem("align_user");
-              sessionStorage.removeItem("align_user");
-              localStorage.removeItem("align_session_token");
-              sessionStorage.removeItem("align_session_token");
-              localStorage.removeItem("align_device_id");
-              sessionStorage.removeItem("align_device_id");
-            }
-            router.replace("/login");
+            if (!cancelled) setUser(u as User);
             setLoading(false);
             return;
           }
         }
         if (!res.ok) {
-          setUser(u);
+          if (!cancelled) setUser(u as User);
           setLoading(false);
           return;
         }
@@ -89,7 +105,7 @@ export default function AppLayout({
             const u = JSON.parse(raw) as User;
             setUser(u);
           } catch {
-            const redirect = pathname ? `/login?redirect=${encodeURIComponent(pathname)}` : "/login";
+            const redirect = pathnameRef.current ? `/login?redirect=${encodeURIComponent(pathnameRef.current)}` : "/login";
             router.replace(redirect);
           }
         }
@@ -98,7 +114,7 @@ export default function AppLayout({
       }
     })();
     return () => { cancelled = true; };
-  }, [router, storageRetry, pathname]);
+  }, [router, storageRetry]);
 
   // Dacă userul din state nu are poze (ex. după login cu răspuns minimal), refetch /api/me pentru avatar
   useEffect(() => {
@@ -177,14 +193,47 @@ export default function AppLayout({
       .then((d) => { if (d.missed) setMissedCallsCount(d.missed.length); })
       .catch(() => {});
   };
+  const fetchMatchesForNotification = () => {
+    fetch("/api/matches", { headers: getAuthHeaders() })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        const list = data?.matches as Array<{ id: string; username?: string; name?: string }> | undefined;
+        if (!list || !Array.isArray(list)) return;
+        const currentIds = list.map((u) => u.id);
+        const seen = getSeenMatchIds();
+        if (!matchSeenInitializedRef.current) {
+          matchSeenInitializedRef.current = true;
+          setSeenMatchIds(currentIds);
+          return;
+        }
+        const newPartners = list.filter((u) => !seen.has(u.id));
+        if (newPartners.length > 0) {
+          const first = newPartners[0];
+          const name = first.username || first.name || "Cineva";
+          setNewMatchToast({ id: first.id, name: name.charAt(0).toUpperCase() + name.slice(1) });
+          setSeenMatchIds(currentIds);
+        }
+      })
+      .catch(() => {});
+  };
   useEffect(() => {
     if (!user?.id) return;
     fetchUnread();
     fetchMissed();
+    fetchMatchesForNotification();
     const t = setInterval(() => { fetchUnread(); fetchMissed(); }, 1000);
-    const onFocus = () => { fetchUnread(); fetchMissed(); };
+    const tMatches = setInterval(fetchMatchesForNotification, 15000);
+    const onFocus = () => {
+      fetchUnread();
+      fetchMissed();
+      fetchMatchesForNotification();
+    };
     window.addEventListener("focus", onFocus);
-    return () => { clearInterval(t); window.removeEventListener("focus", onFocus); };
+    return () => {
+      clearInterval(t);
+      clearInterval(tMatches);
+      window.removeEventListener("focus", onFocus);
+    };
   }, [user?.id]);
 
   const logout = () => {
@@ -318,8 +367,57 @@ export default function AppLayout({
       <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-6">
         {children}
       </main>
+      {newMatchToast && (
+        <MatchToast
+          name={newMatchToast.name}
+          matchId={newMatchToast.id}
+          onDismiss={() => setNewMatchToast(null)}
+        />
+      )}
       <Watermark />
       <IncomingCall />
+    </div>
+  );
+}
+
+function MatchToast({
+  name,
+  matchId,
+  onDismiss,
+}: {
+  name: string;
+  matchId: string;
+  onDismiss: () => void;
+}) {
+  useEffect(() => {
+    const t = setTimeout(onDismiss, 6000);
+    return () => clearTimeout(t);
+  }, [onDismiss]);
+  return (
+    <div
+      role="alert"
+      className="fixed bottom-6 left-4 right-4 max-w-md mx-auto z-50 rounded-xl bg-brand-500/95 text-dark-900 shadow-lg border border-brand-400 p-4 flex items-center justify-between gap-3"
+    >
+      <p className="font-medium">
+        Ai match cu <span className="font-semibold">{name}</span>!
+      </p>
+      <div className="flex items-center gap-2 shrink-0">
+        <Link
+          href={`/app/chat/${matchId}`}
+          onClick={() => onDismiss()}
+          className="px-3 py-1.5 rounded-lg bg-dark-900/20 hover:bg-dark-900/30 font-medium text-sm"
+        >
+          Deschide chat
+        </Link>
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="p-1.5 rounded-lg hover:bg-dark-900/20 text-dark-900"
+          aria-label="Închide"
+        >
+          ×
+        </button>
+      </div>
     </div>
   );
 }

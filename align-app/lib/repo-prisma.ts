@@ -493,6 +493,11 @@ function ageFromBirthDate(birthDate: string | null): number | null {
   return Math.floor((Date.now() - t) / (365.25 * 24 * 60 * 60 * 1000));
 }
 
+/** TEST_MODE: feed nu exclude profilele deja swipe-uite; folosit pentru test cu 20 conturi. */
+export function isTestMode(): boolean {
+  return process.env.TEST_MODE === "true" || process.env.TEST_MODE === "1";
+}
+
 export async function prismaGetFeedCandidates(
   userId: string,
   filters: FeedFilters
@@ -501,10 +506,13 @@ export async function prismaGetFeedCandidates(
     where: { fromUserId: userId },
     select: { toUserId: true },
   });
-  const excludeIds = new Set(swipedToIds.map((s) => s.toUserId));
+  const excludeIds = new Set<string>();
   excludeIds.add(userId);
   const blockedIds = await prismaGetBlockedUserIds(userId);
   blockedIds.forEach((id) => excludeIds.add(id));
+  if (!isTestMode()) {
+    swipedToIds.forEach((s) => excludeIds.add(s.toUserId));
+  }
 
   const me = await prisma.user.findUnique({
     where: { id: userId },
@@ -657,6 +665,54 @@ export async function prismaGetMutualMatchPartnerIds(userId: string): Promise<Se
     select: { userAId: true, userBId: true },
   });
   return new Set(matchRows.map((m) => (m.userAId === userId ? m.userBId : m.userAId)));
+}
+
+export interface FeedTestModeMeta {
+  hasLiked: boolean;
+  hasDisliked: boolean;
+  isMatched: boolean;
+  hasMessages: boolean;
+}
+
+/** Pentru TEST_MODE: status swipe + match + conversație per profil. */
+export async function prismaGetFeedTestModeMeta(
+  userId: string,
+  profileIds: string[]
+): Promise<Map<string, FeedTestModeMeta>> {
+  const map = new Map<string, FeedTestModeMeta>();
+  if (profileIds.length === 0) return map;
+  const [mySwipes, matchPartnerIds, messages] = await Promise.all([
+    prisma.swipe.findMany({
+      where: { fromUserId: userId, toUserId: { in: profileIds } },
+      select: { toUserId: true, liked: true },
+    }),
+    prismaGetMutualMatchPartnerIds(userId),
+    prisma.message.findMany({
+      where: {
+        OR: [
+          { fromUserId: userId, toUserId: { in: profileIds } },
+          { fromUserId: { in: profileIds }, toUserId: userId },
+        ],
+      },
+      select: { fromUserId: true, toUserId: true },
+    }),
+  ]);
+  const messagePartnerIds = new Set<string>();
+  for (const m of messages) {
+    const other = m.fromUserId === userId ? m.toUserId : m.fromUserId;
+    messagePartnerIds.add(other);
+  }
+  const swipeByTo = new Map(mySwipes.map((s) => [s.toUserId, s.liked]));
+  for (const id of profileIds) {
+    const liked = swipeByTo.get(id);
+    map.set(id, {
+      hasLiked: liked === true,
+      hasDisliked: liked === false,
+      isMatched: matchPartnerIds.has(id),
+      hasMessages: messagePartnerIds.has(id),
+    });
+  }
+  return map;
 }
 
 export async function prismaGetMutualMatches(userId: string): Promise<User[]> {
@@ -844,6 +900,13 @@ export async function prismaGetUnreadFrom(meId: string, otherId: string): Promis
       toUserId: meId,
       seenAt: null,
     },
+  });
+  return count;
+}
+
+export async function prismaGetTotalUnread(meId: string): Promise<number> {
+  const count = await prisma.message.count({
+    where: { toUserId: meId, seenAt: null },
   });
   return count;
 }

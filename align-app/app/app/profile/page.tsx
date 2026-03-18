@@ -301,15 +301,8 @@ export default function ProfilePage() {
         return;
       }
       if (res.status === 401) {
-        if (typeof window !== "undefined") {
-          localStorage.removeItem("align_user");
-          sessionStorage.removeItem("align_user");
-          localStorage.removeItem("align_session_token");
-          sessionStorage.removeItem("align_session_token");
-          localStorage.removeItem("align_device_id");
-          sessionStorage.removeItem("align_device_id");
-        }
-        router.replace("/login");
+        setMessage("error");
+        setErrorDetail("Sesiunea a expirat. Te rugăm să te deloghezi și reconectezi din meniu (Ieșire din cont).");
         return;
       }
       if (!res.ok) throw new Error(data.error || "Eroare");
@@ -605,6 +598,10 @@ export default function ProfilePage() {
                   <select
                     value={parseBirthDate(birthDate).day}
                     onChange={(e) => setBirthDate(buildBirthDate(e.target.value, parseBirthDate(birthDate).month, parseBirthDate(birthDate).year))}
+                    onBlur={(e) => {
+                      const v = (e.target as HTMLSelectElement).value;
+                      if (v !== "") setBirthDate(buildBirthDate(v, parseBirthDate(birthDate).month, parseBirthDate(birthDate).year));
+                    }}
                     className={inputClass}
                   >
                     <option value="">Zi</option>
@@ -615,6 +612,10 @@ export default function ProfilePage() {
                   <select
                     value={parseBirthDate(birthDate).month}
                     onChange={(e) => setBirthDate(buildBirthDate(parseBirthDate(birthDate).day, e.target.value, parseBirthDate(birthDate).year))}
+                    onBlur={(e) => {
+                      const v = (e.target as HTMLSelectElement).value;
+                      if (v !== "") setBirthDate(buildBirthDate(parseBirthDate(birthDate).day, v, parseBirthDate(birthDate).year));
+                    }}
                     className={inputClass}
                   >
                     <option value="">Lună</option>
@@ -625,6 +626,10 @@ export default function ProfilePage() {
                   <select
                     value={parseBirthDate(birthDate).year}
                     onChange={(e) => setBirthDate(buildBirthDate(parseBirthDate(birthDate).day, parseBirthDate(birthDate).month, e.target.value))}
+                    onBlur={(e) => {
+                      const v = (e.target as HTMLSelectElement).value;
+                      if (v !== "") setBirthDate(buildBirthDate(parseBirthDate(birthDate).day, parseBirthDate(birthDate).month, v));
+                    }}
                     className={inputClass}
                   >
                     <option value="">An</option>

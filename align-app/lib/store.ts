@@ -586,6 +586,13 @@ export function hasSwiped(fromId: string, toId: string): boolean {
   return getState().matches.some((m) => m.fromId === fromId && m.toId === toId);
 }
 
+/** Status swipe (like/dislike) pentru un singur pereche from→to. Pentru TEST_MODE feed (store path). */
+export function getSwipeStatus(fromId: string, toId: string): { hasLiked: boolean; hasDisliked: boolean } {
+  const m = getState().matches.find((x) => x.fromId === fromId && x.toId === toId);
+  if (!m) return { hasLiked: false, hasDisliked: false };
+  return { hasLiked: m.liked, hasDisliked: !m.liked };
+}
+
 export function getMutualMatches(userId: string): User[] {
   const matches = getState().matches;
   const myLikes = new Set(

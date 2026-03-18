@@ -33,6 +33,11 @@ type UserWithMeta = User & {
   messageSeen?: boolean;
   friendStatus?: "pending_sent" | "pending_received" | "accepted" | "rejected" | null;
   match?: boolean;
+  /** TEST_MODE: status swipe + conversație */
+  hasLiked?: boolean;
+  hasDisliked?: boolean;
+  isMatched?: boolean;
+  hasMessages?: boolean;
 };
 
 function getDistanceDisplay(u: UserWithMeta): string {
@@ -535,6 +540,26 @@ export default function AppDiscoverPage() {
                     {current.friendStatus === "pending_received" && (
                       <span className="text-xs px-2 py-0.5 rounded-full bg-[#C77DFF]/30 text-[#C77DFF] border border-[#C77DFF]/50">
                         Vrea să fie prieten
+                      </span>
+                    )}
+                    {current.hasLiked && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-brand-500/30 text-brand-400 border border-brand-400/50">
+                        LIKED
+                      </span>
+                    )}
+                    {current.hasDisliked && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-dark-600 text-dark-400 border border-dark-500">
+                        DISLIKED
+                      </span>
+                    )}
+                    {(current.match || current.isMatched) && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/30 text-green-400 border border-green-400/50">
+                        MATCH
+                      </span>
+                    )}
+                    {current.hasMessages && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-[#4DABF7]/30 text-[#4DABF7] border border-[#4DABF7]/50">
+                        CHAT
                       </span>
                     )}
                   </div>

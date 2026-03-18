@@ -1,18 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { put } from "@vercel/blob";
-import {
-  CHAT_ATTACHMENT,
-  isAllowedAttachmentType,
-  isImageContentType,
-  isPdfContentType,
-} from "@/lib/chatAttachments";
+import { CHAT_ATTACHMENT, isAllowedAttachmentType } from "@/lib/chatAttachments";
 import { getAuthenticatedUserId } from "@/lib/sessionAuth";
 
 /**
- * Upload un singur fișier pentru chat.
- * - Imagini (jpeg, png, webp) → store public (BLOB_READ_WRITE_TOKEN).
- * - PDF → store private (BLOB_READ_WRITE_TOKEN_PDF).
- * Allowlist + max 10MB.
+ * Upload un singur fișier pentru chat. Doar imagini (jpeg, png, webp), max 10MB.
  */
 export async function POST(request: NextRequest) {
   const userId = getAuthenticatedUserId(request);
@@ -21,10 +13,9 @@ export async function POST(request: NextRequest) {
   }
 
   const tokenImages = process.env.BLOB_READ_WRITE_TOKEN;
-  const tokenPdf = process.env.BLOB_READ_WRITE_TOKEN_PDF;
-  if (!tokenImages && !tokenPdf) {
+  if (!tokenImages) {
     return NextResponse.json(
-      { error: "Upload-ul nu este configurat (lipsesc token-uri Blob)." },
+      { error: "Upload-ul nu este configurat (lipsește BLOB_READ_WRITE_TOKEN)." },
       { status: 503 }
     );
   }
@@ -50,10 +41,7 @@ export async function POST(request: NextRequest) {
   const contentType = (file.type || "").trim().toLowerCase();
   if (!isAllowedAttachmentType(contentType)) {
     return NextResponse.json(
-      {
-        error:
-          "Tip fișier nepermis. Permise: imagini (JPEG, PNG, WebP) și PDF.",
-      },
+      { error: "Tip fișier nepermis. Permise doar imagini: JPEG, PNG, WebP." },
       { status: 400 }
     );
   }
@@ -87,10 +75,10 @@ export async function POST(request: NextRequest) {
 
   try {
     const blob = await put(pathname, file, {
-      access,
+      access: "public",
       contentType,
       addRandomSuffix: true,
-      token,
+      token: tokenImages,
     });
     return NextResponse.json({
       url: blob.url,

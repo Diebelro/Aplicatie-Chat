@@ -20,13 +20,17 @@ import {
   getUserPrivacySettings,
   findUserById,
   isPremium,
+  getSwipeStatus,
+  getMessagesBetween,
   type Gender,
 } from "@/lib/store";
 import { getInternalAdsForCountry } from "@/lib/internalAds";
 import { checkRateLimit } from "@/lib/rateLimit";
 import {
   isPrismaAvailable,
+  isTestMode,
   prismaGetFeedCandidates,
+  prismaGetFeedTestModeMeta,
   prismaGetMutualMatchPartnerIds,
   prismaGetMyLocation,
   prismaUpdateLastActive,
@@ -158,7 +162,7 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      const profiles = sorted.map((u) => {
+      let profiles = sorted.map((u) => {
         const hasLocation = u.latitude != null && u.longitude != null;
         const showDistance = u.show_distance !== false && hasLocation;
         const distanceKm =
@@ -183,6 +187,25 @@ export async function GET(request: NextRequest) {
         };
       });
 
+      if (isTestMode()) {
+        const meta = await prismaGetFeedTestModeMeta(userId, profiles.map((p) => p.id));
+        profiles = profiles.map((p) => {
+          const m = meta.get(p.id) ?? {
+            hasLiked: false,
+            hasDisliked: false,
+            isMatched: false,
+            hasMessages: false,
+          };
+          return {
+            ...p,
+            hasLiked: m.hasLiked,
+            hasDisliked: m.hasDisliked,
+            isMatched: m.isMatched,
+            hasMessages: m.hasMessages,
+          };
+        });
+      }
+
       return NextResponse.json({
         profiles,
         internalAds,
@@ -200,9 +223,9 @@ export async function GET(request: NextRequest) {
   }
 
   const all = getAllUsersExcept(userId);
-  const notSwiped = all.filter((u) => !hasSwiped(userId, u.id));
+  const toFilter = isTestMode() ? all : all.filter((u) => !hasSwiped(userId, u.id));
   const filters = parseFilters(request.nextUrl.searchParams);
-  let filtered = filterUsers(notSwiped, userId, filters);
+  let filtered = filterUsers(toFilter, userId, filters);
   const sortBy = request.nextUrl.searchParams.get("sortBy") ?? "";
   if (sortBy === "distance") {
     filtered = [...filtered].sort((a, b) => {
@@ -221,10 +244,12 @@ export async function GET(request: NextRequest) {
   const premium = me ? isPremium(me) : false;
   const internalAds = getInternalAdsForCountry(me?.country ?? undefined);
 
-  const profiles = filtered.map((u) => {
+  let profiles = filtered.map((u) => {
     const distanceKm = getDistanceKmForDisplay(userId, u.id);
     const theirPrivacy = getUserPrivacySettings(u.id);
     const visitedByThem = theirPrivacy.allowVisitVisibility && hasBeenVisitedBy(userId, u.id);
+    const swipe = getSwipeStatus(userId, u.id);
+    const hasMessages = getMessagesBetween(userId, u.id).length > 0;
     return {
       ...u,
       online: isUserOnlineVisible(u.id),
@@ -238,6 +263,14 @@ export async function GET(request: NextRequest) {
       messageSeen: getOtherHasReadMyMessage(userId, u.id),
       friendStatus: getFriendStatus(userId, u.id),
       match: isMutualMatch(userId, u.id),
+      ...(isTestMode()
+        ? {
+            hasLiked: swipe.hasLiked,
+            hasDisliked: swipe.hasDisliked,
+            isMatched: isMutualMatch(userId, u.id),
+            hasMessages,
+          }
+        : {}),
     };
   });
 

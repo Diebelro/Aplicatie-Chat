@@ -355,6 +355,10 @@ function SignUpContent() {
                 <select
                   value={birthDay}
                   onChange={(e) => setBirthDay(e.target.value)}
+                  onBlur={(e) => {
+                    const v = (e.target as HTMLSelectElement).value;
+                    if (v !== "") setBirthDay(v);
+                  }}
                   className="w-full bg-dark-800 border border-dark-600 rounded-xl px-3 py-3 text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
                 >
                   <option value="">Zi</option>
@@ -368,6 +372,10 @@ function SignUpContent() {
                 <select
                   value={birthMonth}
                   onChange={(e) => setBirthMonth(e.target.value)}
+                  onBlur={(e) => {
+                    const v = (e.target as HTMLSelectElement).value;
+                    if (v !== "") setBirthMonth(v);
+                  }}
                   className="w-full bg-dark-800 border border-dark-600 rounded-xl px-3 py-3 text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
                 >
                   <option value="">Lună</option>
@@ -381,6 +389,10 @@ function SignUpContent() {
                 <select
                   value={birthYear}
                   onChange={(e) => setBirthYear(e.target.value)}
+                  onBlur={(e) => {
+                    const v = (e.target as HTMLSelectElement).value;
+                    if (v !== "") setBirthYear(v);
+                  }}
                   className="w-full bg-dark-800 border border-dark-600 rounded-xl px-3 py-3 text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
                 >
                   <option value="">An</option>
