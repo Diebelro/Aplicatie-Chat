@@ -116,6 +116,15 @@ export default function MessagesPage() {
     return () => window.removeEventListener("focus", onFocus);
   }, []);
 
+  useEffect(() => {
+    const onConversationRead = () => {
+      fetchConversations();
+      fetchFriends();
+    };
+    window.addEventListener("align:conversation-read", onConversationRead);
+    return () => window.removeEventListener("align:conversation-read", onConversationRead);
+  }, []);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -197,7 +206,7 @@ export default function MessagesPage() {
               <li key={otherUser.id}>
                 <Link
                   href={`/app/chat/${otherUser.id}`}
-                  className="flex items-center gap-4 p-4 rounded-xl bg-dark-800 border border-dark-600 hover:border-dark-500 transition"
+                  className="flex items-center gap-4 min-h-[56px] p-4 rounded-xl bg-dark-800 border border-dark-600 hover:border-dark-500 active:bg-dark-700 transition touch-manipulation"
                 >
                   <div className="relative w-12 h-12 shrink-0 rounded-full overflow-hidden bg-brand-500/20">
                     <SilhouetteAvatar

@@ -1,121 +1,75 @@
-# Cum pui aplicația pe net (deploy)
+# Publicare Align pe internet (telefon + desktop)
 
-Aplicația este Next.js + Prisma + PostgreSQL. Ai două variante practice.
+## 1. Pregătire
 
----
+- Cont [Vercel](https://vercel.com) (gratuit).
+- Repo-ul proiectului pe GitHub/GitLab/Bitbucket (sau îl încarcă direct pe Vercel).
+- Bază de date PostgreSQL (ex. [Neon](https://neon.tech) sau Vercel Postgres) – ai deja `DATABASE_URL` în `.env` local.
 
-## Varianta 1: Vercel (app) + baza de date în cloud (recomandat)
+## 2. Deploy pe Vercel
 
-**Idee:** Aplicația rulează pe Vercel, iar baza de date este un serviciu PostgreSQL în cloud (Neon, Supabase sau Railway).
+1. Mergi la [vercel.com](https://vercel.com) → **Add New** → **Project**.
+2. Importă repo-ul (sau uploadează folderul `align-app`).
+3. **Root Directory**: dacă proiectul e într-un subfolder, setează `align-app` (sau rădăcina unde e `package.json`).
+4. **Build & development** (de obicei detectate automat):
+   - Build Command: `npm run build` sau `pnpm build`
+   - Output: Next.js (implicit)
+   - Install Command: `npm install` sau `pnpm install`
 
-### Pas 1: Baza de date PostgreSQL în cloud
+## 3. Variabile de mediu (obligatorii în producție)
 
-Alege unul (gratuit pentru început):
+În Vercel: **Project → Settings → Environment Variables**. Adaugă:
 
-- **[Neon](https://neon.tech)** – gratuit, PostgreSQL serverless  
-  - Creează cont → New Project → copiază **Connection string** (postgresql://...).
-- **[Supabase](https://supabase.com)** – gratuit, PostgreSQL + opțional auth/storage  
-  - New project → Settings → Database → **Connection string** (URI).
-- **[Railway](https://railway.app)** – gratuit la început  
-  - New Project → Add PostgreSQL → Variables → **DATABASE_URL**.
+| Variabilă | Exemplu | Notă |
+|-----------|---------|------|
+| `DATABASE_URL` | `postgresql://user:pass@host/db?sslmode=require` | Conectare la PostgreSQL (Neon/Vercel Postgres) |
+| `NEXTAUTH_SECRET` | string lung aleatoriu (min 32 caractere) | Pentru sesiuni; generezi cu `openssl rand -base64 32` |
+| `NEXTAUTH_URL` | `https://numele-proiectului.vercel.app` | URL-ul public al site-ului (fără slash la final) |
+| `NEXT_PUBLIC_APP_URL` | același ca `NEXTAUTH_URL` | Pentru link-uri în email, OAuth, etc. |
 
-Salvează URL-ul de tip:  
-`postgresql://user:parola@host:5432/nume_db?sslmode=require`
+După primul deploy, copiază URL-ul real (ex. `https://align-xxx.vercel.app`) și pune-l în `NEXTAUTH_URL` și `NEXT_PUBLIC_APP_URL`, apoi **Redeploy**.
 
-### Pas 2: Proiectul pe GitHub
+Opțional (dacă le folosești):
 
-1. Creează un repo pe [github.com](https://github.com) (ex: `align-app`).
-2. În folderul proiectului (align-app), rulează:
+- `BLOB_READ_WRITE_TOKEN`, `BLOB_READ_WRITE_TOKEN_PDF` – Vercel Blob pentru atașamente
+- `NEXT_PUBLIC_RECAPTCHA_SITE_KEY`, `RECAPTCHA_SECRET_KEY` – reCAPTCHA la signup
+- `NEXT_PUBLIC_JITSI_DOMAIN` – server Jitsi pentru apeluri video
 
-```bash
-git init
-git add .
-git commit -m "Initial commit"
-git branch -M main
-git remote add origin https://github.com/TU_USER/align-app.git
-git push -u origin main
-```
+## 4. Migrări bază de date
 
-(Înlocuiește `TU_USER` cu username-ul tău GitHub.)
+După ce ai setat `DATABASE_URL` în Vercel:
 
-### Pas 3: Deploy pe Vercel
+- **Local** (o singură dată): rulezi migrările pe baza de date folosită și de producție:
+  ```bash
+  cd align-app
+  npm run db:push
+  # sau: npx prisma migrate deploy
+  ```
+- Dacă baza e goală și ai `prisma/seed.ts`, poți rula `npm run db:seed` local (cu același `DATABASE_URL` ca în producție, dacă vrei date de test).
 
-1. Mergi la [vercel.com](https://vercel.com) și loghează-te (cu GitHub).
-2. **Add New** → **Project** → importă repo-ul `align-app`.
-3. **Environment Variables** – adaugă:
-   - `DATABASE_URL` = connection string-ul de la Pas 1 (cu `?sslmode=require` dacă e nevoie).
-   - Opțional: `NEXTAUTH_URL` = `https://numele-tau-proiect.vercel.app` (dacă folosești NextAuth).
-4. **Deploy** – Vercel rulează `npm run build` (care include `prisma generate`).
+## 5. Telefon (mobil)
 
-După deploy ai un URL de tip: `https://align-app-xxx.vercel.app`.
+- Aplicația e deja pregătită: viewport, safe-area, touch, font 16px la inputuri.
+- **HTTPS**: Vercel oferă HTTPS; pe telefon folosește link-ul `https://...` de la Vercel.
+- **„Adaugă pe ecranul principal”**:  
+  Pe iOS (Safari): Share → „Adaugă la ecranul de start”.  
+  Pe Android (Chrome): Meniu → „Instalează aplicația” / „Adaugă la ecranul de start”.  
+  Opțional: adaugă în `public/` fișierele `icon-192.png` și `icon-512.png` pentru icon în ecranul de start (manifestul din `app/manifest.ts` poate fi extins cu aceste path-uri).
 
-### Pas 4: Migrare bază de date în cloud
+## 6. După deploy
 
-Baza de date din cloud e goală. Trebuie să creezi tabelele:
+- Deschide URL-ul Vercel pe telefon și pe desktop; testează login, mesaje, profiluri.
+- Dacă link-urile din email (ex. reset parolă) merg la localhost, verifică că `NEXT_PUBLIC_APP_URL` și `NEXTAUTH_URL` sunt setate la URL-ul public (HTTPS).
+- Domeniu custom: în Vercel, **Settings → Domains** și adaugi domeniul tău; apoi actualizezi `NEXTAUTH_URL` și `NEXT_PUBLIC_APP_URL` cu noul domeniu.
 
-**Opțiune A – de pe calculatorul tău (recomandat):**
+### chat.diebel.ro
 
-1. În `.env` local pune temporar `DATABASE_URL` cu URL-ul de la Neon/Supabase/Railway.
-2. Rulează:
-   ```bash
-   npx prisma db push
-   npm run db:seed
-   ```
-3. Opțional: revino la `DATABASE_URL` local dacă mai lucrezi local.
+- În producție setați `NEXT_PUBLIC_APP_URL=https://chat.diebel.ro` și `NEXTAUTH_URL=https://chat.diebel.ro`.
+- **DNS**: CNAME pentru `chat` trebuie să pointeze la **cname.vercel-dns.com** (sau la Vercel conform instrucțiunilor din Domains). Nu adăugați alt A/CNAME care să ocolească Vercel – tot traficul trebuie să ajungă la Vercel ca `/api/messages` și celelalte API-uri să ruleze pe același host.
 
-**Opțiune B – din Vercel (Build step):**
+## Rezumat
 
-Vercel deja rulează `prisma generate` la build. Pentru a rula și migrări/push doar la deploy, poți adăuga în **Project Settings → Build & Development** un build command custom, de exemplu:
-
-```bash
-prisma generate && prisma db push --accept-data-loss && next build
-```
-
-(Preferabil: faci **Opțiunea A** o dată, apoi la deploy nu mai e nevoie de `db push` la fiecare build.)
-
-### Pas 5: Primul admin
-
-1. Deschide site-ul live (URL-ul Vercel).
-2. Creează un cont la **Înregistrare** (`/signup`).
-3. Mergi la **/admin/setup** și introdu același email/parolă → contul devine admin.
-
----
-
-## Varianta 2: Railway (app + baza de date pe același serviciu)
-
-**Idee:** Atât aplicația, cât și PostgreSQL rulează pe Railway.
-
-1. Cont pe [railway.app](https://railway.app) (cu GitHub).
-2. **New Project** → **Deploy from GitHub repo** → alege repo-ul `align-app`.
-3. În același project: **New** → **Database** → **PostgreSQL**.
-4. Click pe serviciul **PostgreSQL** → **Variables** → copiază `DATABASE_URL`.
-5. Click pe serviciul **align-app** (aplicația) → **Variables** → **Add Variable**:  
-   `DATABASE_URL` = valoarea copiată.
-6. **Settings** la aplicație → **Generate Domain** → ai un URL public.
-7. Pe calculatorul tău, în `.env` pune acest `DATABASE_URL` și rulează o dată:
-   ```bash
-   npx prisma db push
-   npm run db:seed
-   ```
-8. La **/admin/setup** configurezi primul admin (după ce ai făcut signup pe site-ul live).
-
----
-
-## Variabile de mediu importante în producție
-
-| Variabilă | Obligatoriu | Descriere |
-|-----------|-------------|-----------|
-| `DATABASE_URL` | Da | Connection string PostgreSQL (cu SSL dacă e cloud). |
-| `NEXTAUTH_URL` | Dacă folosești NextAuth | URL-ul site-ului, ex: `https://nume-site.vercel.app`. |
-| `NEXTAUTH_SECRET` | Dacă folosești NextAuth | Șir aleatoriu lung (min. 32 caractere). |
-| `RECAPTCHA_SECRET_KEY` | Opțional | Pentru reCAPTCHA la login/signup. |
-| `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` | Opțional | Cheia publică reCAPTCHA. |
-
----
-
-## Rezumat rapid
-
-- **Vercel + Neon/Supabase:** app pe Vercel, DB în cloud; configurezi `DATABASE_URL` în Vercel, rulezi o dată `prisma db push` (și eventual `db:seed`) către DB-ul din cloud, apoi configurezi primul admin la `/admin/setup`.
-- **Railway:** app + PostgreSQL în același proiect; pui `DATABASE_URL` la serviciul app, rulezi local o dată `prisma db push` + `db:seed`, apoi admin la `/admin/setup`.
-
-După ce aplicația e live, toate rutele (`/login`, `/app`, `/admin`, etc.) funcționează la URL-ul tău public.
+1. Repo pe Git → Import în Vercel.  
+2. Setează `DATABASE_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `NEXT_PUBLIC_APP_URL`.  
+3. Rulează migrări local pe baza de producție (`db:push` sau `migrate deploy`).  
+4. Deploy → deschizi link-ul pe telefon și pe browser; pentru „instalare” pe telefon folosești „Adaugă pe ecranul principal”.

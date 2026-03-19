@@ -175,6 +175,16 @@ export default function ProfilesPage() {
     return () => clearInterval(t);
   }, [profiles.length, filters.gender, filters.minAge, filters.maxAge, filters.maxDistanceKm, filters.country, filters.city, filters.onlineOnly, filters.name, filters.sortBy]);
 
+  useEffect(() => {
+    const onConversationRead = () => {
+      fetch(`/api/profiles${buildQuery(filters)}`, { headers: getAuthHeaders() })
+        .then((res) => res.json())
+        .then((d) => { if (d.profiles) setProfiles(d.profiles); });
+    };
+    window.addEventListener("align:conversation-read", onConversationRead);
+    return () => window.removeEventListener("align:conversation-read", onConversationRead);
+  }, [filters.gender, filters.minAge, filters.maxAge, filters.maxDistanceKm, filters.country, filters.city, filters.onlineOnly, filters.name, filters.sortBy]);
+
   const handleDelete = async (userId: string) => {
     await fetch("/api/swipe", {
       method: "POST",
@@ -413,54 +423,27 @@ export default function ProfilesPage() {
 
       <AdSlot variant="strip" />
       <div className="flex flex-wrap gap-4 mb-6 text-xs text-dark-500">
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded border border-[#4DA6FF]/50 bg-[#4DA6FF]/10" />
-          Prieteni
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded border border-[#A0A0A0]/50 bg-[#A0A0A0]/10" />
-          Cerere trimisă
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded border border-[#C77DFF]/50 bg-[#C77DFF]/10" />
-          Cerere primită
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded border border-[#FFD43B]/50 bg-[#FFD43B]/10" />
-          Mesaj trimis
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded border border-[#FF922B]/50 bg-[#FF922B]/10" />
-          Mesaj primit
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded border border-[#22B8CF]/50 bg-[#22B8CF]/10" />
-          Mesaj văzut
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded border border-[#9D4EDD]/50 bg-[#9D4EDD]/10" />
-          A vizitat profilul tău
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded border border-[#999999]/50 bg-[#999999]/10" />
-          Vizitat de tine
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded border border-[#69DB7C]/50 bg-[#69DB7C]/10" />
-          Match
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded border border-[#51CF66]/50 bg-[#51CF66]/10" />
-          Online
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded border border-[#339AF0]/50 bg-[#339AF0]/10" />
-          Cont nou
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded border border-[#868E96]/50 bg-[#868E96]/10" />
-          Profil nedeschis
-        </span>
+        {(
+          [
+            { key: "friends", label: "Prieteni", color: FRIEND_CARD_COLORS.friends },
+            { key: "pendingSent", label: "Cerere trimisă", color: FRIEND_CARD_COLORS.pendingSent },
+            { key: "pendingReceived", label: "Cerere primită", color: FRIEND_CARD_COLORS.pendingReceived },
+            { key: "match", label: "Match", color: FRIEND_CARD_COLORS.match },
+            { key: "messageSeen", label: "Mesaj văzut", color: FRIEND_CARD_COLORS.messageSeen },
+            { key: "messageReceived", label: "Mesaj primit", color: FRIEND_CARD_COLORS.messageReceived },
+            { key: "messageSent", label: "Mesaj trimis", color: FRIEND_CARD_COLORS.messageSent },
+            { key: "visitedYou", label: "A vizitat profilul tău", color: FRIEND_CARD_COLORS.visitedYou },
+            { key: "visitedByYou", label: "Vizitat de tine", color: FRIEND_CARD_COLORS.visitedByYou },
+            { key: "online", label: "Online", color: FRIEND_CARD_COLORS.online },
+            { key: "isNew", label: "Cont nou", color: FRIEND_CARD_COLORS.isNew },
+            { key: "notVisited", label: "Profil nedeschis", color: FRIEND_CARD_COLORS.notVisited },
+          ] as const
+        ).map(({ key, label, color }) => (
+          <span key={key} className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded border shrink-0" style={{ borderColor: `${color}80`, backgroundColor: `${color}1A` }} />
+            {label}
+          </span>
+        ))}
         <span>Distanța (m/km) apare dacă ai permis locația.</span>
       </div>
       {previewMe && me && (
@@ -535,7 +518,11 @@ export default function ProfilesPage() {
               <p className="font-semibold text-white truncate">{displayName(u.username ?? u.name)}</p>
               {statusLabel && (
                 <p className="text-xs mt-0.5 flex items-center gap-1 font-medium" style={{ color: stateColor || border || undefined }}>
-                  {IconComp && <IconComp className="w-3.5 h-3.5 shrink-0" style={{ color: stateColor || border || undefined }} />}
+                  {IconComp && (
+                    <span className="shrink-0" style={{ color: stateColor || border || undefined }}>
+                      <IconComp className="w-3.5 h-3.5" />
+                    </span>
+                  )}
                   {statusLabel}
                 </p>
               )}

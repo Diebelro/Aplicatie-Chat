@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   getAllUsersExcept,
+  getDislikedUserIds,
   seedFakeProfiles,
   setUserActive,
   isUserOnlineVisible,
@@ -146,6 +147,23 @@ export async function GET(request: NextRequest) {
           match: matchPartnerIds.has(u.id),
         };
       });
+      if (sortBy !== "distance") {
+        profilesWithOnline.sort((a, b) => {
+          const hasMessages = (u: typeof a) => u.sentMessage || u.receivedMessage || u.messageSeen;
+          const tier = (u: typeof a) => {
+            if (u.isNew) return 0;
+            if (hasMessages(u)) return 1;
+            if (u.online) return 2;
+            return 3;
+          };
+          const ta = tier(a);
+          const tb = tier(b);
+          if (ta !== tb) return ta - tb;
+          const lastA = a.last_active ?? 0;
+          const lastB = b.last_active ?? 0;
+          return lastB - lastA;
+        });
+      }
       return NextResponse.json({
         profiles: profilesWithOnline,
         myLocationEnabled: !!myLoc,
@@ -157,9 +175,11 @@ export async function GET(request: NextRequest) {
   }
 
   const all = getAllUsersExcept(userId);
+  const dislikedIds = getDislikedUserIds(userId);
+  const allExceptDisliked = all.filter((u) => !dislikedIds.has(u.id));
   const filters = parseFilters(request.nextUrl.searchParams);
   const sortBy = request.nextUrl.searchParams.get("sortBy") ?? "";
-  let filtered = filterUsers(all, userId, filters);
+  let filtered = filterUsers(allExceptDisliked, userId, filters);
   if (sortBy === "distance") {
     filtered = [...filtered].sort((a, b) => {
       const da = getDistanceKm(userId, a.id);
@@ -194,6 +214,23 @@ export async function GET(request: NextRequest) {
       match: isMutualMatch(userId, u.id),
     };
   });
+  if (sortBy !== "distance" && sortBy !== "trust") {
+    profilesWithOnline.sort((a, b) => {
+      const hasMessages = (u: typeof a) => u.sentMessage || u.receivedMessage || u.messageSeen;
+      const tier = (u: typeof a) => {
+        if (u.isNew) return 0;
+        if (hasMessages(u)) return 1;
+        if (u.online) return 2;
+        return 3;
+      };
+      const ta = tier(a);
+      const tb = tier(b);
+      if (ta !== tb) return ta - tb;
+      const lastA = a.last_active ?? 0;
+      const lastB = b.last_active ?? 0;
+      return lastB - lastA;
+    });
+  }
   return NextResponse.json({
     profiles: profilesWithOnline,
     myLocationEnabled: me?.location_enabled ?? false,

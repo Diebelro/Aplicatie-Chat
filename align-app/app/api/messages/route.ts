@@ -16,6 +16,7 @@ import {
   prismaUpdateLastActive,
   prismaGetMatchIdBetween,
   prismaHasBlockBetween,
+  prismaMarkConversationAsRead,
 } from "@/lib/repo-prisma";
 
 import { canSendMessage, PAYWALL_MESSAGE } from "@/lib/monetization";
@@ -42,22 +43,41 @@ export async function GET(request: NextRequest) {
       }
       const blocked = await prismaHasBlockBetween(userId, withId);
       if (blocked) {
-        return NextResponse.json({ messages: [], areFriends: false, matchId: null });
+        return NextResponse.json(
+          { messages: [], areFriends: false, matchId: null, currentUserId: userId },
+          { headers: { "Cache-Control": "no-store, no-cache, must-revalidate" } }
+        );
       }
       await prismaUpdateLastActive(userId);
+      await prismaMarkConversationAsRead(userId, withId);
       let list = await prismaGetMessagesBetween(userId, withId);
       list = list.map((m) => {
-        const out = { ...m };
-        if (m.attachmentContentType === "application/pdf" && m.attachmentUrl) {
-          (out as { attachmentUrl: string }).attachmentUrl = `/api/chat/attachment?messageId=${m.id}`;
-        }
+        const rawStatus = (m as { status?: string }).status;
+        const out: Record<string, unknown> = {
+          id: m.id,
+          fromId: m.fromId,
+          toId: m.toId,
+          text: m.text,
+          at: m.at,
+          status: rawStatus != null && rawStatus !== "" ? rawStatus : "SENT",
+          seenAt: (m as { seenAt?: string }).seenAt ?? null,
+          attachmentUrl: m.attachmentContentType === "application/pdf" && m.attachmentUrl
+            ? `/api/chat/attachment?messageId=${m.id}`
+            : m.attachmentUrl ?? null,
+          attachmentContentType: m.attachmentContentType ?? null,
+        };
         return out;
       });
       const matchId = await prismaGetMatchIdBetween(userId, withId);
-      return NextResponse.json({ messages: list, areFriends: !!matchId, matchId });
+      return NextResponse.json(
+        { messages: list, areFriends: !!matchId, matchId, currentUserId: userId },
+        { headers: { "Cache-Control": "no-store, no-cache, must-revalidate" } }
+      );
     } catch (err) {
       console.error("[api/messages GET]", err);
-      return NextResponse.json({ error: "Eroare server." }, { status: 500 });
+      const msg = err && typeof err === "object" && "message" in err ? String((err as { message: unknown }).message).split("\n")[0]?.trim() : "";
+      const errText = process.env.NODE_ENV === "development" && msg ? msg : "Eroare server. Încearcă din nou.";
+      return NextResponse.json({ error: errText }, { status: 500 });
     }
   }
   if (!findUserById(userId) || !findUserById(withId)) {
@@ -68,17 +88,25 @@ export async function GET(request: NextRequest) {
   const readerPrivacy = getUserPrivacySettings(withId);
   const showReadReceipts = areFriends && readerPrivacy.allowReadReceipts;
   const messages = list.map((m) => {
-    const base = { ...m };
+    const base = { ...m } as Record<string, unknown>;
+    base.status = "SENT";
     if (m.fromId === userId && m.toId === withId && showReadReceipts) {
       const readAt = getMessageReadAt(m.id, withId);
-      if (readAt) (base as Record<string, unknown>).readAt = readAt;
+      if (readAt) {
+        base.readAt = readAt;
+        base.status = "SEEN";
+      }
     }
     if (base.attachmentContentType === "application/pdf" && base.attachmentUrl) {
-      (base as Record<string, unknown>).attachmentUrl = `/api/chat/attachment?messageId=${m.id}`;
+      base.attachmentUrl = `/api/chat/attachment?messageId=${m.id}`;
     }
+    if (base.status === "SEEN") base.seenAt = (base.readAt as string) ?? new Date().toISOString();
     return base;
   });
-  return NextResponse.json({ messages, areFriends });
+  return NextResponse.json(
+    { messages, areFriends, currentUserId: userId },
+    { headers: { "Cache-Control": "no-store, no-cache, must-revalidate" } }
+  );
 }
 
 export async function POST(request: NextRequest) {
@@ -143,7 +171,7 @@ export async function POST(request: NextRequest) {
     } catch (err) {
       console.error("[api/messages POST]", err);
       const code = err && typeof err === "object" && "code" in err ? (err as { code: string }).code : "";
-      const message = err && typeof err === "object" && "message" in err ? String((err as { message: unknown }).message) : "";
+      const message = err && typeof err === "object" && "message" in err ? String((err as { message: unknown }).message).split("\n")[0]?.trim() : "";
       if (code === "P2003") {
         return NextResponse.json(
           { error: "Utilizatorul sau destinatarul nu există în baza de date. Reîncearcă după reconectare." },
@@ -156,13 +184,8 @@ export async function POST(request: NextRequest) {
           { status: 404 }
         );
       }
-      if (process.env.NODE_ENV === "development" && message) {
-        return NextResponse.json(
-          { error: `Eroare server: ${message.slice(0, 120)}` },
-          { status: 500 }
-        );
-      }
-      return NextResponse.json({ error: "Eroare server. Încearcă din nou în câteva secunde." }, { status: 500 });
+      const errText = process.env.NODE_ENV === "development" && message ? message : "Eroare server la trimitere. Verifică conexiunea la baza de date sau încearcă din nou.";
+      return NextResponse.json({ error: errText }, { status: 500 });
     }
   }
   if (!findUserById(userId)) {

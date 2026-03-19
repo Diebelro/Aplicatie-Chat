@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Heart, X, ChevronRight } from "lucide-react";
+import { Heart, X, ChevronRight, MessageCircle } from "lucide-react";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
 import { useSearchFilters, type SearchFilters } from "@/lib/useSearchFilters";
@@ -700,18 +700,28 @@ export default function AppDiscoverPage() {
                   </div>
                 </div>
 
-                <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-6">
+                <div className="absolute bottom-4 left-0 right-0 flex justify-center items-center gap-4">
                   <button
                     type="button"
                     onClick={() => onButtonSwipe(false)}
                     className="w-14 h-14 rounded-full bg-dark-600 hover:bg-red-500/25 active:scale-90 flex items-center justify-center text-red-400 border-2 border-red-500/50 transition-[transform,background-color] duration-75 touch-none"
+                    title="Nu"
                   >
                     <X className="w-7 h-7" />
                   </button>
                   <button
                     type="button"
+                    onClick={() => router.push(`/app/chat/${current.id}`)}
+                    className="w-14 h-14 rounded-full bg-dark-600 hover:bg-brand-500/25 active:scale-90 flex items-center justify-center text-brand-400 border-2 border-brand-500/50 transition-[transform,background-color] duration-75 touch-none"
+                    title="Mesaje"
+                  >
+                    <MessageCircle className="w-7 h-7" />
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => onButtonSwipe(true)}
                     className="w-14 h-14 rounded-full bg-brand-500 hover:bg-brand-400 active:scale-90 flex items-center justify-center text-dark-900 border-2 border-brand-400/50 transition-[transform,background-color] duration-75 touch-none"
+                    title="Like"
                   >
                     <Heart className="w-7 h-7" />
                   </button>

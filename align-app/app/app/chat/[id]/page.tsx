@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Send, Video, Phone, CheckCheck, Paperclip, X, FileText } from "lucide-react";
+import { Send, Video, Phone, Check, Paperclip, X, FileText } from "lucide-react";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
 import { getVideoRoomId } from "@/lib/videoCall";
@@ -21,6 +21,10 @@ interface Message {
   text: string;
   at: string;
   readAt?: string;
+  /** SENT / DELIVERED / SEEN (Prisma); pentru bifat trimis/primit/citit */
+  status?: "SENT" | "DELIVERED" | "SEEN";
+  /** ISO string când a fost citit (fallback pentru Citit) */
+  seenAt?: string | null;
   attachmentUrl?: string | null;
   attachmentContentType?: string | null;
 }
@@ -46,11 +50,15 @@ export default function ChatPage() {
   const [actionBusy, setActionBusy] = useState(false);
   const [pendingAttachment, setPendingAttachment] = useState<{ url: string; contentType: string } | null>(null);
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
+  const [uploadConfigured, setUploadConfigured] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const meRaw = typeof window !== "undefined" ? getStoredUserRaw() : null;
   const me: User | null = meRaw ? (() => { try { return JSON.parse(meRaw); } catch { return null; } })() : null;
+  const myIdForTicks = me?.id != null ? String(me.id) : (currentUserId != null ? String(currentUserId) : "");
 
   const fetchOther = async () => {
     const res = await fetch(`/api/users/${otherId}`, { headers: getAuthHeaders() });
@@ -59,44 +67,68 @@ export default function ChatPage() {
   };
 
   const fetchMessages = async () => {
-    const res = await fetch(`/api/messages?with=${otherId}`, {
+    const res = await fetch(`/api/messages?with=${otherId}&_=${Date.now()}`, {
       headers: getAuthHeaders(),
+      cache: "no-store",
     });
     const data = await res.json();
     if (res.ok) {
       setMessages(data.messages || []);
       setAreFriends(!!data.areFriends);
       setMatchId(data.matchId ?? null);
+      if (data.currentUserId != null) setCurrentUserId(data.currentUserId);
+      setFetchError(null);
+    } else if ([401, 402, 403, 500].includes(res.status)) {
+      const code = res.status;
+      const msg = (data?.error as string) || "Eroare";
+      setFetchError(process.env.NODE_ENV === "development" ? `[${code}] ${msg}` : msg);
     }
   };
 
   useEffect(() => {
     if (!otherId) return;
+    setFetchError(null);
     (async () => {
       await fetchOther();
+      const readRes = await fetch("/api/me/read", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify({ otherId }),
+      }).catch(() => null);
       await fetchMessages();
+      fetch("/api/chat/upload", { method: "GET", headers: getAuthHeaders() })
+        .then((r) => r.json())
+        .then((d) => { if (d.configured === false) setUploadConfigured(false); })
+        .catch(() => setUploadConfigured(false));
+      if (readRes?.ok && typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("align:conversation-read", { detail: { otherId } }));
+      }
       fetch("/api/visit", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeaders() },
         body: JSON.stringify({ profileId: otherId }),
       }).then(() => track.view_profile(otherId));
-      // Marchează conversația ca citită → scade din badge-ul de necitite
-      fetch("/api/me/read", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-        body: JSON.stringify({ otherId }),
-      }).catch(() => {});
       setLoading(false);
     })();
   }, [otherId]);
 
-  // Polling mesaje + online (ca WhatsApp) – reîmprospătare la ~1.5s
+  // Polling foarte rapid (~400ms) pe chat ca „Citit” să apară în sub 1s. Marcare citit și la GET (server) și la POST /api/me/read (badge-uri).
+  const POLL_MS = 400;
   useEffect(() => {
     if (!otherId || loading) return;
-    const t = setInterval(() => {
-      fetchMessages();
+    const markRead = () => {
+      fetch("/api/me/read", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify({ otherId }),
+      }).then((r) => { if (r?.ok && typeof window !== "undefined") window.dispatchEvent(new CustomEvent("align:conversation-read", { detail: { otherId } })); }).catch(() => {});
+    };
+    const tick = () => {
       fetchOther();
-    }, 1500);
+      fetchMessages().then(markRead);
+    };
+    tick();
+    const t = setInterval(tick, POLL_MS);
     return () => clearInterval(t);
   }, [otherId, loading]);
 
@@ -140,10 +172,15 @@ export default function ChatPage() {
         setText("");
         setPendingAttachment(null);
         track.message_sent(otherId);
+        setTimeout(() => fetchMessages(), 400);
+        setTimeout(() => fetchMessages(), 1200);
+        setTimeout(() => fetchMessages(), 2500);
       } else {
         const paywall = res.status === 402 || (res.status === 403 && data.error?.includes("abonament"));
         setIsPaywallError(!!paywall);
-        setSendError(data.error || "Eroare la trimitere. Încearcă din nou.");
+        const code = res.status;
+        const msg = data.error || "Eroare la trimitere. Încearcă din nou.";
+        setSendError([401, 402, 403, 500].includes(code) && process.env.NODE_ENV === "development" ? `[${code}] ${msg}` : msg);
       }
     } catch {
       setIsPaywallError(false);
@@ -184,7 +221,13 @@ export default function ChatPage() {
         setPendingAttachment({ url: data.url, contentType: data.contentType });
       } else {
         setIsPaywallError(false);
-        setSendError(data.error || "Eroare la încărcare.");
+        const msg = data?.error ?? "Eroare la încărcare.";
+        const friendly =
+          res.status === 503 && (msg.includes("Blob") || msg.includes("configurat"))
+            ? "Atașamentele nu sunt disponibile momentan. Poți trimite doar text."
+            : msg;
+        setSendError(friendly);
+        if (res.status === 503) setUploadConfigured(false);
       }
     } catch {
       setIsPaywallError(false);
@@ -223,12 +266,13 @@ export default function ChatPage() {
       : null;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-8rem)]">
-      <div className="flex flex-col gap-3 pb-4 border-b border-dark-600">
+    <div className="flex flex-col flex-1 min-h-0 w-full">
+      <div className="flex flex-col gap-3 pb-4 border-b border-dark-600 shrink-0">
         <div className="flex items-center gap-3">
           <Link
             href="/app/profiles"
-            className="text-dark-500 hover:text-white transition shrink-0"
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center -ml-2 text-dark-500 hover:text-white active:text-white transition shrink-0 touch-manipulation"
+            aria-label="Înapoi"
           >
             ←
           </Link>
@@ -399,15 +443,25 @@ export default function ChatPage() {
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto py-4 space-y-3">
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden py-4 space-y-3 overscroll-contain">
+        {fetchError && (
+          <p className="text-amber-400 text-sm px-2 py-1 rounded bg-amber-500/10" role="alert">
+            {fetchError}
+          </p>
+        )}
         {messages.length === 0 && (
           <p className="text-center text-dark-500 text-sm">
             Niciun mesaj. Scrie ceva mai jos.
           </p>
         )}
         {messages.map((m) => {
-          const isMe = m.fromId === me?.id;
-          const showReadReceipt = areFriends && isMe && m.readAt;
+          const fromId = m.fromId != null ? String(m.fromId) : "";
+          const toId = m.toId != null ? String(m.toId) : "";
+          const isMe = String(m.fromId) === String(myIdForTicks) || toId === String(otherId ?? "");
+          const status = String(m.status ?? "").trim().toUpperCase();
+          const isRead = status === "SEEN" || !!m.seenAt;
+          const showTick = isMe;
+          const tickTitle = isRead ? "Citit" : "Trimis";
           return (
             <div
               key={m.id}
@@ -444,10 +498,21 @@ export default function ChatPage() {
                     {m.text}
                   </p>
                 )}
-                {showReadReceipt && (
-                  <p className="text-xs mt-1 flex justify-end items-center gap-1 text-dark-700" title={`Citit ${new Date(m.readAt!).toLocaleString("ro-RO")}`}>
-                    <CheckCheck className="w-3.5 h-3.5 text-[#22B8CF]" />
-                  </p>
+                {showTick && (
+                  <div
+                    className="min-h-[18px] mt-1 flex justify-end items-center gap-0.5 shrink-0"
+                    title={tickTitle}
+                    aria-label={tickTitle}
+                  >
+                    {isRead ? (
+                      <>
+                        <Check className="w-4 h-4 shrink-0" style={{ color: "#0d9488" }} strokeWidth={2.5} aria-hidden />
+                        <Check className="w-4 h-4 shrink-0" style={{ color: "#0d9488" }} strokeWidth={2.5} aria-hidden />
+                      </>
+                    ) : (
+                      <Check className="w-4 h-4 shrink-0" style={{ color: "rgba(0,0,0,0.75)" }} strokeWidth={2.5} aria-hidden />
+                    )}
+                  </div>
                 )}
               </div>
             </div>
@@ -456,7 +521,7 @@ export default function ChatPage() {
         <div ref={bottomRef} />
       </div>
 
-      <form onSubmit={sendMessage} className="flex flex-col gap-2 pt-4">
+      <form onSubmit={sendMessage} className="flex flex-col gap-2 pt-4 shrink-0 pb-[env(safe-area-inset-bottom,0)]">
         {sendError && (
           <div className="flex flex-col gap-2">
             <p className="text-red-400 text-sm" role="alert">
@@ -486,7 +551,7 @@ export default function ChatPage() {
             </button>
           </div>
         )}
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
           <input
             ref={fileInputRef}
             type="file"
@@ -494,15 +559,18 @@ export default function ChatPage() {
             onChange={handleFileSelect}
             className="hidden"
           />
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploadingAttachment || sending}
-            className="p-3 rounded-xl bg-dark-700 hover:bg-dark-600 text-dark-300 disabled:opacity-50 transition shrink-0"
-            title="Atașează poză sau PDF (max 10 MB)"
-          >
-            <Paperclip className="w-5 h-5" />
-          </button>
+          {uploadConfigured && (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingAttachment || sending}
+              className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-dark-700 hover:bg-dark-600 active:bg-dark-600 text-dark-300 disabled:opacity-50 transition shrink-0 touch-manipulation"
+              title="Atașează poză sau PDF (max 10 MB)"
+              aria-label="Atașează fișier"
+            >
+              <Paperclip className="w-5 h-5" />
+            </button>
+          )}
           <input
             type="text"
             value={text}
@@ -511,12 +579,14 @@ export default function ChatPage() {
               setSendError(null);
             }}
             placeholder="Scrie un mesaj..."
-            className="flex-1 bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-white placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+            className="flex-1 min-h-[44px] text-base bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-white placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500 touch-manipulation"
+            autoComplete="off"
           />
           <button
             type="submit"
             disabled={(!text.trim() && !pendingAttachment) || sending || uploadingAttachment}
-            className="p-3 rounded-xl bg-brand-500 hover:bg-brand-400 text-dark-900 disabled:opacity-50 transition"
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-brand-500 hover:bg-brand-400 active:bg-brand-400 text-dark-900 disabled:opacity-50 transition shrink-0 touch-manipulation"
+            aria-label="Trimite mesaj"
           >
             <Send className="w-5 h-5" />
           </button>

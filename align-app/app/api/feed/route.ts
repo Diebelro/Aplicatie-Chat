@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   getAllUsersExcept,
-  hasSwiped,
+  getDislikedUserIds,
   seedFakeProfiles,
   setUserActive,
   filterUsers,
@@ -142,7 +142,7 @@ export async function GET(request: NextRequest) {
     try {
       await prismaUpdateLastActive(userId);
       const filters: FeedFilters = parseFilters(request.nextUrl.searchParams);
-      const candidates = await prismaGetFeedCandidates(userId, filters);
+      const candidates = await prismaGetFeedCandidates(userId, filters, { includeSwiped: true });
       const me = await prismaFindUserById(userId);
       const myLoc = await prismaGetMyLocation(userId);
       const matchPartnerIds = await prismaGetMutualMatchPartnerIds(userId);
@@ -227,9 +227,9 @@ export async function GET(request: NextRequest) {
   }
 
   const filters = parseFilters(request.nextUrl.searchParams);
-  const searchingByName = !!(filters.name && filters.name.trim() !== "");
   const all = getAllUsersExcept(userId);
-  const toFilter = isTestMode() || searchingByName ? all : all.filter((u) => !hasSwiped(userId, u.id));
+  const dislikedIds = getDislikedUserIds(userId);
+  const toFilter = all.filter((u) => !dislikedIds.has(u.id));
   let filtered = filterUsers(toFilter, userId, filters);
   const sortBy = request.nextUrl.searchParams.get("sortBy") ?? "";
   if (sortBy === "distance") {

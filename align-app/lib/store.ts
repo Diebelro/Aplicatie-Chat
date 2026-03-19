@@ -594,6 +594,13 @@ export function getSwipeStatus(fromId: string, toId: string): { hasLiked: boolea
   return { hasLiked: m.liked, hasDisliked: !m.liked };
 }
 
+/** ID-uri utilizatori la care am făcut dislike (pass) — aceștia nu apar în listă. */
+export function getDislikedUserIds(userId: string): Set<string> {
+  return new Set(
+    getState().matches.filter((m) => m.fromId === userId && !m.liked).map((m) => m.toId)
+  );
+}
+
 export function getMutualMatches(userId: string): User[] {
   const matches = getState().matches;
   const myLikes = new Set(
@@ -1026,8 +1033,10 @@ export function hasSentMessageTo(meId: string, profileId: string): boolean {
   return getState().messages.some((m) => m.fromId === meId && m.toId === profileId);
 }
 
+/** True doar dacă există cel puțin un mesaj de la profileId către mine pe care nu l-am citit încă. După ce văd mesajul, dispare pentru acel user. */
 export function hasReceivedMessageFrom(meId: string, profileId: string): boolean {
-  return getState().messages.some((m) => m.fromId === profileId && m.toId === meId);
+  const fromThemToMe = getState().messages.filter((m) => m.fromId === profileId && m.toId === meId);
+  return fromThemToMe.some((m) => !hasMessageBeenReadBy(m.id, meId));
 }
 
 // 20 profiluri fake pentru demo (le poți șterge după ce vezi cum arată)

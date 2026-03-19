@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
+import { Menu, X, Compass, MessageCircle, Heart, MapPin, Video, Users, CreditCard, Settings, LogOut } from "lucide-react";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
 import { getAuthHeaders } from "@/lib/authClient";
@@ -25,6 +26,7 @@ export default function AppLayout({
   const [totalUnread, setTotalUnread] = useState(0);
   const [missedCallsCount, setMissedCallsCount] = useState(0);
   const [newMatchToast, setNewMatchToast] = useState<{ id: string; name: string } | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const matchSeenInitializedRef = useRef(false);
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -266,35 +268,20 @@ export default function AppLayout({
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-dark-900 flex flex-col">
-      <header className="border-b border-dark-600 sticky top-0 bg-dark-900/95 backdrop-blur z-10">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link href="/app" className="text-lg font-bold gradient-text">
+    <div className="min-h-screen bg-dark-900 flex flex-col min-h-[100dvh]">
+      <header className="border-b border-dark-600 sticky top-0 bg-dark-900/95 backdrop-blur z-20 safe-area-inset-top">
+        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
+          <Link href="/app" className="text-lg font-bold gradient-text shrink-0">
             Align
           </Link>
-          <nav className="flex items-center gap-3 flex-wrap">
-            <Link
-              href="/app/profile"
-              className="px-3 py-1.5 rounded-lg bg-brand-500/20 text-brand-400 hover:bg-brand-500/30 font-medium text-sm transition"
-            >
+          {/* Desktop nav */}
+          <nav className="hidden md:flex items-center gap-3 flex-wrap">
+            <Link href="/app/profile" className="px-3 py-1.5 rounded-lg bg-brand-500/20 text-brand-400 hover:bg-brand-500/30 font-medium text-sm transition">
               Completează profilul
             </Link>
-            <Link
-              href="/app"
-              className="text-dark-400 hover:text-white transition"
-            >
-              Descoperă
-            </Link>
-            <Link
-              href="/app/profiles"
-              className="text-dark-400 hover:text-white transition"
-            >
-              Toate profilurile
-            </Link>
-            <Link
-              href="/app/messages"
-              className="text-dark-400 hover:text-white transition relative inline-flex items-center"
-            >
+            <Link href="/app" className="text-dark-400 hover:text-white transition">Descoperă</Link>
+            <Link href="/app/profiles" className="text-dark-400 hover:text-white transition">Toate profilurile</Link>
+            <Link href="/app/messages" className="text-dark-400 hover:text-white transition relative inline-flex items-center">
               Mesaje
               {totalUnread > 0 && (
                 <span className="ml-1.5 min-w-[1.25rem] h-5 px-1.5 rounded-full bg-brand-500 text-dark-900 text-xs font-semibold flex items-center justify-center">
@@ -303,70 +290,82 @@ export default function AppLayout({
               )}
             </Link>
             {missedCallsCount > 0 && (
-              <Link
-                href="/app/missed-calls"
-                className="text-amber-400 hover:text-amber-300 transition relative inline-flex items-center text-sm"
-              >
+              <Link href="/app/missed-calls" className="text-amber-400 hover:text-amber-300 transition relative inline-flex items-center text-sm">
                 Apeluri pierdute
                 <span className="ml-1.5 min-w-[1.25rem] h-5 px-1.5 rounded-full bg-amber-500/30 text-amber-400 text-xs font-semibold flex items-center justify-center">
                   {missedCallsCount > 99 ? "99+" : missedCallsCount}
                 </span>
               </Link>
             )}
-            <Link
-              href="/app/call/start"
-              className="text-dark-400 hover:text-white transition text-sm"
-            >
-              Conferință
-            </Link>
-            <Link
-              href="/app/matches"
-              className="text-dark-400 hover:text-white transition"
-            >
-              Matches
-            </Link>
-            <Link
-              href="/app/map"
-              className="text-dark-400 hover:text-white transition"
-            >
-              Harta
-            </Link>
-            <Link
-              href="/app/premium"
-              className="text-amber-400 hover:text-amber-300 transition text-sm"
-            >
-              Premium
-            </Link>
-            <Link
-              href="/app/settings/account"
-              className="text-dark-400 hover:text-white transition text-sm"
-            >
-              Setări cont
-            </Link>
+            <Link href="/app/call/start" className="text-dark-400 hover:text-white transition text-sm">Conferință</Link>
+            <Link href="/app/matches" className="text-dark-400 hover:text-white transition">Matches</Link>
+            <Link href="/app/map" className="text-dark-400 hover:text-white transition">Harta</Link>
+            <Link href="/app/premium" className="text-amber-400 hover:text-amber-300 transition text-sm">Premium</Link>
+            <Link href="/app/settings/account" className="text-dark-400 hover:text-white transition text-sm">Setări cont</Link>
             <div className="flex items-center gap-2 border-l border-dark-600 pl-3">
               <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 bg-dark-700">
-                <SilhouetteAvatar
-                  photoUrl={getProfileImageUrl(user) ?? undefined}
-                  gender={user.gender}
-                  name={user.name}
-                  className="w-full h-full"
-                  imgClassName="w-full h-full object-cover object-center"
-                />
+                <SilhouetteAvatar photoUrl={getProfileImageUrl(user) ?? undefined} gender={user.gender} name={user.name} className="w-full h-full" imgClassName="w-full h-full object-cover object-center" />
               </div>
               <span className="text-dark-400 text-sm">{displayName(user.username ?? user.name)}</span>
             </div>
-            <button
-              onClick={logout}
-              className="text-dark-400 hover:text-red-400 text-sm transition"
-            >
-              Ieșire
-            </button>
+            <button onClick={logout} className="text-dark-400 hover:text-red-400 text-sm transition">Ieșire</button>
           </nav>
+          {/* Mobile: menu toggle + avatar */}
+          <div className="flex md:hidden items-center gap-2">
+            <Link href="/app/profile" className="w-9 h-9 rounded-full overflow-hidden shrink-0 bg-dark-700 flex items-center justify-center">
+              <SilhouetteAvatar photoUrl={getProfileImageUrl(user) ?? undefined} gender={user.gender} name={user.name} className="w-full h-full" imgClassName="w-full h-full object-cover object-center" />
+            </Link>
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen((o) => !o)}
+              className="p-2 rounded-lg text-dark-400 hover:text-white hover:bg-dark-700 transition"
+              aria-label={mobileMenuOpen ? "Închide meniu" : "Meniu"}
+            >
+              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+          </div>
         </div>
+        {/* Mobile dropdown menu */}
+        {mobileMenuOpen && (
+          <div className="md:hidden border-t border-dark-600 bg-dark-900 px-4 py-3 flex flex-col gap-1 max-h-[70vh] overflow-y-auto">
+            <Link href="/app/profile" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-brand-400 hover:bg-dark-700"><Users className="w-5 h-5 shrink-0" /> Completează profilul</Link>
+            <Link href="/app/profiles" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-dark-300 hover:bg-dark-700">Toate profilurile</Link>
+            {missedCallsCount > 0 && (
+              <Link href="/app/missed-calls" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-amber-400 hover:bg-dark-700">
+                Apeluri pierdute ({missedCallsCount > 99 ? "99+" : missedCallsCount})
+              </Link>
+            )}
+            <Link href="/app/call/start" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-dark-300 hover:bg-dark-700"><Video className="w-5 h-5 shrink-0" /> Conferință</Link>
+            <Link href="/app/map" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-dark-300 hover:bg-dark-700"><MapPin className="w-5 h-5 shrink-0" /> Harta</Link>
+            <Link href="/app/premium" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-amber-400 hover:bg-dark-700"><CreditCard className="w-5 h-5 shrink-0" /> Premium</Link>
+            <Link href="/app/settings/account" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-dark-300 hover:bg-dark-700"><Settings className="w-5 h-5 shrink-0" /> Setări cont</Link>
+            <button type="button" onClick={() => { logout(); setMobileMenuOpen(false); }} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-red-400 hover:bg-dark-700 text-left w-full"><LogOut className="w-5 h-5 shrink-0" /> Ieșire</button>
+          </div>
+        )}
       </header>
-      <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-6">
+      <main className="flex-1 flex flex-col min-h-0 max-w-4xl w-full mx-auto px-4 py-4 md:py-6 pb-24 md:pb-6">
         {children}
       </main>
+      {/* Bottom nav: doar pe mobile */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 border-t border-dark-600 bg-dark-900/98 backdrop-blur z-20 flex items-center justify-around safe-area-inset-bottom touch-manipulation" style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))", paddingTop: "0.5rem" }}>
+        <Link href="/app" className="flex flex-col items-center justify-center gap-0.5 min-h-[56px] min-w-[64px] py-2 px-3 rounded-lg transition text-dark-400 hover:text-white active:bg-dark-800" title="Descoperă">
+          <Compass className="w-6 h-6 shrink-0" />
+          <span className="text-xs">Descoperă</span>
+        </Link>
+        <Link href="/app/messages" className="flex flex-col items-center justify-center gap-0.5 min-h-[56px] min-w-[64px] py-2 px-3 rounded-lg transition text-dark-400 hover:text-white active:bg-dark-800 relative" title="Mesaje">
+          <MessageCircle className="w-6 h-6 shrink-0" />
+          <span className="text-xs">Mesaje</span>
+          {totalUnread > 0 && (
+            <span className="absolute top-1.5 right-2 min-w-[1.25rem] h-5 px-1 rounded-full bg-brand-500 text-dark-900 text-xs font-semibold flex items-center justify-center">
+              {totalUnread > 99 ? "99+" : totalUnread}
+            </span>
+          )}
+        </Link>
+        <Link href="/app/matches" className="flex flex-col items-center justify-center gap-0.5 min-h-[56px] min-w-[64px] py-2 px-3 rounded-lg transition text-dark-400 hover:text-white active:bg-dark-800" title="Matches">
+          <Heart className="w-6 h-6 shrink-0" />
+          <span className="text-xs">Matches</span>
+        </Link>
+      </nav>
       {newMatchToast && (
         <MatchToast
           name={newMatchToast.name}

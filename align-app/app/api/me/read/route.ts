@@ -29,8 +29,10 @@ export async function POST(request: NextRequest) {
       }
       await prismaMarkConversationAsRead(userId, otherId);
       return NextResponse.json({ ok: true });
-    } catch {
-      return NextResponse.json({ error: "Eroare server." }, { status: 500 });
+    } catch (err) {
+      const msg = err && typeof err === "object" && "message" in err ? String((err as { message: unknown }).message).split("\n")[0]?.trim() : "";
+      const errText = process.env.NODE_ENV === "development" && msg ? msg : "Eroare server.";
+      return NextResponse.json({ error: errText }, { status: 500 });
     }
   }
   if (!findUserById(userId)) {

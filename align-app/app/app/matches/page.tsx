@@ -106,7 +106,7 @@ export default function MatchesPage() {
                   type="button"
                   onClick={() => startCall(u.id, false)}
                   disabled={!!callingId}
-                  className="p-2 rounded-lg bg-brand-500/20 text-brand-400 hover:bg-brand-500/30 transition disabled:opacity-50"
+                  className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg bg-brand-500/20 text-brand-400 hover:bg-brand-500/30 active:bg-brand-500/40 transition disabled:opacity-50 touch-manipulation"
                   title="Apel video"
                 >
                   <Video className="w-5 h-5" />
@@ -115,14 +115,14 @@ export default function MatchesPage() {
                   type="button"
                   onClick={() => startCall(u.id, true)}
                   disabled={!!callingId}
-                  className="p-2 rounded-lg bg-dark-600 text-white hover:bg-dark-500 transition disabled:opacity-50"
+                  className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg bg-dark-600 text-white hover:bg-dark-500 active:bg-dark-400 transition disabled:opacity-50 touch-manipulation"
                   title="Apel audio"
                 >
                   <Phone className="w-5 h-5" />
                 </button>
                 <Link
                   href={`/app/chat/${u.id}`}
-                  className="p-2 rounded-lg text-brand-400 hover:bg-brand-500/20 transition"
+                  className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-brand-400 hover:bg-brand-500/20 active:bg-brand-500/30 transition touch-manipulation"
                   title="Mesaj"
                 >
                   <MessageCircle className="w-5 h-5" />

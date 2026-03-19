@@ -8,6 +8,13 @@ import {
 } from "@/lib/chatAttachments";
 import { getAuthenticatedUserId } from "@/lib/sessionAuth";
 
+/** GET: verifică dacă upload-ul (Blob) e configurat – clientul poate ascunde butonul de atașament. */
+export async function GET() {
+  const configured =
+    !!(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_READ_WRITE_TOKEN_PDF);
+  return NextResponse.json({ configured });
+}
+
 /**
  * Upload un singur fișier pentru chat. Imagini (jpeg, png, webp) → public; PDF → private. Max 10MB.
  */

@@ -363,6 +363,7 @@ export async function prismaAddMessage(
     text: m.text,
     at: m.createdAt.toISOString(),
     status: m.status,
+    seenAt: m.seenAt?.toISOString() ?? undefined,
     attachmentUrl: m.attachmentUrl ?? undefined,
     attachmentContentType: m.attachmentContentType ?? undefined,
   };
@@ -388,6 +389,7 @@ export async function prismaGetMessagesBetween(
     text: m.text,
     at: m.createdAt.toISOString(),
     status: m.status,
+    seenAt: m.seenAt?.toISOString() ?? undefined,
     attachmentUrl: m.attachmentUrl ?? undefined,
     attachmentContentType: m.attachmentContentType ?? undefined,
   }));
@@ -501,21 +503,17 @@ export function isTestMode(): boolean {
 export async function prismaGetFeedCandidates(
   userId: string,
   filters: FeedFilters,
-  options?: { includeSwiped?: boolean }
+  _options?: { includeSwiped?: boolean }
 ): Promise<User[]> {
-  const swipedToIds = await prisma.swipe.findMany({
+  const swipes = await prisma.swipe.findMany({
     where: { fromUserId: userId },
-    select: { toUserId: true },
+    select: { toUserId: true, liked: true },
   });
   const excludeIds = new Set<string>();
   excludeIds.add(userId);
   const blockedIds = await prismaGetBlockedUserIds(userId);
   blockedIds.forEach((id) => excludeIds.add(id));
-  const searchingByName = !!(filters.name && filters.name.trim() !== "");
-  const includeSwiped = options?.includeSwiped ?? searchingByName;
-  if (!isTestMode() && !includeSwiped) {
-    swipedToIds.forEach((s) => excludeIds.add(s.toUserId));
-  }
+  swipes.filter((s) => !s.liked).forEach((s) => excludeIds.add(s.toUserId));
 
   const me = await prisma.user.findUnique({
     where: { id: userId },
@@ -915,12 +913,14 @@ export async function prismaGetTotalUnread(meId: string): Promise<number> {
 }
 
 export async function prismaMarkConversationAsRead(meId: string, otherId: string): Promise<void> {
-  const messages = await prisma.message.findMany({
-    where: { fromUserId: otherId, toUserId: meId },
+  await prisma.message.updateMany({
+    where: {
+      fromUserId: otherId,
+      toUserId: meId,
+      seenAt: null,
+    },
+    data: { status: "SEEN", seenAt: new Date() },
   });
-  for (const m of messages) {
-    if (m.status !== "SEEN") await prismaUpdateMessageStatus(m.id, "SEEN");
-  }
 }
 
 /** Pentru listă profiluri: cine are mesaje trimise/primite/citite cu meId (pentru culori/badge-uri). */
@@ -933,14 +933,14 @@ export async function prismaGetMessageFlagsForProfiles(
   const messageSeen = new Set<string>();
   if (otherIds.length === 0) return { sentMessage, receivedMessage, messageSeen };
 
-  const [sent, received, seen] = await Promise.all([
+  const [sent, receivedUnread, seen] = await Promise.all([
     prisma.message.findMany({
       where: { fromUserId: meId, toUserId: { in: otherIds } },
       select: { toUserId: true },
       distinct: ["toUserId"],
     }),
     prisma.message.findMany({
-      where: { fromUserId: { in: otherIds }, toUserId: meId },
+      where: { fromUserId: { in: otherIds }, toUserId: meId, seenAt: null },
       select: { fromUserId: true },
       distinct: ["fromUserId"],
     }),
@@ -951,7 +951,7 @@ export async function prismaGetMessageFlagsForProfiles(
     }),
   ]);
   sent.forEach((r) => sentMessage.add(r.toUserId));
-  received.forEach((r) => receivedMessage.add(r.fromUserId));
+  receivedUnread.forEach((r) => receivedMessage.add(r.fromUserId));
   seen.forEach((r) => messageSeen.add(r.toUserId));
   return { sentMessage, receivedMessage, messageSeen };
 }
