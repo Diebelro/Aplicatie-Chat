@@ -5,6 +5,7 @@
 
 export type FriendStatusType = "pending_sent" | "pending_received" | "accepted" | "rejected" | null;
 
+/** Culori distincte per stare; nu se repetă între ele. */
 export const FRIEND_CARD_COLORS = {
   friends: "#4DA6FF",
   pendingSent: "#A0A0A0",
@@ -13,8 +14,14 @@ export const FRIEND_CARD_COLORS = {
   visitedYou: "#9D4EDD",
   messageSent: "#FFD43B",
   messageReceived: "#FF922B",
-  messageSeen: "#4DABF7",
+  messageSeen: "#22B8CF",
   match: "#69DB7C",
+  /** Online – verde (distinct de match). */
+  online: "#51CF66",
+  /** Cont nou – albastru. */
+  isNew: "#339AF0",
+  /** Profil nedeschis (nevăzut) – gri. */
+  notVisited: "#868E96",
 } as const;
 
 /** Priority order for which state to show on small card (first match wins). */
@@ -26,6 +33,8 @@ export function getSmallCardState(flags: {
   sentMessage?: boolean;
   visitedByThem?: boolean;
   visited?: boolean;
+  online?: boolean;
+  isNew?: boolean;
 }): { border: string; statusKey: string } {
   if (flags.friendStatus === "accepted")
     return { border: FRIEND_CARD_COLORS.friends, statusKey: "friends" };
@@ -39,6 +48,9 @@ export function getSmallCardState(flags: {
   if (flags.sentMessage) return { border: FRIEND_CARD_COLORS.messageSent, statusKey: "messageSent" };
   if (flags.visitedByThem) return { border: FRIEND_CARD_COLORS.visitedYou, statusKey: "visitedYou" };
   if (flags.visited) return { border: FRIEND_CARD_COLORS.visitedByYou, statusKey: "visitedByYou" };
+  if (flags.online) return { border: FRIEND_CARD_COLORS.online, statusKey: "online" };
+  if (flags.isNew) return { border: FRIEND_CARD_COLORS.isNew, statusKey: "isNew" };
+  if (!flags.visited) return { border: FRIEND_CARD_COLORS.notVisited, statusKey: "notVisited" };
   return { border: "", statusKey: "none" };
 }
 
@@ -52,5 +64,8 @@ export const SMALL_CARD_STATUS_LABELS: Record<string, string> = {
   visitedYou: "A vizitat profilul tău",
   visitedByYou: "Vizitat de tine",
   match: "Match",
+  online: "Online",
+  isNew: "Cont nou",
+  notVisited: "Profil nedeschis",
   none: "",
 };

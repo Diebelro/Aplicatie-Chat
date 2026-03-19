@@ -500,7 +500,8 @@ export function isTestMode(): boolean {
 
 export async function prismaGetFeedCandidates(
   userId: string,
-  filters: FeedFilters
+  filters: FeedFilters,
+  options?: { includeSwiped?: boolean }
 ): Promise<User[]> {
   const swipedToIds = await prisma.swipe.findMany({
     where: { fromUserId: userId },
@@ -511,7 +512,8 @@ export async function prismaGetFeedCandidates(
   const blockedIds = await prismaGetBlockedUserIds(userId);
   blockedIds.forEach((id) => excludeIds.add(id));
   const searchingByName = !!(filters.name && filters.name.trim() !== "");
-  if (!isTestMode() && !searchingByName) {
+  const includeSwiped = options?.includeSwiped ?? searchingByName;
+  if (!isTestMode() && !includeSwiped) {
     swipedToIds.forEach((s) => excludeIds.add(s.toUserId));
   }
 
@@ -921,9 +923,78 @@ export async function prismaMarkConversationAsRead(meId: string, otherId: string
   }
 }
 
+/** Pentru listă profiluri: cine are mesaje trimise/primite/citite cu meId (pentru culori/badge-uri). */
+export async function prismaGetMessageFlagsForProfiles(
+  meId: string,
+  otherIds: string[]
+): Promise<{ sentMessage: Set<string>; receivedMessage: Set<string>; messageSeen: Set<string> }> {
+  const sentMessage = new Set<string>();
+  const receivedMessage = new Set<string>();
+  const messageSeen = new Set<string>();
+  if (otherIds.length === 0) return { sentMessage, receivedMessage, messageSeen };
+
+  const [sent, received, seen] = await Promise.all([
+    prisma.message.findMany({
+      where: { fromUserId: meId, toUserId: { in: otherIds } },
+      select: { toUserId: true },
+      distinct: ["toUserId"],
+    }),
+    prisma.message.findMany({
+      where: { fromUserId: { in: otherIds }, toUserId: meId },
+      select: { fromUserId: true },
+      distinct: ["fromUserId"],
+    }),
+    prisma.message.findMany({
+      where: { fromUserId: meId, toUserId: { in: otherIds }, seenAt: { not: null } },
+      select: { toUserId: true },
+      distinct: ["toUserId"],
+    }),
+  ]);
+  sent.forEach((r) => sentMessage.add(r.toUserId));
+  received.forEach((r) => receivedMessage.add(r.fromUserId));
+  seen.forEach((r) => messageSeen.add(r.toUserId));
+  return { sentMessage, receivedMessage, messageSeen };
+}
+
+/** Persistă vizita: eu (viewer) am vizitat profilul lui profileUserId. */
+export async function prismaAddVisit(viewerUserId: string, profileUserId: string): Promise<void> {
+  await prisma.visit.upsert({
+    where: {
+      viewerUserId_profileUserId: { viewerUserId, profileUserId },
+    },
+    create: { viewerUserId, profileUserId },
+    update: {},
+  });
+}
+
+/** Pentru listă profiluri: cine am vizitat eu și cine m-a vizitat (pentru culori/badge-uri). */
+export async function prismaGetVisitFlagsForProfiles(
+  meId: string,
+  otherIds: string[]
+): Promise<{ visited: Set<string>; visitedByThem: Set<string> }> {
+  const visited = new Set<string>();
+  const visitedByThem = new Set<string>();
+  if (otherIds.length === 0) return { visited, visitedByThem };
+  const [asViewer, asProfile] = await Promise.all([
+    prisma.visit.findMany({
+      where: { viewerUserId: meId, profileUserId: { in: otherIds } },
+      select: { profileUserId: true },
+    }),
+    prisma.visit.findMany({
+      where: { viewerUserId: { in: otherIds }, profileUserId: meId },
+      select: { viewerUserId: true },
+    }),
+  ]);
+  asViewer.forEach((r) => visited.add(r.profileUserId));
+  asProfile.forEach((r) => visitedByThem.add(r.viewerUserId));
+  return { visited, visitedByThem };
+}
+
 export interface ConversationSummaryPrisma {
   otherUser: User;
   lastMessage: { id: string; fromId: string; toId: string; text: string; at: string };
+  /** true dacă nu există niciun mesaj încă (doar match). */
+  noMessagesYet?: boolean;
 }
 
 export async function prismaGetConversations(userId: string): Promise<ConversationSummaryPrisma[]> {
@@ -951,6 +1022,38 @@ export async function prismaGetConversations(userId: string): Promise<Conversati
   }
   result.sort((a, b) => new Date(b.lastMessage.at).getTime() - new Date(a.lastMessage.at).getTime());
   return result;
+}
+
+/** Listă conversații incluzând match-uri fără niciun mesaj (pentru UX: match apare în Mesaje). */
+export async function prismaGetConversationsWithMatches(userId: string): Promise<ConversationSummaryPrisma[]> {
+  const [withMessages, matchRows] = await Promise.all([
+    prismaGetConversations(userId),
+    prisma.match.findMany({
+      where: { OR: [{ userAId: userId }, { userBId: userId }] },
+      select: { userAId: true, userBId: true, createdAt: true },
+    }),
+  ]);
+  const existingOtherIds = new Set(withMessages.map((c) => c.otherUser.id));
+  const matchPartners: { otherId: string; at: string }[] = matchRows.map((m) => ({
+    otherId: m.userAId === userId ? m.userBId : m.userAId,
+    at: m.createdAt.toISOString(),
+  }));
+  const toAdd: ConversationSummaryPrisma[] = [];
+  for (const { otherId, at } of matchPartners) {
+    if (existingOtherIds.has(otherId)) continue;
+    existingOtherIds.add(otherId);
+    const otherUser = await prismaFindUserById(otherId);
+    if (otherUser) {
+      toAdd.push({
+        otherUser,
+        lastMessage: { id: `match-${otherId}`, fromId: otherId, toId: userId, text: "", at },
+        noMessagesYet: true,
+      });
+    }
+  }
+  const combined = [...withMessages, ...toAdd];
+  combined.sort((a, b) => new Date(b.lastMessage.at).getTime() - new Date(a.lastMessage.at).getTime());
+  return combined;
 }
 
 export async function prismaBlockUser(blockerId: string, blockedId: string): Promise<void> {

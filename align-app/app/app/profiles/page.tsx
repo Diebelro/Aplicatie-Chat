@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Trash2, MessageCircle, Video, Phone, Users, Clock, UserPlus, Eye, ArrowUpFromLine, MessageSquare, CheckCheck, Heart, ShieldOff, Flag } from "lucide-react";
+import { Trash2, MessageCircle, Video, Phone, Users, Clock, UserPlus, Eye, ArrowUpFromLine, MessageSquare, CheckCheck, Heart, ShieldOff, Flag, Circle, Sparkles, EyeOff } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getVideoRoomId } from "@/lib/videoCall";
 import type { User } from "@/lib/store";
@@ -11,7 +11,14 @@ import { useSearchFilters, type SearchFilters } from "@/lib/useSearchFilters";
 import AdSlot from "@/components/AdSlot";
 import { SilhouetteAvatar } from "@/components/SilhouetteAvatar";
 import { AddFriendButton } from "@/components/AddFriendButton";
-import { getSmallCardState, SMALL_CARD_STATUS_LABELS } from "@/lib/friendCardStates";
+import { getSmallCardState, SMALL_CARD_STATUS_LABELS, FRIEND_CARD_COLORS } from "@/lib/friendCardStates";
+
+/** Culori pentru cele 3 stări pe profil – fără suprapuneri, un singur state per card. */
+const PROFILE_STATE_COLORS = {
+  online: FRIEND_CARD_COLORS.online,      // #51CF66
+  isNew: FRIEND_CARD_COLORS.isNew,        // #339AF0
+  notVisited: FRIEND_CARD_COLORS.notVisited, // #868E96
+} as const;
 import { displayName } from "@/lib/displayName";
 import { getAuthHeaders } from "@/lib/authClient";
 
@@ -19,6 +26,7 @@ type FriendStatusApi = "pending_sent" | "pending_received" | "accepted" | "rejec
 
 type ProfileWithOnline = User & {
   online?: boolean;
+  isNew?: boolean;
   distanceKm?: number;
   distanceHidden?: boolean;
   visited?: boolean;
@@ -40,6 +48,9 @@ const STATUS_ICONS: Record<string, React.ComponentType<{ className?: string }>> 
   messageReceived: MessageSquare,
   messageSeen: CheckCheck,
   match: Heart,
+  online: Circle,
+  isNew: Sparkles,
+  notVisited: EyeOff,
   none: () => null,
 };
 
@@ -203,9 +214,59 @@ export default function ProfilesPage() {
 
   if (profiles.length === 0) {
     return (
-      <div className="py-12 text-center">
-        <h2 className="text-xl font-semibold mb-4">Toate profilurile</h2>
-        <p className="text-dark-500">Nu există alte profiluri.</p>
+      <div className="py-12">
+        <h2 className="text-xl font-semibold mb-4 text-center">Toate profilurile</h2>
+        <p className="text-dark-500 text-center mb-8">Nu există alte profiluri.</p>
+        <div className="flex flex-wrap gap-4 justify-center text-xs text-dark-500">
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded border border-[#4DA6FF]/50 bg-[#4DA6FF]/10" />
+            Prieteni
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded border border-[#A0A0A0]/50 bg-[#A0A0A0]/10" />
+            Cerere trimisă
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded border border-[#C77DFF]/50 bg-[#C77DFF]/10" />
+            Cerere primită
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded border border-[#FFD43B]/50 bg-[#FFD43B]/10" />
+            Mesaj trimis
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded border border-[#FF922B]/50 bg-[#FF922B]/10" />
+            Mesaj primit
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded border border-[#22B8CF]/50 bg-[#22B8CF]/10" />
+            Mesaj văzut
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded border border-[#9D4EDD]/50 bg-[#9D4EDD]/10" />
+            A vizitat profilul tău
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded border border-[#999999]/50 bg-[#999999]/10" />
+            Vizitat de tine
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded border border-[#69DB7C]/50 bg-[#69DB7C]/10" />
+            Match
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded border border-[#51CF66]/50 bg-[#51CF66]/10" />
+            Online
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded border border-[#339AF0]/50 bg-[#339AF0]/10" />
+            Cont nou
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded border border-[#868E96]/50 bg-[#868E96]/10" />
+            Profil nedeschis
+          </span>
+        </div>
       </div>
     );
   }
@@ -365,16 +426,40 @@ export default function ProfilesPage() {
           Cerere primită
         </span>
         <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded border border-[#FFD43B]/50 bg-[#FFD43B]/10" />
+          Mesaj trimis
+        </span>
+        <span className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded border border-[#FF922B]/50 bg-[#FF922B]/10" />
           Mesaj primit
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded border border-[#4DABF7]/50 bg-[#4DABF7]/10" />
+          <span className="w-3 h-3 rounded border border-[#22B8CF]/50 bg-[#22B8CF]/10" />
           Mesaj văzut
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded border border-[#9D4EDD]/50 bg-[#9D4EDD]/10" />
+          A vizitat profilul tău
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded border border-[#999999]/50 bg-[#999999]/10" />
+          Vizitat de tine
         </span>
         <span className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded border border-[#69DB7C]/50 bg-[#69DB7C]/10" />
           Match
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded border border-[#51CF66]/50 bg-[#51CF66]/10" />
+          Online
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded border border-[#339AF0]/50 bg-[#339AF0]/10" />
+          Cont nou
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded border border-[#868E96]/50 bg-[#868E96]/10" />
+          Profil nedeschis
         </span>
         <span>Distanța (m/km) apare dacă ai permis locația.</span>
       </div>
@@ -422,14 +507,19 @@ export default function ProfilesPage() {
             sentMessage: u.sentMessage,
             visitedByThem: u.visitedByThem,
             visited: u.visited,
+            online: u.online,
+            isNew: u.isNew,
           });
-          const borderStyle = border ? { borderColor: border, backgroundColor: `${border}10` } : {};
+          const stateColor = (statusKey === "online" || statusKey === "isNew" || statusKey === "notVisited")
+            ? PROFILE_STATE_COLORS[statusKey]
+            : border;
+          const borderStyle = border ? { borderColor: border, borderWidth: 2, backgroundColor: `${border}12` } : {};
           const IconComp = STATUS_ICONS[statusKey];
           const statusLabel = SMALL_CARD_STATUS_LABELS[statusKey];
           return (
           <div
             key={u.id}
-            className={`border rounded-2xl overflow-hidden card-hover flex flex-col ${!border ? "bg-dark-800 border-dark-600" : ""}`}
+            className={`rounded-2xl overflow-hidden card-hover flex flex-col ${!border ? "bg-dark-800 border border-dark-600" : "border"}`}
             style={borderStyle}
           >
             <div className="w-full h-32 bg-dark-700 overflow-hidden">
@@ -444,8 +534,8 @@ export default function ProfilesPage() {
             <div className="flex-1 min-w-0 p-4">
               <p className="font-semibold text-white truncate">{displayName(u.username ?? u.name)}</p>
               {statusLabel && (
-                <p className="text-xs mt-0.5 flex items-center gap-1" style={{ color: border || undefined }}>
-                  {IconComp && <IconComp className="w-3.5 h-3.5 shrink-0" />}
+                <p className="text-xs mt-0.5 flex items-center gap-1 font-medium" style={{ color: stateColor || border || undefined }}>
+                  {IconComp && <IconComp className="w-3.5 h-3.5 shrink-0" style={{ color: stateColor || border || undefined }} />}
                   {statusLabel}
                 </p>
               )}
@@ -477,11 +567,13 @@ export default function ProfilesPage() {
                   variant="small"
                 />
                 <span
-                  className={`text-xs ${u.online ? "text-green-400" : "text-dark-500"}`}
+                  className="text-xs"
+                  style={{ color: u.online ? PROFILE_STATE_COLORS.online : PROFILE_STATE_COLORS.notVisited }}
                   title={u.online ? "Online" : "Offline"}
                 >
                   <span
-                    className={`inline-block w-2 h-2 rounded-full mr-1 align-middle ${u.online ? "bg-green-400" : "bg-dark-500"}`}
+                    className="inline-block w-2 h-2 rounded-full mr-1 align-middle"
+                    style={{ backgroundColor: u.online ? PROFILE_STATE_COLORS.online : PROFILE_STATE_COLORS.notVisited }}
                   />
                   {u.online ? "Online" : "Offline"}
                 </span>

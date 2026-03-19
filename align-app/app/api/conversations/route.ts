@@ -14,7 +14,7 @@ import {
 import {
   isPrismaAvailable,
   findUserOrPrisma,
-  prismaGetConversations,
+  prismaGetConversationsWithMatches,
   prismaGetUnreadFrom,
   prismaUpdateLastActive,
 } from "@/lib/repo-prisma";
@@ -33,11 +33,11 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: "Utilizator negăsit." }, { status: 404 });
       }
       await prismaUpdateLastActive(userId);
-      const list = await prismaGetConversations(userId);
+      const list = await prismaGetConversationsWithMatches(userId);
       let totalUnread = 0;
       const conversations = await Promise.all(
         list.map(async (c) => {
-          const unreadCount = await prismaGetUnreadFrom(userId, c.otherUser.id);
+          const unreadCount = c.noMessagesYet ? 0 : await prismaGetUnreadFrom(userId, c.otherUser.id);
           totalUnread += unreadCount;
           const lastActive = c.otherUser.last_active ?? null;
           const online = lastActive != null && Date.now() - lastActive < ONLINE_MS;
@@ -51,6 +51,7 @@ export async function GET(request: NextRequest) {
             lastMessage: c.lastMessage,
             receivedCount: 0,
             unreadCount,
+            noMessagesYet: c.noMessagesYet ?? false,
           };
         })
       );

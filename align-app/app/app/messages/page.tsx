@@ -17,6 +17,7 @@ type ConversationItem = {
   lastMessage: Message;
   receivedCount: number;
   unreadCount: number;
+  noMessagesYet?: boolean;
 };
 
 type FriendWithMeta = User & { online?: boolean; lastActivityAt?: number };
@@ -71,7 +72,9 @@ export default function MessagesPage() {
   const fetchConversations = () => {
     fetch("/api/conversations", { headers: getAuthHeaders() })
       .then((res) => res.json())
-      .then((data) => { if (data.conversations) setConversations(data.conversations); });
+      .then((data) => {
+        if (data.conversations) setConversations(data.conversations);
+      });
   };
 
   const fetchFriends = () => {
@@ -185,10 +188,11 @@ export default function MessagesPage() {
         </div>
       ) : (
         <ul className="space-y-1">
-          {conversations.map(({ otherUser, lastMessage, receivedCount, unreadCount }) => {
+          {conversations.map(({ otherUser, lastMessage, receivedCount, unreadCount, noMessagesYet }) => {
             const isFromMe = lastMessage.fromId === me?.id;
-            const preview =
-              (isFromMe ? "Tu: " : "") + (lastMessage.text.length > 50 ? lastMessage.text.slice(0, 50) + "…" : lastMessage.text);
+            const preview = noMessagesYet
+              ? "Trimite un mesaj"
+              : (isFromMe ? "Tu: " : "") + (lastMessage.text.length > 50 ? lastMessage.text.slice(0, 50) + "…" : lastMessage.text);
             return (
               <li key={otherUser.id}>
                 <Link

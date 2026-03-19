@@ -18,6 +18,8 @@ import {
   prismaHasBlockBetween,
 } from "@/lib/repo-prisma";
 
+import { canSendMessage, PAYWALL_MESSAGE } from "@/lib/monetization";
+
 export async function GET(request: NextRequest) {
   const userId = request.headers.get("x-user-id");
   if (!userId) {
@@ -85,13 +87,27 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   }
   setUserActive(userId);
+  let canSend = true;
+  try {
+    canSend = await canSendMessage(userId);
+  } catch (err) {
+    console.error("[api/messages] paywall check failed", err);
+  }
+  if (!canSend) {
+    return NextResponse.json({ error: PAYWALL_MESSAGE }, { status: 402 });
+  }
   if (isPrismaAvailable()) {
+    let body: { toId?: string; text?: string; attachmentUrl?: string; attachmentContentType?: string };
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Corp invalid (JSON)." }, { status: 400 });
+    }
     try {
       const me = await findUserOrPrisma(userId);
       if (!me) {
         return NextResponse.json({ error: "Utilizator negăsit." }, { status: 404 });
       }
-      const body = await request.json();
       const { toId, text, attachmentUrl, attachmentContentType } = body;
       const textStr = typeof text === "string" ? text : "";
       const hasAttachment = attachmentUrl && attachmentContentType;
@@ -126,7 +142,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: msg });
     } catch (err) {
       console.error("[api/messages POST]", err);
-      return NextResponse.json({ error: "Eroare server." }, { status: 500 });
+      const code = err && typeof err === "object" && "code" in err ? (err as { code: string }).code : "";
+      const message = err && typeof err === "object" && "message" in err ? String((err as { message: unknown }).message) : "";
+      if (code === "P2003") {
+        return NextResponse.json(
+          { error: "Utilizatorul sau destinatarul nu există în baza de date. Reîncearcă după reconectare." },
+          { status: 400 }
+        );
+      }
+      if (code === "P2025") {
+        return NextResponse.json(
+          { error: "Înregistrarea nu a fost găsită. Reîncearcă." },
+          { status: 404 }
+        );
+      }
+      if (process.env.NODE_ENV === "development" && message) {
+        return NextResponse.json(
+          { error: `Eroare server: ${message.slice(0, 120)}` },
+          { status: 500 }
+        );
+      }
+      return NextResponse.json({ error: "Eroare server. Încearcă din nou în câteva secunde." }, { status: 500 });
     }
   }
   if (!findUserById(userId)) {

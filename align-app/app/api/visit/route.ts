@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { addVisit, findUserById } from "@/lib/store";
+import { isPrismaAvailable, findUserOrPrisma, prismaAddVisit } from "@/lib/repo-prisma";
 
 export async function POST(request: NextRequest) {
   const userId = request.headers.get("x-user-id");
@@ -13,6 +14,18 @@ export async function POST(request: NextRequest) {
       { error: "Lipsește profileId." },
       { status: 400 }
     );
+  }
+  if (isPrismaAvailable()) {
+    try {
+      const viewer = await findUserOrPrisma(userId);
+      if (viewer?.show_profile_visits === false) {
+        return NextResponse.json({ ok: true });
+      }
+      await prismaAddVisit(userId, profileId);
+      return NextResponse.json({ ok: true });
+    } catch {
+      return NextResponse.json({ ok: true });
+    }
   }
   const viewer = findUserById(userId);
   if (viewer?.show_profile_visits === false) {

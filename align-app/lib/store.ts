@@ -425,7 +425,8 @@ export function filterUsers(
     if (filters.name && filters.name.trim() !== "") {
       const nameLower = filters.name.trim().toLowerCase();
       const uName = (u.name ?? "").toLowerCase();
-      if (!uName.includes(nameLower)) return false;
+      const uUsername = (u.username ?? "").toLowerCase();
+      if (!uName.includes(nameLower) && !uUsername.includes(nameLower)) return false;
     }
     return true;
   });

@@ -171,9 +171,13 @@ export async function GET(request: NextRequest) {
             : null;
         const lastActive = u.last_active ?? null;
         const online = lastActive != null && Date.now() - lastActive < ONLINE_MS;
+        const createdAt = (u as { createdAt?: string }).createdAt;
+        const NEW_PROFILE_MS = 7 * 24 * 60 * 60 * 1000;
+        const isNew = createdAt ? Date.now() - new Date(createdAt).getTime() < NEW_PROFILE_MS : false;
         return {
           ...u,
           online,
+          isNew,
           distanceKm: distanceKm != null ? distanceKm : undefined,
           distanceHidden: distanceKm === null,
           lastActivityAt: lastActive ?? undefined,

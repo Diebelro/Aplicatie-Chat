@@ -20,9 +20,11 @@ import {
   type FeedItem,
 } from "@/lib/feedBuilder";
 import { getAuthHeaders } from "@/lib/authClient";
+import { getSmallCardState, FRIEND_CARD_COLORS, SMALL_CARD_STATUS_LABELS } from "@/lib/friendCardStates";
 
 type UserWithMeta = User & {
   online?: boolean;
+  isNew?: boolean;
   distanceKm?: number;
   distanceHidden?: boolean;
   lastActivityAt?: number;
@@ -102,6 +104,7 @@ export default function AppDiscoverPage() {
   const dragStartX = useRef(0);
   const isDraggingRef = useRef(false);
   const cardRef = useRef<HTMLDivElement>(null);
+  const [matchModal, setMatchModal] = useState<{ toId: string; name: string } | null>(null);
   const SWIPE_THRESHOLD = 55;
   const SWIPE_EXIT_OFFSET = 400;
   const FLY_OUT_MS = 100;
@@ -332,7 +335,8 @@ export default function AppDiscoverPage() {
       if (liked) track.like_sent(toId);
       if (data.matchCreated) {
         track.match_created(toId);
-        router.push(`/app/chat/${toId}`);
+        const name = current ? displayName(current.name ?? current.username ?? "") || "cineva" : "cineva";
+        setMatchModal({ toId, name });
       }
       if (typeof data.internalInterval === "number" && typeof data.externalInterval === "number") {
         setIntervals({ internal: data.internalInterval, external: data.externalInterval });
@@ -357,6 +361,30 @@ export default function AppDiscoverPage() {
 
   return (
     <div className="flex flex-col items-center w-full">
+      {matchModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setMatchModal(null)}>
+          <div className="bg-dark-800 border border-dark-600 rounded-2xl p-6 max-w-sm w-full shadow-xl text-center" onClick={(e) => e.stopPropagation()}>
+            <p className="text-lg font-semibold text-white mb-1">Ești match!</p>
+            <p className="text-dark-300 mb-6">Poți trimite mesaje lui {matchModal.name}.</p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setMatchModal(null)}
+                className="flex-1 py-2.5 rounded-xl border border-dark-600 text-dark-300 hover:bg-dark-700"
+              >
+                Rămân aici
+              </button>
+              <button
+                type="button"
+                onClick={() => { router.push(`/app/chat/${matchModal.toId}`); setMatchModal(null); }}
+                className="flex-1 py-2.5 rounded-xl bg-brand-500 text-white font-medium hover:bg-brand-600"
+              >
+                Trimite mesaj
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <h2 className="text-xl font-semibold mb-4 w-full">Descoperă</h2>
 
       <div className="w-full mb-6 p-4 rounded-xl bg-dark-800 border border-dark-600">
@@ -475,6 +503,45 @@ export default function AppDiscoverPage() {
         </div>
       </div>
 
+      <div className="flex flex-wrap gap-3 mb-4 w-full text-xs text-dark-500 justify-center">
+        <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded border border-[#4DA6FF]/50 bg-[#4DA6FF]/10" />
+          Prieteni
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded border border-[#A0A0A0]/50 bg-[#A0A0A0]/10" />
+          Cerere trimisă
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded border border-[#C77DFF]/50 bg-[#C77DFF]/10" />
+          Cerere primită
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded border border-[#FFD43B]/50 bg-[#FFD43B]/10" />
+          Mesaj trimis
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded border border-[#FF922B]/50 bg-[#FF922B]/10" />
+          Mesaj primit
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded border border-[#22B8CF]/50 bg-[#22B8CF]/10" />
+          Mesaj văzut
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded border border-[#9D4EDD]/50 bg-[#9D4EDD]/10" />
+          A vizitat profilul tău
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded border border-[#999999]/50 bg-[#999999]/10" />
+          Vizitat de tine
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded border border-[#69DB7C]/50 bg-[#69DB7C]/10" />
+          Match
+        </span>
+      </div>
+
       {hasItems ? (
         <>
           {currentItem.type === "profile" && current && (
@@ -569,10 +636,35 @@ export default function AppDiscoverPage() {
                       </span>
                     )}
                     {current.hasMessages && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-[#4DABF7]/30 text-[#4DABF7] border border-[#4DABF7]/50">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-[#22B8CF]/30 text-[#22B8CF] border border-[#22B8CF]/50">
                         CHAT
                       </span>
                     )}
+                    {(() => {
+                      const { statusKey } = getSmallCardState({
+                        friendStatus: current.friendStatus ?? null,
+                        match: current.match,
+                        messageSeen: current.messageSeen,
+                        receivedMessage: current.receivedMessage,
+                        sentMessage: current.sentMessage,
+                        visitedByThem: current.visitedByThem,
+                        visited: current.visited,
+                        online: current.online,
+                        isNew: current.isNew,
+                      });
+                      if (statusKey !== "online" && statusKey !== "isNew" && statusKey !== "notVisited") return null;
+                      const color = statusKey === "online" ? FRIEND_CARD_COLORS.online : statusKey === "isNew" ? FRIEND_CARD_COLORS.isNew : FRIEND_CARD_COLORS.notVisited;
+                      const label = SMALL_CARD_STATUS_LABELS[statusKey];
+                      return (
+                        <span
+                          key={statusKey}
+                          className="text-xs px-2 py-0.5 rounded-full border"
+                          style={{ backgroundColor: `${color}20`, color, borderColor: `${color}80` }}
+                        >
+                          {label}
+                        </span>
+                      );
+                    })()}
                   </div>
                   <p className="text-gray-400 text-xs mb-1">
                     {current.age != null && <span>{current.age} ani</span>}
@@ -592,8 +684,8 @@ export default function AppDiscoverPage() {
                   <p className="text-gray-300 text-sm line-clamp-3 mb-2">{current.bio || "Fără descriere."}</p>
                   <div className="flex flex-wrap gap-2 text-xs text-gray-400 mb-2">
                     {current.visitedByThem && <span className="text-[#9D4EDD]">A vizitat profilul tău</span>}
-                    {current.messageSeen && <span className="text-[#4DABF7]">A văzut mesajul tău</span>}
-                    {current.online && <span className="text-green-400">Este online</span>}
+                    {current.messageSeen && <span className="text-[#22B8CF]">A văzut mesajul tău</span>}
+                    {current.online && <span style={{ color: FRIEND_CARD_COLORS.online }}>Online</span>}
                     {!current.online && current.lastActivityAt != null && (
                       <span>{formatLastActive(current.lastActivityAt)}</span>
                     )}

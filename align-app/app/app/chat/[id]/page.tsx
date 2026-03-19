@@ -41,6 +41,7 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
+  const [isPaywallError, setIsPaywallError] = useState(false);
   const [calling, setCalling] = useState<"video" | "audio" | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
   const [pendingAttachment, setPendingAttachment] = useState<{ url: string; contentType: string } | null>(null);
@@ -140,9 +141,12 @@ export default function ChatPage() {
         setPendingAttachment(null);
         track.message_sent(otherId);
       } else {
+        const paywall = res.status === 402 || (res.status === 403 && data.error?.includes("abonament"));
+        setIsPaywallError(!!paywall);
         setSendError(data.error || "Eroare la trimitere. Încearcă din nou.");
       }
     } catch {
+      setIsPaywallError(false);
       setSendError("Eroare de rețea. Verifică conexiunea.");
     } finally {
       setSending(false);
@@ -154,16 +158,19 @@ export default function ChatPage() {
     e.target.value = "";
     if (!file) return;
     if (file.size > MAX_ATTACH_MB * 1024 * 1024) {
+      setIsPaywallError(false);
       setSendError(`Fișierul depășește ${MAX_ATTACH_MB} MB.`);
       return;
     }
     const allowed = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
     if (!allowed.includes(file.type)) {
+      setIsPaywallError(false);
       setSendError("Tip permis: JPEG, PNG, WebP sau PDF.");
       return;
     }
     setUploadingAttachment(true);
     setSendError(null);
+    setIsPaywallError(false);
     try {
       const formData = new FormData();
       formData.set("file", file);
@@ -176,9 +183,11 @@ export default function ChatPage() {
       if (res.ok && data.url && data.contentType) {
         setPendingAttachment({ url: data.url, contentType: data.contentType });
       } else {
+        setIsPaywallError(false);
         setSendError(data.error || "Eroare la încărcare.");
       }
     } catch {
+      setIsPaywallError(false);
       setSendError("Eroare la încărcare.");
     } finally {
       setUploadingAttachment(false);
@@ -437,7 +446,7 @@ export default function ChatPage() {
                 )}
                 {showReadReceipt && (
                   <p className="text-xs mt-1 flex justify-end items-center gap-1 text-dark-700" title={`Citit ${new Date(m.readAt!).toLocaleString("ro-RO")}`}>
-                    <CheckCheck className="w-3.5 h-3.5 text-[#4DABF7]" />
+                    <CheckCheck className="w-3.5 h-3.5 text-[#22B8CF]" />
                   </p>
                 )}
               </div>
@@ -449,9 +458,16 @@ export default function ChatPage() {
 
       <form onSubmit={sendMessage} className="flex flex-col gap-2 pt-4">
         {sendError && (
-          <p className="text-red-400 text-sm" role="alert">
-            {sendError}
-          </p>
+          <div className="flex flex-col gap-2">
+            <p className="text-red-400 text-sm" role="alert">
+              {sendError}
+            </p>
+            {isPaywallError && (
+              <Link href="/app/premium" className="text-sm text-brand-400 hover:text-brand-300 font-medium">
+                Vezi abonament
+              </Link>
+            )}
+          </div>
         )}
         {pendingAttachment && (
           <div className="flex items-center gap-2 text-sm text-dark-300">

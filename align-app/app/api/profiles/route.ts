@@ -19,6 +19,15 @@ import {
   getTrustScore,
   type Gender,
 } from "@/lib/store";
+import {
+  isPrismaAvailable,
+  prismaGetFeedCandidates,
+  prismaGetMyLocation,
+  prismaGetMutualMatchPartnerIds,
+  prismaGetMessageFlagsForProfiles,
+  prismaGetVisitFlagsForProfiles,
+  type FeedFilters,
+} from "@/lib/repo-prisma";
 
 function parseFilters(searchParams: URLSearchParams): {
   gender?: Gender | "";
@@ -58,6 +67,27 @@ function parseFilters(searchParams: URLSearchParams): {
   };
 }
 
+const ONLINE_MS = 60 * 1000;
+const NEW_PROFILE_MS = 7 * 24 * 60 * 60 * 1000; // 7 zile
+
+function distanceHaversine(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number
+): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
 export async function GET(request: NextRequest) {
   seedFakeProfiles();
   const userId = request.headers.get("x-user-id");
@@ -65,6 +95,67 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   }
   setUserActive(userId);
+
+  if (isPrismaAvailable()) {
+    try {
+      const filters: FeedFilters = parseFilters(request.nextUrl.searchParams);
+      const candidates = await prismaGetFeedCandidates(userId, filters, { includeSwiped: true });
+      const myLoc = await prismaGetMyLocation(userId);
+      const matchPartnerIds = await prismaGetMutualMatchPartnerIds(userId);
+      const sortBy = request.nextUrl.searchParams.get("sortBy") ?? "";
+      let sorted = [...candidates];
+      if (sortBy === "distance" && myLoc) {
+        sorted = sorted.sort((a, b) => {
+          const la = a.latitude != null && a.longitude != null ? distanceHaversine(myLoc!.lat, myLoc!.lng, a.latitude, a.longitude) : null;
+          const lb = b.latitude != null && b.longitude != null ? distanceHaversine(myLoc!.lat, myLoc!.lng, b.latitude, b.longitude) : null;
+          if (la == null && lb == null) return 0;
+          if (la == null) return 1;
+          if (lb == null) return -1;
+          return la - lb;
+        });
+      }
+      const otherIds = sorted.map((u) => u.id);
+      const [messageFlags, visitFlags] = await Promise.all([
+        prismaGetMessageFlagsForProfiles(userId, otherIds),
+        prismaGetVisitFlagsForProfiles(userId, otherIds),
+      ]);
+      const profilesWithOnline = sorted.map((u) => {
+        const hasLocation = u.latitude != null && u.longitude != null;
+        const showDistance = u.show_distance !== false && hasLocation;
+        const distanceKm =
+          myLoc && hasLocation && showDistance
+            ? distanceHaversine(myLoc.lat, myLoc.lng, u.latitude!, u.longitude!)
+            : null;
+        const lastActive = u.last_active ?? null;
+        const online = lastActive != null && Date.now() - lastActive < ONLINE_MS;
+        const createdAt = (u as { createdAt?: string }).createdAt;
+        const isNew = createdAt ? Date.now() - new Date(createdAt).getTime() < NEW_PROFILE_MS : false;
+        return {
+          ...u,
+          trustScore: 0,
+          online,
+          isNew,
+          distanceKm: distanceKm != null ? distanceKm : undefined,
+          distanceHidden: distanceKm === null,
+          visited: visitFlags.visited.has(u.id),
+          visitedByThem: u.show_profile_visits !== false && visitFlags.visitedByThem.has(u.id),
+          sentMessage: messageFlags.sentMessage.has(u.id),
+          receivedMessage: messageFlags.receivedMessage.has(u.id),
+          messageSeen: messageFlags.messageSeen.has(u.id),
+          friendStatus: undefined,
+          match: matchPartnerIds.has(u.id),
+        };
+      });
+      return NextResponse.json({
+        profiles: profilesWithOnline,
+        myLocationEnabled: !!myLoc,
+      });
+    } catch (err) {
+      console.error("[api/profiles]", err);
+      return NextResponse.json({ error: "Eroare server." }, { status: 500 });
+    }
+  }
+
   const all = getAllUsersExcept(userId);
   const filters = parseFilters(request.nextUrl.searchParams);
   const sortBy = request.nextUrl.searchParams.get("sortBy") ?? "";
@@ -86,10 +177,12 @@ export async function GET(request: NextRequest) {
     const distanceKm = getDistanceKmForDisplay(userId, u.id);
     const theirPrivacy = getUserPrivacySettings(u.id);
     const visitedByThem = theirPrivacy.allowVisitVisibility && hasBeenVisitedBy(userId, u.id);
+    const isNew = u.createdAt ? Date.now() - new Date(u.createdAt).getTime() < NEW_PROFILE_MS : false;
     return {
       ...u,
       trustScore: getTrustScore(u),
       online: isUserOnlineVisible(u.id),
+      isNew,
       distanceKm: distanceKm != null ? distanceKm : undefined,
       distanceHidden: distanceKm === null,
       visited: hasVisited(userId, u.id),

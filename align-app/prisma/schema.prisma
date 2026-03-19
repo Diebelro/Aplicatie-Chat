@@ -32,6 +32,8 @@ model User {
   reportsMade     Report[] @relation("Reporter")
   reportsReceived Report[] @relation("Reported")
   adminLogs       AdminLog[]
+  visitsAsViewer  Visit[]  @relation("VisitViewer")
+  visitsAsProfile Visit[]  @relation("VisitProfile")
 }
 
 model Profile {
@@ -202,6 +204,18 @@ model Report {
   reported   User     @relation("Reported", fields: [reportedId], references: [id], onDelete: Cascade)
   @@index([reporterId])
   @@index([reportedId])
+}
+
+model Visit {
+  id            String   @id @default(cuid())
+  viewerUserId  String
+  profileUserId String
+  createdAt     DateTime @default(now())
+  viewer        User     @relation("VisitViewer", fields: [viewerUserId], references: [id], onDelete: Cascade)
+  profileUser   User     @relation("VisitProfile", fields: [profileUserId], references: [id], onDelete: Cascade)
+  @@unique([viewerUserId, profileUserId])
+  @@index([viewerUserId])
+  @@index([profileUserId])
 }
 
 model AdminLog {

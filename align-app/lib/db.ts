@@ -8,4 +8,5 @@ export const prisma =
     log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
   });
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+// Refolosim același client în același process (obligatoriu pe serverless/Vercel ca să nu explodăm conexiunile la DB).
+globalForPrisma.prisma = prisma;
