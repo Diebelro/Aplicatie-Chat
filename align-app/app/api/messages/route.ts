@@ -50,10 +50,10 @@ export async function GET(request: NextRequest) {
       }
       await prismaUpdateLastActive(userId);
       await prismaMarkConversationAsRead(userId, withId);
-      let list = await prismaGetMessagesBetween(userId, withId);
-      list = list.map((m) => {
+      const list = await prismaGetMessagesBetween(userId, withId);
+      const messages = list.map((m) => {
         const rawStatus = (m as { status?: string }).status;
-        const out: Record<string, unknown> = {
+        return {
           id: m.id,
           fromId: m.fromId,
           toId: m.toId,
@@ -66,11 +66,10 @@ export async function GET(request: NextRequest) {
             : m.attachmentUrl ?? null,
           attachmentContentType: m.attachmentContentType ?? null,
         };
-        return out;
       });
       const matchId = await prismaGetMatchIdBetween(userId, withId);
       return NextResponse.json(
-        { messages: list, areFriends: !!matchId, matchId, currentUserId: userId },
+        { messages, areFriends: !!matchId, matchId, currentUserId: userId },
         { headers: { "Cache-Control": "no-store, no-cache, must-revalidate" } }
       );
     } catch (err) {

@@ -337,7 +337,7 @@ export async function prismaAddMatch(userAId: string, userBId: string): Promise<
   });
 }
 
-export type MessageWithStatus = Message & { status?: string };
+export type MessageWithStatus = Message & { status?: string; seenAt?: string };
 
 export async function prismaAddMessage(
   fromId: string,
