@@ -1,9 +1,19 @@
 #!/usr/bin/env node
 /**
- * Server WebSocket dedicat pentru semnalizare WebRTC (Next.js serverless nu ține WS).
- * Rulează pe Hetzner lângă coturn; în dev: `npm run signaling:dev`
+ * Server WebSocket dedicat pentru semnalizare WebRTC (Next.js / Vercel serverless nu ține WS).
+ * Locație: `align-app/server/call-signaling-server.mjs`
  *
- * Env: SIGNALING_TOKEN_SECRET (sau NEXTAUTH_SECRET), SIGNALING_PORT (default 4001), NODE_ENV
+ * Endpoint WS: path fix **`/ws`** pe același server HTTP (vezi `WebSocketServer({ server, path: "/ws" })`).
+ * Clientul citește baza din **`NEXT_PUBLIC_SIGNALING_WS_URL`** și adaugă `/ws?token=...`
+ * (`lib/webrtc/signaling.ts` → `signalingWsConnectUrl`).
+ *
+ * Exemple valori ENV în aplicația Next (Vercel):
+ *   - Dev:     NEXT_PUBLIC_SIGNALING_WS_URL=ws://127.0.0.1:4001
+ *   - Prod:    NEXT_PUBLIC_SIGNALING_WS_URL=wss://ws.diebel.ro/ws
+ *              (TLS la Nginx/Caddy; proxy către 127.0.0.1:SIGNALING_PORT)
+ *   NOTĂ: `GET /api/ws` în Next este doar documentare — nu înlocuiește acest proces.
+ *
+ * Env proces: SIGNALING_TOKEN_SECRET (sau NEXTAUTH_SECRET), SIGNALING_PORT (default 4001), NODE_ENV
  * Opțional: SIGNALING_MAX_CONN_PER_IP, SIGNALING_MSG_BURST_PER_10S, SIGNALING_MAX_MSG_BYTES, SIGNALING_HEARTBEAT_TTL_MS
  */
 import { WebSocketServer } from "ws";

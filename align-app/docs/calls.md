@@ -5,7 +5,8 @@ Arhitectură: **P2P** în browser; **semnalizare** pe proces Node dedicat (`serv
 **ICE în cod:** `hooks/useWebRtcCall.ts` creează `new RTCPeerConnection({ iceServers })` unde `iceServers` provine din răspunsul API (URL-uri din `NEXT_PUBLIC_TURN_URLS` + username/credential efemere). **Nu** pune în client `username`/`credential` TURN fixe — ar fi vizibile în bundle și **nu** funcționează cu coturn `use-auth-secret` (user/time-based). Echivalentul „turn UDP/TCP + TURNS” din exemplele statice e acoperit de array-ul din env + credențialele emise de server.
 
 **Operațiuni producție (pași în ordine, firewall, systemd, curl, QA):** → **[`docs/hetzner-production-playbook.md`](./hetzner-production-playbook.md)**  
-**Șablon comentariu PR (demo, DNS, health, relay, long-call):** → **[`docs/pr-calls-signoff.md`](./pr-calls-signoff.md)**
+**Șablon comentariu PR (demo, DNS, health, relay, long-call):** → **[`docs/pr-calls-signoff.md`](./pr-calls-signoff.md)**  
+**Vercel + ENV semnalizare / webrtc-internals:** → **[`docs/webrtc-signaling-vercel.md`](./webrtc-signaling-vercel.md)**
 
 ---
 

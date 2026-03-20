@@ -1,6 +1,13 @@
 /**
  * Client WebSocket pentru semnalizare apel 1-la-1 (mesaje JSON).
- * Server: server/call-signaling-server.mjs — path fix `/ws`.
+ *
+ * Server: `align-app/server/call-signaling-server.mjs` — HTTP + `WebSocketServer` pe path **`/ws`**
+ * (nu Next.js). Token: query `?token=` (JWT-like HMAC din `GET /api/call/signaling-token`).
+ *
+ * Env client: **`NEXT_PUBLIC_SIGNALING_WS_URL`**
+ * - Dev: `ws://127.0.0.1:4001` → devine `ws://127.0.0.1:4001/ws?token=...`
+ * - Prod: `wss://<host>/ws` sau bază fără path (se adaugă `/ws`). Folosește **wss://** în producție.
+ * - Pe Vercel fără proxy: setează host-ul unde rulează `npm run signaling` / systemd (ex. `wss://ws.diebel.ro/ws`).
  */
 
 export function parseSignalingIncoming(raw: string): unknown {
