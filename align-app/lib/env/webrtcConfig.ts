@@ -100,6 +100,19 @@ export function isWebrtcConfigured(): boolean {
   return Boolean(c.NEXT_PUBLIC_SIGNALING_WS_URL?.trim()) && c.NEXT_PUBLIC_WEBRTC_ENABLED !== false;
 }
 
+/**
+ * URL de bază pentru WebSocket semnalizare (injectat în client la build din `.env`).
+ * Trebuie `ws://` (dev) sau `wss://` (producție). Path final: `/ws` + `?token=` (vezi `signalingWsConnectUrl`).
+ *
+ * Vercel: **nu** poți folosi același deployment fără proxy — pune un host care rulează
+ * `call-signaling-server.mjs` (ex. `wss://ws.diebel.ro/ws` sau `wss://chat.diebel.ro/api/ws`
+ * doar dacă nginx pe VPS termină TLS și face upgrade către portul semnalizării).
+ */
+export function getPublicSignalingWsBaseUrl(): string | undefined {
+  const v = getWebrtcPublicConfig().NEXT_PUBLIC_SIGNALING_WS_URL?.trim();
+  return v || undefined;
+}
+
 /** Partajare ecran în client: NEXT_PUBLIC_* (sau FEATURE_* pe server în API routes). */
 export function isScreenshareFeatureEnabled(): boolean {
   const c = getWebrtcPublicConfig();

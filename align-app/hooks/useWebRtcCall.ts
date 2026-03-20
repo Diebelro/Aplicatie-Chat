@@ -14,6 +14,7 @@ import {
 import { signalingWsConnectUrl, parseSignalingIncoming } from "@/lib/webrtc/signaling";
 import {
   getWebrtcPublicConfig,
+  getPublicSignalingWsBaseUrl,
   isWebrtcConfigured,
   isScreenshareFeatureEnabled,
 } from "@/lib/env/webrtcConfig";
@@ -389,6 +390,10 @@ export function useWebRtcCall({
             first.credential ?? ""
           )
         : [{ urls: "stun:stun.l.google.com:19302" }];
+      console.info("[ICE] ice-config OK", {
+        iceServerEntries: iceServers.length,
+        turnUrlsFromApi: rawServers?.length ?? 0,
+      });
 
       const tokRes = await fetch("/api/call/signaling-token", { headers: getAuthHeaders() });
       if (!tokRes.ok) {
@@ -403,7 +408,7 @@ export function useWebRtcCall({
         return;
       }
 
-      const base = process.env.NEXT_PUBLIC_SIGNALING_WS_URL;
+      const base = getPublicSignalingWsBaseUrl();
       if (!base) {
         if (!cancelled) setState((s) => ({ ...s, status: "error", error: "NEXT_PUBLIC_SIGNALING_WS_URL lipsă." }));
         localStream.getTracks().forEach((t) => t.stop());
@@ -416,11 +421,19 @@ export function useWebRtcCall({
       }
 
       const wsUrl = signalingWsConnectUrl(base, token);
+      try {
+        const u = new URL(wsUrl);
+        u.searchParams.set("token", "<redacted>");
+        console.info("[SIGNALING] connecting", u.toString());
+      } catch {
+        console.info("[SIGNALING] connecting (url parse skipped)");
+      }
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
       const pc = new RTCPeerConnection({ iceServers });
       pcRef.current = pc;
+      console.info("[RTC] RTCPeerConnection created");
       /* Negociere: createOffer → setLocalDescription → WS; remote offer → setRemoteDescription → createAnswer → setLocalDescription;
        * ICE: onicecandidate trimite candidați prin WS; de la peer → addIceCandidate (coadă până există remoteDescription). */
 
@@ -440,6 +453,7 @@ export function useWebRtcCall({
             offerToReceiveVideo: true,
           });
           await p.setLocalDescription(offer);
+          console.info("[SIGNALING] outbound offer");
           w.send(JSON.stringify({ t: "offer", sdp: offer.sdp ?? "" }));
         } catch {
           /* ignore */
@@ -508,7 +522,13 @@ export function useWebRtcCall({
 
       pc.onicecandidate = (ev) => {
         if (ev.candidate && ws.readyState === WebSocket.OPEN) {
+          console.info("[ICE] sending local candidate via signaling", {
+            type: ev.candidate.type,
+            protocol: ev.candidate.protocol,
+          });
           ws.send(JSON.stringify({ t: "ice", candidate: ev.candidate.toJSON() }));
+        } else if (!ev.candidate) {
+          console.info("[ICE] local ICE gathering complete (null candidate)");
         }
       };
 
@@ -528,6 +548,7 @@ export function useWebRtcCall({
             try {
               const offer = await pc.createOffer({ iceRestart: true });
               await pc.setLocalDescription(offer);
+              console.info("[SIGNALING] outbound offer (iceRestart)");
               ws.send(JSON.stringify({ t: "offer", sdp: offer.sdp ?? "" }));
             } catch {
               /* ignore */
@@ -539,6 +560,7 @@ export function useWebRtcCall({
       pc.onconnectionstatechange = () => {
         if (cancelled) return;
         const st = pc.connectionState;
+        console.info("[RTC] connectionState", st);
         if (st === "failed") {
           clearStatsMonitor();
           setState((s) => ({ ...s, banner: "Rețea slabă — încerc reconectare…" }));
@@ -558,6 +580,7 @@ export function useWebRtcCall({
         try {
           const offer = await pc.createOffer();
           await pc.setLocalDescription(offer);
+          console.info("[SIGNALING] outbound offer (initial)");
           ws.send(JSON.stringify({ t: "offer", sdp: offer.sdp ?? "" }));
         } catch {
           if (!cancelled) setState((s) => ({ ...s, error: "Nu am putut porni oferta WebRTC." }));
@@ -565,6 +588,7 @@ export function useWebRtcCall({
       };
 
       ws.onopen = () => {
+        console.info("[SIGNALING] WebSocket open, join room", { roomId, isCaller });
         ws.send(JSON.stringify({ t: "join", roomId, userId, isCaller }));
         heartbeatRef.current = setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ t: "heartbeat" }));
@@ -583,6 +607,10 @@ export function useWebRtcCall({
           shouldOffer?: boolean;
         };
 
+        if (m.t !== "pong" && m.t !== "heartbeat") {
+          console.info("[SIGNALING] inbound", m.t);
+        }
+
         if (m.t === "session") {
           remoteIdRef.current = typeof m.remoteUserId === "string" ? m.remoteUserId : null;
           if (m.shouldOffer) {
@@ -597,6 +625,7 @@ export function useWebRtcCall({
             flushIceQueue(pc);
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
+            console.info("[SIGNALING] outbound answer");
             ws.send(JSON.stringify({ t: "answer", sdp: answer.sdp ?? "" }));
             setState((s) => ({ ...s, status: "connected" }));
           } catch {
@@ -617,6 +646,7 @@ export function useWebRtcCall({
         }
 
         if (m.t === "ice" && m.candidate) {
+          console.info("[ICE] remote candidate received via signaling");
           if (!pc.remoteDescription) {
             iceQueueRef.current.push(m.candidate);
             return;
@@ -647,6 +677,7 @@ export function useWebRtcCall({
       };
 
       ws.onerror = () => {
+        console.info("[SIGNALING] WebSocket error");
         if (!cancelled) setState((s) => ({ ...s, error: "Eroare WebSocket semnalizare." }));
       };
 
