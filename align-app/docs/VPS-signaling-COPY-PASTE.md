@@ -51,6 +51,8 @@ curl -sS http://127.0.0.1:4001/health
 
 → trebuie **`ok`**. Dacă nu: `journalctl -u call-signaling -n 40 --no-pager`
 
+Dacă `https://ws.diebel.ro/health` arată **404 Next** sau `nginx -t` zice **conflicting server name**: → **[VPS-nginx-ws-conflict-FIX.md](./VPS-nginx-ws-conflict-FIX.md)**
+
 ## 3) Nginx (TLS + `/health` + `/ws`)
 
 ```bash
