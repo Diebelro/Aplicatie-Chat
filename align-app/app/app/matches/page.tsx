@@ -2,12 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Video, Phone, MessageCircle } from "lucide-react";
+import { MessageCircle } from "lucide-react";
 import type { User } from "@/lib/store";
-import { getStoredUserRaw } from "@/lib/store";
-import { getVideoRoomId } from "@/lib/videoCall";
 import { SilhouetteAvatar } from "@/components/SilhouetteAvatar";
+import { QuickCallButtons } from "@/components/QuickCallButtons";
 import { displayName } from "@/lib/displayName";
 import { getAuthHeaders } from "@/lib/authClient";
 
@@ -20,29 +18,8 @@ function formatDistance(km: number | undefined): string {
 }
 
 export default function MatchesPage() {
-  const router = useRouter();
   const [matches, setMatches] = useState<MatchWithMeta[]>([]);
   const [loading, setLoading] = useState(true);
-  const [callingId, setCallingId] = useState<string | null>(null);
-
-  const meRaw = typeof window !== "undefined" ? getStoredUserRaw() : null;
-  const me: User | null = meRaw ? (() => { try { return JSON.parse(meRaw); } catch { return null; } })() : null;
-
-  const startCall = async (toId: string, audioOnly: boolean) => {
-    if (!me?.id || callingId) return;
-    setCallingId(toId);
-    try {
-      await fetch("/api/call/ring", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-        body: JSON.stringify({ toId, audioOnly }),
-      });
-    } finally {
-      setCallingId(null);
-    }
-    router.push(`/app/call/${getVideoRoomId(me.id, toId)}${audioOnly ? "?audio=1&from=ring" : "?from=ring"}`);
-  };
-
   useEffect(() => {
     (async () => {
       const matchRes = await fetch("/api/matches", { headers: getAuthHeaders() });
@@ -102,24 +79,7 @@ export default function MatchesPage() {
                 </p>
               </div>
               <div className="shrink-0 flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => startCall(u.id, false)}
-                  disabled={!!callingId}
-                  className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg bg-brand-500/20 text-brand-400 hover:bg-brand-500/30 active:bg-brand-500/40 transition disabled:opacity-50 touch-manipulation"
-                  title="Apel video"
-                >
-                  <Video className="w-5 h-5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => startCall(u.id, true)}
-                  disabled={!!callingId}
-                  className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg bg-dark-600 text-white hover:bg-dark-500 active:bg-dark-400 transition disabled:opacity-50 touch-manipulation"
-                  title="Apel audio"
-                >
-                  <Phone className="w-5 h-5" />
-                </button>
+                <QuickCallButtons toUserId={u.id} size="md" />
                 <Link
                   href={`/app/chat/${u.id}`}
                   className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-brand-400 hover:bg-brand-500/20 active:bg-brand-500/30 transition touch-manipulation"

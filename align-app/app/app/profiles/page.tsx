@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Trash2, MessageCircle, Video, Phone, Users, Clock, UserPlus, Eye, ArrowUpFromLine, MessageSquare, CheckCheck, Heart, ShieldOff, Flag, Circle, Sparkles, EyeOff } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { getVideoRoomId } from "@/lib/videoCall";
+import { Trash2, MessageCircle, Users, Clock, UserPlus, Eye, ArrowUpFromLine, MessageSquare, CheckCheck, Heart, ShieldOff, Flag, Circle, Sparkles, EyeOff } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { QuickCallButtons } from "@/components/QuickCallButtons";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
 import { useSearchFilters, type SearchFilters } from "@/lib/useSearchFilters";
@@ -83,14 +83,12 @@ function buildQuery(f: SearchFilters): string {
 }
 
 export default function ProfilesPage() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const previewMe = searchParams.get("preview") === "me";
   const [profiles, setProfiles] = useState<ProfileWithOnline[]>([]);
   const [loading, setLoading] = useState(true);
   const [myLocationEnabled, setMyLocationEnabled] = useState(false);
   const [filters, setFilters] = useSearchFilters();
-  const [callingId, setCallingId] = useState<string | null>(null);
 
   const enableLocation = () => {
     if (!navigator.geolocation) return;
@@ -128,21 +126,6 @@ export default function ProfilesPage() {
 
   const meRaw = typeof window !== "undefined" ? getStoredUserRaw() : null;
   const me: User | null = meRaw ? (() => { try { return JSON.parse(meRaw); } catch { return null; } })() : null;
-
-  const startCall = async (toId: string, audioOnly: boolean) => {
-    if (!me?.id || callingId) return;
-    setCallingId(toId);
-    try {
-      await fetch("/api/call/ring", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-        body: JSON.stringify({ toId, audioOnly }),
-      });
-    } finally {
-      setCallingId(null);
-    }
-    router.push(`/app/call/${getVideoRoomId(me.id, toId)}${audioOnly ? "?audio=1&from=ring" : "?from=ring"}`);
-  };
 
   useEffect(() => {
     let cancelled = false;
@@ -508,24 +491,7 @@ export default function ProfilesPage() {
                 </span>
               </div>
               <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => startCall(u.id, false)}
-                  disabled={!!callingId}
-                  className="p-2 rounded-lg text-brand-400 hover:bg-brand-500/20 transition disabled:opacity-50"
-                  title="Apel video"
-                >
-                  <Video className="w-5 h-5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => startCall(u.id, true)}
-                  disabled={!!callingId}
-                  className="p-2 rounded-lg text-dark-400 hover:bg-dark-600 transition disabled:opacity-50"
-                  title="Apel audio"
-                >
-                  <Phone className="w-5 h-5" />
-                </button>
+                <QuickCallButtons toUserId={u.id} size="sm" />
                 <button
                   onClick={() => handleDelete(u.id)}
                   className="p-2 rounded-lg text-red-400 hover:bg-red-500/20 transition"

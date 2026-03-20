@@ -7,6 +7,7 @@ import type { User } from "@/lib/store";
 import type { Message } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
 import { SilhouetteAvatar } from "@/components/SilhouetteAvatar";
+import { QuickCallButtons } from "@/components/QuickCallButtons";
 import { displayName } from "@/lib/displayName";
 import { getAuthHeaders } from "@/lib/authClient";
 
@@ -137,7 +138,8 @@ export default function MessagesPage() {
     <div>
       <h2 className="text-xl font-semibold mb-4">Mesaje</h2>
       <p className="text-dark-500 text-sm mb-4">
-        Toate conversațiile tale – apasă pe o conversație pentru a deschide chat-ul.
+        Toate conversațiile tale – apasă pe rând pentru chat. Lângă fiecare conversație:{" "}
+        <span className="text-dark-400">Video</span> și <span className="text-dark-400">Audio</span> pentru apel direct.
       </p>
 
       {friends.length > 0 && (
@@ -148,10 +150,10 @@ export default function MessagesPage() {
           </h3>
           <ul className="flex flex-wrap gap-2">
             {friends.map((f) => (
-              <li key={f.id}>
+              <li key={f.id} className="flex items-stretch gap-0 rounded-xl border border-dark-600 bg-dark-800 hover:border-[#4DA6FF]/50 transition overflow-hidden">
                 <Link
                   href={`/app/chat/${f.id}`}
-                  className="flex items-center gap-2 px-3 py-2 rounded-xl bg-dark-800 border border-dark-600 hover:border-[#4DA6FF]/50 transition"
+                  className="flex flex-1 items-center gap-2 px-3 py-2 min-w-0 touch-manipulation"
                 >
                   <div className="relative w-8 h-8 rounded-full overflow-hidden bg-[#4DA6FF]/20 shrink-0">
                     <SilhouetteAvatar
@@ -165,11 +167,14 @@ export default function MessagesPage() {
                       <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-green-400 border-2 border-dark-800" />
                     )}
                   </div>
-                  <span className="font-medium text-white text-sm truncate max-w-[120px]">{f.username ?? f.name}</span>
-                  <span className="text-xs text-dark-500 shrink-0">
+                  <span className="font-medium text-white text-sm truncate max-w-[100px]">{f.username ?? f.name}</span>
+                  <span className="text-xs text-dark-500 shrink-0 max-sm:hidden">
                     {f.online ? "Online" : formatLastActive(f.lastActivityAt)}
                   </span>
                 </Link>
+                <div className="flex items-center pr-1.5 border-l border-dark-600 bg-dark-800">
+                  <QuickCallButtons toUserId={f.id} size="sm" />
+                </div>
               </li>
             ))}
           </ul>
@@ -184,9 +189,10 @@ export default function MessagesPage() {
             <Link href="/app/matches" className="text-brand-400 hover:underline">Matches</Link> și trimite un mesaj.
           </p>
           <p className="text-dark-500 text-sm mt-4">
-            Pentru <strong>apel 1-la-1</strong>, apasă Video sau Audio pe cineva din{" "}
-            <Link href="/app/matches" className="text-brand-400 hover:underline">Matches</Link> sau{" "}
-            <Link href="/app/profiles" className="text-brand-400 hover:underline">Toate profilurile</Link> — nu trebuie să trimiți mesaj mai întâi.
+            Pentru <strong>apel 1-la-1</strong>, folosește butoanele Video / Audio lângă fiecare conversație (când ai mesaje), sau din{" "}
+            <Link href="/app" className="text-brand-400 hover:underline">Descoperă</Link>,{" "}
+            <Link href="/app/matches" className="text-brand-400 hover:underline">Matches</Link>,{" "}
+            <Link href="/app/profiles" className="text-brand-400 hover:underline">Profiluri</Link> — și în <strong>chat</strong> (sus, Apel: Video | Audio).
           </p>
           <Link
             href="/app/call/start"
@@ -198,15 +204,19 @@ export default function MessagesPage() {
       ) : (
         <ul className="space-y-1">
           {conversations.map(({ otherUser, lastMessage, receivedCount, unreadCount, noMessagesYet }) => {
-            const isFromMe = lastMessage.fromId === me?.id;
+            const isFromMe =
+              me?.id != null && String(lastMessage.fromId) === String(me.id);
             const preview = noMessagesYet
               ? "Trimite un mesaj"
               : (isFromMe ? "Tu: " : "") + (lastMessage.text.length > 50 ? lastMessage.text.slice(0, 50) + "…" : lastMessage.text);
             return (
-              <li key={otherUser.id}>
+              <li
+                key={otherUser.id}
+                className="flex items-stretch rounded-xl bg-dark-800 border border-dark-600 hover:border-dark-500 active:bg-dark-700/80 transition overflow-hidden touch-manipulation"
+              >
                 <Link
                   href={`/app/chat/${otherUser.id}`}
-                  className="flex items-center gap-4 min-h-[56px] p-4 rounded-xl bg-dark-800 border border-dark-600 hover:border-dark-500 active:bg-dark-700 transition touch-manipulation"
+                  className="flex flex-1 items-center gap-3 sm:gap-4 min-h-[56px] p-3 sm:p-4 min-w-0"
                 >
                   <div className="relative w-12 h-12 shrink-0 rounded-full overflow-hidden bg-brand-500/20">
                     <SilhouetteAvatar
@@ -253,10 +263,13 @@ export default function MessagesPage() {
                       )}
                     </p>
                   </div>
-                  <span className="text-xs text-dark-500 shrink-0">
+                  <span className="text-xs text-dark-500 shrink-0 self-start pt-1 sm:self-center sm:pt-0">
                     {formatTime(lastMessage.at)}
                   </span>
                 </Link>
+                <div className="flex items-center pr-1 sm:pr-2 pl-0 border-l border-dark-600 bg-dark-800 shrink-0">
+                  <QuickCallButtons toUserId={otherUser.id} size="sm" />
+                </div>
               </li>
             );
           })}
