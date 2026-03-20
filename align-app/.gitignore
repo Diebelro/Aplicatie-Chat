@@ -20,6 +20,7 @@ prisma/prisma/
 .env.development.local
 .env.test.local
 .env.production.local
+.env.signaling
 
 # Debug
 npm-debug.log*

@@ -1,5 +1,7 @@
 # Deploy semnalizare WebRTC pe VPS (wss://ws.diebel.ro)
 
+**Copy-paste rapid (SSH):** [VPS-signaling-COPY-PASTE.md](./VPS-signaling-COPY-PASTE.md) · script: `align-app/scripts/install-signaling-vps.sh`
+
 Serverul WebSocket este **`align-app/server/call-signaling-server.mjs`** (proces Node separat de Next/Vercel).
 
 ## Ce face serverul (confirmat în cod)
