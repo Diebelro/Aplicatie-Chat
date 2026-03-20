@@ -1,27 +1,38 @@
+# Unit systemd exemplu — DIEBEL WebRTC signaling (WebSocket)
+# Fișier țintă: /etc/systemd/system/call-signaling.service
+#
+# După editare:
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now call-signaling
+#
+# User=www-data: rulează procesul fără root (recomandat). Asigură-te că www-data poate citi
+# WorkingDirectory și .env.signaling (chmod 640, grup www-data). Alternativă: User dedicat `diebel`.
+# Dacă la start primești EACCES pe fișiere, verifică ownership pe /srv/aplicatie-chat.
+
 [Unit]
-Description=DIEBEL WebRTC signaling (WebSocket)
+Description=DIEBEL WebRTC signaling (WebSocket, call-signaling-server.mjs)
 After=network.target
 
 [Service]
 Type=simple
+# User=www-data: asigură read pe WorkingDirectory + .env.signaling (ex. chown -R root:www-data …; chmod 750 …)
 User=www-data
-WorkingDirectory=/opt/align-app
+WorkingDirectory=/srv/aplicatie-chat/align-app
 Environment=NODE_ENV=production
+# Procesul citește portul din SIGNALING_PORT (implicit 4001). Nginx face proxy către același port.
 Environment=SIGNALING_PORT=4001
-# Recomandat în producție (sau mută tot în .env.signaling):
-# Environment=SIGNALING_MAX_CONN_PER_IP=40
-# Environment=SIGNALING_MSG_BURST_PER_10S=100
-# Environment=SIGNALING_MAX_MSG_BYTES=65536
-# Environment=SIGNALING_HEARTBEAT_TTL_MS=75000
-EnvironmentFile=/opt/align-app/.env.signaling
+# Secretele reale NU le pune în acest fișier în clar — folosește EnvironmentFile:
+EnvironmentFile=-/srv/aplicatie-chat/align-app/.env.signaling
+#
+# .env.signaling (exemplu conținut minim):
+#   SIGNALING_TOKEN_SECRET=<min 16; același secret folosit la generarea tokenului în Next / Vercel>
+#   (opțional) NEXTAUTH_SECRET=... dacă vrei fallback identic cu aplicația
+#
+# TURN_AUTH_SECRET: folosit de aplicația Next (ex. /api/call/signaling-token, ice-config), NU de acest proces Node.
+# Îl documentăm aici doar pentru aliniere cu variabilele din Vercel; nu e necesar în .env.signaling pentru WS.
 ExecStart=/usr/bin/node server/call-signaling-server.mjs
 Restart=always
 RestartSec=3
 
 [Install]
 WantedBy=multi-user.target
-
-# Deploy:
-#  - Copiază align-app pe server (sau doar server/call-signaling-server.mjs + node_modules/ws)
-#  - .env.signaling: SIGNALING_TOKEN_SECRET=... (același ca NEXTAUTH_SECRET sau dedicat, min 16)
-#  - În spatele Caddy/nginx: proxy_pass wss către 127.0.0.1:4001/ws
