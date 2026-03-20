@@ -52,6 +52,8 @@ export default function ChatPage() {
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
   const [uploadConfigured, setUploadConfigured] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  /** Fallback când lipsește align_user în storage dar sesiunea (cookie) e validă — ca butoanele Apel să apară. */
+  const [meIdFromMeApi, setMeIdFromMeApi] = useState<string | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -59,8 +61,23 @@ export default function ChatPage() {
   const meRaw = typeof window !== "undefined" ? getStoredUserRaw() : null;
   const me: User | null = meRaw ? (() => { try { return JSON.parse(meRaw); } catch { return null; } })() : null;
   const myIdForTicks = me?.id != null ? String(me.id) : (currentUserId != null ? String(currentUserId) : "");
-  /** Apel / acțiuni: folosește și currentUserId din API dacă lipsește align_user în storage (butoanele nu dispar). */
-  const effectiveUserId = myIdForTicks || null;
+  /** Apel / acțiuni: storage, apoi mesaje, apoi GET /api/me (cookie). */
+  const effectiveUserId =
+    (myIdForTicks || (meIdFromMeApi != null ? String(meIdFromMeApi) : "")).trim() || null;
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/me", { credentials: "same-origin", cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (cancelled || !d?.user?.id) return;
+        setMeIdFromMeApi(String(d.user.id));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const fetchOther = async () => {
     const res = await fetch(`/api/users/${otherId}`, { headers: getAuthHeaders() });

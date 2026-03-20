@@ -501,42 +501,33 @@ export default function AppDiscoverPage() {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-3 mb-4 w-full text-xs text-dark-500 justify-center">
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded border border-[#4DA6FF]/50 bg-[#4DA6FF]/10" />
-          Prieteni
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded border border-[#A0A0A0]/50 bg-[#A0A0A0]/10" />
-          Cerere trimisă
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded border border-[#C77DFF]/50 bg-[#C77DFF]/10" />
-          Cerere primită
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded border border-[#FFD43B]/50 bg-[#FFD43B]/10" />
-          Mesaj trimis
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded border border-[#FF922B]/50 bg-[#FF922B]/10" />
-          Mesaj primit
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded border border-[#22B8CF]/50 bg-[#22B8CF]/10" />
-          Mesaj văzut
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded border border-[#9D4EDD]/50 bg-[#9D4EDD]/10" />
-          A vizitat profilul tău
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded border border-[#999999]/50 bg-[#999999]/10" />
-          Vizitat de tine
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded border border-[#69DB7C]/50 bg-[#69DB7C]/10" />
-          Match
+      <div className="flex flex-wrap gap-3 gap-x-4 mb-4 w-full text-xs text-dark-500 justify-center">
+        {(
+          [
+            { key: "friends", label: "Prieteni", color: FRIEND_CARD_COLORS.friends },
+            { key: "pendingSent", label: "Cerere trimisă", color: FRIEND_CARD_COLORS.pendingSent },
+            { key: "pendingReceived", label: "Cerere primită", color: FRIEND_CARD_COLORS.pendingReceived },
+            { key: "match", label: "Match", color: FRIEND_CARD_COLORS.match },
+            { key: "messageSeen", label: "Mesaj văzut", color: FRIEND_CARD_COLORS.messageSeen },
+            { key: "messageReceived", label: "Mesaj primit", color: FRIEND_CARD_COLORS.messageReceived },
+            { key: "messageSent", label: "Mesaj trimis", color: FRIEND_CARD_COLORS.messageSent },
+            { key: "visitedYou", label: "A vizitat profilul tău", color: FRIEND_CARD_COLORS.visitedYou },
+            { key: "visitedByYou", label: "Vizitat de tine", color: FRIEND_CARD_COLORS.visitedByYou },
+            { key: "online", label: "Online", color: FRIEND_CARD_COLORS.online },
+            { key: "isNew", label: "Cont nou", color: FRIEND_CARD_COLORS.isNew },
+            { key: "notVisited", label: "Profil nedeschis", color: FRIEND_CARD_COLORS.notVisited },
+          ] as const
+        ).map(({ key, label, color }) => (
+          <span key={key} className="flex items-center gap-1.5">
+            <span
+              className="w-3 h-3 rounded border shrink-0"
+              style={{ borderColor: `${color}80`, backgroundColor: `${color}1A` }}
+            />
+            {label}
+          </span>
+        ))}
+        <span className="w-full text-center sm:w-auto basis-full sm:basis-auto">
+          Distanța (m/km) apare dacă ai permis locația.
         </span>
       </div>
 

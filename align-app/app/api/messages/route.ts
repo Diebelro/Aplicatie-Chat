@@ -21,9 +21,16 @@ import {
 } from "@/lib/repo-prisma";
 
 import { canSendMessage, PAYWALL_MESSAGE } from "@/lib/monetization";
+import { getAuthenticatedUserId } from "@/lib/sessionAuth";
+
+function resolveUserId(request: NextRequest): string | null {
+  const h = request.headers.get("x-user-id")?.trim();
+  if (h) return h;
+  return getAuthenticatedUserId(request);
+}
 
 export async function GET(request: NextRequest) {
-  const userId = request.headers.get("x-user-id");
+  const userId = resolveUserId(request);
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   }
@@ -112,7 +119,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const userId = request.headers.get("x-user-id");
+  const userId = resolveUserId(request);
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   }
