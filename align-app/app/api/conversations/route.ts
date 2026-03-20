@@ -18,11 +18,12 @@ import {
   prismaGetUnreadFrom,
   prismaUpdateLastActive,
 } from "@/lib/repo-prisma";
+import { resolveRequestUserId } from "@/lib/sessionAuth";
 
 const ONLINE_MS = 60 * 1000; // sub 1 min = instant ca WhatsApp
 
 export async function GET(request: NextRequest) {
-  const userId = request.headers.get("x-user-id");
+  const userId = resolveRequestUserId(request);
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   }

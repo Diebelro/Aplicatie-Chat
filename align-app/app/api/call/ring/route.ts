@@ -3,12 +3,11 @@ import { setPendingCall } from "@/lib/store";
 import { getVideoRoomId } from "@/lib/videoCall";
 import { findUserOrPrisma } from "@/lib/repo-prisma";
 import { rateLimitAllow } from "@/lib/callRateLimit";
-import { getAuthenticatedUserId } from "@/lib/sessionAuth";
+import { resolveRequestUserId } from "@/lib/sessionAuth";
 
 /** Sună pe toId: înregistrează apelul în așteptare ca celălalt să vadă „X te sună”. */
 export async function POST(request: NextRequest) {
-  const userId =
-    request.headers.get("x-user-id")?.trim() || getAuthenticatedUserId(request);
+  const userId = resolveRequestUserId(request);
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   }

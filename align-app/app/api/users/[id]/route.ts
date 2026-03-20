@@ -10,6 +10,7 @@ import {
   getUserPrivacySettings,
 } from "@/lib/store";
 import { findUserOrPrisma } from "@/lib/repo-prisma";
+import { resolveRequestUserId } from "@/lib/sessionAuth";
 
 const ONLINE_MS = 60 * 1000; // sub 1 min = instant ca WhatsApp
 
@@ -22,7 +23,7 @@ export async function GET(
   if (!user) {
     return NextResponse.json({ error: "Profil negăsit." }, { status: 404 });
   }
-  const meId = request.headers.get("x-user-id");
+  const meId = resolveRequestUserId(request);
   if (!meId || meId === id) {
     return NextResponse.json({ user });
   }

@@ -71,3 +71,14 @@ export function getAuthenticatedUserId(request: Request): string | null {
   const { userId } = getAuthFromRequest(request);
   return userId || null;
 }
+
+/**
+ * Pentru API routes: întâi `x-user-id` din header (cum trimite clientul din storage),
+ * apoi același user ca la login prin cookie `align_sid`.
+ * Dacă lipsește ambele, 401 — altfel feed/profiluri/poze par „dispărute”.
+ */
+export function resolveRequestUserId(request: Request): string | null {
+  const fromHeader = request.headers.get("x-user-id")?.trim();
+  if (fromHeader) return fromHeader;
+  return getAuthenticatedUserId(request);
+}

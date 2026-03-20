@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { addVisit, findUserById } from "@/lib/store";
 import { isPrismaAvailable, findUserOrPrisma, prismaAddVisit } from "@/lib/repo-prisma";
+import { resolveRequestUserId } from "@/lib/sessionAuth";
 
 export async function POST(request: NextRequest) {
-  const userId = request.headers.get("x-user-id");
+  const userId = resolveRequestUserId(request);
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   }

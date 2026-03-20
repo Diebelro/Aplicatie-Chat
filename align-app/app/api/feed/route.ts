@@ -39,6 +39,7 @@ import {
   prismaLogRateLimit,
   type FeedFilters,
 } from "@/lib/repo-prisma";
+import { resolveRequestUserId } from "@/lib/sessionAuth";
 
 function getClientIp(req: NextRequest): string {
   const xff = req.headers.get("x-forwarded-for");
@@ -114,7 +115,7 @@ function distanceHaversine(
 
 export async function GET(request: NextRequest) {
   seedFakeProfiles();
-  const userId = request.headers.get("x-user-id")?.trim();
+  const userId = resolveRequestUserId(request);
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   }

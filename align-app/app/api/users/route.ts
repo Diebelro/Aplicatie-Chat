@@ -21,6 +21,7 @@ import {
   findUserById,
   type Gender,
 } from "@/lib/store";
+import { resolveRequestUserId } from "@/lib/sessionAuth";
 
 function parseFilters(searchParams: URLSearchParams): {
   gender?: Gender | "";
@@ -62,7 +63,7 @@ function parseFilters(searchParams: URLSearchParams): {
 
 export async function GET(request: NextRequest) {
   seedFakeProfiles();
-  const userId = request.headers.get("x-user-id");
+  const userId = resolveRequestUserId(request);
   if (userId) setUserActive(userId);
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });

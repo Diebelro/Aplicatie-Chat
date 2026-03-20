@@ -12,6 +12,7 @@ import {
   prismaAddMatch,
   prismaLogRateLimit,
 } from "@/lib/repo-prisma";
+import { resolveRequestUserId } from "@/lib/sessionAuth";
 
 function getClientIp(req: NextRequest): string {
   const xff = req.headers.get("x-forwarded-for");
@@ -22,7 +23,7 @@ function getClientIp(req: NextRequest): string {
 }
 
 export async function POST(request: NextRequest) {
-  const userId = request.headers.get("x-user-id")?.trim();
+  const userId = resolveRequestUserId(request);
   const deviceId = request.headers.get("x-device-id")?.trim();
   const fingerprint = request.headers.get("x-device-fingerprint")?.trim() ?? null;
   if (!userId) {

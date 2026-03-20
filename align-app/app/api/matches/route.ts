@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { findUserById, getMutualMatches, isUserOnlineVisible, getDistanceKmForDisplay } from "@/lib/store";
 import { isPrismaAvailable, findUserOrPrisma, prismaGetMutualMatches, prismaGetMyLocation } from "@/lib/repo-prisma";
+import { resolveRequestUserId } from "@/lib/sessionAuth";
 
 const ONLINE_MS = 60 * 1000; // sub 1 min = instant ca WhatsApp
 
@@ -16,7 +17,7 @@ function distanceHaversine(lat1: number, lng1: number, lat2: number, lng2: numbe
 }
 
 export async function GET(request: NextRequest) {
-  const userId = request.headers.get("x-user-id");
+  const userId = resolveRequestUserId(request);
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   }
