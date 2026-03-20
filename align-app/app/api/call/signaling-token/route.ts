@@ -3,13 +3,14 @@ import { createSignalingToken } from "@/lib/signalingToken";
 import { parseTurnAndSignalingSecrets } from "@/lib/env/webrtcConfig";
 import { rateLimitAllow } from "@/lib/callRateLimit";
 import { findUserOrPrisma } from "@/lib/repo-prisma";
+import { resolveRequestUserId } from "@/lib/sessionAuth";
 
 export const dynamic = "force-dynamic";
 
 const TOKEN_TTL_MS = 10 * 60 * 1000;
 
 export async function GET(request: NextRequest) {
-  const userId = request.headers.get("x-user-id");
+  const userId = resolveRequestUserId(request);
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   }

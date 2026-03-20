@@ -6,10 +6,11 @@ import {
   markConversationMessagesAsRead,
 } from "@/lib/store";
 import { isPrismaAvailable, findUserOrPrisma, prismaMarkConversationAsRead } from "@/lib/repo-prisma";
+import { resolveRequestUserId } from "@/lib/sessionAuth";
 
 /** Mark conversation with otherId as read (when opening chat). Also records message_reads for read receipts. */
 export async function POST(request: NextRequest) {
-  const userId = request.headers.get("x-user-id");
+  const userId = resolveRequestUserId(request);
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   }

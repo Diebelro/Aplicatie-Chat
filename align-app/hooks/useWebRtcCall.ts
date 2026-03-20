@@ -395,7 +395,11 @@ export function useWebRtcCall({
         turnUrlsFromApi: rawServers?.length ?? 0,
       });
 
-      const tokRes = await fetch("/api/call/signaling-token", { headers: getAuthHeaders() });
+      const tokRes = await fetch("/api/call/signaling-token", {
+        headers: getAuthHeaders(),
+        credentials: "same-origin",
+        cache: "no-store",
+      });
       if (!tokRes.ok) {
         if (!cancelled) setState((s) => ({ ...s, status: "error", error: "Token semnalizare respins." }));
         localStream.getTracks().forEach((t) => t.stop());

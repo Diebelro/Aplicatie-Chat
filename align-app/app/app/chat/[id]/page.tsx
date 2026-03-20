@@ -33,6 +33,15 @@ function isImageType(ct: string | null | undefined): boolean {
   return ct === "image/jpeg" || ct === "image/png" || ct === "image/webp";
 }
 
+/** Dacă API-ul nu trimite încă currentUserId, deducem „cine sunt eu” din mesaje. */
+function inferMyUserIdFromMessages(messages: Message[], otherUserId: string): string | null {
+  for (const m of messages) {
+    if (m.fromId === otherUserId && m.toId) return m.toId;
+    if (m.toId === otherUserId && m.fromId) return m.fromId;
+  }
+  return null;
+}
+
 export default function ChatPage() {
   const params = useParams();
   const router = useRouter();
@@ -60,10 +69,19 @@ export default function ChatPage() {
 
   const meRaw = typeof window !== "undefined" ? getStoredUserRaw() : null;
   const me: User | null = meRaw ? (() => { try { return JSON.parse(meRaw); } catch { return null; } })() : null;
-  const myIdForTicks = me?.id != null ? String(me.id) : (currentUserId != null ? String(currentUserId) : "");
-  /** Apel / acțiuni: storage, apoi mesaje, apoi GET /api/me (cookie). */
-  const effectiveUserId =
-    (myIdForTicks || (meIdFromMeApi != null ? String(meIdFromMeApi) : "")).trim() || null;
+  /** Sursă adevăr: server (mesaje) > /api/me > storage — ca apelul și bifele să nu depindă de JSON stricat în localStorage. */
+  const inferredFromMessages = inferMyUserIdFromMessages(messages, otherId);
+  const myIdForTicks =
+    currentUserId != null
+      ? String(currentUserId)
+      : meIdFromMeApi != null
+        ? String(meIdFromMeApi)
+        : me?.id != null
+          ? String(me.id)
+          : inferredFromMessages != null
+            ? inferredFromMessages
+            : "";
+  const callerId = (myIdForTicks || "").trim() || null;
 
   useEffect(() => {
     let cancelled = false;
@@ -72,6 +90,15 @@ export default function ChatPage() {
       .then((d) => {
         if (cancelled || !d?.user?.id) return;
         setMeIdFromMeApi(String(d.user.id));
+        if (typeof window !== "undefined" && d.user) {
+          try {
+            const fromLocal = !!localStorage.getItem("align_user");
+            (fromLocal ? localStorage : sessionStorage).setItem("align_user", JSON.stringify(d.user));
+            window.dispatchEvent(new CustomEvent("align_user_updated", { detail: d.user }));
+          } catch {
+            /* ignore */
+          }
+        }
       })
       .catch(() => {});
     return () => {
@@ -316,56 +343,68 @@ export default function ChatPage() {
             </p>
           </div>
         </div>
-        {effectiveUserId && (
-          <div className="flex items-center gap-2">
+        {otherUser && (
+          <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs text-dark-500 shrink-0">Apel:</span>
-            <button
-              type="button"
-              disabled={!!calling}
-              onClick={async () => {
-                setCalling("video");
-                try {
-                  await fetch("/api/call/ring", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-                    body: JSON.stringify({ toId: otherId, audioOnly: false }),
-                  });
-                } finally {
-                  setCalling(null);
-                }
-                router.push(`/app/call/${getVideoRoomId(effectiveUserId, otherId)}?from=ring`);
-              }}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand-500/25 text-brand-400 hover:bg-brand-500/35 border border-brand-500/40 transition disabled:opacity-50"
-              title="Apel video"
-            >
-              <Video className="w-5 h-5" />
-              <span className="text-sm font-medium">Video</span>
-            </button>
-            <button
-              type="button"
-              disabled={!!calling}
-              onClick={async () => {
-                setCalling("audio");
-                try {
-                  await fetch("/api/call/ring", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-                    body: JSON.stringify({ toId: otherId, audioOnly: true }),
-                  });
-                } finally {
-                  setCalling(null);
-                }
-                router.push(`/app/call/${getVideoRoomId(effectiveUserId, otherId)}?audio=1&from=ring`);
-              }}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-dark-600 text-white hover:bg-dark-500 border border-dark-500 transition disabled:opacity-50"
-              title="Apel audio"
-            >
-              <Phone className="w-5 h-5" />
-              <span className="text-sm font-medium">Audio</span>
-            </button>
+            {!callerId ? (
+              <span className="text-xs text-amber-400/90 max-w-[min(100%,220px)]">
+                Se încarcă ID cont… Reîncarcă pagina sau iese și intră din nou dacă nu apar butoanele.
+              </span>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  disabled={!!calling}
+                  onClick={async () => {
+                    if (!callerId) return;
+                    setCalling("video");
+                    try {
+                      await fetch("/api/call/ring", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+                        credentials: "same-origin",
+                        body: JSON.stringify({ toId: otherId, audioOnly: false }),
+                      });
+                    } finally {
+                      setCalling(null);
+                    }
+                    router.push(`/app/call/${getVideoRoomId(callerId, otherId)}?from=ring`);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand-500/25 text-brand-400 hover:bg-brand-500/35 border border-brand-500/40 transition disabled:opacity-50"
+                  title="Apel video"
+                >
+                  <Video className="w-5 h-5" />
+                  <span className="text-sm font-medium">Video</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={!!calling}
+                  onClick={async () => {
+                    if (!callerId) return;
+                    setCalling("audio");
+                    try {
+                      await fetch("/api/call/ring", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+                        credentials: "same-origin",
+                        body: JSON.stringify({ toId: otherId, audioOnly: true }),
+                      });
+                    } finally {
+                      setCalling(null);
+                    }
+                    router.push(`/app/call/${getVideoRoomId(callerId, otherId)}?audio=1&from=ring`);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-dark-600 text-white hover:bg-dark-500 border border-dark-500 transition disabled:opacity-50"
+                  title="Apel audio"
+                >
+                  <Phone className="w-5 h-5" />
+                  <span className="text-sm font-medium">Audio</span>
+                </button>
+              </>
+            )}
           </div>
         )}
-        {effectiveUserId && (
+        {callerId && (
         <div className="flex flex-wrap gap-2 pt-2 border-t border-dark-600 mt-2">
           <button
             type="button"
@@ -476,7 +515,7 @@ export default function ChatPage() {
         {messages.map((m) => {
           const fromId = m.fromId != null ? String(m.fromId) : "";
           const toId = m.toId != null ? String(m.toId) : "";
-          const isMe = String(m.fromId) === String(myIdForTicks) || toId === String(otherId ?? "");
+          const isMe = callerId != null && fromId === callerId;
           const status = String(m.status ?? "").trim().toUpperCase();
           const isRead = status === "SEEN" || !!m.seenAt;
           const showTick = isMe;
