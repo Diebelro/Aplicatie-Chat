@@ -1,5 +1,7 @@
 import crypto from "crypto";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const urls = JSON.parse(process.env.NEXT_PUBLIC_TURN_URLS || "[]");
   const realm = process.env.TURN_REALM!;

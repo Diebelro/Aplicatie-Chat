@@ -378,7 +378,7 @@ export function useWebRtcCall({
       };
       const rawServers = iceJson.iceServers;
       if (!rawServers?.length) {
-        console.warn("[WebRTC] iceServers gol din /api/call/ice-config");
+        console.warn("[WebRTC] iceServers from /api/call/ice-config is empty");
       }
       const first = rawServers?.[0];
       /** ICE: URL-uri din env (NEXT_PUBLIC_TURN_URLS), credențiale efemere REST (HMAC-SHA1) de la server — vezi docs/webrtc-turn.md */
