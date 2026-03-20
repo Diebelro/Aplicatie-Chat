@@ -47,10 +47,22 @@ Clientul (`hooks/useWebRtcCall.ts`) face `fetch("/api/call/ice-config", { cache:
 2. **Blocare UDP:** dacă forțezi traficul prin **TURNS** (TCP/TLS), ar trebui să vezi candidați relay pe portul TLS al TURN.
 3. **Răspuns API:** în DevTools → Network → `ice-config` → body cu `iceServers[0].username` / `credential` (fără a expune `TURN_STATIC_SECRET`).
 
+## 404 pe `/api/call/ice-config` în producție
+
+Codul rutei este sub **App Router**: `app/api/call/ice-config/route.ts`. Dacă în producție primești **404** (nu 500):
+
+1. **Vercel — Root Directory** trebuie să fie **`align-app`** (dacă monorepo-ul are rădăcina repo mai sus). Altfel build-ul poate fi alt proiect sau fără acest folder → ruta nu există în deployment.
+2. **`output: "export"`** în `next.config.js` — **interzis** pentru API Routes; toate `/api/*` devin 404. În repo nu este activ; păstrează-l așa.
+3. **Branch / deploy** — commit-ul care adaugă `ice-config` este pe branch-ul conectat la Production?
+4. **Smoke test:** `GET /api/health` — dacă și asta e 404, problema e la deployment/config Vercel, nu la logica ICE.
+
+Nu există `vercel.json` cu rewrites care să „fure” `/api/call/*`. Redirecturile din `next.config.js` vizează doar `/termeni` și `/confidentialitate`.
+
 ## Troubleshooting
 
 | Simptom | Verificări |
 |---------|------------|
+| **404 pe ice-config** | Root Directory Vercel = `align-app`; fără `output: "export"`; verifică `/api/health`. |
 | **Fără candidați relay** | `NEXT_PUBLIC_TURN_URLS` corect; firewall 3478/5349; coturn pornește; `external-ip` coturn. |
 | **401/403 la TURN** | `TURN_STATIC_SECRET` identic cu `static-auth-secret` coturn; username neexpirat (ceas server sincronizat). |
 | **500 „TURN urls missing”** | `NEXT_PUBLIC_TURN_URLS` JSON valid (array de string-uri). |
