@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Heart, X, ChevronRight, MessageCircle } from "lucide-react";
+import { Heart, X, ChevronRight, MessageCircle, Video, Phone } from "lucide-react";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
 import { useSearchFilters, type SearchFilters } from "@/lib/useSearchFilters";
@@ -19,6 +19,7 @@ import {
   type FeedItem,
 } from "@/lib/feedBuilder";
 import { getAuthHeaders } from "@/lib/authClient";
+import { getVideoRoomId } from "@/lib/videoCall";
 import { getSmallCardState, FRIEND_CARD_COLORS, SMALL_CARD_STATUS_LABELS } from "@/lib/friendCardStates";
 
 type UserWithMeta = User & {
@@ -103,12 +104,50 @@ export default function AppDiscoverPage() {
   const isDraggingRef = useRef(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const [matchModal, setMatchModal] = useState<{ toId: string; name: string } | null>(null);
+  /** Apel audio/video de pe cardul Descoperă */
+  const [discoverCallingTo, setDiscoverCallingTo] = useState<string | null>(null);
   const SWIPE_THRESHOLD = 55;
   const SWIPE_EXIT_OFFSET = 400;
   const FLY_OUT_MS = 100;
 
   const triggerHaptic = () => {
     if (typeof navigator !== "undefined" && navigator.vibrate?.(8)) return;
+  };
+
+  const resolveMyIdForDiscoverCall = async (): Promise<string | null> => {
+    const raw = getStoredUserRaw();
+    if (raw) {
+      try {
+        const u = JSON.parse(raw) as User;
+        const id = u?.id != null ? String(u.id).trim() : "";
+        if (id) return id;
+      } catch {
+        /* ignore */
+      }
+    }
+    const r = await fetch("/api/me", { credentials: "same-origin", cache: "no-store" });
+    if (!r.ok) return null;
+    const d = await r.json();
+    const id = d?.user?.id != null ? String(d.user.id).trim() : "";
+    return id || null;
+  };
+
+  const startDiscoverCall = async (toId: string, audioOnly: boolean) => {
+    if (discoverCallingTo) return;
+    const myId = await resolveMyIdForDiscoverCall();
+    if (!myId) return;
+    setDiscoverCallingTo(toId);
+    try {
+      await fetch("/api/call/ring", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        credentials: "same-origin",
+        body: JSON.stringify({ toId, audioOnly }),
+      });
+    } finally {
+      setDiscoverCallingTo(null);
+    }
+    router.push(`/app/call/${getVideoRoomId(myId, toId)}${audioOnly ? "?audio=1&from=ring" : "?from=ring"}`);
   };
 
   const currentItem = feedItems[0];
@@ -689,30 +728,48 @@ export default function AppDiscoverPage() {
                   </div>
                 </div>
 
-                <div className="absolute bottom-4 left-0 right-0 flex justify-center items-center gap-4">
+                <div className="absolute bottom-4 left-0 right-0 flex flex-wrap justify-center items-center gap-2 sm:gap-3 px-1">
                   <button
                     type="button"
                     onClick={() => onButtonSwipe(false)}
-                    className="w-14 h-14 rounded-full bg-dark-600 hover:bg-red-500/25 active:scale-90 flex items-center justify-center text-red-400 border-2 border-red-500/50 transition-[transform,background-color] duration-75 touch-none"
+                    className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-dark-600 hover:bg-red-500/25 active:scale-90 flex items-center justify-center text-red-400 border-2 border-red-500/50 transition-[transform,background-color] duration-75 touch-none shrink-0"
                     title="Nu"
                   >
-                    <X className="w-7 h-7" />
+                    <X className="w-6 h-6 sm:w-7 sm:h-7" />
                   </button>
                   <button
                     type="button"
                     onClick={() => router.push(`/app/chat/${current.id}`)}
-                    className="w-14 h-14 rounded-full bg-dark-600 hover:bg-brand-500/25 active:scale-90 flex items-center justify-center text-brand-400 border-2 border-brand-500/50 transition-[transform,background-color] duration-75 touch-none"
+                    className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-dark-600 hover:bg-brand-500/25 active:scale-90 flex items-center justify-center text-brand-400 border-2 border-brand-500/50 transition-[transform,background-color] duration-75 touch-none shrink-0"
                     title="Mesaje"
                   >
-                    <MessageCircle className="w-7 h-7" />
+                    <MessageCircle className="w-6 h-6 sm:w-7 sm:h-7" />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!!discoverCallingTo}
+                    onClick={() => void startDiscoverCall(current.id, false)}
+                    className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-dark-600 hover:bg-brand-500/20 active:scale-90 flex items-center justify-center text-brand-400 border-2 border-brand-500/40 transition-[transform,background-color] duration-75 touch-none shrink-0 disabled:opacity-50"
+                    title="Apel video"
+                  >
+                    <Video className="w-6 h-6 sm:w-7 sm:h-7" />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!!discoverCallingTo}
+                    onClick={() => void startDiscoverCall(current.id, true)}
+                    className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-dark-600 hover:bg-dark-500 active:scale-90 flex items-center justify-center text-white border-2 border-dark-500 transition-[transform,background-color] duration-75 touch-none shrink-0 disabled:opacity-50"
+                    title="Apel audio"
+                  >
+                    <Phone className="w-6 h-6 sm:w-7 sm:h-7" />
                   </button>
                   <button
                     type="button"
                     onClick={() => onButtonSwipe(true)}
-                    className="w-14 h-14 rounded-full bg-brand-500 hover:bg-brand-400 active:scale-90 flex items-center justify-center text-dark-900 border-2 border-brand-400/50 transition-[transform,background-color] duration-75 touch-none"
+                    className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-brand-500 hover:bg-brand-400 active:scale-90 flex items-center justify-center text-dark-900 border-2 border-brand-400/50 transition-[transform,background-color] duration-75 touch-none shrink-0"
                     title="Like"
                   >
-                    <Heart className="w-7 h-7" />
+                    <Heart className="w-6 h-6 sm:w-7 sm:h-7" />
                   </button>
                 </div>
                 </div>
