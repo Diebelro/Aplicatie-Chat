@@ -59,6 +59,8 @@ export default function ChatPage() {
   const meRaw = typeof window !== "undefined" ? getStoredUserRaw() : null;
   const me: User | null = meRaw ? (() => { try { return JSON.parse(meRaw); } catch { return null; } })() : null;
   const myIdForTicks = me?.id != null ? String(me.id) : (currentUserId != null ? String(currentUserId) : "");
+  /** Apel / acțiuni: folosește și currentUserId din API dacă lipsește align_user în storage (butoanele nu dispar). */
+  const effectiveUserId = myIdForTicks || null;
 
   const fetchOther = async () => {
     const res = await fetch(`/api/users/${otherId}`, { headers: getAuthHeaders() });
@@ -297,7 +299,7 @@ export default function ChatPage() {
             </p>
           </div>
         </div>
-        {me?.id && (
+        {effectiveUserId && (
           <div className="flex items-center gap-2">
             <span className="text-xs text-dark-500 shrink-0">Apel:</span>
             <button
@@ -314,7 +316,7 @@ export default function ChatPage() {
                 } finally {
                   setCalling(null);
                 }
-                router.push(`/app/call/${getVideoRoomId(me.id, otherId)}?from=ring`);
+                router.push(`/app/call/${getVideoRoomId(effectiveUserId, otherId)}?from=ring`);
               }}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand-500/25 text-brand-400 hover:bg-brand-500/35 border border-brand-500/40 transition disabled:opacity-50"
               title="Apel video"
@@ -336,7 +338,7 @@ export default function ChatPage() {
                 } finally {
                   setCalling(null);
                 }
-                router.push(`/app/call/${getVideoRoomId(me.id, otherId)}?audio=1&from=ring`);
+                router.push(`/app/call/${getVideoRoomId(effectiveUserId, otherId)}?audio=1&from=ring`);
               }}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-dark-600 text-white hover:bg-dark-500 border border-dark-500 transition disabled:opacity-50"
               title="Apel audio"
@@ -346,7 +348,7 @@ export default function ChatPage() {
             </button>
           </div>
         )}
-        {me?.id && (
+        {effectiveUserId && (
         <div className="flex flex-wrap gap-2 pt-2 border-t border-dark-600 mt-2">
           <button
             type="button"
