@@ -4,6 +4,7 @@
  */
 
 import { prisma } from "@/lib/db";
+import { logDevPrismaNoticeOnce } from "@/lib/dev-prisma-notice";
 import type { User, Match, Message } from "@/lib/store";
 import type { Gender } from "@/lib/store";
 
@@ -1220,6 +1221,19 @@ export async function prismaGetUsersForAdmin(search?: string): Promise<AdminUser
   return users;
 }
 
+/**
+ * Există rând în User (valid pentru FK la Message), chiar dacă lipsește Profile —
+ * prismaFindUserById returnează null fără profil, dar mesajele tot trebuie să poată fi trimise dacă userul există.
+ */
+export async function prismaUserRowExists(userId: string): Promise<boolean> {
+  try {
+    const row = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+    return row != null;
+  } catch {
+    return false;
+  }
+}
+
 export async function findUserOrPrisma(userId: string): Promise<User | null> {
   if (isPrismaAvailable()) {
     try {
@@ -1233,6 +1247,17 @@ export async function findUserOrPrisma(userId: string): Promise<User | null> {
   return u ?? null;
 }
 
+/**
+ * Producție: Prisma dacă există DATABASE_URL.
+ * Development: dacă există DATABASE_URL → Prisma (date persistente); altfel → store în memorie.
+ */
 export function isPrismaAvailable(): boolean {
-  return !!process.env.DATABASE_URL;
+  const hasDb = !!process.env.DATABASE_URL;
+  if (process.env.NODE_ENV === "production") return hasDb;
+  // DEV: dacă avem DATABASE_URL, folosim Prisma ca să nu se mai piardă datele în RAM
+  if (hasDb) {
+    logDevPrismaNoticeOnce();
+    return true;
+  }
+  return false;
 }

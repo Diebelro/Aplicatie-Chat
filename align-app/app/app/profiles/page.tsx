@@ -8,7 +8,7 @@ import { getVideoRoomId } from "@/lib/videoCall";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
 import { useSearchFilters, type SearchFilters } from "@/lib/useSearchFilters";
-import AdSlot from "@/components/AdSlot";
+import { DiebelAppPromoCarousel } from "@/components/diebel/DiebelAppPromoCarousel";
 import { SilhouetteAvatar } from "@/components/SilhouetteAvatar";
 import { AddFriendButton } from "@/components/AddFriendButton";
 import { getSmallCardState, SMALL_CARD_STATUS_LABELS, FRIEND_CARD_COLORS } from "@/lib/friendCardStates";
@@ -214,73 +214,6 @@ export default function ProfilesPage() {
     });
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <span className="text-dark-500">Se încarcă profilurile...</span>
-      </div>
-    );
-  }
-
-  if (profiles.length === 0) {
-    return (
-      <div className="py-12">
-        <h2 className="text-xl font-semibold mb-4 text-center">Toate profilurile</h2>
-        <p className="text-dark-500 text-center mb-8">Nu există alte profiluri.</p>
-        <div className="flex flex-wrap gap-4 justify-center text-xs text-dark-500">
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded border border-[#4DA6FF]/50 bg-[#4DA6FF]/10" />
-            Prieteni
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded border border-[#A0A0A0]/50 bg-[#A0A0A0]/10" />
-            Cerere trimisă
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded border border-[#C77DFF]/50 bg-[#C77DFF]/10" />
-            Cerere primită
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded border border-[#FFD43B]/50 bg-[#FFD43B]/10" />
-            Mesaj trimis
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded border border-[#FF922B]/50 bg-[#FF922B]/10" />
-            Mesaj primit
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded border border-[#22B8CF]/50 bg-[#22B8CF]/10" />
-            Mesaj văzut
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded border border-[#9D4EDD]/50 bg-[#9D4EDD]/10" />
-            A vizitat profilul tău
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded border border-[#999999]/50 bg-[#999999]/10" />
-            Vizitat de tine
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded border border-[#69DB7C]/50 bg-[#69DB7C]/10" />
-            Match
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded border border-[#51CF66]/50 bg-[#51CF66]/10" />
-            Online
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded border border-[#339AF0]/50 bg-[#339AF0]/10" />
-            Cont nou
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded border border-[#868E96]/50 bg-[#868E96]/10" />
-            Profil nedeschis
-          </span>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div>
       <h2 className="text-xl font-semibold mb-4">Toate profilurile</h2>
@@ -421,7 +354,7 @@ export default function ProfilesPage() {
         </div>
       </div>
 
-      <AdSlot variant="strip" />
+      <DiebelAppPromoCarousel />
       <div className="flex flex-wrap gap-4 mb-6 text-xs text-dark-500">
         {(
           [
@@ -446,6 +379,15 @@ export default function ProfilesPage() {
         ))}
         <span>Distanța (m/km) apare dacă ai permis locația.</span>
       </div>
+
+      {loading ? (
+        <div className="flex flex-col items-center justify-center gap-2 py-16">
+          <span className="text-dark-500">Se încarcă profilurile...</span>
+        </div>
+      ) : profiles.length === 0 ? (
+        <p className="text-center py-10 text-dark-500">Nu există alte profiluri.</p>
+      ) : (
+        <>
       {previewMe && me && (
         <section className="mb-6">
           <h3 className="text-sm font-semibold text-dark-300 mb-3">Profilul tău (așa te văd alții)</h3>
@@ -620,6 +562,8 @@ export default function ProfilesPage() {
           );
         })}
       </div>
+        </>
+      )}
     </div>
   );
 }

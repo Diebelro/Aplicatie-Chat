@@ -36,24 +36,26 @@ export function CookieConsentBanner() {
 
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 z-[100] p-4 md:p-6 bg-dark-800 border-t border-dark-600 shadow-lg rounded-t-2xl"
+      className="fixed bottom-0 left-0 right-0 z-[100] border-t border-white/[0.08] bg-dark-900/98 backdrop-blur-lg shadow-[0_-8px_32px_rgba(0,0,0,0.35)]"
       role="dialog"
       aria-label="Cookie consent"
     >
-      <div className="max-w-4xl mx-auto flex flex-col md:flex-row md:items-center gap-4">
-        <p className="text-sm text-gray-200 flex-1">{bannerText}</p>
-        <div className="flex flex-wrap gap-2 shrink-0">
+      <div className="mx-auto flex max-w-3xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:gap-4 sm:py-3.5">
+        <p className="flex-1 text-left text-xs leading-relaxed text-dark-400 sm:text-sm sm:leading-snug">
+          {bannerText}
+        </p>
+        <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
           <button
             type="button"
             onClick={acceptAll}
-            className="px-4 py-2 rounded-xl bg-brand-500 hover:bg-brand-400 text-dark-900 font-medium text-sm transition"
+            className="rounded-lg bg-brand-500 px-3.5 py-2 text-xs font-semibold text-dark-900 transition hover:bg-brand-400 sm:px-4 sm:text-sm"
           >
             {acceptLabel}
           </button>
           <button
             type="button"
             onClick={refuseOptional}
-            className="px-4 py-2 rounded-xl border border-dark-500 text-gray-300 hover:bg-dark-700 font-medium text-sm transition"
+            className="rounded-lg border border-dark-600 px-3 py-2 text-xs font-medium text-dark-300 transition hover:border-dark-500 hover:bg-dark-800 sm:text-sm"
           >
             {refuseLabel}
           </button>
@@ -72,7 +74,7 @@ function CookieConsentPreferencesButton({ preferencesLabel }: { preferencesLabel
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="px-4 py-2 rounded-xl border border-dark-500 text-gray-300 hover:bg-dark-700 font-medium text-sm transition"
+        className="rounded-lg px-3 py-2 text-xs font-medium text-dark-500 underline decoration-dark-600 underline-offset-2 transition hover:text-dark-300 sm:text-sm"
       >
         {preferencesLabel}
       </button>

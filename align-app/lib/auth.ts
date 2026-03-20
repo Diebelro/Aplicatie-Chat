@@ -9,6 +9,14 @@ import bcrypt from "bcryptjs";
 const KEY_LEN = 64;
 const BCRYPT_ROUNDS = 10;
 
+/** Email pentru login/signup: trim, lowercase, Unicode normalizat (evită duplicate „invizibile”). */
+export function normalizeAuthEmail(raw: string): string {
+  return String(raw ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFKC");
+}
+
 /** Hash parolă cu bcrypt (folosit la signup și reset). */
 export function hashPassword(password: string): string {
   return bcrypt.hashSync(password, BCRYPT_ROUNDS);

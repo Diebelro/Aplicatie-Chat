@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { findUserByEmail } from "@/lib/store";
+import { normalizeAuthEmail } from "@/lib/auth";
 import { isPrismaAvailable, prismaFindUserByEmailForLogin } from "@/lib/repo-prisma";
 import { checkRateLimit, getClientIpForRateLimit } from "@/lib/rateLimit";
 
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
   if (raw.length > EMAIL_MAX_LENGTH) {
     return NextResponse.json({ available: false });
   }
-  const email = raw.toLowerCase();
+  const email = normalizeAuthEmail(raw);
   if (!email.includes("@") || !email.includes(".")) {
     return NextResponse.json({ available: false });
   }

@@ -11,6 +11,7 @@ dist/
 
 # Local DB (nu pune pe GitHub)
 *.db
+*.dump
 prisma/prisma/
 
 # Env (secrets, local config)

@@ -1,0 +1,23 @@
+---
+description: Nu modifica zona de mesaje (chat, API, citit/SEEN, bife) decât dacă utilizatorul cere explicit.
+alwaysApply: true
+---
+
+# Zona mesaje — nu modifica fără cerere explicită
+
+**Regulă:** Nu modifica codul legat de mesaje, chat, citit, SEEN sau bife **decât dacă utilizatorul spune explicit** că vrea schimbări acolo (ex. „modifică mesajele”, „schimbă chat-ul”, „bifele”, „API mesaje”, „read receipts”).
+
+## Fișiere și zone considerate „mesaje” (hands-off implicit)
+
+- `app/api/messages/**` — GET/POST mesaje
+- `app/api/me/read/**` — marcare conversație citită
+- `app/app/chat/**` — UI chat, polling, bife
+- Orice logică dedicată **read receipts / SEEN / seenAt / status mesaj** în `lib/repo-prisma.ts` (dacă nu e cerut explicit, nu refactoriza sau nu schimba comportamentul acestor funcții pentru mesaje)
+
+## Ce poți face fără să „atingi mesajele”
+
+- Alte pagini, alte API-uri, UI general, auth, profiluri, deploy, reguli, documentație — fără a deschide sau modifica fișierele de mai sus **în scopul** de a schimba fluxul de mesaje.
+
+## Excepție
+
+Doar când utilizatorul cere în mod clar modificări la mesaje/chat/bife/API read — atunci poți edita zonele de mai sus conform cererii.

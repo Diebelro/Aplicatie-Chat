@@ -6,7 +6,6 @@ import Link from "next/link";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
 import { canAccessRoom, isConferenceRoomId } from "@/lib/videoCall";
-import { loadJitsiScript } from "@/lib/useJitsiRoom";
 import { displayName } from "@/lib/displayName";
 import CallUI from "@/components/CallUI";
 
@@ -29,8 +28,6 @@ export default function CallPage() {
   const isCaller = searchParams.get("from") === "ring";
   const [user, setUser] = useState<User | null>(null);
   const [allowed, setAllowed] = useState<boolean | null>(null);
-  const [scriptLoaded, setScriptLoaded] = useState(false);
-  const [scriptError, setScriptError] = useState<string | null>(null);
 
   useEffect(() => {
     const u = getStoredUser();
@@ -41,13 +38,6 @@ export default function CallPage() {
     }
     setAllowed(canAccessRoom(roomId, u.id));
   }, [roomId]);
-
-  useEffect(() => {
-    if (!allowed || !roomId) return;
-    loadJitsiScript()
-      .then(() => setScriptLoaded(true))
-      .catch((e) => setScriptError(e?.message ?? "Eroare la încărcarea Jitsi"));
-  }, [allowed, roomId]);
 
   if (allowed === null || user === null) {
     return (
@@ -68,28 +58,10 @@ export default function CallPage() {
     );
   }
 
-  if (scriptError) {
-    return (
-      <div className="py-12 text-center">
-        <p className="text-red-400 mb-4">{scriptError}</p>
-        <Link href="/app/messages" className="text-brand-400 hover:underline">
-          Înapoi la mesaje
-        </Link>
-      </div>
-    );
-  }
-
-  if (!scriptLoaded) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <span className="text-dark-500">Pregătim apelul…</span>
-      </div>
-    );
-  }
-
   return (
     <CallUI
       roomId={roomId}
+      userId={user.id}
       displayName={displayName((user.username ?? user.name) || "Utilizator")}
       audioOnly={audioOnly}
       isConference={isConferenceRoomId(roomId)}

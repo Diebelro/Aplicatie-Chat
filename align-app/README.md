@@ -77,6 +77,18 @@ It includes:
 - Rollback procedures
 - Post-deploy monitoring
 
+## Dezvoltare locală (align-app)
+
+1. `cd align-app`
+2. `npm install`
+3. **`npm run dev`** → aplicația e pe **`http://localhost:3005`** (port fix, evită confuzia cu 3000/3003).
+4. Dacă apare „port in use”: **`npm run ports:free`** (Windows PowerShell — oprește procese Node care ascultă pe 3000–3010), apoi iar `npm run dev`.
+5. Folosește **`http://`**, nu `https://`, pentru dev.
+6. În `.env`, aliniază **`NEXTAUTH_URL`** și **`NEXT_PUBLIC_APP_URL`** cu `http://localhost:3005` dacă folosești NextAuth local.
+7. Pentru semnalizare apeluri WebRTC local: `npm run signaling:dev` + `NEXT_PUBLIC_SIGNALING_WS_URL=ws://127.0.0.1:4001` (vezi `docs/calls.md`).
+
+`npm run dev:auto` pornește Next pe portul implicit (3000 sau următorul liber) dacă preferi comportamentul vechi.
+
 ## Security Standards
 The platform implements strict security controls:
 

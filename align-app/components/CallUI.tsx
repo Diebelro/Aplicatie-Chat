@@ -3,55 +3,34 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { PhoneOff, Mic, MicOff, Video, VideoOff } from "lucide-react";
-import { useJitsiRoom, loadJitsiScript, JITSI_DOMAIN, type RemoteParticipant } from "@/lib/useJitsiRoom";
-import type { User } from "@/lib/store";
-import { getStoredUserRaw } from "@/lib/store";
+import { PhoneOff, Mic, MicOff, Video, VideoOff, RefreshCw, MonitorUp } from "lucide-react";
+import { useWebRtcCall, type RemoteParticipant } from "@/hooks/useWebRtcCall";
 import { getAuthHeaders } from "@/lib/authClient";
-
-/** Atașează un track Jitsi la un element media: folosește getStream() sau attach() după disponibilitate. */
-function useAttachTrack(
-  track: unknown | null,
-  isVideo: boolean
-) {
-  const ref = useRef<HTMLVideoElement | HTMLAudioElement>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || !track) return;
-    const t = track as { getStream?: () => MediaStream; attach?: (el: HTMLElement) => void; getOriginalStream?: () => MediaStream };
-    const stream = t.getStream?.() ?? t.getOriginalStream?.();
-    if (stream) {
-      el.srcObject = stream;
-      return () => {
-        el.srcObject = null;
-      };
-    }
-    if (typeof t.attach === "function") {
-      t.attach(el as unknown as HTMLElement);
-      return () => {
-        try {
-          (track as { detach?: (el: HTMLElement) => void }).detach?.(el as unknown as HTMLElement);
-        } catch {}
-      };
-    }
-  }, [track, isVideo]);
-  return ref;
-}
+import { isScreenshareFeatureEnabled } from "@/lib/env/webrtcConfig";
 
 function RemoteVideo({ participant }: { participant: RemoteParticipant }) {
-  const videoTrack = participant.videoTrack;
-  const audioTrack = participant.audioTrack;
-  const videoRef = useAttachTrack(videoTrack, true);
-  const audioRef = useAttachTrack(audioTrack, false);
+  const ref = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    const stream = participant.stream;
+    if (!el) return;
+    el.srcObject = stream;
+    return () => {
+      el.srcObject = null;
+    };
+  }, [participant.stream]);
+
+  const hasLiveVideo =
+    participant.stream?.getVideoTracks().some((t) => t.readyState === "live" && t.enabled) ?? false;
 
   return (
     <div className="relative rounded-xl overflow-hidden bg-dark-800 border border-dark-600 aspect-video">
-      {videoTrack ? (
-        <video ref={videoRef as React.RefObject<HTMLVideoElement>} autoPlay playsInline muted={false} className="w-full h-full object-cover" />
+      {hasLiveVideo ? (
+        <video ref={ref} autoPlay playsInline className="w-full h-full object-cover" />
       ) : (
         <div className="w-full h-full flex items-center justify-center text-dark-500">Fără video</div>
       )}
-      {audioTrack ? <audio ref={audioRef as React.RefObject<HTMLAudioElement>} autoPlay playsInline className="hidden" /> : null}
+      {participant.stream?.getAudioTracks().length ? <RemoteAudio stream={participant.stream} /> : null}
       <span className="absolute bottom-2 left-2 text-xs bg-black/60 px-2 py-0.5 rounded truncate max-w-[80%]">
         {participant.displayName || participant.id}
       </span>
@@ -59,20 +38,36 @@ function RemoteVideo({ participant }: { participant: RemoteParticipant }) {
   );
 }
 
+function RemoteAudio({ stream }: { stream: MediaStream }) {
+  const ref = useRef<HTMLAudioElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.srcObject = stream;
+    return () => {
+      el.srcObject = null;
+    };
+  }, [stream]);
+  return <audio ref={ref} autoPlay playsInline className="hidden" />;
+}
+
 const OUTGOING_POLL_MS = 1000;
 
 type CallUIProps = {
   roomId: string;
+  userId: string;
   displayName: string;
   audioOnly: boolean;
   isConference: boolean;
   isCaller?: boolean;
 };
 
-export default function CallUI({ roomId, displayName, audioOnly, isConference, isCaller: isCallerProp }: CallUIProps) {
+export default function CallUI({ roomId, userId, displayName, audioOnly, isConference, isCaller: isCallerProp }: CallUIProps) {
   const router = useRouter();
   const [callRejected, setCallRejected] = useState(false);
   const isCaller = !!isCallerProp && !isConference;
+
+  const screenshareAllowed = isScreenshareFeatureEnabled();
 
   const {
     status,
@@ -83,21 +78,35 @@ export default function CallUI({ roomId, displayName, audioOnly, isConference, i
     videoMuted,
     setVideoMuted,
     leave,
-    localVideoTrack,
-    localAudioTrack,
-  } = useJitsiRoom({
+    localStream,
+    banner,
+    canSwitchCamera,
+    screenSharing,
+    switchCamera,
+    toggleScreenShare,
+  } = useWebRtcCall({
     roomId,
+    userId,
     displayName,
     audioOnly,
-    onLeft: () => router.push("/app/messages"),
+    isCaller,
+    isConference,
+    onAutoEnded: () => router.push("/app/messages"),
   });
 
-  const localVideoRef = useAttachTrack(localVideoTrack, true) as React.RefObject<HTMLVideoElement>;
-  const localAudioRef = useAttachTrack(localAudioTrack, false) as React.RefObject<HTMLAudioElement>;
+  const localVideoRef = useRef<HTMLVideoElement>(null);
+  const localAudioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
-    loadJitsiScript(JITSI_DOMAIN).catch(() => {});
-  }, []);
+    const v = localVideoRef.current;
+    const a = localAudioRef.current;
+    if (v) v.srcObject = localStream;
+    if (a) a.srcObject = localStream;
+    return () => {
+      if (v) v.srcObject = null;
+      if (a) a.srcObject = null;
+    };
+  }, [localStream]);
 
   const fetchOutgoingStatus = useCallback(() => {
     fetch(`/api/call/outgoing-status?roomId=${encodeURIComponent(roomId)}`, { headers: getAuthHeaders() })
@@ -132,7 +141,9 @@ export default function CallUI({ roomId, displayName, audioOnly, isConference, i
       <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4 px-4 text-center">
         <p className="text-red-400 font-medium">Apel respins</p>
         <p className="text-dark-500 text-sm">Celălalt utilizator a refuzat apelul. Redirecționare la mesaje…</p>
-        <Link href="/app/messages" className="text-brand-400 hover:underline mt-2">Înapoi la mesaje</Link>
+        <Link href="/app/messages" className="text-brand-400 hover:underline mt-2">
+          Înapoi la mesaje
+        </Link>
       </div>
     );
   }
@@ -142,9 +153,13 @@ export default function CallUI({ roomId, displayName, audioOnly, isConference, i
       <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4 px-4 text-center">
         <p className="text-red-400 font-medium">{error}</p>
         <p className="text-dark-500 text-sm max-w-md">
-          Pe serverul public (meet.jit.si) conexiunea directă din aplicație e adesea blocată. Pentru apeluri cu interfața ta: folosește un server Jitsi propriu (<code className="text-dark-400">NEXT_PUBLIC_JITSI_DOMAIN</code> în .env). Poți încerca și reîmprospătarea paginii.
+          Verifică <code className="text-dark-400">docs/calls.md</code>: server semnalizare (WS), coturn/TURN, variabilele{" "}
+          <code className="text-dark-400">NEXT_PUBLIC_SIGNALING_WS_URL</code>,{" "}
+          <code className="text-dark-400">NEXT_PUBLIC_TURN_URLS</code>, <code className="text-dark-400">TURN_AUTH_SECRET</code>.
         </p>
-        <Link href="/app/messages" className="text-brand-400 hover:underline mt-2">Înapoi la mesaje</Link>
+        <Link href="/app/messages" className="text-brand-400 hover:underline mt-2">
+          Înapoi la mesaje
+        </Link>
       </div>
     );
   }
@@ -158,13 +173,17 @@ export default function CallUI({ roomId, displayName, audioOnly, isConference, i
         <span className="text-dark-500 text-sm">
           {status === "connecting" && "Se conectează…"}
           {status === "connected" && (isConference ? "Conferință" : "Apel 1-la-1")}
+          {status === "left" && "Apel încheiat"}
         </span>
         {isConference && status === "connected" && (
           <button
             type="button"
             onClick={() => {
               const url = typeof window !== "undefined" ? `${window.location.origin}/app/call/${roomId}` : "";
-              navigator.clipboard?.writeText(url).then(() => alert("Link copiat! Trimite-l pentru a adăuga participanți.")).catch(() => {});
+              navigator.clipboard
+                ?.writeText(url)
+                .then(() => alert("Link copiat! Trimite-l pentru a adăuga participanți."))
+                .catch(() => {});
             }}
             className="text-xs text-brand-400 hover:text-brand-300"
           >
@@ -173,9 +192,13 @@ export default function CallUI({ roomId, displayName, audioOnly, isConference, i
         )}
       </div>
 
-      {/* Zona video: local + remote(e) */}
+      {banner ? (
+        <div className="mx-4 mt-2 rounded-lg bg-amber-500/15 border border-amber-500/40 px-3 py-2 text-sm text-amber-100">
+          {banner}
+        </div>
+      ) : null}
+
       <div className={`flex-1 min-h-0 p-4 ${isConference ? "grid grid-cols-2 gap-3 overflow-auto" : "flex flex-col gap-3"}`}>
-        {/* Local video - placeholder până expunem track-urile locale din hook */}
         <div className="relative rounded-xl overflow-hidden bg-dark-800 border border-dark-600 aspect-video shrink-0">
           <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
           <audio ref={localAudioRef} autoPlay playsInline muted className="hidden" />
@@ -193,7 +216,6 @@ export default function CallUI({ roomId, displayName, audioOnly, isConference, i
         )}
       </div>
 
-      {/* Doar 3 butoane */}
       <div className="flex items-center justify-center gap-4 py-4 border-t border-dark-600 bg-dark-900/80">
         <button
           type="button"
@@ -213,6 +235,28 @@ export default function CallUI({ roomId, displayName, audioOnly, isConference, i
           >
             {videoMuted ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
             <span className="text-sm font-medium">{videoMuted ? "Oprește camera" : "Oprește camera"}</span>
+          </button>
+        )}
+        {!audioOnly && canSwitchCamera && (
+          <button
+            type="button"
+            onClick={() => void switchCamera()}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl transition bg-dark-600 text-white hover:bg-dark-500"
+            title="Schimbă camera"
+          >
+            <RefreshCw className="w-5 h-5" />
+            <span className="text-sm font-medium">Cameră</span>
+          </button>
+        )}
+        {!audioOnly && screenshareAllowed && (
+          <button
+            type="button"
+            onClick={() => void toggleScreenShare()}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl transition ${screenSharing ? "bg-amber-500/20 text-amber-400" : "bg-dark-600 text-white hover:bg-dark-500"}`}
+            title={screenSharing ? "Oprește partajarea ecranului" : "Partajare ecran"}
+          >
+            <MonitorUp className="w-5 h-5" />
+            <span className="text-sm font-medium">{screenSharing ? "Oprește ecran" : "Ecran"}</span>
           </button>
         )}
         <button

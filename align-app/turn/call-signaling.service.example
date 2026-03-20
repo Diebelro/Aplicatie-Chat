@@ -1,0 +1,27 @@
+[Unit]
+Description=DIEBEL WebRTC signaling (WebSocket)
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/opt/align-app
+Environment=NODE_ENV=production
+Environment=SIGNALING_PORT=4001
+# Recomandat în producție (sau mută tot în .env.signaling):
+# Environment=SIGNALING_MAX_CONN_PER_IP=40
+# Environment=SIGNALING_MSG_BURST_PER_10S=100
+# Environment=SIGNALING_MAX_MSG_BYTES=65536
+# Environment=SIGNALING_HEARTBEAT_TTL_MS=75000
+EnvironmentFile=/opt/align-app/.env.signaling
+ExecStart=/usr/bin/node server/call-signaling-server.mjs
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+
+# Deploy:
+#  - Copiază align-app pe server (sau doar server/call-signaling-server.mjs + node_modules/ws)
+#  - .env.signaling: SIGNALING_TOKEN_SECRET=... (același ca NEXTAUTH_SECRET sau dedicat, min 16)
+#  - În spatele Caddy/nginx: proxy_pass wss către 127.0.0.1:4001/ws

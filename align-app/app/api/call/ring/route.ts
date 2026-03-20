@@ -1,18 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
-import { findUserById } from "@/lib/store";
 import { setPendingCall } from "@/lib/store";
 import { getVideoRoomId } from "@/lib/videoCall";
+import { findUserOrPrisma } from "@/lib/repo-prisma";
+import { rateLimitAllow } from "@/lib/callRateLimit";
 
-/** Sună pe toId: înregistrează apelul în așteptare ca celălalt să vadă „X te sună” și să poată răspunde/respinge. */
+/** Sună pe toId: înregistrează apelul în așteptare ca celălalt să vadă „X te sună”. */
 export async function POST(request: NextRequest) {
   const userId = request.headers.get("x-user-id");
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   }
-  const me = findUserById(userId);
+
+  if (!rateLimitAllow(`call-ring:${userId}`, 5, 60_000)) {
+    return NextResponse.json({ error: "Prea multe apeluri. Încearcă mai târziu." }, { status: 429 });
+  }
+
+  const me = await findUserOrPrisma(userId);
   if (!me) {
     return NextResponse.json({ error: "Utilizator negăsit." }, { status: 404 });
   }
+
   let body: { toId?: string; roomId?: string; audioOnly?: boolean };
   try {
     body = await request.json();
@@ -25,7 +32,7 @@ export async function POST(request: NextRequest) {
   }
   const roomId = body.roomId ?? getVideoRoomId(me.id, toId);
   const audioOnly = Boolean(body.audioOnly);
-  const other = findUserById(toId);
+  const other = await findUserOrPrisma(toId);
   if (!other) {
     return NextResponse.json({ error: "Utilizatorul sunat nu există." }, { status: 404 });
   }

@@ -1,0 +1,13 @@
+# DIEBEL — Caddy: TLS + WebSocket pentru semnalizare
+# DNS: ws.diebel.ro → același IP ca VPS (Hetzner). Certificat Let's Encrypt automat.
+#
+# Copiază în /etc/caddy/Caddyfile sau include dintr-un fișier separat.
+# Semnalizarea Node ascultă local: SIGNALING_PORT=4001, path /ws
+
+ws.diebel.ro {
+  encode zstd gzip
+  reverse_proxy /ws* 127.0.0.1:4001
+}
+
+# Health (opțional, același proces HTTP pe /health)
+# reverse_proxy /health* 127.0.0.1:4001

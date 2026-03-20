@@ -11,6 +11,7 @@ import {
 import {
   isPrismaAvailable,
   findUserOrPrisma,
+  prismaUserRowExists,
   prismaGetMessagesBetween,
   prismaAddMessage,
   prismaUpdateLastActive,
@@ -38,7 +39,9 @@ export async function GET(request: NextRequest) {
     try {
       const me = await findUserOrPrisma(userId);
       const other = await findUserOrPrisma(withId);
-      if (!me || !other) {
+      const meOk = me != null || (await prismaUserRowExists(userId));
+      const otherOk = other != null || (await prismaUserRowExists(withId));
+      if (!meOk || !otherOk) {
         return NextResponse.json({ error: "Utilizator negăsit." }, { status: 404 });
       }
       const blocked = await prismaHasBlockBetween(userId, withId);
@@ -132,7 +135,8 @@ export async function POST(request: NextRequest) {
     }
     try {
       const me = await findUserOrPrisma(userId);
-      if (!me) {
+      const meOk = me != null || (await prismaUserRowExists(userId));
+      if (!meOk) {
         return NextResponse.json({ error: "Utilizator negăsit." }, { status: 404 });
       }
       const { toId, text, attachmentUrl, attachmentContentType } = body;
@@ -151,7 +155,8 @@ export async function POST(request: NextRequest) {
         );
       }
       const toUser = await findUserOrPrisma(toId);
-      if (!toUser) {
+      const toOk = toUser != null || (await prismaUserRowExists(toId));
+      if (!toOk) {
         return NextResponse.json({ error: "Destinatar negăsit." }, { status: 404 });
       }
       const blocked = await prismaHasBlockBetween(userId, toId);

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createUser, findUserByEmail, findUserByUsername, setPassword, getStoreId, getUsersCount, type Gender } from "@/lib/store";
-import { hashPassword } from "@/lib/auth";
+import { hashPassword, normalizeAuthEmail } from "@/lib/auth";
 import { verifyRecaptchaV3, RECAPTCHA_SUSPECT_THRESHOLD } from "@/lib/recaptcha";
 import { checkSignupRateLimit, recordSignup } from "@/lib/rateLimitSignup";
 import { createDevice, setDeviceTrusted } from "@/lib/devices";
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
       deviceFingerprint,
     } = body;
 
-    const emailStr = String(email ?? "").trim().toLowerCase();
+    const emailStr = normalizeAuthEmail(String(email ?? ""));
     if (!emailStr) {
       return NextResponse.json(
         { error: "Lipsește email-ul." },
@@ -98,10 +98,11 @@ export async function POST(request: Request) {
     }
     if (!usePrisma) {
       if (findUserByEmail(emailStr)) {
-        return NextResponse.json(
-          { error: "Există deja un cont cu acest email. Loghează-te." },
-          { status: 409 }
-        );
+        const errMem =
+          process.env.NODE_ENV !== "production"
+            ? "Există deja acest email în memoria serverului local. Loghează-te cu parola corectă (dacă primeai „nu există cont”, probabil parola era greșită). Repornește npm run dev dacă vrei conte goale."
+            : "Există deja un cont cu acest email. Loghează-te.";
+        return NextResponse.json({ error: errMem }, { status: 409 });
       }
       const existingByUsername = findUserByUsername(usernameLower);
       if (existingByUsername) {

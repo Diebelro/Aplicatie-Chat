@@ -11,7 +11,7 @@ interface CookieConsentModalProps {
 
 export function CookieConsentModal({ onClose, onSave }: CookieConsentModalProps) {
   const { t } = useI18n();
-  const { consent, setConsent } = useCookieConsent();
+  const { consent, setConsent, loadConsent } = useCookieConsent();
   const get = (key: string) => t(`cookieConsent.${key}`) as string;
   const getCommon = (key: string) => t(`common.buttons.${key}`) as string;
 
@@ -35,9 +35,24 @@ export function CookieConsentModal({ onClose, onSave }: CookieConsentModalProps)
 
   const handleSave = () => {
     setConsent(form);
+    loadConsent();
     onSave?.();
     onClose();
   };
+
+  const acceptAllAndSave = () => {
+    setConsent({
+      necessary: true,
+      functional: true,
+      statistics: true,
+      marketing: true,
+    });
+    loadConsent();
+    onSave?.();
+    onClose();
+  };
+
+  const acceptAllLabel = get("accept");
 
   return (
     <div
@@ -122,11 +137,18 @@ export function CookieConsentModal({ onClose, onSave }: CookieConsentModalProps)
             </div>
           </div>
 
-          <div className="flex gap-2 mt-6">
+          <div className="flex flex-wrap gap-2 mt-6">
+            <button
+              type="button"
+              onClick={acceptAllAndSave}
+              className="px-4 py-2 rounded-xl bg-brand-500 hover:bg-brand-400 text-dark-900 font-medium text-sm transition"
+            >
+              {acceptAllLabel}
+            </button>
             <button
               type="button"
               onClick={handleSave}
-              className="px-4 py-2 rounded-xl bg-brand-500 hover:bg-brand-400 text-dark-900 font-medium text-sm transition"
+              className="px-4 py-2 rounded-xl bg-dark-600 hover:bg-dark-500 text-white font-medium text-sm transition"
             >
               {getCommon("save")}
             </button>

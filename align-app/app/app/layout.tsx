@@ -26,8 +26,11 @@ export default function AppLayout({
   const [totalUnread, setTotalUnread] = useState(0);
   const [missedCallsCount, setMissedCallsCount] = useState(0);
   const [newMatchToast, setNewMatchToast] = useState<{ id: string; name: string } | null>(null);
+  /** Puls scurt pe badge mesaje când crește necititul (se diferențiază vizual de toast-ul de match). */
+  const [messageBadgePing, setMessageBadgePing] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const matchSeenInitializedRef = useRef(false);
+  const prevUnreadRef = useRef<number | null>(null);
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const SEEN_MATCH_IDS_KEY = "align_seen_match_ids";
@@ -137,6 +140,21 @@ export default function AppLayout({
     return () => { cancelled = true; };
   }, [user?.id, user?.photos?.length]);
 
+  // La mesaj nou: necititul crește → puls pe badge (match rămâne pe toast brand; mesaj = sky)
+  useEffect(() => {
+    if (prevUnreadRef.current === null) {
+      prevUnreadRef.current = totalUnread;
+      return;
+    }
+    if (totalUnread > prevUnreadRef.current) {
+      setMessageBadgePing(true);
+      const t = window.setTimeout(() => setMessageBadgePing(false), 2600);
+      prevUnreadRef.current = totalUnread;
+      return () => window.clearTimeout(t);
+    }
+    prevUnreadRef.current = totalUnread;
+  }, [totalUnread]);
+
   // Actualizare avatar în header când utilizatorul salvează profilul (ex. poză nouă)
   useEffect(() => {
     const onUserUpdated = (e: Event) => {
@@ -230,11 +248,14 @@ export default function AppLayout({
       fetchMissed();
       fetchMatchesForNotification();
     };
+    const onConversationRead = () => { fetchUnread(); };
     window.addEventListener("focus", onFocus);
+    window.addEventListener("align:conversation-read", onConversationRead);
     return () => {
       clearInterval(t);
       clearInterval(tMatches);
       window.removeEventListener("focus", onFocus);
+      window.removeEventListener("align:conversation-read", onConversationRead);
     };
   }, [user?.id]);
 
@@ -284,7 +305,14 @@ export default function AppLayout({
             <Link href="/app/messages" className="text-dark-400 hover:text-white transition relative inline-flex items-center">
               Mesaje
               {totalUnread > 0 && (
-                <span className="ml-1.5 min-w-[1.25rem] h-5 px-1.5 rounded-full bg-brand-500 text-dark-900 text-xs font-semibold flex items-center justify-center">
+                <span
+                  className={
+                    "ml-1.5 min-w-[1.25rem] h-5 px-1.5 rounded-full text-xs font-semibold flex items-center justify-center text-white bg-sky-500 shadow-md transition-shadow " +
+                    (messageBadgePing
+                      ? "animate-pulse ring-2 ring-sky-300 ring-offset-2 ring-offset-dark-900 shadow-[0_0_16px_rgba(56,189,248,0.65)]"
+                      : "")
+                  }
+                >
                   {totalUnread > 99 ? "99+" : totalUnread}
                 </span>
               )}
@@ -356,7 +384,14 @@ export default function AppLayout({
           <MessageCircle className="w-6 h-6 shrink-0" />
           <span className="text-xs">Mesaje</span>
           {totalUnread > 0 && (
-            <span className="absolute top-1.5 right-2 min-w-[1.25rem] h-5 px-1 rounded-full bg-brand-500 text-dark-900 text-xs font-semibold flex items-center justify-center">
+            <span
+              className={
+                "absolute top-1.5 right-2 min-w-[1.25rem] h-5 px-1 rounded-full text-white text-xs font-semibold flex items-center justify-center bg-sky-500 shadow-md " +
+                (messageBadgePing
+                  ? "animate-pulse ring-2 ring-sky-300 ring-offset-2 ring-offset-dark-900 shadow-[0_0_16px_rgba(56,189,248,0.65)]"
+                  : "")
+              }
+            >
               {totalUnread > 99 ? "99+" : totalUnread}
             </span>
           )}
@@ -395,7 +430,7 @@ function MatchToast({
   return (
     <div
       role="alert"
-      className="fixed bottom-6 left-4 right-4 max-w-md mx-auto z-50 rounded-xl bg-brand-500/95 text-dark-900 shadow-lg border border-brand-400 p-4 flex items-center justify-between gap-3"
+      className="fixed bottom-24 md:bottom-6 left-4 right-4 max-w-md mx-auto z-50 rounded-xl bg-brand-500/95 text-dark-900 shadow-lg border border-brand-400 p-4 flex items-center justify-between gap-3"
     >
       <p className="font-medium">
         Ai match cu <span className="font-semibold">{name}</span>!

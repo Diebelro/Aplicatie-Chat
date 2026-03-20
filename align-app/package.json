@@ -3,7 +3,10 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3005",
+    "dev:auto": "next dev",
+    "ports:free": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/free-next-ports.ps1",
+    "signaling:dev": "node server/call-signaling-server.mjs",
     "build": "next build",
     "start": "next start --port 3000",
     "lint": "next lint",
@@ -12,7 +15,8 @@
     "db:setup": "prisma generate && prisma db push",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
-    "db:seed": "prisma db seed"
+    "db:seed": "prisma db seed",
+    "db:ensure-contact": "ts-node --project scripts/tsconfig.json scripts/ensure-contact-user.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
@@ -28,7 +32,9 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-leaflet": "^4.2.1",
-    "resend": "^6.9.3"
+    "resend": "^6.9.3",
+    "ws": "^8.19.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
@@ -36,6 +42,7 @@
     "@types/node": "^20.0.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
+    "@types/ws": "^8.18.1",
     "autoprefixer": "^10.4.0",
     "postcss": "^8.4.0",
     "prisma": "^5.22.0",

@@ -3,7 +3,7 @@
  */
 import { NextResponse } from "next/server";
 import { findUserByEmail, getPasswordHash, getStoreId, getUsersCount } from "@/lib/store";
-import { verifyPassword } from "@/lib/auth";
+import { verifyPassword, normalizeAuthEmail } from "@/lib/auth";
 import { verifyRecaptchaV3 } from "@/lib/recaptcha";
 import { findDevice, createDevice, setDeviceTrusted } from "@/lib/devices";
 import { createSession, SESSION_COOKIE, getSessionCookieOptions } from "@/lib/sessions";
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { email, password, rememberDevice, recaptchaToken, deviceFingerprint } = body;
 
-    const emailStr = String(email ?? "").trim().toLowerCase();
+    const emailStr = normalizeAuthEmail(String(email ?? ""));
     if (!emailStr) {
       return NextResponse.json(
         { error: "Lipsește email-ul." },
@@ -132,16 +132,21 @@ export async function POST(request: Request) {
         if (hash && verifyPassword(String(password), hash)) {
           user = { id: localUser.id, email: localUser.email };
           usePrisma = false;
+        } else if (hash) {
+          // Contul există (memorie); parola greșită — nu 404 „nu există cont”
+          recordLoginFailure(ip, fp);
+          return NextResponse.json({ error: "Parolă incorectă." }, { status: 401 });
         }
       }
     }
 
     if (!user) {
       recordLoginFailure(ip, fp);
-      return NextResponse.json(
-        { error: "Nu există cont cu acest email. Înregistrează-te mai întâi." },
-        { status: 404 }
-      );
+      const errLocal =
+        !isPrismaAvailable() && process.env.NODE_ENV !== "production"
+          ? "Nu există acest cont în sesiunea locală (npm run dev folosește memorie, nu baza de date). Contul de pe site-ul live nu apare aici. Deschide producția pentru acel cont sau înregistrează-te local."
+          : "Nu există cont cu acest email. Înregistrează-te mai întâi.";
+      return NextResponse.json({ error: errLocal }, { status: 404 });
     }
 
     const userAgent = request.headers.get("user-agent") ?? "";

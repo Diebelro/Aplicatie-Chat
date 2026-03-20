@@ -10,9 +10,8 @@ import { SilhouetteAvatar } from "@/components/SilhouetteAvatar";
 import { AddFriendButton } from "@/components/AddFriendButton";
 import { track } from "@/lib/tracking";
 import { displayName } from "@/lib/displayName";
-import AdSlot from "@/components/AdSlot";
+import { DiebelAppPromoCarousel } from "@/components/diebel/DiebelAppPromoCarousel";
 import { OptimizedImage } from "@/components/OptimizedImage";
-import { useCookieConsent } from "@/contexts/CookieConsentContext";
 import {
   buildFeed,
   getInitialIntervals,
@@ -90,7 +89,6 @@ export default function AppDiscoverPage() {
     minCardsBeforeAds: number;
   } | null>(null);
   const router = useRouter();
-  const { consent } = useCookieConsent();
   const [filters, setFilters] = useSearchFilters();
   const [debouncedName, setDebouncedName] = useState(filters.name);
   useEffect(() => {
@@ -765,13 +763,9 @@ export default function AppDiscoverPage() {
           )}
 
           {currentItem.type === "external_ad" && (
-            <div className="w-full max-w-sm aspect-[3/4] rounded-2xl overflow-hidden bg-dark-800 border border-dark-600 relative flex flex-col">
-              <div className="flex-1 min-h-[200px] flex items-center justify-center p-4">
-                {consent?.marketing ? (
-                  <AdSlot variant="strip" hideIfPremium={true} requireMarketingConsent={true} />
-                ) : (
-                  <p className="text-dark-500 text-xs text-center">Activează reclamele în setările de cookies.</p>
-                )}
+            <div className="w-full max-w-sm rounded-2xl overflow-hidden bg-dark-800 border border-dark-600 relative flex flex-col">
+              <div className="flex-1 min-h-[180px] w-full flex items-center justify-center px-1 py-2 sm:min-h-[200px]">
+                <DiebelAppPromoCarousel compact hideIfPremium />
               </div>
               <div className="p-3 border-t border-dark-600 flex justify-end">
                 <button

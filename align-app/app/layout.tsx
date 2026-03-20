@@ -27,7 +27,14 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ro" suppressHydrationWarning>
-      <body className="antialiased min-h-screen font-sans bg-dark-900 text-gray-100">
+      <body
+        className="antialiased min-h-screen font-sans bg-dark-900 text-gray-100"
+        style={{
+          // Fallback când CSS-ul Tailwind nu se încarcă (preview iframe, CDN blocat, etc.)
+          backgroundColor: "var(--bg, #0f1419)",
+          color: "var(--text, #e7e9ea)",
+        }}
+      >
         <DisableDevTools />
         <InLucruBanner />
         <Providers>{children}</Providers>

@@ -500,18 +500,20 @@ export default function ChatPage() {
                 )}
                 {showTick && (
                   <div
-                    className="min-h-[18px] mt-1 flex justify-end items-center gap-0.5 shrink-0"
+                    className="min-h-[18px] mt-1 flex justify-end items-center shrink-0"
                     title={tickTitle}
                     aria-label={tickTitle}
                   >
-                    {isRead ? (
-                      <>
-                        <Check className="w-4 h-4 shrink-0" style={{ color: "#0d9488" }} strokeWidth={2.5} aria-hidden />
-                        <Check className="w-4 h-4 shrink-0" style={{ color: "#0d9488" }} strokeWidth={2.5} aria-hidden />
-                      </>
-                    ) : (
-                      <Check className="w-4 h-4 shrink-0" style={{ color: "rgba(0,0,0,0.75)" }} strokeWidth={2.5} aria-hidden />
-                    )}
+                    {/* O singură bifă: discretă = trimis; aceeași bifă, mai vizibilă = citit */}
+                    <Check
+                      className={
+                        isRead
+                          ? "w-4 h-4 shrink-0 text-dark-900 drop-shadow-[0_1px_2px_rgba(0,0,0,0.2)]"
+                          : "w-3.5 h-3.5 shrink-0 text-dark-900/28"
+                      }
+                      strokeWidth={isRead ? 3 : 1.65}
+                      aria-hidden
+                    />
                   </div>
                 )}
               </div>
