@@ -23,6 +23,8 @@ export async function GET() {
     {
       serverHasSignalingUrl: raw.length > 0,
       signalingUrlHost: host,
+      /** Bază WSS publică (aceeași ca NEXT_PUBLIC_*); folosită în browser când bundle-ul nu a primit env la build. */
+      signalingWsBaseUrl: raw.length > 0 ? raw : null,
       nextPublicWebRtcEnabledRaw: webRtcFlag ?? null,
       serverIsWebrtcConfigured: isWebrtcConfigured(),
       hint:

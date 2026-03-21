@@ -15,7 +15,6 @@ import { signalingWsConnectUrl, parseSignalingIncoming } from "@/lib/webrtc/sign
 import {
   getWebrtcPublicConfig,
   getPublicSignalingWsBaseUrl,
-  isWebrtcConfigured,
   isScreenshareFeatureEnabled,
 } from "@/lib/env/webrtcConfig";
 import { getAuthHeaders } from "@/lib/authClient";
@@ -313,22 +312,12 @@ export function useWebRtcCall({
       return;
     }
 
-    if (!isWebrtcConfigured()) {
-      setState((s) => ({
-        ...s,
-        status: "error",
-        error:
-          "WebRTC nu e configurat: setează NEXT_PUBLIC_SIGNALING_WS_URL și rulează serverul de semnalizare (vezi docs/calls.md).",
-      }));
-      return;
-    }
-
     let cancelled = false;
-    const cfg = getWebrtcPublicConfig();
-    maxMinutesRef.current = cfg.CALL_MAX_MINUTES;
-    const maxVideoBps = isMobileDevice() ? cfg.CALL_MAX_BITRATE_MOBILE : cfg.CALL_MAX_BITRATE_DESKTOP;
 
-    const run = async () => {
+    const run = async (signalingBaseUrl: string) => {
+      const cfg = getWebrtcPublicConfig();
+      maxMinutesRef.current = cfg.CALL_MAX_MINUTES;
+      const maxVideoBps = isMobileDevice() ? cfg.CALL_MAX_BITRATE_MOBILE : cfg.CALL_MAX_BITRATE_DESKTOP;
       setState((s) => ({
         ...s,
         status: "connecting",
@@ -412,7 +401,7 @@ export function useWebRtcCall({
         return;
       }
 
-      const base = getPublicSignalingWsBaseUrl();
+      const base = signalingBaseUrl.trim();
       if (!base) {
         if (!cancelled) setState((s) => ({ ...s, status: "error", error: "NEXT_PUBLIC_SIGNALING_WS_URL lipsă." }));
         localStream.getTracks().forEach((t) => t.stop());
@@ -688,7 +677,51 @@ export function useWebRtcCall({
       callStartRef.current = Date.now();
     };
 
-    void run();
+    void (async () => {
+      let signalingBase = getPublicSignalingWsBaseUrl()?.trim() ?? "";
+      try {
+        const r = await fetch("/api/webrtc-env-check", {
+          credentials: "same-origin",
+          cache: "no-store",
+        });
+        if (r.ok) {
+          const d = (await r.json()) as {
+            serverIsWebrtcConfigured?: boolean;
+            signalingWsBaseUrl?: string | null;
+            nextPublicWebRtcEnabledRaw?: string | null;
+          };
+          const fromApi = d.signalingWsBaseUrl?.trim() ?? "";
+          if (fromApi) signalingBase = fromApi;
+          if (
+            (d.nextPublicWebRtcEnabledRaw === "false" || d.serverIsWebrtcConfigured === false) &&
+            !fromApi
+          ) {
+            if (!cancelled) {
+              setState((s) => ({
+                ...s,
+                status: "error",
+                error:
+                  "WebRTC este dezactivat sau lipsește URL semnalizare pe server. Verifică Vercel (NEXT_PUBLIC_*).",
+              }));
+            }
+            return;
+          }
+        }
+      } catch {
+        /* păstrăm signalingBase din bundle dacă există */
+      }
+      if (cancelled) return;
+      if (!signalingBase.trim()) {
+        setState((s) => ({
+          ...s,
+          status: "error",
+          error:
+            "WebRTC nu e configurat: setează NEXT_PUBLIC_SIGNALING_WS_URL și rulează serverul de semnalizare (vezi docs/calls.md).",
+        }));
+        return;
+      }
+      void run(signalingBase);
+    })();
 
     let limitHit = false;
     const limitTimer = setInterval(() => {

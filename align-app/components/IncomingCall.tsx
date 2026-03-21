@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { Phone, PhoneOff } from "lucide-react";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
@@ -58,12 +58,16 @@ function useRingtone(active: boolean) {
 
 export default function IncomingCall() {
   const router = useRouter();
+  const pathname = usePathname();
+  /** Pe pagina de apel nu mai arătăm overlay / sunet — evită „sună continuu” după Răspunde. */
+  const onCallPage = pathname?.startsWith("/app/call") ?? false;
+
   const [incoming, setIncoming] = useState<IncomingCallData | null>(null);
   const [loading, setLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  useRingtone(!!incoming);
+  useRingtone(!!incoming && !onCallPage);
 
   const fetchIncoming = useCallback(() => {
     fetch("/api/call/incoming", {
@@ -74,17 +78,26 @@ export default function IncomingCall() {
       .then((r) => r.json())
       .then((d) => {
         if (d.incoming) setIncoming(d.incoming);
+        else setIncoming(null);
       })
       .catch(() => {});
   }, []);
 
   useEffect(() => {
+    if (onCallPage) {
+      setIncoming(null);
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+      return;
+    }
     fetchIncoming();
     pollRef.current = setInterval(fetchIncoming, POLL_MS);
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, [fetchIncoming]);
+  }, [fetchIncoming, onCallPage]);
 
   const handleAnswer = () => {
     if (!incoming || loading) return;
@@ -128,7 +141,7 @@ export default function IncomingCall() {
       });
   };
 
-  if (!incoming) return null;
+  if (onCallPage || !incoming) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-dark-900 min-h-screen p-6">
