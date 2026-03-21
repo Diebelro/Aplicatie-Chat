@@ -39,18 +39,20 @@ export default function CallPage() {
     setAllowed(canAccessRoom(roomId, u.id));
   }, [roomId]);
 
+  /** Încărcare: fullscreen negru ca la apel — fără „Se încarcă” în layout (evită clip cu mesajele de dedesubt). */
   if (allowed === null || user === null) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <span className="text-dark-500">Se încarcă...</span>
+      <div className="fixed inset-0 z-[190] flex flex-col items-center justify-center bg-black text-white">
+        <div className="h-12 w-12 border-2 border-white/20 border-t-brand-400 rounded-full animate-spin mb-4" aria-hidden />
+        <span className="text-sm text-white/50">Se deschide apelul…</span>
       </div>
     );
   }
 
   if (!allowed) {
     return (
-      <div className="py-12 text-center">
-        <p className="text-dark-500 mb-4">Nu ai acces la acest apel.</p>
+      <div className="fixed inset-0 z-[190] flex flex-col items-center justify-center bg-black px-4 text-center">
+        <p className="text-white/70 mb-4">Nu ai acces la acest apel.</p>
         <Link href="/app/messages" className="text-brand-400 hover:underline">
           Înapoi la mesaje
         </Link>

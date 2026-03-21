@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Users } from "lucide-react";
+import { Users, PhoneMissed } from "lucide-react";
 import type { User } from "@/lib/store";
 import type { Message } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
@@ -136,7 +136,16 @@ export default function MessagesPage() {
 
   return (
     <div>
-      <h2 className="text-xl font-semibold mb-4">Mesaje</h2>
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+        <h2 className="text-xl font-semibold">Mesaje</h2>
+        <Link
+          href="/app/missed-calls"
+          className="inline-flex items-center gap-1.5 text-sm text-brand-400 hover:text-brand-300 hover:underline touch-manipulation"
+        >
+          <PhoneMissed className="w-4 h-4 shrink-0" />
+          Apeluri pierdute
+        </Link>
+      </div>
       <p className="text-dark-500 text-sm mb-4">
         Toate conversațiile tale – apasă pe rând pentru chat. Lângă fiecare conversație:{" "}
         <span className="text-dark-400">Video</span> și <span className="text-dark-400">Audio</span> pentru apel direct.

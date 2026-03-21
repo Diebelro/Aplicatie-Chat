@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import {
-  getCallMediaStream,
+  acquireCallMediaStream,
+  formatMediaPermissionHelp,
   getVideoConstraints,
   isMobileDevice,
 } from "@/lib/webrtc/mediaConstraints";
@@ -32,8 +33,10 @@ export type RemoteParticipant = {
 };
 
 type CallState = {
-  status: "idle" | "connecting" | "connected" | "left" | "error";
+  status: "idle" | "connecting" | "connected" | "left" | "error" | "permission_help";
   error: string | null;
+  /** Ghid permisiuni microfon/cameră — UI prietenos, fără roșu */
+  permissionHelp: { headline: string; lines: string[] } | null;
   remoteParticipants: RemoteParticipant[];
   muted: boolean;
   videoMuted: boolean;
@@ -69,6 +72,7 @@ export function useWebRtcCall({
   const [state, setState] = useState<CallState>({
     status: "idle",
     error: null,
+    permissionHelp: null,
     remoteParticipants: [],
     muted: false,
     videoMuted: audioOnly,
@@ -97,6 +101,8 @@ export function useWebRtcCall({
   const onAutoEndedRef = useRef(onAutoEnded);
   const negotiateRef = useRef<null | (() => Promise<void>)>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
+  /** Pe mobil: ultima față folosită pentru comutare user ↔ environment. */
+  const facingModeRef = useRef<"user" | "environment">("user");
 
   onAutoEndedRef.current = onAutoEnded;
 
@@ -165,6 +171,7 @@ export function useWebRtcCall({
       remoteParticipants: [],
       screenSharing: false,
       canSwitchCamera: false,
+      permissionHelp: null,
     }));
   }, [cleanupMedia]);
 
@@ -208,7 +215,10 @@ export function useWebRtcCall({
     screenStreamRef.current = null;
     try {
       const prefer1080 = !isMobileDevice() && typeof window !== "undefined" && window.innerWidth >= 1200;
-      const video = getVideoConstraints(prefer1080);
+      let video: MediaTrackConstraints = getVideoConstraints(prefer1080);
+      if (isMobileDevice()) {
+        video = { ...video, facingMode: { ideal: facingModeRef.current } };
+      }
       const cam = await navigator.mediaDevices.getUserMedia({ audio: false, video });
       const vt = cam.getVideoTracks()[0];
       const old = sender.track;
@@ -281,17 +291,27 @@ export function useWebRtcCall({
     if (!pc || !stream) return;
     const sender = pc.getSenders().find((s) => s.track?.kind === "video");
     if (!sender?.track) return;
-    const vids = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === "videoinput");
-    if (vids.length < 2) return;
-    const currentId = sender.track.getSettings().deviceId;
-    const idx = Math.max(0, vids.findIndex((d) => d.deviceId === currentId));
-    const next = vids[(idx + 1) % vids.length];
     const prefer1080 = !isMobileDevice() && typeof window !== "undefined" && window.innerWidth >= 1200;
-    const vc = getVideoConstraints(prefer1080);
+    const baseVc = getVideoConstraints(prefer1080);
+    const vids = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === "videoinput");
+
+    let videoConstraints: MediaTrackConstraints = baseVc;
+    if (vids.length >= 2) {
+      const currentId = sender.track.getSettings().deviceId;
+      const idx = Math.max(0, vids.findIndex((d) => d.deviceId === currentId));
+      const next = vids[(idx + 1) % vids.length];
+      videoConstraints = { ...baseVc, deviceId: { exact: next.deviceId } };
+    } else if (isMobileDevice()) {
+      facingModeRef.current = facingModeRef.current === "user" ? "environment" : "user";
+      videoConstraints = { ...baseVc, facingMode: { ideal: facingModeRef.current } };
+    } else {
+      return;
+    }
+
     try {
       const ns = await navigator.mediaDevices.getUserMedia({
         audio: false,
-        video: { ...vc, deviceId: { exact: next.deviceId } },
+        video: videoConstraints,
       });
       const vt = ns.getVideoTracks()[0];
       const old = sender.track;
@@ -327,6 +347,7 @@ export function useWebRtcCall({
       setState((s) => ({
         ...s,
         status: "error",
+        permissionHelp: null,
         error:
           "Conferința în grup (link deschis) necesită încă un server media (SFU). Folosește apel 1-la-1 din profil sau chat.",
       }));
@@ -343,16 +364,28 @@ export function useWebRtcCall({
         ...s,
         status: "connecting",
         error: null,
+        permissionHelp: null,
         banner: null,
         canSwitchCamera: false,
         screenSharing: false,
       }));
 
       let localStream: MediaStream;
+      let cameraUnavailable = false;
       try {
-        localStream = await getCallMediaStream(audioOnly);
-      } catch {
-        if (!cancelled) setState((s) => ({ ...s, status: "error", error: "Nu am putut accesa microfonul/camera." }));
+        const acquired = await acquireCallMediaStream(audioOnly);
+        localStream = acquired.stream;
+        cameraUnavailable = acquired.cameraUnavailable;
+      } catch (e) {
+        if (!cancelled) {
+          const help = formatMediaPermissionHelp(e);
+          setState((s) => ({
+            ...s,
+            status: "permission_help",
+            error: null,
+            permissionHelp: help,
+          }));
+        }
         return;
       }
       if (cancelled) {
@@ -361,12 +394,28 @@ export function useWebRtcCall({
       }
 
       localStreamRef.current = localStream;
-      setState((s) => ({ ...s, localStream }));
+      const videoMutedNow = audioOnly || cameraUnavailable;
+      const cameraBanner =
+        cameraUnavailable && !audioOnly
+          ? "Camera nu e activă — auzi și vorbești normal. Permite camera din setările browserului pentru acest site dacă vrei imagine."
+          : null;
+      setState((s) => ({
+        ...s,
+        localStream,
+        videoMuted: videoMutedNow,
+        banner: cameraBanner ?? s.banner,
+      }));
 
       try {
         const devs = await navigator.mediaDevices.enumerateDevices();
         const n = devs.filter((d) => d.kind === "videoinput").length;
-        if (!cancelled) setState((s) => ({ ...s, canSwitchCamera: !audioOnly && n >= 2 }));
+        if (!cancelled) {
+          const mobile = isMobileDevice();
+          setState((s) => ({
+            ...s,
+            canSwitchCamera: !audioOnly && !cameraUnavailable && (n >= 2 || mobile),
+          }));
+        }
       } catch {
         if (!cancelled) setState((s) => ({ ...s, canSwitchCamera: false }));
       }
@@ -747,6 +796,7 @@ export function useWebRtcCall({
               banner: null,
               screenSharing: false,
               canSwitchCamera: false,
+              permissionHelp: null,
             }));
             onAutoEndedRef.current?.();
           }
@@ -834,19 +884,21 @@ export function useWebRtcCall({
       cancelled = true;
       clearInterval(limitTimer);
       cleanupMedia();
-      setState((s) => ({
-        ...s,
-        localStream: null,
-        remoteParticipants: [],
-        canSwitchCamera: false,
-        screenSharing: false,
-      }));
+        setState((s) => ({
+          ...s,
+          localStream: null,
+          remoteParticipants: [],
+          canSwitchCamera: false,
+          screenSharing: false,
+          permissionHelp: null,
+        }));
     };
   }, [roomId, userId, audioOnly, isCaller, isConference, flushIceQueue, cleanupMedia, clearStatsMonitor]);
 
   return {
     status: state.status,
     error: state.error,
+    permissionHelp: state.permissionHelp,
     remoteParticipants: state.remoteParticipants,
     muted: state.muted,
     videoMuted: state.videoMuted,

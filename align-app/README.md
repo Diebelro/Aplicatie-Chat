@@ -77,6 +77,10 @@ It includes:
 - Rollback procedures
 - Post-deploy monitoring
 
+## Deploy online (Vercel)
+
+Pași concreți: **[DEPLOY-ONLINE.md](./DEPLOY-ONLINE.md)** — Vercel + PostgreSQL (Neon/Supabase), Root Directory `align-app`, variabile obligatorii.
+
 ## Dezvoltare locală (align-app)
 
 1. `cd align-app`

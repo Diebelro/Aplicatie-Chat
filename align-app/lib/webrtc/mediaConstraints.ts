@@ -41,11 +41,66 @@ export function getVideoConstraints(prefer1080: boolean): MediaTrackConstraints 
 }
 
 export async function getCallMediaStream(audioOnly: boolean): Promise<MediaStream> {
+  const r = await acquireCallMediaStream(audioOnly);
+  return r.stream;
+}
+
+export type AcquireCallMediaResult = {
+  stream: MediaStream;
+  /** Camera indisponibilă / refuzată — apelul poate continua doar cu voce */
+  cameraUnavailable: boolean;
+};
+
+/**
+ * Încearcă video+audio; dacă pică doar partea de cameră (sau întregul bundle), încearcă doar microfon.
+ * Nu aruncă pentru „doar cameră blocată” dacă microfonul merge.
+ */
+export async function acquireCallMediaStream(audioOnly: boolean): Promise<AcquireCallMediaResult> {
   const audio = getAudioConstraints();
   if (audioOnly) {
-    return navigator.mediaDevices.getUserMedia({ audio, video: false });
+    const stream = await navigator.mediaDevices.getUserMedia({ audio, video: false });
+    return { stream, cameraUnavailable: false };
   }
   const prefer1080 = !isMobileDevice() && typeof window !== "undefined" && window.innerWidth >= 1200;
   const video = getVideoConstraints(prefer1080);
-  return navigator.mediaDevices.getUserMedia({ audio, video });
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio, video });
+    return { stream, cameraUnavailable: false };
+  } catch (first) {
+    const name = first instanceof DOMException ? first.name : "";
+    const maybeOnlyVideoBlocked =
+      name === "NotAllowedError" ||
+      name === "NotFoundError" ||
+      name === "AbortError" ||
+      name === "NotReadableError" ||
+      name === "OverconstrainedError" ||
+      name === "SecurityError";
+    if (!maybeOnlyVideoBlocked) throw first;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio, video: false });
+      return { stream, cameraUnavailable: true };
+    } catch (second) {
+      throw second;
+    }
+  }
+}
+
+/** Mesaj prietenos după numele erorii getUserMedia (microfon/cameră refuzate). */
+export function formatMediaPermissionHelp(err: unknown): { headline: string; lines: string[] } {
+  const name = err instanceof DOMException ? err.name : "";
+  const headline =
+    name === "NotAllowedError"
+      ? "Acces refuzat la microfon sau cameră"
+      : name === "NotFoundError"
+        ? "Nu s-a găsit microfon sau cameră"
+        : "Nu putem folosi microfonul";
+
+  const lines = [
+    "Apasă pe iconița de lacăt sau „i” în bara de adresă a browserului și setează Microfon (și Camera, dacă e apel video) la „Permite”.",
+    "Pe Android (Chrome): meniul site-ului → Permisiuni → Microfon / Cameră.",
+    "Pe iPhone (Safari): Setări → Safari → Microfon / Cameră și verifică acest site.",
+    "După ce permiți, închide apelul și intră din nou — nu e nevoie de mesaj roșu, e doar o setare a telefonului sau browserului.",
+  ];
+
+  return { headline, lines };
 }

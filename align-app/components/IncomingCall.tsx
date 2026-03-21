@@ -2,10 +2,12 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
 import { Phone, PhoneOff } from "lucide-react";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
 import { getAuthHeaders } from "@/lib/authClient";
+import { markIncomingCallDismissed, shouldIgnorePolledIncoming } from "@/lib/callIncomingDismiss";
 
 const POLL_MS = 1000;
 
@@ -14,46 +16,6 @@ interface IncomingCallData {
   fromName: string;
   roomId: string;
   audioOnly: boolean;
-}
-
-/** Sunet de apel (două tonuri, ca la telefon). */
-function useRingtone(active: boolean) {
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const ctxRef = useRef<AudioContext | null>(null);
-
-  useEffect(() => {
-    if (!active || typeof window === "undefined") return;
-    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    if (!Ctx) return;
-    const ctx = new Ctx();
-    ctxRef.current = ctx;
-
-    const playTone = (freq: number, duration: number) => {
-      if (ctx.state === "suspended") ctx.resume();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.frequency.value = freq;
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      gain.gain.value = 0.15;
-      osc.start(ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
-      osc.stop(ctx.currentTime + duration);
-    };
-
-    const ring = () => {
-      playTone(440, 0.4);
-      setTimeout(() => playTone(480, 0.4), 400);
-    };
-
-    ring();
-    intervalRef.current = setInterval(ring, 2000);
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      ctx.close();
-      ctxRef.current = null;
-    };
-  }, [active]);
 }
 
 export default function IncomingCall() {
@@ -67,8 +29,6 @@ export default function IncomingCall() {
   const [actionError, setActionError] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  useRingtone(!!incoming && !onCallPage);
-
   const fetchIncoming = useCallback(() => {
     fetch("/api/call/incoming", {
       headers: getAuthHeaders(),
@@ -77,7 +37,18 @@ export default function IncomingCall() {
     })
       .then((r) => r.json())
       .then((d) => {
-        if (d.incoming) setIncoming(d.incoming);
+        const inc = d.incoming as IncomingCallData | null | undefined;
+        if (inc?.roomId && shouldIgnorePolledIncoming(inc.roomId)) {
+          setIncoming(null);
+          void fetch("/api/call/end", {
+            method: "POST",
+            headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+            credentials: "same-origin",
+            body: JSON.stringify({ roomId: inc.roomId }),
+          }).catch(() => {});
+          return;
+        }
+        if (inc) setIncoming(inc);
         else setIncoming(null);
       })
       .catch(() => {});
@@ -115,8 +86,8 @@ export default function IncomingCall() {
           return;
         }
         if (d.roomId) {
-          setIncoming(null);
           const q = d.audioOnly ? "?audio=1" : "";
+          /** Nu setIncoming(null) înainte de navigare — altfel dispare overlay-ul și se vede o clipă pagina de dedesubt (ex. mesaje). */
           router.push(`/app/call/${d.roomId}${q}`);
         } else {
           setActionError("Nu s-a putut deschide apelul. Reîncearcă.");
@@ -130,6 +101,7 @@ export default function IncomingCall() {
     if (!incoming || loading) return;
     setActionError(null);
     setLoading(true);
+    markIncomingCallDismissed(incoming.roomId);
     fetch("/api/call/reject", {
       method: "POST",
       headers: getAuthHeaders(),
@@ -144,7 +116,7 @@ export default function IncomingCall() {
   if (onCallPage || !incoming) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-dark-900 min-h-screen p-6">
+    <div className="fixed inset-0 z-[220] flex flex-col items-center justify-center bg-dark-900 min-h-screen p-6">
       <p className="text-dark-400 text-base mb-2">
         {incoming.audioOnly ? "Apel audio" : "Apel video"}
       </p>
@@ -177,6 +149,14 @@ export default function IncomingCall() {
           <span className="text-base font-medium">Răspunde</span>
         </button>
       </div>
+      <p className="mt-10 text-center">
+        <Link
+          href="/app/missed-calls"
+          className="text-sm text-dark-500 hover:text-brand-400 underline underline-offset-2"
+        >
+          Vezi apeluri pierdute
+        </Link>
+      </p>
     </div>
   );
 }

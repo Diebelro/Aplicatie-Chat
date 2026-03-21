@@ -1,12 +1,43 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  useMemo,
+  type ReactNode,
+} from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { PhoneOff, Mic, MicOff, Video, VideoOff, RefreshCw, MonitorUp, ChevronLeft } from "lucide-react";
+import {
+  PhoneOff,
+  Mic,
+  MicOff,
+  Video,
+  VideoOff,
+  RefreshCw,
+  MonitorUp,
+  ChevronLeft,
+  Volume2,
+  Smartphone,
+} from "lucide-react";
 import { useWebRtcCall, type RemoteParticipant } from "@/hooks/useWebRtcCall";
 import { getAuthHeaders } from "@/lib/authClient";
 import { isScreenshareFeatureEnabled } from "@/lib/env/webrtcConfig";
+import { markIncomingCallDismissed } from "@/lib/callIncomingDismiss";
+import {
+  DEFAULT_AUDIO_SINK,
+  applyAudioSinkId,
+  listAudioOutputDevices,
+  pickSpeakerLikeSinkId,
+  supportsAudioOutputSelection,
+} from "@/lib/webrtc/audioOutput";
+import { isMobileDevice } from "@/lib/webrtc/mediaConstraints";
+
+const RemoteAudioSinkContext = createContext<string>(DEFAULT_AUDIO_SINK);
 
 function fmtCallDuration(totalSec: number): string {
   const m = Math.floor(totalSec / 60);
@@ -15,15 +46,17 @@ function fmtCallDuration(totalSec: number): string {
 }
 
 function RemoteAudio({ stream }: { stream: MediaStream }) {
+  const sinkId = useContext(RemoteAudioSinkContext);
   const ref = useRef<HTMLAudioElement>(null);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
     el.srcObject = stream;
+    void applyAudioSinkId(el, sinkId);
     return () => {
       el.srcObject = null;
     };
-  }, [stream]);
+  }, [stream, sinkId]);
   return <audio ref={ref} autoPlay playsInline className="hidden" />;
 }
 
@@ -102,6 +135,8 @@ function RemoteVideoStage({ participant }: { participant: RemoteParticipant }) {
 }
 
 const OUTGOING_POLL_MS = 1000;
+/** După conectare, ascundem bara de controale ca să nu stea peste imagine; tap / mișcare mouse reafișează. */
+const CHROME_AUTO_HIDE_MS = 4500;
 
 type CallUIProps = {
   roomId: string;
@@ -123,6 +158,8 @@ export default function CallUI({
   const router = useRouter();
   const [callRejected, setCallRejected] = useState(false);
   const [elapsedSec, setElapsedSec] = useState(0);
+  /** false = celălalt pe tot ecranul, tu în colț; true = invers */
+  const [videoLayoutSwapped, setVideoLayoutSwapped] = useState(false);
   const isCaller = !!isCallerProp && !isConference;
 
   const screenshareAllowed = isScreenshareFeatureEnabled();
@@ -130,6 +167,7 @@ export default function CallUI({
   const {
     status,
     error,
+    permissionHelp,
     remoteParticipants,
     muted,
     setMuted,
@@ -149,8 +187,20 @@ export default function CallUI({
     audioOnly,
     isCaller,
     isConference,
-    onAutoEnded: () => router.push("/app/messages"),
+    onAutoEnded: () => {
+      markIncomingCallDismissed(roomId);
+      void fetch("/api/call/end", {
+        method: "POST",
+        headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ roomId }),
+      }).catch(() => {});
+      router.push("/app/messages");
+    },
   });
+
+  /** Pe telefon comutăm față/spate prin facingMode chiar dacă enumerateDevices raportează un singur videoinput. */
+  const showCameraFlip = !audioOnly && (canSwitchCamera || isMobileDevice());
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const localAudioRef = useRef<HTMLAudioElement>(null);
@@ -164,7 +214,7 @@ export default function CallUI({
       if (v) v.srcObject = null;
       if (a) a.srcObject = null;
     };
-  }, [localStream]);
+  }, [localStream, videoLayoutSwapped]);
 
   useEffect(() => {
     if (status !== "connected") {
@@ -175,6 +225,65 @@ export default function CallUI({
     const id = window.setInterval(() => setElapsedSec(Math.floor((Date.now() - t0) / 1000)), 1000);
     return () => clearInterval(id);
   }, [status]);
+
+  const [chromeVisible, setChromeVisible] = useState(true);
+  /** În browser setTimeout returnează number; evită conflict cu tipul Node `Timeout`. */
+  const chromeHideTimerRef = useRef<number | null>(null);
+  const lastMoveBumpRef = useRef(0);
+
+  const scheduleChromeHide = useCallback(() => {
+    if (chromeHideTimerRef.current) {
+      clearTimeout(chromeHideTimerRef.current);
+      chromeHideTimerRef.current = null;
+    }
+    setChromeVisible(true);
+    if (status !== "connected") return;
+    chromeHideTimerRef.current = window.setTimeout(() => {
+      setChromeVisible(false);
+      chromeHideTimerRef.current = null;
+    }, CHROME_AUTO_HIDE_MS);
+  }, [status]);
+
+  useEffect(() => {
+    scheduleChromeHide();
+    return () => {
+      if (chromeHideTimerRef.current) {
+        clearTimeout(chromeHideTimerRef.current);
+        chromeHideTimerRef.current = null;
+      }
+    };
+  }, [scheduleChromeHide]);
+
+  const onImmersivePointer = useCallback(
+    (e: React.PointerEvent) => {
+      if (e.type === "pointermove" && e.pointerType === "mouse") {
+        const now = Date.now();
+        if (now - lastMoveBumpRef.current < 450) return;
+        lastMoveBumpRef.current = now;
+      }
+      scheduleChromeHide();
+    },
+    [scheduleChromeHide]
+  );
+
+  /** Implicit: ieșirea default a browserului/OS; opțional forțează un dispozitiv tip difuzor dacă există. */
+  const [speakerOutputOn, setSpeakerOutputOn] = useState(false);
+  const [speakerSinkIdResolved, setSpeakerSinkIdResolved] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (!supportsAudioOutputSelection()) return;
+    void listAudioOutputDevices().then((devs) => {
+      setSpeakerSinkIdResolved(pickSpeakerLikeSinkId(devs));
+    });
+  }, [status]);
+
+  const remoteAudioSinkId = useMemo(() => {
+    if (!supportsAudioOutputSelection()) return DEFAULT_AUDIO_SINK;
+    if (speakerOutputOn && speakerSinkIdResolved) return speakerSinkIdResolved;
+    return DEFAULT_AUDIO_SINK;
+  }, [speakerOutputOn, speakerSinkIdResolved]);
+
+  const showSpeakerToggle = supportsAudioOutputSelection() && !!speakerSinkIdResolved;
 
   const fetchOutgoingStatus = useCallback(() => {
     fetch(`/api/call/outgoing-status?roomId=${encodeURIComponent(roomId)}`, { headers: getAuthHeaders() })
@@ -200,13 +309,35 @@ export default function CallUI({
 
   const handleLeave = () => {
     leave();
-    fetch("/api/call/end", { method: "POST", headers: getAuthHeaders() }).catch(() => {});
-    router.push("/app/messages");
+    markIncomingCallDismissed(roomId);
+    void (async () => {
+      try {
+        await fetch("/api/call/end", {
+          method: "POST",
+          headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({ roomId }),
+        });
+      } catch {
+        /* ignore */
+      }
+      router.push("/app/messages");
+    })();
   };
 
   const remote = remoteParticipants[0];
   const immersiveVideo = !isConference && !audioOnly;
   const immersiveAudio = !isConference && audioOnly;
+
+  const canSwapVideoLayout = Boolean(remote && localStream);
+  const toggleVideoLayout = useCallback(() => {
+    if (!remote || !localStream) return;
+    setVideoLayoutSwapped((s) => !s);
+  }, [remote, localStream]);
+
+  useEffect(() => {
+    if (!remote) setVideoLayoutSwapped(false);
+  }, [remote]);
 
   /** Buton circular bară jos (WhatsApp-style). */
   const CircleBtn = ({
@@ -240,53 +371,163 @@ export default function CallUI({
 
   if (callRejected) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4 px-4 text-center">
-        <p className="text-red-400 font-medium">Apel respins</p>
-        <p className="text-dark-500 text-sm">Celălalt utilizator a refuzat apelul. Redirecționare la mesaje…</p>
-        <Link href="/app/messages" className="text-brand-400 hover:underline mt-2">
-          Înapoi la mesaje
-        </Link>
-      </div>
+      <RemoteAudioSinkContext.Provider value={remoteAudioSinkId}>
+        <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4 px-4 text-center">
+          <p className="text-red-400 font-medium">Apel respins</p>
+          <p className="text-dark-500 text-sm">Celălalt utilizator a refuzat apelul. Redirecționare la mesaje…</p>
+          <Link href="/app/messages" className="text-brand-400 hover:underline mt-2">
+            Înapoi la mesaje
+          </Link>
+        </div>
+      </RemoteAudioSinkContext.Provider>
+    );
+  }
+
+  if (status === "permission_help" && permissionHelp) {
+    return (
+      <RemoteAudioSinkContext.Provider value={remoteAudioSinkId}>
+        <div className="flex flex-col items-center justify-center min-h-[50vh] gap-6 px-5 py-10 text-center bg-dark-950">
+          <div className="max-w-lg rounded-2xl border border-amber-500/40 bg-amber-500/[0.12] px-6 py-6 text-left shadow-lg shadow-amber-900/20">
+            <p className="text-amber-50 font-semibold text-lg mb-4">{permissionHelp.headline}</p>
+            <ul className="text-amber-100/90 text-sm space-y-3 list-disc pl-5 leading-relaxed">
+              {permissionHelp.lines.map((line, i) => (
+                <li key={i}>{line}</li>
+              ))}
+            </ul>
+            <p className="text-amber-200/70 text-xs mt-5 border-t border-amber-500/25 pt-4">
+              În browser nu putem forța „doar casca telefonului” ca la apelul clasic — după ce permiți microfonul, vocea merge la ieșirea pe care o alege telefonul; dacă apare butonul „Difuzor”, îl poți folosi ca să comuți unde se aude.
+            </p>
+          </div>
+          <Link
+            href="/app/messages"
+            className="text-brand-400 hover:text-brand-300 font-medium hover:underline"
+          >
+            Înapoi la mesaje
+          </Link>
+        </div>
+      </RemoteAudioSinkContext.Provider>
     );
   }
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4 px-4 text-center">
-        <p className="text-red-400 font-medium">{error}</p>
-        <p className="text-dark-500 text-sm max-w-md">
-          Verifică <code className="text-dark-400">docs/calls.md</code>: server semnalizare (WS), coturn/TURN, variabilele{" "}
-          <code className="text-dark-400">NEXT_PUBLIC_SIGNALING_WS_URL</code>,{" "}
-          <code className="text-dark-400">NEXT_PUBLIC_TURN_URLS</code>, <code className="text-dark-400">TURN_AUTH_SECRET</code>.
-        </p>
-        <Link href="/app/messages" className="text-brand-400 hover:underline mt-2">
-          Înapoi la mesaje
-        </Link>
-      </div>
+      <RemoteAudioSinkContext.Provider value={remoteAudioSinkId}>
+        <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4 px-4 text-center">
+          <p className="text-red-400 font-medium">{error}</p>
+          <p className="text-dark-500 text-sm max-w-md">
+            Verifică <code className="text-dark-400">docs/calls.md</code>: server semnalizare (WS), coturn/TURN, variabilele{" "}
+            <code className="text-dark-400">NEXT_PUBLIC_SIGNALING_WS_URL</code>,{" "}
+            <code className="text-dark-400">NEXT_PUBLIC_TURN_URLS</code>, <code className="text-dark-400">TURN_AUTH_SECRET</code>.
+          </p>
+          <Link href="/app/messages" className="text-brand-400 hover:underline mt-2">
+            Înapoi la mesaje
+          </Link>
+        </div>
+      </RemoteAudioSinkContext.Provider>
     );
   }
+
+  const chromeTopClass = chromeVisible
+    ? "opacity-100 translate-y-0"
+    : "opacity-0 -translate-y-3 pointer-events-none";
+  const chromeBottomClass = chromeVisible
+    ? "opacity-100 translate-y-0"
+    : "opacity-0 translate-y-8 pointer-events-none";
+
+  const pipFrameClass =
+    "absolute z-30 overflow-hidden rounded-2xl bg-zinc-900 shadow-2xl ring-2 ring-white/20 " +
+    "right-[max(0.75rem,env(safe-area-inset-right))] " +
+    "bottom-[calc(7.25rem+env(safe-area-inset-bottom))] " +
+    "w-[min(34vw,11rem)] sm:w-44 sm:bottom-[calc(7.5rem+env(safe-area-inset-bottom))] md:w-52 aspect-video " +
+    (canSwapVideoLayout ? "cursor-pointer touch-manipulation active:scale-[0.98] transition-transform" : "");
 
   /* ——— Apel video 1-la-1: fullscreen + PiP ——— */
   if (immersiveVideo) {
     return (
-      <div className="fixed inset-0 z-[200] flex flex-col bg-black text-white">
+      <RemoteAudioSinkContext.Provider value={remoteAudioSinkId}>
+        <div
+          className="fixed inset-0 z-[200] flex flex-col bg-black text-white touch-manipulation"
+          onPointerDown={onImmersivePointer}
+          onPointerMove={onImmersivePointer}
+        >
         <div className="absolute inset-0 overflow-hidden">
-          {remote ? (
-            <RemoteVideoStage participant={remote} />
+          {!videoLayoutSwapped ? (
+            remote ? (
+              <div
+                role={canSwapVideoLayout ? "button" : undefined}
+                tabIndex={canSwapVideoLayout ? 0 : undefined}
+                className={`absolute inset-0 ${canSwapVideoLayout ? "cursor-pointer" : ""}`}
+                onClick={canSwapVideoLayout ? toggleVideoLayout : undefined}
+                onKeyDown={
+                  canSwapVideoLayout
+                    ? (e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          toggleVideoLayout();
+                        }
+                      }
+                    : undefined
+                }
+                aria-label={canSwapVideoLayout ? "Atinge pentru a te vedea mare în colț" : undefined}
+              >
+                <RemoteVideoStage participant={remote} />
+              </div>
+            ) : (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-zinc-900 to-black">
+                <div className="h-16 w-16 border-2 border-white/20 border-t-brand-400 rounded-full animate-spin mb-6" />
+                <p className="text-white/60 text-sm">
+                  {status === "connecting" ? "Se conectează…" : "Așteptăm celălalt participant…"}
+                </p>
+              </div>
+            )
           ) : (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-zinc-900 to-black">
-              <div className="h-16 w-16 border-2 border-white/20 border-t-brand-400 rounded-full animate-spin mb-6" />
-              <p className="text-white/60 text-sm">
-                {status === "connecting" ? "Se conectează…" : "Așteptăm celălalt participant…"}
-              </p>
+            <div
+              role={canSwapVideoLayout ? "button" : undefined}
+              tabIndex={canSwapVideoLayout ? 0 : undefined}
+              className={`absolute inset-0 ${canSwapVideoLayout ? "cursor-pointer" : ""}`}
+              onClick={canSwapVideoLayout ? toggleVideoLayout : undefined}
+              onKeyDown={
+                canSwapVideoLayout
+                  ? (e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        toggleVideoLayout();
+                      }
+                    }
+                  : undefined
+              }
+              aria-label={canSwapVideoLayout ? "Atinge pentru a vedea din nou celălalt mare" : undefined}
+            >
+              {localStream && !videoMuted ? (
+                <video
+                  ref={localVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="absolute inset-0 h-full w-full object-cover scale-x-[-1]"
+                />
+              ) : localStream && videoMuted ? (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-zinc-900 via-black to-zinc-950">
+                  <div className="h-28 w-28 rounded-full bg-white/10 flex items-center justify-center ring-2 ring-white/15">
+                    <VideoOff className="h-12 w-12 text-white/35" />
+                  </div>
+                  <p className="text-white/45 text-sm font-medium mt-4">Camera ta e oprită</p>
+                </div>
+              ) : null}
             </div>
           )}
         </div>
 
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-36 bg-gradient-to-b from-black/85 via-black/40 to-transparent" />
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-44 bg-gradient-to-t from-black/90 via-black/50 to-transparent" />
+        <div
+          className={`pointer-events-none absolute inset-x-0 top-0 z-10 h-36 bg-gradient-to-b from-black/85 via-black/40 to-transparent transition-all duration-300 ease-out ${chromeTopClass}`}
+        />
+        <div
+          className={`pointer-events-none absolute inset-x-0 bottom-0 z-10 h-44 bg-gradient-to-t from-black/90 via-black/50 to-transparent transition-all duration-300 ease-out ${chromeBottomClass}`}
+        />
 
-        <header className="relative z-20 flex items-center justify-between px-2 pt-[max(0.5rem,env(safe-area-inset-top))] pb-1 sm:px-4">
+        <header
+          className={`relative z-20 flex items-center justify-between px-2 pt-[max(0.5rem,env(safe-area-inset-top))] pb-1 sm:px-4 transition-all duration-300 ease-out ${chromeTopClass}`}
+        >
           <button
             type="button"
             onClick={handleLeave}
@@ -307,18 +548,21 @@ export default function CallUI({
         </header>
 
         {banner ? (
-          <div className="relative z-20 mx-3 mt-1 rounded-xl bg-amber-500/20 border border-amber-400/35 px-3 py-2 text-xs text-amber-50 backdrop-blur-sm">
+          <div
+            className={`relative z-20 mx-3 mt-1 rounded-xl bg-amber-500/20 border border-amber-400/35 px-3 py-2 text-xs text-amber-50 backdrop-blur-sm transition-all duration-300 ease-out ${chromeTopClass}`}
+          >
             {banner}
           </div>
         ) : null}
 
-        {/* PiP local — oglindit ca la majoritatea apelurilor */}
-        {localStream && !videoMuted && (
+        {/* PiP: implicit tu mic; după swap — celălalt mic. Atinge mare sau mic pentru a comuta. */}
+        {!videoLayoutSwapped && localStream && !videoMuted && (
           <div
-            className="absolute z-20 overflow-hidden rounded-2xl bg-zinc-900 shadow-2xl ring-2 ring-white/20
-              right-[max(0.75rem,env(safe-area-inset-right))]
-              bottom-[calc(7.25rem+env(safe-area-inset-bottom))]
-              w-[min(34vw,11rem)] sm:w-44 sm:bottom-[calc(7.5rem+env(safe-area-inset-bottom))] md:w-52 aspect-video"
+            className={pipFrameClass}
+            onClick={canSwapVideoLayout ? toggleVideoLayout : undefined}
+            role={canSwapVideoLayout ? "button" : undefined}
+            tabIndex={canSwapVideoLayout ? 0 : undefined}
+            aria-label={canSwapVideoLayout ? "Atinge pentru a te vedea mare pe ecran" : undefined}
           >
             <video
               ref={localVideoRef}
@@ -327,26 +571,53 @@ export default function CallUI({
               muted
               className="h-full w-full object-cover scale-x-[-1]"
             />
-            <span className="absolute bottom-1.5 left-2 text-[10px] font-medium uppercase tracking-wider text-white/70 bg-black/40 px-1.5 py-0.5 rounded">
+            <span className="pointer-events-none absolute bottom-1.5 left-2 text-[10px] font-medium uppercase tracking-wider text-white/70 bg-black/40 px-1.5 py-0.5 rounded">
               Tu
             </span>
           </div>
         )}
-        {localStream && videoMuted && (
+        {!videoLayoutSwapped && localStream && videoMuted && (
           <div
-            className="absolute z-20 flex items-center justify-center rounded-2xl bg-zinc-800/95 shadow-2xl ring-2 ring-white/15
-              right-[max(0.75rem,env(safe-area-inset-right))]
-              bottom-[calc(7.25rem+env(safe-area-inset-bottom))]
-              w-[min(34vw,11rem)] sm:w-44 aspect-video"
+            className={`${pipFrameClass} flex items-center justify-center bg-zinc-800/95 ring-white/15`}
+            onClick={canSwapVideoLayout ? toggleVideoLayout : undefined}
+            role={canSwapVideoLayout ? "button" : undefined}
+            aria-label={canSwapVideoLayout ? "Atinge pentru a te vedea mare pe ecran" : undefined}
           >
             <VideoOff className="h-8 w-8 text-white/35" />
           </div>
         )}
+        {videoLayoutSwapped && remote && (
+          <div
+            className={pipFrameClass}
+            onClick={canSwapVideoLayout ? toggleVideoLayout : undefined}
+            role={canSwapVideoLayout ? "button" : undefined}
+            tabIndex={canSwapVideoLayout ? 0 : undefined}
+            aria-label={canSwapVideoLayout ? "Atinge pentru a vedea din nou celălalt mare" : undefined}
+          >
+            <div className="relative h-full w-full">
+              <RemoteVideoStage participant={remote} />
+            </div>
+            <span className="pointer-events-none absolute bottom-1.5 left-2 right-2 truncate text-[10px] font-medium uppercase tracking-wider text-white/80 bg-black/50 px-1.5 py-0.5 rounded max-w-[calc(100%-0.5rem)]">
+              {remote.displayName || "Participant"}
+            </span>
+          </div>
+        )}
         <audio ref={localAudioRef} autoPlay playsInline muted className="hidden" />
 
+        {chromeVisible && status === "connected" ? (
+          <p
+            className={`relative z-20 mx-auto -mb-1 max-w-sm px-4 text-center text-[10px] leading-snug text-white/45 transition-all duration-300 ${chromeBottomClass}`}
+          >
+            Vocea celuilalt folosește mai întâi ieșirea obișnuită a telefonului (browserul decide).{" "}
+            {showSpeakerToggle
+              ? "Apasă „Difuzor” dacă vrei să comuți spre difuzor, când e suportat."
+              : "Dacă nu apare butonul Difuzor, browserul nu permite alegerea ieșirii audio pe acest dispozitiv."}
+          </p>
+        ) : null}
+
         <div
-          className="relative z-20 mt-auto flex flex-wrap items-center justify-center gap-3 sm:gap-5 px-3
-            pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-6"
+          className={`relative z-20 mt-auto flex flex-wrap items-center justify-center gap-3 sm:gap-5 px-3
+            pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-6 transition-all duration-300 ease-out ${chromeBottomClass}`}
         >
           <CircleBtn
             onClick={() => setMuted(!muted)}
@@ -362,8 +633,11 @@ export default function CallUI({
           >
             {videoMuted ? <VideoOff className="h-6 w-6 sm:h-7 sm:w-7" /> : <Video className="h-6 w-6 sm:h-7 sm:w-7" />}
           </CircleBtn>
-          {canSwitchCamera && (
-            <CircleBtn onClick={() => void switchCamera()} title="Schimbă camera">
+          {showCameraFlip && (
+            <CircleBtn
+              onClick={() => void switchCamera()}
+              title="Față / spate — comută camera"
+            >
               <RefreshCw className="h-6 w-6 sm:h-7 sm:w-7" />
             </CircleBtn>
           )}
@@ -376,20 +650,43 @@ export default function CallUI({
               <MonitorUp className="h-6 w-6 sm:h-7 sm:w-7" />
             </CircleBtn>
           )}
+          {showSpeakerToggle ? (
+            <CircleBtn
+              onClick={() => setSpeakerOutputOn((v) => !v)}
+              title={speakerOutputOn ? "Revino la ieșirea implicită (telefon)" : "Difuzor"}
+              active={speakerOutputOn}
+            >
+              {speakerOutputOn ? (
+                <Volume2 className="h-6 w-6 sm:h-7 sm:w-7" />
+              ) : (
+                <Smartphone className="h-6 w-6 sm:h-7 sm:w-7" />
+              )}
+            </CircleBtn>
+          ) : null}
           <CircleBtn onClick={handleLeave} title="Închide apelul" danger>
             <PhoneOff className="h-6 w-6 sm:h-7 sm:w-7" />
           </CircleBtn>
         </div>
-      </div>
+        </div>
+      </RemoteAudioSinkContext.Provider>
     );
   }
 
   /* ——— Apel audio 1-la-1: ecran dedicat, fără casete video mici ——— */
   if (immersiveAudio) {
     return (
-      <div className="fixed inset-0 z-[200] flex flex-col bg-gradient-to-b from-zinc-900 via-black to-zinc-950 text-white">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/60 to-transparent" />
-        <header className="relative z-10 flex items-center justify-between px-2 pt-[max(0.5rem,env(safe-area-inset-top))] sm:px-4">
+      <RemoteAudioSinkContext.Provider value={remoteAudioSinkId}>
+        <div
+          className="fixed inset-0 z-[200] flex flex-col bg-gradient-to-b from-zinc-900 via-black to-zinc-950 text-white touch-manipulation"
+          onPointerDown={onImmersivePointer}
+          onPointerMove={onImmersivePointer}
+        >
+        <div
+          className={`pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/60 to-transparent transition-all duration-300 ease-out ${chromeTopClass}`}
+        />
+        <header
+          className={`relative z-10 flex items-center justify-between px-2 pt-[max(0.5rem,env(safe-area-inset-top))] sm:px-4 transition-all duration-300 ease-out ${chromeTopClass}`}
+        >
           <button
             type="button"
             onClick={handleLeave}
@@ -423,25 +720,53 @@ export default function CallUI({
         <audio ref={localAudioRef} autoPlay playsInline muted className="hidden" />
 
         {banner ? (
-          <div className="mx-4 mb-2 rounded-xl bg-amber-500/20 border border-amber-400/35 px-3 py-2 text-xs text-amber-50">
+          <div
+            className={`mx-4 mb-2 rounded-xl bg-amber-500/20 border border-amber-400/35 px-3 py-2 text-xs text-amber-50 transition-all duration-300 ease-out ${chromeBottomClass}`}
+          >
             {banner}
           </div>
         ) : null}
 
-        <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-5 px-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-4">
+        {chromeVisible && status === "connected" ? (
+          <p
+            className={`mx-auto mb-1 max-w-sm px-4 text-center text-[10px] leading-snug text-white/45 transition-all duration-300 ${chromeBottomClass}`}
+          >
+            Vocea se aude pe ieșirea implicită a telefonului.{" "}
+            {showSpeakerToggle ? "Apasă „Difuzor” dacă vrei difuzorul." : ""}
+          </p>
+        ) : null}
+
+        <div
+          className={`flex flex-wrap items-center justify-center gap-3 sm:gap-5 px-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-4 transition-all duration-300 ease-out ${chromeBottomClass}`}
+        >
           <CircleBtn onClick={() => setMuted(!muted)} title={muted ? "Pornește microfonul" : "Mute"} active={!muted}>
             {muted ? <MicOff className="h-6 w-6 sm:h-7 sm:w-7" /> : <Mic className="h-6 w-6 sm:h-7 sm:w-7" />}
           </CircleBtn>
+          {showSpeakerToggle ? (
+            <CircleBtn
+              onClick={() => setSpeakerOutputOn((v) => !v)}
+              title={speakerOutputOn ? "Ieșire implicită (telefon)" : "Difuzor"}
+              active={speakerOutputOn}
+            >
+              {speakerOutputOn ? (
+                <Volume2 className="h-6 w-6 sm:h-7 sm:w-7" />
+              ) : (
+                <Smartphone className="h-6 w-6 sm:h-7 sm:w-7" />
+              )}
+            </CircleBtn>
+          ) : null}
           <CircleBtn onClick={handleLeave} title="Închide" danger>
             <PhoneOff className="h-6 w-6 sm:h-7 sm:w-7" />
           </CircleBtn>
         </div>
-      </div>
+        </div>
+      </RemoteAudioSinkContext.Provider>
     );
   }
 
   /* ——— Conferință sau fallback ——— */
   return (
+    <RemoteAudioSinkContext.Provider value={remoteAudioSinkId}>
     <div className="flex flex-col min-h-[calc(100dvh-4rem)] sm:min-h-[calc(100vh-5rem)]">
       <div className="flex items-center justify-between border-b border-dark-600 py-2 px-3 sm:px-4">
         <Link href="/app/messages" onClick={() => leave()} className="text-dark-500 hover:text-white text-sm">
@@ -521,14 +846,15 @@ export default function CallUI({
             {videoMuted ? "Pornește video" : "Oprește video"}
           </button>
         )}
-        {!audioOnly && canSwitchCamera && (
+        {showCameraFlip && (
           <button
             type="button"
             onClick={() => void switchCamera()}
+            title="Față / spate — comută camera"
             className="flex items-center gap-2 rounded-full bg-dark-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-dark-500"
           >
             <RefreshCw className="w-5 h-5" />
-            Cameră
+            Față / spate
           </button>
         )}
         {!audioOnly && screenshareAllowed && (
@@ -543,6 +869,19 @@ export default function CallUI({
             Ecran
           </button>
         )}
+        {showSpeakerToggle ? (
+          <button
+            type="button"
+            onClick={() => setSpeakerOutputOn((v) => !v)}
+            className={`flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium transition ${
+              speakerOutputOn ? "bg-brand-500/25 text-brand-200" : "bg-dark-600 text-white hover:bg-dark-500"
+            }`}
+            title={speakerOutputOn ? "Ieșire implicită" : "Difuzor"}
+          >
+            {speakerOutputOn ? <Volume2 className="w-5 h-5" /> : <Smartphone className="w-5 h-5" />}
+            {speakerOutputOn ? "Difuzor" : "Telefon"}
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={handleLeave}
@@ -553,5 +892,6 @@ export default function CallUI({
         </button>
       </div>
     </div>
+    </RemoteAudioSinkContext.Provider>
   );
 }

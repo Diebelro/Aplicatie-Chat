@@ -15,6 +15,9 @@ dist/
 *.dump
 prisma/prisma/
 
+# Vercel CLI (local link)
+.vercel/
+
 # Env (secrets, local config)
 .env
 .env.local

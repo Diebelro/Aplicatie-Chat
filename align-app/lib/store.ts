@@ -760,6 +760,13 @@ export function clearPendingCall(toId: string): void {
   pendingCallByToId.delete(toId);
 }
 
+/** Șterge apelul în așteptare pentru orice utilizator al cărui roomId se potrivește (ex. caller închide înainte să răspundă). */
+export function clearPendingCallByRoomId(roomId: string): void {
+  for (const [toId, p] of pendingCallByToId) {
+    if (p.roomId === roomId) pendingCallByToId.delete(toId);
+  }
+}
+
 /** RoomIds rejected by callee so caller can be notified. Expire after 2 min. */
 const rejectedCallRooms = new Map<string, number>();
 const REJECTED_EXPIRE_MS = 2 * 60 * 1000;

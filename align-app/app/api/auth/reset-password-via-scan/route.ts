@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { useRecoverySession } from "@/lib/recoverySessions";
+import { consumeRecoverySession } from "@/lib/recoverySessions";
 import { findUserById, setPassword } from "@/lib/store";
 import { hashPassword } from "@/lib/auth";
 import {
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const userId = useRecoverySession(sessionId);
+    const userId = consumeRecoverySession(sessionId);
     if (!userId) {
       return NextResponse.json(
         { error: "Sesiune invalidă sau expirată. Încearcă din nou." },

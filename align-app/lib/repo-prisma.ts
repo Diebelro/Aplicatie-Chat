@@ -1268,6 +1268,15 @@ export async function prismaDeletePendingIncomingCall(toUserId: string): Promise
   }
 }
 
+/** Caller închide / anulează — nu mai arăta „apel primit” pentru acel room. */
+export async function prismaDeletePendingIncomingByRoomId(roomId: string): Promise<void> {
+  try {
+    await prisma.pendingIncomingCall.deleteMany({ where: { roomId } });
+  } catch {
+    /* ignore */
+  }
+}
+
 export async function findUserOrPrisma(userId: string): Promise<User | null> {
   if (isPrismaAvailable()) {
     try {

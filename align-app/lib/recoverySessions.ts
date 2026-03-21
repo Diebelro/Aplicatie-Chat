@@ -105,10 +105,10 @@ export function getRecoveryStatus(sessionId: string): RecoveryStatusResponse {
 }
 
 /**
- * Spec: useRecoverySession(sessionId) → userId.
+ * Spec: consumeRecoverySession(sessionId) → userId.
  * Marchează sesiunea ca "used" și returnează userId; null dacă invalid/expirată.
  */
-export function useRecoverySession(sessionId: string): string | null {
+export function consumeRecoverySession(sessionId: string): string | null {
   const s = bySessionId.get(sessionId);
   if (!s || isExpired(s)) return null;
   if (s.status !== "confirmed" || !s.userId) return null;

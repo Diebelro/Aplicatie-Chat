@@ -1,0 +1,28 @@
+# Verificare automată la push/PR (fără secrets). Deploy: Vercel → import repo, Root Directory = align-app
+name: align-app CI
+
+on:
+  push:
+    paths:
+      - "align-app/**"
+      - ".github/workflows/align-app-ci.yml"
+  pull_request:
+    paths:
+      - "align-app/**"
+
+defaults:
+  run:
+    working-directory: align-app
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: align-app/package-lock.json
+      - run: npm ci
+      - run: npm run lint
