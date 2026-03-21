@@ -1,0 +1,2 @@
+# Scripturi shell: line endings Unix (altfel pe VPS: bad interpreter)
+*.sh text eol=lf
