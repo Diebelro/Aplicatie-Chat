@@ -36,6 +36,9 @@ export async function GET(request: NextRequest) {
       { status: 400 }
     );
   }
+  /** markRead=0: doar sincronizare mesaje (poll), fără updateMany „citit” — altfel DB/rețea se înghesuie la fiecare sute de ms. */
+  const markReadParam = request.nextUrl.searchParams.get("markRead");
+  const shouldMarkConversationRead = markReadParam !== "0" && markReadParam !== "false";
   if (isPrismaAvailable()) {
     try {
       const me = await findUserOrPrisma(userId);
@@ -53,7 +56,9 @@ export async function GET(request: NextRequest) {
         );
       }
       await prismaUpdateLastActive(userId);
-      await prismaMarkConversationAsRead(userId, withId);
+      if (shouldMarkConversationRead) {
+        await prismaMarkConversationAsRead(userId, withId);
+      }
       const list = await prismaGetMessagesBetween(userId, withId);
       const messages = list.map((m) => {
         const rawStatus = (m as { status?: string }).status;

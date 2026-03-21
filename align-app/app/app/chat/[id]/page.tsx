@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useLayoutEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Send, Video, Phone, Check, Paperclip, X, FileText } from "lucide-react";
+import { Send, Video, Phone, Check, Loader2, Paperclip, X, FileText } from "lucide-react";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
 import { getVideoRoomId } from "@/lib/videoCall";
@@ -27,6 +27,8 @@ interface Message {
   seenAt?: string | null;
   attachmentUrl?: string | null;
   attachmentContentType?: string | null;
+  /** Mesaj optimist: încă nu a răspuns serverul */
+  clientPending?: boolean;
 }
 
 function isImageType(ct: string | null | undefined): boolean {
@@ -66,6 +68,9 @@ export default function ChatPage() {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const initialScrollDoneRef = useRef(false);
+  const otherPollTickRef = useRef(0);
+  const prevMessageCountRef = useRef(0);
 
   const meRaw = typeof window !== "undefined" ? getStoredUserRaw() : null;
   const me: User | null = meRaw ? (() => { try { return JSON.parse(meRaw); } catch { return null; } })() : null;
@@ -112,96 +117,204 @@ export default function ChatPage() {
     if (res.ok && data.user) setOther(data.user);
   };
 
-  const fetchMessages = async () => {
-    const res = await fetch(`/api/messages?with=${otherId}&_=${Date.now()}`, {
-      headers: getAuthHeaders(),
-      cache: "no-store",
-    });
-    const data = await res.json();
-    if (res.ok) {
-      setMessages(data.messages || []);
-      setAreFriends(!!data.areFriends);
-      setMatchId(data.matchId ?? null);
-      if (data.currentUserId != null) setCurrentUserId(data.currentUserId);
-      setFetchError(null);
-    } else if ([401, 402, 403, 500].includes(res.status)) {
-      const code = res.status;
-      const msg = (data?.error as string) || "Eroare";
-      setFetchError(process.env.NODE_ENV === "development" ? `[${code}] ${msg}` : msg);
-    }
-  };
+  const fetchMessages = useCallback(
+    async (opts?: { markConversationRead?: boolean }) => {
+      const markRead = opts?.markConversationRead !== false;
+      const q = markRead ? "" : "&markRead=0";
+      const res = await fetch(`/api/messages?with=${encodeURIComponent(otherId)}&_=${Date.now()}${q}`, {
+        headers: getAuthHeaders(),
+        cache: "no-store",
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const incoming = (data.messages || []) as Message[];
+        setMessages((prev) => {
+          const pending = prev.filter(
+            (m) =>
+              m.clientPending &&
+              String(m.toId) === String(otherId) &&
+              !incoming.some((s) => s.id === m.id)
+          );
+          const filteredPending = pending.filter((p) => {
+            const dup = incoming.some((s) => {
+              if (String(s.fromId) !== String(p.fromId)) return false;
+              if (Math.abs(new Date(s.at).getTime() - new Date(p.at).getTime()) >= 120_000) return false;
+              if (p.attachmentUrl && s.attachmentUrl && p.attachmentUrl === s.attachmentUrl) return true;
+              return s.text === p.text;
+            });
+            return !dup;
+          });
+          return [...incoming, ...filteredPending].sort(
+            (a, b) => new Date(a.at).getTime() - new Date(b.at).getTime()
+          );
+        });
+        setAreFriends(!!data.areFriends);
+        setMatchId(data.matchId ?? null);
+        if (data.currentUserId != null) setCurrentUserId(data.currentUserId);
+        setFetchError(null);
+        if (markRead && typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("align:conversation-read", { detail: { otherId } }));
+        }
+      } else if ([401, 402, 403, 500].includes(res.status)) {
+        const code = res.status;
+        const msg = (data?.error as string) || "Eroare";
+        setFetchError(process.env.NODE_ENV === "development" ? `[${code}] ${msg}` : msg);
+      }
+    },
+    [otherId]
+  );
 
+  useEffect(() => {
+    initialScrollDoneRef.current = false;
+    otherPollTickRef.current = 0;
+    prevMessageCountRef.current = 0;
+  }, [otherId]);
+
+  /** Deschidere chat: mesaje + header în paralel; nu așteptăm visit/upload ca să nu pară „blocat”. */
   useEffect(() => {
     if (!otherId) return;
     setFetchError(null);
+    setLoading(true);
+    let cancelled = false;
     (async () => {
-      await fetchOther();
-      const readRes = await fetch("/api/me/read", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-        body: JSON.stringify({ otherId }),
-      }).catch(() => null);
-      await fetchMessages();
-      fetch("/api/chat/upload", { method: "GET", headers: getAuthHeaders() })
-        .then((r) => r.json())
-        .then((d) => { if (d.configured === false) setUploadConfigured(false); })
-        .catch(() => setUploadConfigured(false));
-      if (readRes?.ok && typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("align:conversation-read", { detail: { otherId } }));
+      try {
+        await Promise.all([
+          fetchOther(),
+          fetch("/api/me/read", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+            body: JSON.stringify({ otherId }),
+          }).catch(() => null),
+          fetchMessages({ markConversationRead: true }),
+        ]);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-      fetch("/api/visit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-        body: JSON.stringify({ profileId: otherId }),
-      }).then(() => track.view_profile(otherId));
-      setLoading(false);
     })();
-  }, [otherId]);
+    fetch("/api/chat/upload", { method: "GET", headers: getAuthHeaders() })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.configured === false) setUploadConfigured(false);
+      })
+      .catch(() => setUploadConfigured(false));
+    fetch("/api/visit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      body: JSON.stringify({ profileId: otherId }),
+    })
+      .then(() => track.view_profile(otherId))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [otherId, fetchMessages]);
 
-  // Polling foarte rapid (~400ms) pe chat ca „Citit” să apară în sub 1s. Marcare citit și la GET (server) și la POST /api/me/read (badge-uri).
-  const POLL_MS = 400;
+  /** Poll ușor: fără markRead pe fiecare tick (vezi API). La revenire în tab, marcare citit + refresh. */
+  const POLL_MS = 2500;
   useEffect(() => {
     if (!otherId || loading) return;
-    const markRead = () => {
-      fetch("/api/me/read", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-        body: JSON.stringify({ otherId }),
-      }).then((r) => { if (r?.ok && typeof window !== "undefined") window.dispatchEvent(new CustomEvent("align:conversation-read", { detail: { otherId } })); }).catch(() => {});
-    };
     const tick = () => {
-      fetchOther();
-      fetchMessages().then(markRead);
+      void fetchMessages({ markConversationRead: false });
+      otherPollTickRef.current += 1;
+      if (otherPollTickRef.current % 3 === 0) void fetchOther();
     };
     tick();
     const t = setInterval(tick, POLL_MS);
     return () => clearInterval(t);
-  }, [otherId, loading]);
+  }, [otherId, loading, fetchMessages]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    if (!otherId || loading) return;
+    const onVis = () => {
+      if (document.visibilityState !== "visible") return;
+      fetch("/api/me/read", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify({ otherId }),
+      })
+        .then((r) => {
+          if (r?.ok && typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("align:conversation-read", { detail: { otherId } }));
+          }
+        })
+        .catch(() => {});
+      void fetchMessages({ markConversationRead: true });
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [otherId, loading, fetchMessages]);
+
+  /** Deschidere: scroll instant la bază. După: doar dacă tu trimiți (sau încă se trimite), nu la fiecare poll. */
+  useLayoutEffect(() => {
+    if (loading || messages.length === 0) return;
+    const last = messages[messages.length - 1];
+    const lastIsMine =
+      callerId != null && last != null && String(last.fromId) === String(callerId);
+    const grew = messages.length > prevMessageCountRef.current;
+    prevMessageCountRef.current = messages.length;
+
+    if (!initialScrollDoneRef.current) {
+      bottomRef.current?.scrollIntoView({ block: "end", behavior: "instant" as ScrollBehavior });
+      initialScrollDoneRef.current = true;
+      return;
+    }
+    if (grew && (last?.clientPending || lastIsMine)) {
+      bottomRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
+    }
+  }, [messages, loading, callerId]);
 
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     const hasText = text.trim().length > 0;
     const hasAttach = !!pendingAttachment;
     if ((!hasText && !hasAttach) || sending) return;
+
+    const backupText = text.trim();
+    const backupAttach = pendingAttachment;
+    const fromIdOptimistic =
+      (callerId || meIdFromMeApi || inferredFromMessages || "").trim();
+    if (!fromIdOptimistic) {
+      setSendError("Se încarcă contul… încearcă din nou imediat.");
+      return;
+    }
+
+    const optimisticId = `local-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const optimistic: Message = {
+      id: optimisticId,
+      fromId: fromIdOptimistic,
+      toId: otherId,
+      text: backupText,
+      at: new Date().toISOString(),
+      status: "SENT",
+      seenAt: null,
+      attachmentUrl: backupAttach?.url ?? null,
+      attachmentContentType: backupAttach?.contentType ?? null,
+      clientPending: true,
+    };
+
     setSending(true);
     setSendError(null);
+    setIsPaywallError(false);
+    setMessages((prev) => [...prev, optimistic]);
+    setText("");
+    setPendingAttachment(null);
+
     try {
       const headers = getAuthHeaders() as Record<string, string>;
       if (!headers["x-user-id"]) {
+        setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
+        setText(backupText);
+        setPendingAttachment(backupAttach);
         setSendError("Nu ești autentificat. Reconectează-te.");
         return;
       }
       const body: { toId: string; text: string; attachmentUrl?: string; attachmentContentType?: string } = {
         toId: otherId,
-        text: text.trim(),
+        text: backupText,
       };
-      if (pendingAttachment) {
-        body.attachmentUrl = pendingAttachment.url;
-        body.attachmentContentType = pendingAttachment.contentType;
+      if (backupAttach) {
+        body.attachmentUrl = backupAttach.url;
+        body.attachmentContentType = backupAttach.contentType;
       }
       const res = await fetch("/api/messages", {
         method: "POST",
@@ -210,18 +323,17 @@ export default function ChatPage() {
       });
       const data = await res.json();
       if (res.ok && data.message) {
-        const msg = data.message as Message;
+        const msg = { ...(data.message as Message), clientPending: false };
         if (msg.attachmentContentType === "application/pdf" && msg.attachmentUrl) {
           msg.attachmentUrl = `/api/chat/attachment?messageId=${msg.id}`;
         }
-        setMessages((prev) => [...prev, msg]);
-        setText("");
-        setPendingAttachment(null);
+        setMessages((prev) => prev.map((m) => (m.id === optimisticId ? msg : m)));
         track.message_sent(otherId);
-        setTimeout(() => fetchMessages(), 400);
-        setTimeout(() => fetchMessages(), 1200);
-        setTimeout(() => fetchMessages(), 2500);
+        void fetchMessages({ markConversationRead: false });
       } else {
+        setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
+        setText(backupText);
+        setPendingAttachment(backupAttach);
         const paywall = res.status === 402 || (res.status === 403 && data.error?.includes("abonament"));
         setIsPaywallError(!!paywall);
         const code = res.status;
@@ -229,8 +341,11 @@ export default function ChatPage() {
         setSendError([401, 402, 403, 500].includes(code) && process.env.NODE_ENV === "development" ? `[${code}] ${msg}` : msg);
       }
     } catch {
+      setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
+      setText(backupText);
+      setPendingAttachment(backupAttach);
       setIsPaywallError(false);
-      setSendError("Eroare de rețea. Verifică conexiunea.");
+      setSendError("Eroare de rețea. Mesajul nu s-a salvat; poți retrimite.");
     } finally {
       setSending(false);
     }
@@ -511,7 +626,11 @@ export default function ChatPage() {
           const status = String(m.status ?? "").trim().toUpperCase();
           const isRead = status === "SEEN" || !!m.seenAt;
           const showTick = isMe;
-          const tickTitle = isRead ? "Citit" : "Trimis";
+          const tickTitle = m.clientPending
+            ? "Se trimite…"
+            : isRead
+              ? "Citit"
+              : "Trimis";
           return (
             <div
               key={m.id}
@@ -550,20 +669,27 @@ export default function ChatPage() {
                 )}
                 {showTick && (
                   <div
-                    className="min-h-[18px] mt-1 flex justify-end items-center shrink-0"
+                    className="min-h-[20px] mt-1 flex justify-end items-center gap-0.5 shrink-0"
                     title={tickTitle}
                     aria-label={tickTitle}
                   >
-                    {/* O singură bifă: discretă = trimis; aceeași bifă, mai vizibilă = citit */}
-                    <Check
-                      className={
-                        isRead
-                          ? "w-4 h-4 shrink-0 text-dark-900 drop-shadow-[0_1px_2px_rgba(0,0,0,0.2)]"
-                          : "w-3.5 h-3.5 shrink-0 text-dark-900/28"
-                      }
-                      strokeWidth={isRead ? 3 : 1.65}
-                      aria-hidden
-                    />
+                    {m.clientPending ? (
+                      <Loader2
+                        className="w-4 h-4 shrink-0 text-dark-900/85 animate-spin"
+                        strokeWidth={2.25}
+                        aria-hidden
+                      />
+                    ) : (
+                      <Check
+                        className={
+                          isRead
+                            ? "w-[18px] h-[18px] shrink-0 text-neutral-950"
+                            : "w-4 h-4 shrink-0 text-dark-900/25"
+                        }
+                        strokeWidth={isRead ? 3 : 1.65}
+                        aria-hidden
+                      />
+                    )}
                   </div>
                 )}
               </div>

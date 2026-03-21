@@ -10,7 +10,13 @@ import {
   buildIceServers,
   applyCodecPreferencesIfSupported,
   setMaxBitrate,
+  applyVideoDegradationPreference,
 } from "@/lib/webrtc/connection";
+import {
+  buildRtcPeerConnectionConfig,
+  applyInboundAudioPlayoutHint,
+  applyPlayoutHintsForAllReceivers,
+} from "@/lib/webrtc/rtcConfig";
 import { signalingWsConnectUrl, parseSignalingIncoming } from "@/lib/webrtc/signaling";
 import {
   getWebrtcPublicConfig,
@@ -83,6 +89,11 @@ export function useWebRtcCall({
   const statsTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const maxMinutesRef = useRef(30);
   const reconnectAttemptRef = useRef(0);
+  const disconnectRecoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Cap bitrate video trimis: coboară la pierderi mari, urcă treptat când e stabil. */
+  const adaptiveVideoBpsRef = useRef(2_500_000);
+  const maxVideoBpsCapRef = useRef(2_500_000);
+  const stableNetworkIntervalsRef = useRef(0);
   const onAutoEndedRef = useRef(onAutoEnded);
   const negotiateRef = useRef<null | (() => Promise<void>)>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
@@ -97,6 +108,10 @@ export function useWebRtcCall({
   }, []);
 
   const cleanupMedia = useCallback(() => {
+    if (disconnectRecoverTimerRef.current) {
+      clearTimeout(disconnectRecoverTimerRef.current);
+      disconnectRecoverTimerRef.current = null;
+    }
     if (reconnectTimerRef.current) {
       clearTimeout(reconnectTimerRef.current);
       reconnectTimerRef.current = null;
@@ -208,7 +223,9 @@ export function useWebRtcCall({
       await negotiateRef.current?.();
       const cfg = getWebrtcPublicConfig();
       const maxBps = isMobileDevice() ? cfg.CALL_MAX_BITRATE_MOBILE : cfg.CALL_MAX_BITRATE_DESKTOP;
-      await setMaxBitrate(pc, maxBps);
+      maxVideoBpsCapRef.current = maxBps;
+      adaptiveVideoBpsRef.current = Math.min(adaptiveVideoBpsRef.current, maxBps);
+      await setMaxBitrate(pc, adaptiveVideoBpsRef.current);
     } catch {
       /* ignore */
     }
@@ -249,7 +266,9 @@ export function useWebRtcCall({
       await negotiateRef.current?.();
       const cfg = getWebrtcPublicConfig();
       const maxBps = isMobileDevice() ? cfg.CALL_MAX_BITRATE_MOBILE : cfg.CALL_MAX_BITRATE_DESKTOP;
-      await setMaxBitrate(pc, maxBps);
+      maxVideoBpsCapRef.current = maxBps;
+      adaptiveVideoBpsRef.current = Math.min(adaptiveVideoBpsRef.current, maxBps);
+      await setMaxBitrate(pc, adaptiveVideoBpsRef.current);
     } catch {
       /* utilizator a anulat sau eroare */
     }
@@ -285,7 +304,9 @@ export function useWebRtcCall({
       await negotiateRef.current?.();
       const cfg = getWebrtcPublicConfig();
       const maxBps = isMobileDevice() ? cfg.CALL_MAX_BITRATE_MOBILE : cfg.CALL_MAX_BITRATE_DESKTOP;
-      await setMaxBitrate(pc, maxBps);
+      maxVideoBpsCapRef.current = maxBps;
+      adaptiveVideoBpsRef.current = Math.min(adaptiveVideoBpsRef.current, maxBps);
+      await setMaxBitrate(pc, adaptiveVideoBpsRef.current);
     } catch {
       /* ignore */
     }
@@ -390,7 +411,26 @@ export function useWebRtcCall({
         cache: "no-store",
       });
       if (!tokRes.ok) {
-        if (!cancelled) setState((s) => ({ ...s, status: "error", error: "Token semnalizare respins." }));
+        const errBody = await tokRes.json().catch(() => ({}));
+        const apiErr = (errBody as { error?: string }).error?.trim();
+        let msg = apiErr || "Token semnalizare respins.";
+        if (tokRes.status === 401) {
+          msg = apiErr || "Neautorizat la token semnalizare — ieși și intră din nou în cont.";
+        } else if (tokRes.status === 503) {
+          msg =
+            apiErr ||
+            "Semnalizare neconfigurată pe server: pune TURN_AUTH_SECRET (min 16) și SIGNALING_TOKEN_SECRET sau NEXTAUTH_SECRET pe Vercel (Production).";
+        } else if (tokRes.status === 404) {
+          msg = apiErr || "Utilizator negăsit pentru token semnalizare.";
+        }
+        if (!cancelled) {
+          setState((s) => ({
+            ...s,
+            status: "error",
+            error:
+              process.env.NODE_ENV === "development" ? `[${tokRes.status}] ${msg}` : msg,
+          }));
+        }
         localStream.getTracks().forEach((t) => t.stop());
         return;
       }
@@ -424,17 +464,30 @@ export function useWebRtcCall({
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
-      const pc = new RTCPeerConnection({ iceServers });
+      const pc = new RTCPeerConnection(buildRtcPeerConnectionConfig(iceServers));
       pcRef.current = pc;
+      maxVideoBpsCapRef.current = maxVideoBps;
+      adaptiveVideoBpsRef.current = maxVideoBps;
+      stableNetworkIntervalsRef.current = 0;
       console.info("[RTC] RTCPeerConnection created");
       /* Negociere: createOffer → setLocalDescription → WS; remote offer → setRemoteDescription → createAnswer → setLocalDescription;
        * ICE: onicecandidate trimite candidați prin WS; de la peer → addIceCandidate (coadă până există remoteDescription). */
 
       localStream.getTracks().forEach((track) => {
+        if (track.kind === "video") {
+          try {
+            track.contentHint = "motion";
+          } catch {
+            /* ignore */
+          }
+        }
         pc.addTrack(track, localStream);
       });
       applyCodecPreferencesIfSupported(pc);
-      void setMaxBitrate(pc, maxVideoBps);
+      void (async () => {
+        await setMaxBitrate(pc, adaptiveVideoBpsRef.current);
+        await applyVideoDegradationPreference(pc, "maintain-framerate");
+      })();
 
       negotiateRef.current = async () => {
         const p = pcRef.current;
@@ -484,8 +537,26 @@ export function useWebRtcCall({
               lastStatsTime = now;
               const lostDelta = vLost - lastStatsLost;
               lastStatsLost = vLost;
-              if (lostDelta > 35) {
-                setState((s) => ({ ...s, banner: "Rețea slabă — pierderi de pachete." }));
+              const cap = maxVideoBpsCapRef.current;
+              const minBps = isMobileDevice() ? 120_000 : 180_000;
+              if (lostDelta > 28) {
+                stableNetworkIntervalsRef.current = 0;
+                adaptiveVideoBpsRef.current = Math.max(minBps, Math.floor(adaptiveVideoBpsRef.current * 0.62));
+                await setMaxBitrate(p, adaptiveVideoBpsRef.current);
+                setState((s) => ({ ...s, banner: "Rețea slabă — reduc debitul video pentru continuitate." }));
+              } else if (lostDelta <= 4 && bitrate > 0) {
+                stableNetworkIntervalsRef.current += 1;
+                if (stableNetworkIntervalsRef.current >= 3 && adaptiveVideoBpsRef.current < cap * 0.98) {
+                  adaptiveVideoBpsRef.current = Math.min(
+                    cap,
+                    Math.floor(adaptiveVideoBpsRef.current * 1.08)
+                  );
+                  await setMaxBitrate(p, adaptiveVideoBpsRef.current);
+                  stableNetworkIntervalsRef.current = 0;
+                  setState((s) => ({ ...s, banner: null }));
+                }
+              } else if (lostDelta > 12 && lostDelta <= 28) {
+                setState((s) => ({ ...s, banner: "Rețea variabilă — optimizare conexiune." }));
               } else if (!isMobileDevice() && bitrate > 0 && bitrate < 70_000) {
                 setState((s) => ({ ...s, banner: "Debit video scăzut — verifică rețeaua." }));
               }
@@ -498,6 +569,7 @@ export function useWebRtcCall({
 
       pc.ontrack = (ev) => {
         if (cancelled) return;
+        applyInboundAudioPlayoutHint(ev.receiver);
         const stream = ev.streams[0] ?? new MediaStream([ev.track]);
         const rid = remoteIdRef.current ?? "remote";
         setState((s) => ({
@@ -561,8 +633,20 @@ export function useWebRtcCall({
         }
         if (st === "disconnected") {
           setState((s) => ({ ...s, banner: "Conexiune întreruptă momentan…" }));
+          if (disconnectRecoverTimerRef.current) clearTimeout(disconnectRecoverTimerRef.current);
+          disconnectRecoverTimerRef.current = setTimeout(() => {
+            disconnectRecoverTimerRef.current = null;
+            if (cancelled || pc.connectionState !== "disconnected") return;
+            setState((s) => ({ ...s, banner: "Reiau legătura (ICE)…" }));
+            tryReconnectIce();
+          }, 2800);
         }
         if (st === "connected") {
+          if (disconnectRecoverTimerRef.current) {
+            clearTimeout(disconnectRecoverTimerRef.current);
+            disconnectRecoverTimerRef.current = null;
+          }
+          applyPlayoutHintsForAllReceivers(pc);
           setState((s) => ({ ...s, banner: null }));
           reconnectAttemptRef.current = 0;
           startStatsMonitor();

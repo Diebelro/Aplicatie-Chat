@@ -51,6 +51,28 @@ export async function setMaxBitrate(
   }
 }
 
+/**
+ * Pe rețea slabă, browserul reduce calitatea; `maintain-framerate` păstrează mișcarea mai fluidă
+ * (similar filozofiei multor aplicații de apel — prioritate fluiditate vs. rezoluție maximă).
+ */
+export async function applyVideoDegradationPreference(
+  pc: RTCPeerConnection,
+  preference: RTCDegradationPreference = "maintain-framerate"
+): Promise<void> {
+  for (const s of pc.getSenders()) {
+    if (s.track?.kind !== "video") continue;
+    try {
+      const params = s.getParameters();
+      const next = { ...params, degradationPreference: preference } as RTCRtpSendParameters & {
+        degradationPreference?: RTCDegradationPreference;
+      };
+      await s.setParameters(next);
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
 export async function restartIce(pc: RTCPeerConnection): Promise<void> {
   try {
     const offer = await pc.createOffer({ iceRestart: true });

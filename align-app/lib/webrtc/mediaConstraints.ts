@@ -1,11 +1,13 @@
 /** Constrângeri implicite: calitate bună, procesare audio activată. */
 
 export function getAudioConstraints(): MediaTrackConstraints {
+  const mobile = isMobileDevice();
   return {
     echoCancellation: true,
     noiseSuppression: true,
     autoGainControl: true,
-    channelCount: 2,
+    /** Mono pe mobil = ~jumătate din bandă audio, mai stabil pe rețea slabă (voce). */
+    channelCount: mobile ? 1 : 2,
   };
 }
 
@@ -17,9 +19,10 @@ export function isMobileDevice(): boolean {
 export function getVideoConstraints(prefer1080: boolean): MediaTrackConstraints {
   const mobile = isMobileDevice();
   if (mobile) {
+    /** Ideal mai modest = mai puține pachete pe 4G/Wi‑Fi slab; max rămâne 720p dacă rețeaua ține. */
     return {
-      width: { ideal: 1280, max: 1280 },
-      height: { ideal: 720, max: 720 },
+      width: { ideal: 960, max: 1280 },
+      height: { ideal: 540, max: 720 },
       frameRate: { ideal: 24, max: 30 },
     };
   }
