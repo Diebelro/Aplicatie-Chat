@@ -60,12 +60,17 @@ export default function IncomingCall() {
   const router = useRouter();
   const [incoming, setIncoming] = useState<IncomingCallData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useRingtone(!!incoming);
 
   const fetchIncoming = useCallback(() => {
-    fetch("/api/call/incoming", { headers: getAuthHeaders() })
+    fetch("/api/call/incoming", {
+      headers: getAuthHeaders(),
+      credentials: "same-origin",
+      cache: "no-store",
+    })
       .then((r) => r.json())
       .then((d) => {
         if (d.incoming) setIncoming(d.incoming);
@@ -83,28 +88,39 @@ export default function IncomingCall() {
 
   const handleAnswer = () => {
     if (!incoming || loading) return;
+    setActionError(null);
     setLoading(true);
     fetch("/api/call/accept", {
       method: "POST",
       headers: getAuthHeaders(),
+      credentials: "same-origin",
     })
-      .then((r) => r.json())
-      .then((d) => {
+      .then(async (r) => {
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          setActionError((d.error as string) || `Eroare ${r.status}. Încearcă din nou.`);
+          return;
+        }
         if (d.roomId) {
+          setIncoming(null);
           const q = d.audioOnly ? "?audio=1" : "";
           router.push(`/app/call/${d.roomId}${q}`);
+        } else {
+          setActionError("Nu s-a putut deschide apelul. Reîncearcă.");
         }
       })
+      .catch(() => setActionError("Eroare rețea. Verifică conexiunea."))
       .finally(() => setLoading(false));
-    setIncoming(null);
   };
 
   const handleDecline = () => {
     if (!incoming || loading) return;
+    setActionError(null);
     setLoading(true);
     fetch("/api/call/reject", {
       method: "POST",
       headers: getAuthHeaders(),
+      credentials: "same-origin",
     })
       .finally(() => {
         setLoading(false);
@@ -122,7 +138,12 @@ export default function IncomingCall() {
       <p className="text-2xl md:text-3xl font-semibold text-white mb-2 text-center">
         {incoming.fromName}
       </p>
-      <p className="text-lg text-dark-400 mb-12">te sună</p>
+      <p className="text-lg text-dark-400 mb-8">te sună</p>
+      {actionError && (
+        <p className="text-amber-400 text-sm text-center max-w-sm mb-6 px-2" role="alert">
+          {actionError}
+        </p>
+      )}
       <div className="flex gap-8 justify-center flex-wrap">
         <button
           type="button"

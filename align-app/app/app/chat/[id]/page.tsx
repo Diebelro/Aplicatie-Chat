@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Send, Video, Phone, Check, Paperclip, X, FileText } from "lucide-react";
@@ -283,6 +283,26 @@ export default function ChatPage() {
     }
   };
 
+  const ringAndGoCall = useCallback(
+    async (audioOnly: boolean) => {
+      if (!callerId) return;
+      setCalling(audioOnly ? "audio" : "video");
+      try {
+        await fetch("/api/call/ring", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+          credentials: "same-origin",
+          body: JSON.stringify({ toId: otherId, audioOnly }),
+        });
+      } finally {
+        setCalling(null);
+      }
+      const qs = audioOnly ? "?audio=1&from=ring" : "?from=ring";
+      router.push(`/app/call/${getVideoRoomId(callerId, otherId)}${qs}`);
+    },
+    [callerId, otherId, router]
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -355,21 +375,7 @@ export default function ChatPage() {
                 <button
                   type="button"
                   disabled={!!calling}
-                  onClick={async () => {
-                    if (!callerId) return;
-                    setCalling("video");
-                    try {
-                      await fetch("/api/call/ring", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-                        credentials: "same-origin",
-                        body: JSON.stringify({ toId: otherId, audioOnly: false }),
-                      });
-                    } finally {
-                      setCalling(null);
-                    }
-                    router.push(`/app/call/${getVideoRoomId(callerId, otherId)}?from=ring`);
-                  }}
+                  onClick={() => void ringAndGoCall(false)}
                   className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand-500/25 text-brand-400 hover:bg-brand-500/35 border border-brand-500/40 transition disabled:opacity-50"
                   title="Apel video"
                 >
@@ -379,21 +385,7 @@ export default function ChatPage() {
                 <button
                   type="button"
                   disabled={!!calling}
-                  onClick={async () => {
-                    if (!callerId) return;
-                    setCalling("audio");
-                    try {
-                      await fetch("/api/call/ring", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-                        credentials: "same-origin",
-                        body: JSON.stringify({ toId: otherId, audioOnly: true }),
-                      });
-                    } finally {
-                      setCalling(null);
-                    }
-                    router.push(`/app/call/${getVideoRoomId(callerId, otherId)}?audio=1&from=ring`);
-                  }}
+                  onClick={() => void ringAndGoCall(true)}
                   className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-dark-600 text-white hover:bg-dark-500 border border-dark-500 transition disabled:opacity-50"
                   title="Apel audio"
                 >
@@ -630,6 +622,30 @@ export default function ChatPage() {
             >
               <Paperclip className="w-5 h-5" />
             </button>
+          )}
+          {otherUser && callerId && (
+            <>
+              <button
+                type="button"
+                disabled={!!calling || sending || uploadingAttachment}
+                onClick={() => void ringAndGoCall(false)}
+                className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-brand-500/25 text-brand-400 hover:bg-brand-500/35 border border-brand-500/40 disabled:opacity-50 transition shrink-0 touch-manipulation"
+                title="Apel video"
+                aria-label="Apel video"
+              >
+                <Video className="w-5 h-5" />
+              </button>
+              <button
+                type="button"
+                disabled={!!calling || sending || uploadingAttachment}
+                onClick={() => void ringAndGoCall(true)}
+                className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-dark-600 text-white hover:bg-dark-500 border border-dark-500 disabled:opacity-50 transition shrink-0 touch-manipulation"
+                title="Apel audio"
+                aria-label="Apel audio"
+              >
+                <Phone className="w-5 h-5" />
+              </button>
+            </>
           )}
           <input
             type="text"

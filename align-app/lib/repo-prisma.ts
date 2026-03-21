@@ -1234,6 +1234,40 @@ export async function prismaUserRowExists(userId: string): Promise<boolean> {
   }
 }
 
+/** Apel în așteptare pentru callee — persistat în DB (Vercel serverless). */
+export async function prismaUpsertPendingIncomingCall(
+  toUserId: string,
+  fromId: string,
+  roomId: string,
+  audioOnly: boolean
+): Promise<void> {
+  await prisma.pendingIncomingCall.upsert({
+    where: { toUserId },
+    create: { toUserId, fromId, roomId, audioOnly },
+    update: { fromId, roomId, audioOnly },
+  });
+}
+
+export async function prismaGetPendingIncomingCall(
+  toUserId: string
+): Promise<{ fromId: string; roomId: string; audioOnly: boolean } | null> {
+  try {
+    const row = await prisma.pendingIncomingCall.findUnique({ where: { toUserId } });
+    if (!row) return null;
+    return { fromId: row.fromId, roomId: row.roomId, audioOnly: row.audioOnly };
+  } catch {
+    return null;
+  }
+}
+
+export async function prismaDeletePendingIncomingCall(toUserId: string): Promise<void> {
+  try {
+    await prisma.pendingIncomingCall.delete({ where: { toUserId } });
+  } catch {
+    /* P2025 */
+  }
+}
+
 export async function findUserOrPrisma(userId: string): Promise<User | null> {
   if (isPrismaAvailable()) {
     try {

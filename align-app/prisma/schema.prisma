@@ -227,3 +227,12 @@ model AdminLog {
   admin     User     @relation(fields: [adminId], references: [id], onDelete: Cascade)
   @@index([adminId])
 }
+
+// Apel 1-la-1 în așteptare (callee). Pe Vercel memoria nu e partajată — DB e sursa de adevăr.
+model PendingIncomingCall {
+  toUserId  String   @id
+  fromId    String
+  roomId    String
+  audioOnly Boolean  @default(false)
+  createdAt DateTime @default(now())
+}

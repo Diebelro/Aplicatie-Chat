@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { setPendingCall } from "@/lib/store";
 import { getVideoRoomId } from "@/lib/videoCall";
-import { findUserOrPrisma } from "@/lib/repo-prisma";
+import { findUserOrPrisma, isPrismaAvailable, prismaUpsertPendingIncomingCall } from "@/lib/repo-prisma";
 import { rateLimitAllow } from "@/lib/callRateLimit";
 import { resolveRequestUserId } from "@/lib/sessionAuth";
 
@@ -38,5 +38,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Utilizatorul sunat nu există." }, { status: 404 });
   }
   setPendingCall(toId, { fromId: me.id, roomId, audioOnly });
+  if (isPrismaAvailable()) {
+    try {
+      await prismaUpsertPendingIncomingCall(toId, me.id, roomId, audioOnly);
+    } catch (e) {
+      console.error("[api/call/ring] prismaUpsertPendingIncomingCall", e);
+    }
+  }
   return NextResponse.json({ ok: true, roomId });
 }
