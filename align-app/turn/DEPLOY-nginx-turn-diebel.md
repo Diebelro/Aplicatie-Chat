@@ -1,5 +1,9 @@
 # Deploy `turn.diebel.ro` pe VPS (Nginx)
 
+**Rapid:** din folderul `turn` pe server: `sudo bash apply-on-vps.sh` (instalează și `ws` corect; vezi **`APPLY-ON-VPS.md`**).
+
+---
+
 Fișier în repo: **`nginx-turn.diebel.ro.conf`** — copiază conținutul în  
 `/etc/nginx/sites-available/turn.diebel.ro` pe serverul Linux (SSH + `sudo`).
 
