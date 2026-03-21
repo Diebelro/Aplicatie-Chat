@@ -38,7 +38,16 @@ git push origin main
 
 6. **Deploy**.
 
-La build, Vercel rulează `prisma migrate deploy` apoi `next build` (vezi `vercel.json`).
+La build, Vercel rulează **`prisma generate && next build`** (vezi `vercel.json`).  
+**Migrările SQL** nu rulează automat în build (evită erori când DB e indisponibilă sau IP blocat). Le aplici **tu** când aduci cod nou cu migrări:
+
+```bash
+cd align-app
+# setează DATABASE_URL = aceeași ca în Vercel (Neon), apoi:
+npx prisma migrate deploy
+```
+
+Rulează asta de pe PC sau din orice mediu care poate ajunge la Neon **după** fiecare `git pull` care adaugă fișiere în `prisma/migrations/`.
 
 ## 4. După primul deploy
 
