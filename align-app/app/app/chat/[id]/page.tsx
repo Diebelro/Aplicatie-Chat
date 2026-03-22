@@ -67,7 +67,9 @@ export default function ChatPage() {
   const [meIdFromMeApi, setMeIdFromMeApi] = useState<string | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const textInputRef = useRef<HTMLInputElement>(null);
+  /** Doar zona listei de mesaje — evită scrollIntoView care poate derula tot viewport-ul și ascunde câmpul de scris. */
+  const messagesScrollRef = useRef<HTMLDivElement>(null);
   const initialScrollDoneRef = useRef(false);
   const otherPollTickRef = useRef(0);
   const prevMessageCountRef = useRef(0);
@@ -192,11 +194,13 @@ export default function ChatPage() {
       }
     })();
     fetch("/api/chat/upload", { method: "GET", headers: getAuthHeaders() })
-      .then((r) => r.json())
+      .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        if (d.configured === false) setUploadConfigured(false);
+        if (d && typeof d.configured === "boolean") setUploadConfigured(d.configured);
       })
-      .catch(() => setUploadConfigured(false));
+      .catch(() => {
+        /* Nu ascunde butonul la rețea eronată — utilizatorul poate reîncerca upload la nevoie. */
+      });
     fetch("/api/visit", {
       method: "POST",
       headers: { "Content-Type": "application/json", ...getAuthHeaders() },
@@ -209,8 +213,8 @@ export default function ChatPage() {
     };
   }, [otherId, fetchMessages]);
 
-  /** Poll ușor: fără markRead pe fiecare tick (vezi API). La revenire în tab, marcare citit + refresh. */
-  const POLL_MS = 2500;
+  /** Poll: fără markRead pe fiecare tick. Mai mic = celălalt vede mesajele mai repede (cost: mai multe cereri la DB). */
+  const POLL_MS = 1500;
   useEffect(() => {
     if (!otherId || loading) return;
     const tick = () => {
@@ -244,7 +248,13 @@ export default function ChatPage() {
     return () => document.removeEventListener("visibilitychange", onVis);
   }, [otherId, loading, fetchMessages]);
 
-  /** Deschidere: scroll instant la bază. După: doar dacă tu trimiți (sau încă se trimite), nu la fiecare poll. */
+  const scrollMessagesToBottom = useCallback((behavior: ScrollBehavior) => {
+    const el = messagesScrollRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior });
+  }, []);
+
+  /** Deschidere: scroll instant în panoul mesaje. După: doar dacă tu trimiți (sau încă pending), fără scroll pe tot documentul. */
   useLayoutEffect(() => {
     if (loading || messages.length === 0) return;
     const last = messages[messages.length - 1];
@@ -254,14 +264,14 @@ export default function ChatPage() {
     prevMessageCountRef.current = messages.length;
 
     if (!initialScrollDoneRef.current) {
-      bottomRef.current?.scrollIntoView({ block: "end", behavior: "instant" as ScrollBehavior });
+      scrollMessagesToBottom("auto");
       initialScrollDoneRef.current = true;
       return;
     }
     if (grew && (last?.clientPending || lastIsMine)) {
-      bottomRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
+      scrollMessagesToBottom("smooth");
     }
-  }, [messages, loading, callerId]);
+  }, [messages, loading, callerId, scrollMessagesToBottom]);
 
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -329,7 +339,7 @@ export default function ChatPage() {
         }
         setMessages((prev) => prev.map((m) => (m.id === optimisticId ? msg : m)));
         track.message_sent(otherId);
-        void fetchMessages({ markConversationRead: false });
+        /** Răspunsul POST conține deja mesajul — fără al doilea GET (mai puțină latență percepută). */
       } else {
         setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
         setText(backupText);
@@ -348,6 +358,7 @@ export default function ChatPage() {
       setSendError("Eroare de rețea. Mesajul nu s-a salvat; poți retrimite.");
     } finally {
       setSending(false);
+      queueMicrotask(() => textInputRef.current?.focus());
     }
   };
 
@@ -608,7 +619,10 @@ export default function ChatPage() {
         )}
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden py-4 space-y-3 overscroll-contain">
+      <div
+        ref={messagesScrollRef}
+        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden py-4 space-y-3 overscroll-contain"
+      >
         {fetchError && (
           <p className="text-amber-400 text-sm px-2 py-1 rounded bg-amber-500/10" role="alert">
             {fetchError}
@@ -696,7 +710,6 @@ export default function ChatPage() {
             </div>
           );
         })}
-        <div ref={bottomRef} />
       </div>
 
       <form onSubmit={sendMessage} className="flex flex-col gap-2 pt-4 shrink-0 pb-[env(safe-area-inset-bottom,0)]">
@@ -737,18 +750,29 @@ export default function ChatPage() {
             onChange={handleFileSelect}
             className="hidden"
           />
-          {uploadConfigured && (
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploadingAttachment || sending}
-              className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-dark-700 hover:bg-dark-600 active:bg-dark-600 text-dark-300 disabled:opacity-50 transition shrink-0 touch-manipulation"
-              title="Atașează poză sau PDF (max 10 MB)"
-              aria-label="Atașează fișier"
-            >
-              <Paperclip className="w-5 h-5" />
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => {
+              if (!uploadConfigured) {
+                setSendError(
+                  "Pe Vercel: adaugă BLOB_READ_WRITE_TOKEN (și PDF: BLOB_READ_WRITE_TOKEN_PDF) în Environment Variables. Local cu npm run dev: pozele merg fără Blob (folder public/_chatDev). Vezi .env.example."
+                );
+                setIsPaywallError(false);
+                return;
+              }
+              fileInputRef.current?.click();
+            }}
+            disabled={uploadingAttachment || sending}
+            className={`min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-dark-700 hover:bg-dark-600 active:bg-dark-600 text-dark-300 disabled:opacity-50 transition shrink-0 touch-manipulation ${!uploadConfigured ? "opacity-60" : ""}`}
+            title={
+              uploadConfigured
+                ? "Atașează poză sau PDF (max 10 MB)"
+                : "Lipsește configurarea Blob (BLOB_READ_WRITE_TOKEN) — apasă pentru mesaj"
+            }
+            aria-label="Atașează fișier"
+          >
+            <Paperclip className="w-5 h-5" />
+          </button>
           {otherUser && callerId && (
             <>
               <button
@@ -774,6 +798,7 @@ export default function ChatPage() {
             </>
           )}
           <input
+            ref={textInputRef}
             type="text"
             value={text}
             onChange={(e) => {

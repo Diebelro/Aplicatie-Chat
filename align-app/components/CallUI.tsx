@@ -22,7 +22,9 @@ import {
   MonitorUp,
   ChevronLeft,
   Volume2,
+  VolumeX,
   Smartphone,
+  Headphones,
 } from "lucide-react";
 import { useWebRtcCall, type RemoteParticipant } from "@/hooks/useWebRtcCall";
 import { getAuthHeaders } from "@/lib/authClient";
@@ -37,7 +39,19 @@ import {
 } from "@/lib/webrtc/audioOutput";
 import { isMobileDevice } from "@/lib/webrtc/mediaConstraints";
 
-const RemoteAudioSinkContext = createContext<string>(DEFAULT_AUDIO_SINK);
+/** Ieșire audio pentru stream-ul remot + opțiune „nu aud pe aici” (confidențialitate). */
+type RemoteAudioPlayback = {
+  sinkId: string;
+  /** true = volum 0 pe vocea celuilalt; microfonul tău nu e afectat */
+  remoteMuted: boolean;
+};
+
+const defaultRemotePlayback: RemoteAudioPlayback = {
+  sinkId: DEFAULT_AUDIO_SINK,
+  remoteMuted: false,
+};
+
+const RemotePlaybackContext = createContext<RemoteAudioPlayback>(defaultRemotePlayback);
 
 function fmtCallDuration(totalSec: number): string {
   const m = Math.floor(totalSec / 60);
@@ -46,17 +60,18 @@ function fmtCallDuration(totalSec: number): string {
 }
 
 function RemoteAudio({ stream }: { stream: MediaStream }) {
-  const sinkId = useContext(RemoteAudioSinkContext);
+  const { sinkId, remoteMuted } = useContext(RemotePlaybackContext);
   const ref = useRef<HTMLAudioElement>(null);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
     el.srcObject = stream;
+    el.volume = remoteMuted ? 0 : 1;
     void applyAudioSinkId(el, sinkId);
     return () => {
       el.srcObject = null;
     };
-  }, [stream, sinkId]);
+  }, [stream, sinkId, remoteMuted]);
   return <audio ref={ref} autoPlay playsInline className="hidden" />;
 }
 
@@ -266,9 +281,47 @@ export default function CallUI({
     [scheduleChromeHide]
   );
 
-  /** Implicit: ieșirea default a browserului/OS; opțional forțează un dispozitiv tip difuzor dacă există. */
+  /** Implicit: ieșirea default a browserului/OS; pe mobil: butonul Difuzor forțează setSinkId spre difuzor dacă există. */
   const [speakerOutputOn, setSpeakerOutputOn] = useState(false);
   const [speakerSinkIdResolved, setSpeakerSinkIdResolved] = useState<string | undefined>(undefined);
+  /**
+   * Mod discret: fără sunet „în ambele sensuri” la tine — nu mai auzi celălalt și microfonul tău
+   * e oprit ca să nu audă foșnet / ambient; la ieșire se restaurează cum era microfonul înainte.
+   */
+  const [privacyQuietMode, setPrivacyQuietMode] = useState(false);
+  const micBeforePrivacyRef = useRef<boolean | null>(null);
+  const isMobileUi = isMobileDevice();
+
+  const exitPrivacyQuietMode = useCallback(() => {
+    const prev = micBeforePrivacyRef.current;
+    micBeforePrivacyRef.current = null;
+    setPrivacyQuietMode(false);
+    setMuted(prev ?? false);
+  }, [setMuted]);
+
+  const togglePrivacyQuietMode = useCallback(() => {
+    if (privacyQuietMode) {
+      exitPrivacyQuietMode();
+    } else {
+      micBeforePrivacyRef.current = muted;
+      setMuted(true);
+      setPrivacyQuietMode(true);
+    }
+  }, [privacyQuietMode, muted, setMuted, exitPrivacyQuietMode]);
+
+  const onMicToggle = useCallback(() => {
+    if (privacyQuietMode) {
+      exitPrivacyQuietMode();
+      return;
+    }
+    setMuted(!muted);
+  }, [privacyQuietMode, exitPrivacyQuietMode, muted, setMuted]);
+
+  useEffect(() => {
+    if (status === "connected") return;
+    if (!privacyQuietMode) return;
+    exitPrivacyQuietMode();
+  }, [status, privacyQuietMode, exitPrivacyQuietMode]);
 
   useEffect(() => {
     if (!supportsAudioOutputSelection()) return;
@@ -283,7 +336,16 @@ export default function CallUI({
     return DEFAULT_AUDIO_SINK;
   }, [speakerOutputOn, speakerSinkIdResolved]);
 
-  const showSpeakerToggle = supportsAudioOutputSelection() && !!speakerSinkIdResolved;
+  const remotePlayback = useMemo(
+    () => ({
+      sinkId: remoteAudioSinkId,
+      remoteMuted: privacyQuietMode,
+    }),
+    [remoteAudioSinkId, privacyQuietMode]
+  );
+
+  /** Doar pe mobil: pe desktop lăsăm ieșirea implicită (boxe/căști după OS). */
+  const showSpeakerToggle = isMobileUi && supportsAudioOutputSelection() && !!speakerSinkIdResolved;
 
   const fetchOutgoingStatus = useCallback(() => {
     fetch(`/api/call/outgoing-status?roomId=${encodeURIComponent(roomId)}`, { headers: getAuthHeaders() })
@@ -371,7 +433,7 @@ export default function CallUI({
 
   if (callRejected) {
     return (
-      <RemoteAudioSinkContext.Provider value={remoteAudioSinkId}>
+      <RemotePlaybackContext.Provider value={remotePlayback}>
         <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4 px-4 text-center">
           <p className="text-red-400 font-medium">Apel respins</p>
           <p className="text-dark-500 text-sm">Celălalt utilizator a refuzat apelul. Redirecționare la mesaje…</p>
@@ -379,13 +441,13 @@ export default function CallUI({
             Înapoi la mesaje
           </Link>
         </div>
-      </RemoteAudioSinkContext.Provider>
+      </RemotePlaybackContext.Provider>
     );
   }
 
   if (status === "permission_help" && permissionHelp) {
     return (
-      <RemoteAudioSinkContext.Provider value={remoteAudioSinkId}>
+      <RemotePlaybackContext.Provider value={remotePlayback}>
         <div className="flex flex-col items-center justify-center min-h-[50vh] gap-6 px-5 py-10 text-center bg-dark-950">
           <div className="max-w-lg rounded-2xl border border-amber-500/40 bg-amber-500/[0.12] px-6 py-6 text-left shadow-lg shadow-amber-900/20">
             <p className="text-amber-50 font-semibold text-lg mb-4">{permissionHelp.headline}</p>
@@ -405,13 +467,13 @@ export default function CallUI({
             Înapoi la mesaje
           </Link>
         </div>
-      </RemoteAudioSinkContext.Provider>
+      </RemotePlaybackContext.Provider>
     );
   }
 
   if (error) {
     return (
-      <RemoteAudioSinkContext.Provider value={remoteAudioSinkId}>
+      <RemotePlaybackContext.Provider value={remotePlayback}>
         <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4 px-4 text-center">
           <p className="text-red-400 font-medium">{error}</p>
           <p className="text-dark-500 text-sm max-w-md">
@@ -423,7 +485,7 @@ export default function CallUI({
             Înapoi la mesaje
           </Link>
         </div>
-      </RemoteAudioSinkContext.Provider>
+      </RemotePlaybackContext.Provider>
     );
   }
 
@@ -444,7 +506,7 @@ export default function CallUI({
   /* ——— Apel video 1-la-1: fullscreen + PiP ——— */
   if (immersiveVideo) {
     return (
-      <RemoteAudioSinkContext.Provider value={remoteAudioSinkId}>
+      <RemotePlaybackContext.Provider value={remotePlayback}>
         <div
           className="fixed inset-0 z-[200] flex flex-col bg-black text-white touch-manipulation"
           onPointerDown={onImmersivePointer}
@@ -608,10 +670,19 @@ export default function CallUI({
           <p
             className={`relative z-20 mx-auto -mb-1 max-w-sm px-4 text-center text-[10px] leading-snug text-white/45 transition-all duration-300 ${chromeBottomClass}`}
           >
-            Vocea celuilalt folosește mai întâi ieșirea obișnuită a telefonului (browserul decide).{" "}
-            {showSpeakerToggle
-              ? "Apasă „Difuzor” dacă vrei să comuți spre difuzor, când e suportat."
-              : "Dacă nu apare butonul Difuzor, browserul nu permite alegerea ieșirii audio pe acest dispozitiv."}
+            {isMobileUi ? (
+              <>
+                Pe telefon, sunetul îl alege browserul (uneori difuzor, uneori cască).{" "}
+                {showSpeakerToggle
+                  ? "„Difuzor” forțează ieșirea tare când e suportat."
+                  : "„Discret” oprește sunetul la amândoi la tine (inclusiv microfonul)."}
+              </>
+            ) : (
+              <>
+                Pe laptop/PC, sunetul merge la boxe/căști după sistem. „Discret” = fără voce la amândoi la tine
+                (inclusiv oprește microfonul ca să nu audă foșnet).
+              </>
+            )}
           </p>
         ) : null}
 
@@ -620,8 +691,14 @@ export default function CallUI({
             pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-6 transition-all duration-300 ease-out ${chromeBottomClass}`}
         >
           <CircleBtn
-            onClick={() => setMuted(!muted)}
-            title={muted ? "Pornește microfonul" : "Dezactivează microfonul"}
+            onClick={onMicToggle}
+            title={
+              privacyQuietMode
+                ? "Mod discret activ — apasă pentru sunet + microfon normal"
+                : muted
+                  ? "Pornește microfonul"
+                  : "Dezactivează microfonul"
+            }
             active={!muted}
           >
             {muted ? <MicOff className="h-6 w-6 sm:h-7 sm:w-7" /> : <Mic className="h-6 w-6 sm:h-7 sm:w-7" />}
@@ -663,19 +740,35 @@ export default function CallUI({
               )}
             </CircleBtn>
           ) : null}
+          <CircleBtn
+            onClick={togglePrivacyQuietMode}
+            title={
+              privacyQuietMode
+                ? "Ieși din mod discret (sunet + microfon ca înainte)"
+                : "Mod discret: nu auzi celălalt și nici el pe tine (microfon oprit, fără foșnet)"
+            }
+            danger={privacyQuietMode}
+            active={!privacyQuietMode}
+          >
+            {privacyQuietMode ? (
+              <VolumeX className="h-6 w-6 sm:h-7 sm:w-7" />
+            ) : (
+              <Headphones className="h-6 w-6 sm:h-7 sm:w-7" />
+            )}
+          </CircleBtn>
           <CircleBtn onClick={handleLeave} title="Închide apelul" danger>
             <PhoneOff className="h-6 w-6 sm:h-7 sm:w-7" />
           </CircleBtn>
         </div>
         </div>
-      </RemoteAudioSinkContext.Provider>
+      </RemotePlaybackContext.Provider>
     );
   }
 
   /* ——— Apel audio 1-la-1: ecran dedicat, fără casete video mici ——— */
   if (immersiveAudio) {
     return (
-      <RemoteAudioSinkContext.Provider value={remoteAudioSinkId}>
+      <RemotePlaybackContext.Provider value={remotePlayback}>
         <div
           className="fixed inset-0 z-[200] flex flex-col bg-gradient-to-b from-zinc-900 via-black to-zinc-950 text-white touch-manipulation"
           onPointerDown={onImmersivePointer}
@@ -731,15 +824,34 @@ export default function CallUI({
           <p
             className={`mx-auto mb-1 max-w-sm px-4 text-center text-[10px] leading-snug text-white/45 transition-all duration-300 ${chromeBottomClass}`}
           >
-            Vocea se aude pe ieșirea implicită a telefonului.{" "}
-            {showSpeakerToggle ? "Apasă „Difuzor” dacă vrei difuzorul." : ""}
+            {isMobileUi ? (
+              <>
+                Sunetul îl alege telefonul/browserul.{" "}
+                {showSpeakerToggle ? "„Difuzor” = mai tare când merge." : ""}{" "}
+                „Discret” = fără sunet la amândoi la tine (și microfon oprit).
+              </>
+            ) : (
+              <>
+                Pe PC: sunet la boxe/căști după Windows. „Discret” = nu auzi + nu te aud (fără foșnet).
+              </>
+            )}
           </p>
         ) : null}
 
         <div
           className={`flex flex-wrap items-center justify-center gap-3 sm:gap-5 px-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-4 transition-all duration-300 ease-out ${chromeBottomClass}`}
         >
-          <CircleBtn onClick={() => setMuted(!muted)} title={muted ? "Pornește microfonul" : "Mute"} active={!muted}>
+          <CircleBtn
+            onClick={onMicToggle}
+            title={
+              privacyQuietMode
+                ? "Mod discret — apasă pentru normal"
+                : muted
+                  ? "Pornește microfonul"
+                  : "Mute"
+            }
+            active={!muted}
+          >
             {muted ? <MicOff className="h-6 w-6 sm:h-7 sm:w-7" /> : <Mic className="h-6 w-6 sm:h-7 sm:w-7" />}
           </CircleBtn>
           {showSpeakerToggle ? (
@@ -755,18 +867,34 @@ export default function CallUI({
               )}
             </CircleBtn>
           ) : null}
+          <CircleBtn
+            onClick={togglePrivacyQuietMode}
+            title={
+              privacyQuietMode
+                ? "Ieși din mod discret"
+                : "Mod discret: fără sunet la amândoi la tine (microfon oprit)"
+            }
+            danger={privacyQuietMode}
+            active={!privacyQuietMode}
+          >
+            {privacyQuietMode ? (
+              <VolumeX className="h-6 w-6 sm:h-7 sm:w-7" />
+            ) : (
+              <Headphones className="h-6 w-6 sm:h-7 sm:w-7" />
+            )}
+          </CircleBtn>
           <CircleBtn onClick={handleLeave} title="Închide" danger>
             <PhoneOff className="h-6 w-6 sm:h-7 sm:w-7" />
           </CircleBtn>
         </div>
         </div>
-      </RemoteAudioSinkContext.Provider>
+      </RemotePlaybackContext.Provider>
     );
   }
 
   /* ——— Conferință sau fallback ——— */
   return (
-    <RemoteAudioSinkContext.Provider value={remoteAudioSinkId}>
+    <RemotePlaybackContext.Provider value={remotePlayback}>
     <div className="flex flex-col min-h-[calc(100dvh-4rem)] sm:min-h-[calc(100vh-5rem)]">
       <div className="flex items-center justify-between border-b border-dark-600 py-2 px-3 sm:px-4">
         <Link href="/app/messages" onClick={() => leave()} className="text-dark-500 hover:text-white text-sm">
@@ -826,13 +954,13 @@ export default function CallUI({
       <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 border-t border-dark-600 bg-dark-950/90 py-3 px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <button
           type="button"
-          onClick={() => setMuted(!muted)}
+          onClick={onMicToggle}
           className={`flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium transition ${
             muted ? "bg-red-500/25 text-red-300" : "bg-dark-600 text-white hover:bg-dark-500"
           }`}
         >
           {muted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-          {muted ? "Pornește mic." : "Mute"}
+          {privacyQuietMode ? "Discret (mic)" : muted ? "Pornește mic." : "Mute"}
         </button>
         {!audioOnly && (
           <button
@@ -884,6 +1012,21 @@ export default function CallUI({
         ) : null}
         <button
           type="button"
+          onClick={togglePrivacyQuietMode}
+          className={`flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium transition ${
+            privacyQuietMode ? "bg-amber-500/25 text-amber-200" : "bg-dark-600 text-white hover:bg-dark-500"
+          }`}
+          title={
+            privacyQuietMode
+              ? "Ieși din mod discret (sunet + microfon ca înainte)"
+              : "Mod discret: nu auzi pe ceilalți și nu te aud (mic oprit)"
+          }
+        >
+          {privacyQuietMode ? <VolumeX className="w-5 h-5" /> : <Headphones className="w-5 h-5" />}
+          {privacyQuietMode ? "Normal" : "Discret"}
+        </button>
+        <button
+          type="button"
           onClick={handleLeave}
           className="flex items-center gap-2 rounded-full bg-red-500/25 px-4 py-2.5 text-sm font-medium text-red-300 hover:bg-red-500/35"
         >
@@ -892,6 +1035,6 @@ export default function CallUI({
         </button>
       </div>
     </div>
-    </RemoteAudioSinkContext.Provider>
+    </RemotePlaybackContext.Provider>
   );
 }

@@ -21,6 +21,7 @@ export default function MapPage() {
           fetch("/api/me", {
             method: "POST",
             headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+            credentials: "same-origin",
             body: JSON.stringify({
               latitude: pos.coords.latitude,
               longitude: pos.coords.longitude,
@@ -35,7 +36,7 @@ export default function MapPage() {
 
   useEffect(() => {
     const fetchMap = () => {
-      fetch("/api/map", { headers: getAuthHeaders() })
+      fetch("/api/map", { headers: getAuthHeaders(), credentials: "same-origin" })
         .then((r) => r.json())
         .then((d) => {
           if (d.error) setError(d.error);
@@ -87,7 +88,7 @@ export default function MapPage() {
     <div>
       <h2 className="text-xl font-semibold mb-2">Harta</h2>
       <p className="text-dark-500 text-sm mb-4">
-        Vezi cine e online lângă tine. Poziția ta și a celorlalți apare doar dacă ați acceptat locația în browser. Reîmprospătează pagina pentru a actualiza.
+        Apar doar utilizatorii care au <strong>„Arată distanța”</strong> activ în confidențialitate, au trimis locația (permisiune în browser) și sunt activi sau și-au actualizat poziția în ultimele minute. Ambele conturi trebuie să fie logate; dacă unul e pe alt dispozitiv, acolo trebuie acceptată locația.
       </p>
       <MapView data={data} />
       <p className="text-dark-500 text-xs mt-3">

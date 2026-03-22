@@ -37,6 +37,9 @@ yarn-error.log*
 *.swp
 *.swo
 
+# Chat dev uploads (fără Vercel Blob)
+public/_chatDev/
+
 # OS
 .DS_Store
 Thumbs.db

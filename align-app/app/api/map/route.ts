@@ -7,9 +7,10 @@ import {
   prismaGetVisibleUsersForMap,
   prismaUpdateLastActive,
 } from "@/lib/repo-prisma";
+import { resolveRequestUserId } from "@/lib/sessionAuth";
 
 export async function GET(request: Request) {
-  const userId = request.headers.get("x-user-id");
+  const userId = resolveRequestUserId(request);
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   }

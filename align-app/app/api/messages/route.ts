@@ -6,7 +6,6 @@ import {
   setUserActive,
   getMessageReadAt,
   getFriendStatus,
-  getUserPrivacySettings,
 } from "@/lib/store";
 import {
   isPrismaAvailable,
@@ -93,12 +92,11 @@ export async function GET(request: NextRequest) {
   }
   const list = getMessagesBetween(userId, withId);
   const areFriends = getFriendStatus(userId, withId) === "accepted";
-  const readerPrivacy = getUserPrivacySettings(withId);
-  const showReadReceipts = areFriends && readerPrivacy.allowReadReceipts;
+  /** Bifă „citit” pentru mesajele mele: nu depinde de prietenie (doar modul in-memory; Prisma returnează seenAt din DB). */
   const messages = list.map((m) => {
     const base = { ...m } as Record<string, unknown>;
     base.status = "SENT";
-    if (m.fromId === userId && m.toId === withId && showReadReceipts) {
+    if (m.fromId === userId && m.toId === withId) {
       const readAt = getMessageReadAt(m.id, withId);
       if (readAt) {
         base.readAt = readAt;
@@ -140,11 +138,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Corp invalid (JSON)." }, { status: 400 });
     }
     try {
-      const me = await findUserOrPrisma(userId);
-      const meOk = me != null || (await prismaUserRowExists(userId));
-      if (!meOk) {
-        return NextResponse.json({ error: "Utilizator negăsit." }, { status: 404 });
-      }
       const { toId, text, attachmentUrl, attachmentContentType } = body;
       const textStr = typeof text === "string" ? text : "";
       const hasAttachment = attachmentUrl && attachmentContentType;
@@ -160,8 +153,17 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
-      const toUser = await findUserOrPrisma(toId);
-      const toOk = toUser != null || (await prismaUserRowExists(toId));
+      const [me, toUser] = await Promise.all([
+        findUserOrPrisma(userId),
+        findUserOrPrisma(toId),
+      ]);
+      const [meOk, toOk] = await Promise.all([
+        me != null ? Promise.resolve(true) : prismaUserRowExists(userId),
+        toUser != null ? Promise.resolve(true) : prismaUserRowExists(toId),
+      ]);
+      if (!meOk) {
+        return NextResponse.json({ error: "Utilizator negăsit." }, { status: 404 });
+      }
       if (!toOk) {
         return NextResponse.json({ error: "Destinatar negăsit." }, { status: 404 });
       }

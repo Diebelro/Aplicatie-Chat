@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { findUserById, setUserActive, setUserPosition, updateUser, isUsernameTaken, type Gender } from "@/lib/store";
-import { getAuthenticatedUserId } from "@/lib/sessionAuth";
+import { getAuthenticatedUserId, resolveRequestUserId } from "@/lib/sessionAuth";
 import {
   isPrismaAvailable,
   findUserOrPrisma,
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
 
 /** Actualizează poziția utilizatorului (lat/lng din geolocation). */
 export async function POST(request: NextRequest) {
-  const userId = request.headers.get("x-user-id");
+  const userId = resolveRequestUserId(request);
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   }
@@ -60,6 +60,7 @@ export async function POST(request: NextRequest) {
         }
         const { prismaUpsertLocation } = await import("@/lib/repo-prisma");
         await prismaUpsertLocation(userId, lat, lng);
+        await prismaUpdateLastActive(userId);
         return NextResponse.json({ ok: true });
       }
     } catch {

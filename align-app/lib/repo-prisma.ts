@@ -646,13 +646,17 @@ export async function prismaGetVisibleUsersForMap(
     where: { userId: { in: userIds } },
   });
   const locByUser = new Map(locations.map((l) => [l.userId, l]));
-  const ONLINE_MS = 60 * 1000; // sub 1 min = instant ca WhatsApp
-  const cutoff = new Date(Date.now() - ONLINE_MS);
-  const withActivity = await prisma.profile.findMany({
+  /** Pe hartă: activ recent în app SAU locație actualizată recent (ex. doar deschis „Harta”). */
+  const MAP_VISIBLE_MS = 3 * 60 * 1000;
+  const cutoff = new Date(Date.now() - MAP_VISIBLE_MS);
+  const withProfileActivity = await prisma.profile.findMany({
     where: { userId: { in: userIds }, lastActiveAt: { gte: cutoff } },
     select: { userId: true },
   });
-  const activeSet = new Set(withActivity.map((p) => p.userId));
+  const activeSet = new Set(withProfileActivity.map((p) => p.userId));
+  for (const loc of locations) {
+    if (loc.updatedAt >= cutoff) activeSet.add(loc.userId);
+  }
   return profiles
     .filter((p) => locByUser.has(p.userId) && activeSet.has(p.userId))
     .map((p) => {
