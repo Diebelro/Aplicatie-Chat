@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { validateResetToken } from "@/lib/passwordReset";
+import { isPrismaAvailable, prismaFindValidPasswordResetToken } from "@/lib/repo-prisma";
 
 export async function GET(request: Request) {
   try {
@@ -9,7 +10,19 @@ export async function GET(request: Request) {
       return NextResponse.json({ valid: false, error: "Lipsește token-ul." }, { status: 400 });
     }
 
-    const valid = validateResetToken(token);
+    let valid = false;
+    if (isPrismaAvailable()) {
+      try {
+        const row = await prismaFindValidPasswordResetToken(token);
+        valid = row != null;
+      } catch {
+        valid = false;
+      }
+    }
+    if (!valid) {
+      valid = validateResetToken(token);
+    }
+
     if (!valid) {
       return NextResponse.json({
         valid: false,

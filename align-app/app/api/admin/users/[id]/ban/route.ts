@@ -23,11 +23,18 @@ export async function POST(
   if (action !== "BAN" && action !== "UNBAN") {
     return NextResponse.json({ error: "Lipsește action (BAN sau UNBAN)." }, { status: 400 });
   }
+  const reason =
+    typeof body?.reason === "string" ? body.reason.trim().slice(0, 4000) : "";
   const target = await findUserOrPrisma(targetId);
   if (!target) return NextResponse.json({ error: "Utilizator negăsit." }, { status: 404 });
   try {
     await prismaSetUserBanned(targetId, action === "BAN");
-    await prismaCreateAdminLog(auth.userId, action === "BAN" ? "BAN_USER" : "UNBAN_USER", targetId);
+    await prismaCreateAdminLog(
+      auth.userId,
+      action === "BAN" ? "BAN_USER" : "UNBAN_USER",
+      targetId,
+      action === "BAN" && reason ? reason : null
+    );
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "Eroare server." }, { status: 500 });

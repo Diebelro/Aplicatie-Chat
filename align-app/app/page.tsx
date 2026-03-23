@@ -40,6 +40,22 @@ export default function HomePage() {
           Incepe acum
         </Link>
       </main>
+
+      <footer className="border-t border-dark-600 py-6 px-4">
+        <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs text-dark-500">
+          <Link href="/terms" className="text-brand-400/90 hover:underline">
+            Termeni
+          </Link>
+          <span className="text-dark-600">·</span>
+          <Link href="/privacy" className="text-brand-400/90 hover:underline">
+            Confidențialitate
+          </Link>
+          <span className="text-dark-600">·</span>
+          <Link href="/cookies" className="text-brand-400/90 hover:underline">
+            Cookie
+          </Link>
+        </div>
+      </footer>
     </div>
   );
 }

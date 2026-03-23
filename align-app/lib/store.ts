@@ -277,14 +277,38 @@ export function getDistanceKmForDisplay(viewerId: string, targetId: string): num
 }
 
 /** Listă utilizatori online care au poziție setată (pentru hartă), excluzând meId. */
-export function getOnlineUsersWithPositions(meId: string): { id: string; name: string; lat: number; lng: number }[] {
+export function getOnlineUsersWithPositions(meId: string): {
+  id: string;
+  name: string;
+  username: string;
+  lat: number;
+  lng: number;
+  photoUrl: string | null;
+  online: boolean;
+}[] {
   const s = getState();
-  const result: { id: string; name: string; lat: number; lng: number }[] = [];
+  const result: {
+    id: string;
+    name: string;
+    username: string;
+    lat: number;
+    lng: number;
+    photoUrl: string | null;
+    online: boolean;
+  }[] = [];
   for (const u of s.users) {
     if (u.id === meId || !isUserOnline(u.id)) continue;
     const pos = s.userPositions.get(u.id);
     if (!pos) continue;
-    result.push({ id: u.id, name: u.name, lat: pos.lat, lng: pos.lng });
+    result.push({
+      id: u.id,
+      name: u.name,
+      username: u.username ?? u.name,
+      lat: pos.lat,
+      lng: pos.lng,
+      photoUrl: u.photos?.[0] ?? null,
+      online: isUserOnlineVisible(u.id),
+    });
   }
   return result;
 }
@@ -587,6 +611,18 @@ export function hasSwiped(fromId: string, toId: string): boolean {
   return getState().matches.some((m) => m.fromId === fromId && m.toId === toId);
 }
 
+export function getSwipeFromTo(fromId: string, toId: string): { liked: boolean; at: string } | undefined {
+  const m = getState().matches.find((x) => x.fromId === fromId && x.toId === toId);
+  return m ? { liked: m.liked, at: m.at } : undefined;
+}
+
+export function mutualMatchPairExists(a: string, b: string): boolean {
+  const key = [a, b].sort().join(":");
+  return getState().mutualMatchPairs.some(
+    (p) => [p.userA, p.userB].sort().join(":") === key
+  );
+}
+
 /** Status swipe (like/dislike) pentru un singur pereche from→to. Pentru TEST_MODE feed (store path). */
 export function getSwipeStatus(fromId: string, toId: string): { hasLiked: boolean; hasDisliked: boolean } {
   const m = getState().matches.find((x) => x.fromId === fromId && x.toId === toId);
@@ -622,6 +658,35 @@ export function isMutualMatch(userId1: string, userId2: string): boolean {
     (m) => m.fromId === userId2 && m.toId === userId1 && m.liked
   );
   return myLikes.has(userId2) && theyLikedMe;
+}
+
+/** Actualizează sau adaugă swipe (pentru recenzare / schimbare decizie). */
+export function upsertUserSwipe(fromId: string, toId: string, liked: boolean): void {
+  const s = getState().matches;
+  const i = s.findIndex((m) => m.fromId === fromId && m.toId === toId);
+  if (i >= 0) {
+    s[i] = { ...s[i], liked, at: new Date().toISOString() };
+    return;
+  }
+  recordSwipe(fromId, toId, liked);
+}
+
+/** Elimină perechea de match mutual din store (ex. după ce treci de la like la pass). */
+export function removeMutualMatchPair(a: string, b: string): void {
+  const pairs = getState().mutualMatchPairs;
+  const key = [a, b].sort().join(":");
+  for (let j = pairs.length - 1; j >= 0; j--) {
+    const p = pairs[j];
+    if ([p.userA, p.userB].sort().join(":") === key) pairs.splice(j, 1);
+  }
+}
+
+/** Lista țintelor swipe-uite de mine (pentru recenzare), cele mai recente primele. */
+export function listMySwipeTargetsForReview(userId: string): { toId: string; liked: boolean; at: string }[] {
+  return getState()
+    .matches.filter((m) => m.fromId === userId)
+    .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
+    .map((m) => ({ toId: m.toId, liked: m.liked, at: m.at }));
 }
 
 export function addMessage(

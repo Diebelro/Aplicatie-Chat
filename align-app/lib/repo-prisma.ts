@@ -3,6 +3,7 @@
  * Returnează DTO-uri în forma așteptată de frontend (User, Match, Message).
  */
 
+import crypto from "crypto";
 import { prisma } from "@/lib/db";
 import { logDevPrismaNoticeOnce } from "@/lib/dev-prisma-notice";
 import type { User, Match, Message } from "@/lib/store";
@@ -278,6 +279,137 @@ export async function prismaUpdatePassword(userId: string, passwordHash: string)
   });
 }
 
+const PASSWORD_RESET_TOKEN_EXPIRY_MS = 15 * 60 * 1000;
+
+function hashPasswordResetToken(raw: string): string {
+  return crypto.createHash("sha256").update(raw, "utf8").digest("hex");
+}
+
+/** Șterge token-uri nefolosite anterioare; creează unul nou. Returnează token-ul brut (doar pentru URL/email). */
+export async function prismaCreatePasswordResetToken(userId: string): Promise<{ token: string }> {
+  await prisma.passwordResetToken.deleteMany({
+    where: { userId, usedAt: null },
+  });
+  const raw = crypto.randomBytes(32).toString("hex");
+  const tokenHash = hashPasswordResetToken(raw);
+  const expiresAt = new Date(Date.now() + PASSWORD_RESET_TOKEN_EXPIRY_MS);
+  await prisma.passwordResetToken.create({
+    data: { userId, tokenHash, expiresAt },
+  });
+  return { token: raw };
+}
+
+export async function prismaFindValidPasswordResetToken(
+  rawToken: string
+): Promise<{ id: string; userId: string } | null> {
+  const tokenHash = hashPasswordResetToken(rawToken);
+  const row = await prisma.passwordResetToken.findUnique({
+    where: { tokenHash },
+  });
+  if (!row || row.usedAt != null) return null;
+  if (row.expiresAt.getTime() < Date.now()) return null;
+  return { id: row.id, userId: row.userId };
+}
+
+/** Marchează token folosit și actualizează parola; returnează null dacă token invalid/expirat. */
+const EMAIL_VERIFICATION_TOKEN_EXPIRY_MS = 48 * 60 * 60 * 1000;
+
+function hashEmailVerificationToken(raw: string): string {
+  return crypto.createHash("sha256").update(raw, "utf8").digest("hex");
+}
+
+/** Șterge token-uri vechi pentru user; creează token nou pentru linkul din email. */
+export async function prismaCreateEmailVerificationToken(
+  userId: string
+): Promise<{ token: string }> {
+  await prisma.emailVerificationToken.deleteMany({ where: { userId } });
+  const raw = crypto.randomBytes(32).toString("hex");
+  const tokenHash = hashEmailVerificationToken(raw);
+  const expiresAt = new Date(Date.now() + EMAIL_VERIFICATION_TOKEN_EXPIRY_MS);
+  await prisma.emailVerificationToken.create({
+    data: { userId, tokenHash, expiresAt },
+  });
+  return { token: raw };
+}
+
+export async function prismaFindValidEmailVerificationToken(
+  rawToken: string
+): Promise<{ id: string; userId: string } | null> {
+  const tokenHash = hashEmailVerificationToken(rawToken);
+  const row = await prisma.emailVerificationToken.findUnique({
+    where: { tokenHash },
+  });
+  if (!row || row.expiresAt.getTime() < Date.now()) return null;
+  return { id: row.id, userId: row.userId };
+}
+
+export async function prismaCompleteEmailVerification(rawToken: string): Promise<boolean> {
+  return prisma.$transaction(async (tx) => {
+    const tokenHash = hashEmailVerificationToken(rawToken);
+    const row = await tx.emailVerificationToken.findUnique({
+      where: { tokenHash },
+    });
+    if (!row || row.expiresAt.getTime() < Date.now()) return false;
+    await tx.user.update({
+      where: { id: row.userId },
+      data: { emailVerified: new Date() },
+    });
+    await tx.emailVerificationToken.deleteMany({ where: { userId: row.userId } });
+    return true;
+  });
+}
+
+/** Retrimite link de verificare; acceptă și token expirat dacă încă există în DB. */
+export async function prismaResendEmailVerification(
+  rawToken: string
+): Promise<{ token: string; email: string } | null> {
+  const tokenHash = hashEmailVerificationToken(rawToken);
+  const row = await prisma.emailVerificationToken.findUnique({
+    where: { tokenHash },
+  });
+  if (!row) return null;
+  const u = await prisma.user.findUnique({
+    where: { id: row.userId },
+    select: { email: true, emailVerified: true },
+  });
+  if (!u || u.emailVerified != null) return null;
+  const { token } = await prismaCreateEmailVerificationToken(row.userId);
+  return { token, email: u.email };
+}
+
+export async function prismaCompletePasswordReset(
+  rawToken: string,
+  newPasswordHash: string
+): Promise<{ userId: string; email: string } | null> {
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const tokenHash = hashPasswordResetToken(rawToken);
+      const row = await tx.passwordResetToken.findUnique({
+        where: { tokenHash },
+      });
+      if (!row || row.usedAt != null || row.expiresAt.getTime() < Date.now()) {
+        return null;
+      }
+      await tx.passwordResetToken.update({
+        where: { id: row.id },
+        data: { usedAt: new Date() },
+      });
+      await tx.user.update({
+        where: { id: row.userId },
+        data: { passwordHash: newPasswordHash },
+      });
+      const u = await tx.user.findUnique({
+        where: { id: row.userId },
+        select: { id: true, email: true },
+      });
+      if (!u) return null;
+      return { userId: u.id, email: u.email };
+    });
+  } catch {
+    return null;
+  }
+}
+
 export async function prismaUpdateUserEmail(userId: string, email: string): Promise<void> {
   await prisma.user.update({
     where: { id: userId },
@@ -313,6 +445,57 @@ export async function prismaAddSwipe(fromId: string, toId: string, liked: boolea
     create: { fromUserId: fromId, toUserId: toId, liked },
     update: { liked },
   });
+}
+
+/** `null` = niciun swipe încă. */
+export async function prismaGetSwipeLiked(fromId: string, toId: string): Promise<boolean | null> {
+  const s = await prisma.swipe.findUnique({
+    where: { fromUserId_toUserId: { fromUserId: fromId, toUserId: toId } },
+    select: { liked: true },
+  });
+  if (!s) return null;
+  return s.liked;
+}
+
+export async function prismaDeleteMatchBetween(a: string, b: string): Promise<void> {
+  const [x, y] = [a, b].sort();
+  await prisma.match.deleteMany({ where: { userAId: x, userBId: y } });
+}
+
+export async function prismaMatchRowExistsBetween(a: string, b: string): Promise<boolean> {
+  const [x, y] = [a, b].sort();
+  const m = await prisma.match.findUnique({
+    where: { userAId_userBId: { userAId: x, userBId: y } },
+    select: { id: true },
+  });
+  return !!m;
+}
+
+export type SwipeReviewEntry = User & { mySwipeLiked: boolean };
+
+/** Profiluri pe care le-ai swipe-uit (like sau pass), recent actualizate primele — pentru recenzare. */
+export async function prismaListSwipedProfilesForReview(
+  userId: string,
+  limit = 100
+): Promise<SwipeReviewEntry[]> {
+  const blocked = await prismaGetBlockedUserIds(userId);
+  const excludeIds = [...blocked, userId];
+  const swipes = await prisma.swipe.findMany({
+    where: {
+      fromUserId: userId,
+      toUserId: { notIn: excludeIds },
+    },
+    orderBy: { updatedAt: "desc" },
+    take: limit,
+    select: { toUserId: true, liked: true },
+  });
+  const out: SwipeReviewEntry[] = [];
+  for (const s of swipes) {
+    const u = await prismaFindUserById(s.toUserId);
+    if (!u || u.isBanned) continue;
+    out.push({ ...u, mySwipeLiked: s.liked });
+  }
+  return out;
 }
 
 export async function prismaIsMutualMatch(a: string, b: string): Promise<boolean> {
@@ -634,12 +817,34 @@ export async function prismaGetMyLocation(userId: string): Promise<{ lat: number
   return { lat: loc.latitude, lng: loc.longitude };
 }
 
+/** Prima poză de profil pentru hartă (avatar). */
+export async function prismaGetFirstProfilePhotoUrl(userId: string): Promise<string | null> {
+  const profile = await prisma.profile.findUnique({
+    where: { userId },
+    select: {
+      photos: { orderBy: { order: "asc" }, take: 1, select: { url: true } },
+    },
+  });
+  return profile?.photos[0]?.url ?? null;
+}
+
+const MAP_ONLINE_MS = 60 * 1000; // ca în restul app-ului (aproape „live”)
+
 export async function prismaGetVisibleUsersForMap(
   meId: string
-): Promise<{ id: string; name: string; lat: number; lng: number }[]> {
+): Promise<
+  { id: string; name: string; username: string; lat: number; lng: number; photoUrl: string | null; online: boolean }[]
+> {
   const profiles = await prisma.profile.findMany({
     where: { userId: { not: meId }, showDistance: true },
-    select: { userId: true, name: true },
+    select: {
+      userId: true,
+      name: true,
+      username: true,
+      showOnline: true,
+      lastActiveAt: true,
+      photos: { orderBy: { order: "asc" }, take: 1, select: { url: true } },
+    },
   });
   const userIds = profiles.map((p) => p.userId);
   const locations = await prisma.location.findMany({
@@ -657,11 +862,23 @@ export async function prismaGetVisibleUsersForMap(
   for (const loc of locations) {
     if (loc.updatedAt >= cutoff) activeSet.add(loc.userId);
   }
+  const now = Date.now();
   return profiles
     .filter((p) => locByUser.has(p.userId) && activeSet.has(p.userId))
     .map((p) => {
       const loc = locByUser.get(p.userId)!;
-      return { id: p.userId, name: p.name, lat: loc.latitude, lng: loc.longitude };
+      const rawOnline =
+        p.lastActiveAt != null && now - p.lastActiveAt.getTime() < MAP_ONLINE_MS;
+      const online = p.showOnline ? rawOnline : false;
+      return {
+        id: p.userId,
+        name: p.name,
+        username: p.username,
+        lat: loc.latitude,
+        lng: loc.longitude,
+        photoUrl: p.photos[0]?.url ?? null,
+        online,
+      };
     });
 }
 
@@ -1156,9 +1373,19 @@ export async function prismaDeleteConversation(userId1: string, userId2: string)
   });
 }
 
-export async function prismaCreateAdminLog(adminId: string, action: string, targetId?: string | null): Promise<void> {
+export async function prismaCreateAdminLog(
+  adminId: string,
+  action: string,
+  targetId?: string | null,
+  details?: string | null
+): Promise<void> {
   await prisma.adminLog.create({
-    data: { adminId, action, targetId: targetId ?? undefined },
+    data: {
+      adminId,
+      action,
+      targetId: targetId ?? undefined,
+      details: details?.trim() ? details.trim().slice(0, 4000) : undefined,
+    },
   });
 }
 
@@ -1185,7 +1412,15 @@ export async function prismaSetUserRole(userId: string, role: string): Promise<v
 }
 
 export async function prismaGetAdminLogs(limit = 200): Promise<
-  { id: string; adminId: string; action: string; targetId: string | null; createdAt: Date; adminEmail?: string }[]
+  {
+    id: string;
+    adminId: string;
+    action: string;
+    targetId: string | null;
+    details: string | null;
+    createdAt: Date;
+    adminEmail?: string;
+  }[]
 > {
   const list = await prisma.adminLog.findMany({
     orderBy: { createdAt: "desc" },
@@ -1197,6 +1432,7 @@ export async function prismaGetAdminLogs(limit = 200): Promise<
     adminId: l.adminId,
     action: l.action,
     targetId: l.targetId,
+    details: l.details ?? null,
     createdAt: l.createdAt,
     adminEmail: l.admin?.email,
   }));

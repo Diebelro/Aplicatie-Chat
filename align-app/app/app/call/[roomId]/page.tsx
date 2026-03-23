@@ -5,6 +5,8 @@ import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
+import { getAuthHeaders } from "@/lib/authClient";
+import { markIncomingCallDismissed } from "@/lib/callIncomingDismiss";
 import { canAccessRoom, isConferenceRoomId } from "@/lib/videoCall";
 import { displayName } from "@/lib/displayName";
 import CallUI from "@/components/CallUI";
@@ -37,6 +39,29 @@ export default function CallPage() {
       return;
     }
     setAllowed(canAccessRoom(roomId, u.id));
+  }, [roomId]);
+
+  /**
+   * Ieșire cu Back browser / navigare fără butonul din CallUI: tot trebuie să curățăm pending pe server,
+   * altfel poll-ul „incoming” crede că încă sună. Întârziere scurtă evită dublarea în React Strict Mode (dev).
+   */
+  useEffect(() => {
+    let armed = false;
+    const tid = window.setTimeout(() => {
+      armed = true;
+    }, 450);
+    return () => {
+      window.clearTimeout(tid);
+      if (!armed) return;
+      markIncomingCallDismissed(roomId);
+      void fetch("/api/call/end", {
+        method: "POST",
+        headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ roomId }),
+        keepalive: true,
+      }).catch(() => {});
+    };
   }, [roomId]);
 
   /** Încărcare: fullscreen negru ca la apel — fără „Se încarcă” în layout (evită clip cu mesajele de dedesubt). */

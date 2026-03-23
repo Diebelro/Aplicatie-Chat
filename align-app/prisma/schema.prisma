@@ -34,6 +34,33 @@ model User {
   adminLogs       AdminLog[]
   visitsAsViewer  Visit[]  @relation("VisitViewer")
   visitsAsProfile Visit[]  @relation("VisitProfile")
+  passwordResetTokens PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
+}
+
+/// Token hash (SHA-256) pentru verificare email la înregistrare.
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Token hash (SHA-256) pentru resetare parolă; valoarea brută există doar în email.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Profile {
@@ -103,6 +130,8 @@ model Swipe {
   toUser     User     @relation("SwipeTo", fields: [toUserId], references: [id], onDelete: Cascade)
   liked      Boolean
   createdAt  DateTime @default(now())
+  // @default(now()) umple rândurile existente la push; @updatedAt actualizează la modificări
+  updatedAt  DateTime @default(now()) @updatedAt
   @@unique([fromUserId, toUserId])
   @@index([fromUserId])
   @@index([toUserId])
@@ -223,6 +252,7 @@ model AdminLog {
   adminId   String
   action    String
   targetId  String?
+  details   String? // motiv/note (ex. BAN), opțional
   createdAt DateTime @default(now())
   admin     User     @relation(fields: [adminId], references: [id], onDelete: Cascade)
   @@index([adminId])

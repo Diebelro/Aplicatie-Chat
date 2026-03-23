@@ -10,6 +10,7 @@ import { getVideoRoomId } from "@/lib/videoCall";
 import { track } from "@/lib/tracking";
 import { displayName } from "@/lib/displayName";
 import { getAuthHeaders } from "@/lib/authClient";
+import { messageAttachmentProxyPath, shouldProxyChatAttachment } from "@/lib/chatAttachmentProxy";
 
 const ALLOWED_ATTACH_ACCEPT = "image/jpeg,image/png,image/webp,application/pdf";
 const MAX_ATTACH_MB = 10;
@@ -59,7 +60,12 @@ export default function ChatPage() {
   const [isPaywallError, setIsPaywallError] = useState(false);
   const [calling, setCalling] = useState<"video" | "audio" | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
-  const [pendingAttachment, setPendingAttachment] = useState<{ url: string; contentType: string } | null>(null);
+  const [pendingAttachment, setPendingAttachment] = useState<{
+    url: string;
+    contentType: string;
+    /** Preview local pentru imagini cât timp blob-ul e private (înainte de mesaj salvat). */
+    previewUrl?: string;
+  } | null>(null);
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
   const [uploadConfigured, setUploadConfigured] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -297,7 +303,10 @@ export default function ChatPage() {
       at: new Date().toISOString(),
       status: "SENT",
       seenAt: null,
-      attachmentUrl: backupAttach?.url ?? null,
+      attachmentUrl:
+        backupAttach && isImageType(backupAttach.contentType) && backupAttach.previewUrl
+          ? backupAttach.previewUrl
+          : backupAttach?.url ?? null,
       attachmentContentType: backupAttach?.contentType ?? null,
       clientPending: true,
     };
@@ -307,7 +316,10 @@ export default function ChatPage() {
     setIsPaywallError(false);
     setMessages((prev) => [...prev, optimistic]);
     setText("");
-    setPendingAttachment(null);
+    setPendingAttachment((prev) => {
+      if (prev?.previewUrl) URL.revokeObjectURL(prev.previewUrl);
+      return null;
+    });
 
     try {
       const headers = getAuthHeaders() as Record<string, string>;
@@ -334,11 +346,10 @@ export default function ChatPage() {
       const data = await res.json();
       if (res.ok && data.message) {
         const msg = { ...(data.message as Message), clientPending: false };
-        if (msg.attachmentContentType === "application/pdf" && msg.attachmentUrl) {
-          msg.attachmentUrl = `/api/chat/attachment?messageId=${msg.id}`;
+        if (shouldProxyChatAttachment(msg.attachmentUrl, msg.attachmentContentType)) {
+          msg.attachmentUrl = messageAttachmentProxyPath(msg.id);
         }
         setMessages((prev) => prev.map((m) => (m.id === optimisticId ? msg : m)));
-        track.message_sent(otherId);
         /** Răspunsul POST conține deja mesajul — fără al doilea GET (mai puțină latență percepută). */
       } else {
         setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
@@ -390,7 +401,13 @@ export default function ChatPage() {
       });
       const data = await res.json();
       if (res.ok && data.url && data.contentType) {
-        setPendingAttachment({ url: data.url, contentType: data.contentType });
+        const previewUrl = file.type.startsWith("image/")
+          ? URL.createObjectURL(file)
+          : undefined;
+        setPendingAttachment((prev) => {
+          if (prev?.previewUrl) URL.revokeObjectURL(prev.previewUrl);
+          return { url: data.url as string, contentType: data.contentType as string, previewUrl };
+        });
       } else {
         setIsPaywallError(false);
         const msg = data?.error ?? "Eroare la încărcare.";
@@ -728,13 +745,22 @@ export default function ChatPage() {
         {pendingAttachment && (
           <div className="flex items-center gap-2 text-sm text-dark-300">
             {isImageType(pendingAttachment.contentType) ? (
-              <img src={pendingAttachment.url} alt="" className="h-12 w-auto rounded object-cover" />
+              <img
+                src={pendingAttachment.previewUrl || pendingAttachment.url}
+                alt=""
+                className="h-12 w-auto rounded object-cover"
+              />
             ) : (
               <span className="flex items-center gap-1"><FileText className="w-4 h-4" /> PDF atașat</span>
             )}
             <button
               type="button"
-              onClick={() => setPendingAttachment(null)}
+              onClick={() =>
+                setPendingAttachment((p) => {
+                  if (p?.previewUrl) URL.revokeObjectURL(p.previewUrl);
+                  return null;
+                })
+              }
               className="p-1 rounded hover:bg-dark-600 text-dark-400"
               aria-label="Elimină atașament"
             >
@@ -755,7 +781,7 @@ export default function ChatPage() {
             onClick={() => {
               if (!uploadConfigured) {
                 setSendError(
-                  "Pe Vercel: adaugă BLOB_READ_WRITE_TOKEN (și PDF: BLOB_READ_WRITE_TOKEN_PDF) în Environment Variables. Local cu npm run dev: pozele merg fără Blob (folder public/_chatDev). Vezi .env.example."
+                  "Pe Vercel: adaugă BLOB_READ_WRITE_TOKEN (și PDF: BLOB_READ_WRITE_TOKEN_PDF) în Environment Variables. Local cu npm run dev: pozele merg fără Blob (salvare în _chatDev, afișare prin API). Vezi .env.example."
                 );
                 setIsPaywallError(false);
                 return;

@@ -3,6 +3,8 @@
  * Used by small cards (Toate profilurile) and big card (Descoperă).
  */
 
+import type { CSSProperties } from "react";
+
 export type FriendStatusType = "pending_sent" | "pending_received" | "accepted" | "rejected" | null;
 
 /** Culori distincte per stare; nu se repetă între ele. */
@@ -12,7 +14,6 @@ export const FRIEND_CARD_COLORS = {
   pendingReceived: "#C77DFF",
   visitedByYou: "#999999",
   visitedYou: "#9D4EDD",
-  messageSent: "#FFD43B",
   messageReceived: "#FF922B",
   messageSeen: "#22B8CF",
   match: "#69DB7C",
@@ -30,7 +31,6 @@ export function getSmallCardState(flags: {
   match?: boolean;
   messageSeen?: boolean;
   receivedMessage?: boolean;
-  sentMessage?: boolean;
   visitedByThem?: boolean;
   visited?: boolean;
   online?: boolean;
@@ -45,7 +45,6 @@ export function getSmallCardState(flags: {
   if (flags.match) return { border: FRIEND_CARD_COLORS.match, statusKey: "match" };
   if (flags.messageSeen) return { border: FRIEND_CARD_COLORS.messageSeen, statusKey: "messageSeen" };
   if (flags.receivedMessage) return { border: FRIEND_CARD_COLORS.messageReceived, statusKey: "messageReceived" };
-  if (flags.sentMessage) return { border: FRIEND_CARD_COLORS.messageSent, statusKey: "messageSent" };
   if (flags.visitedByThem) return { border: FRIEND_CARD_COLORS.visitedYou, statusKey: "visitedYou" };
   if (flags.visited) return { border: FRIEND_CARD_COLORS.visitedByYou, statusKey: "visitedByYou" };
   if (flags.online) return { border: FRIEND_CARD_COLORS.online, statusKey: "online" };
@@ -54,13 +53,47 @@ export function getSmallCardState(flags: {
   return { border: "", statusKey: "none" };
 }
 
+/** Contur + fundal discret pentru card mare (Descoperă) sau orice frame similar listei de profiluri. */
+export function getProfileCardChrome(flags: {
+  friendStatus: FriendStatusType;
+  match?: boolean;
+  messageSeen?: boolean;
+  receivedMessage?: boolean;
+  visitedByThem?: boolean;
+  visited?: boolean;
+  online?: boolean;
+  isNew?: boolean;
+}): {
+  frameStyle: CSSProperties;
+  borderClassName: string;
+  statusKey: string;
+  /** Profil niciodată deschis: același gri pentru toți + ușor mai închisă zona foto. */
+  dimPhoto: boolean;
+} {
+  const { border, statusKey } = getSmallCardState(flags);
+  const hasAccent = Boolean(border);
+  const frameStyle: CSSProperties = hasAccent
+    ? {
+        borderColor: border,
+        borderWidth: 2,
+        borderStyle: "solid",
+        backgroundColor: `${border}14`,
+      }
+    : {};
+  return {
+    frameStyle,
+    borderClassName: hasAccent ? "border-2 border-solid" : "border border-dark-600",
+    statusKey,
+    dimPhoto: statusKey === "notVisited",
+  };
+}
+
 export const SMALL_CARD_STATUS_LABELS: Record<string, string> = {
   friends: "Prieteni",
   pendingSent: "Cerere trimisă",
   pendingReceived: "Cerere primită",
   messageSeen: "A văzut mesajul tău",
   messageReceived: "Mesaj primit",
-  messageSent: "Mesaj trimis",
   visitedYou: "A vizitat profilul tău",
   visitedByYou: "Vizitat de tine",
   match: "Match",

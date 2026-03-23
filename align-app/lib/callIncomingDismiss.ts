@@ -4,7 +4,8 @@
  */
 const ROOM_KEY = "align_dismiss_incoming_room";
 const AT_KEY = "align_dismiss_incoming_at";
-const WINDOW_MS = 18_000;
+/** Suficient de lung ca să nu reapară „te sună” după ce ai închis cu back / ai ieșit din apel, până la următorul apel real. */
+const WINDOW_MS = 30 * 60 * 1000;
 
 export function markIncomingCallDismissed(roomId: string): void {
   if (typeof window === "undefined" || !roomId) return;

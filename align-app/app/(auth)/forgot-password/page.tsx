@@ -6,6 +6,34 @@ import { OptimizedImage } from "@/components/OptimizedImage";
 
 type Mode = "choose" | "email" | "email_sent" | "scan" | "scan_confirmed";
 
+/** true pentru IP privat / localhost — dev Next e doar HTTP, https → eroare „conexiunea nu e privată”. */
+function isPrivateOrLocalHost(hostname: string): boolean {
+  if (hostname === "localhost") return true;
+  if (/^127\./.test(hostname)) return true;
+  if (/^10\./.test(hostname)) return true;
+  if (/^192\.168\./.test(hostname)) return true;
+  if (/^172\.(1[6-9]|2\d|3[01])\./.test(hostname)) return true;
+  return false;
+}
+
+/** Baza URL pentru QR / link „recuperare pe telefon”. Pe telefon, localhost = telefonul, nu PC-ul. */
+function mobileRecoverOrigin(): string {
+  if (typeof window === "undefined") return "";
+  let raw =
+    process.env.NEXT_PUBLIC_MOBILE_RECOVER_ORIGIN?.trim().replace(/\/$/, "") ?? "";
+  if (!raw) return window.location.origin;
+  try {
+    const u = new URL(raw);
+    if (u.protocol === "https:" && isPrivateOrLocalHost(u.hostname)) {
+      u.protocol = "http:";
+      return u.origin;
+    }
+  } catch {
+    /* păstrăm raw */
+  }
+  return raw;
+}
+
 export default function ForgotPasswordPage() {
   const [mode, setMode] = useState<Mode>("choose");
   const [email, setEmail] = useState("");
@@ -45,7 +73,10 @@ export default function ForgotPasswordPage() {
       setSessionId(data.sessionId);
       setQrToken(data.qrToken);
       if (typeof window !== "undefined") {
-        setQrUrl(`${window.location.origin}/mobile/recover?token=${data.qrToken}`);
+        const base = mobileRecoverOrigin();
+        setQrUrl(
+          `${base}/mobile/recover?token=${encodeURIComponent(data.qrToken)}`
+        );
       }
       setMode("scan");
     } catch (err) {
@@ -130,6 +161,25 @@ export default function ForgotPasswordPage() {
           <p className="text-sm text-dark-400 mt-4 text-center break-all">
             Sau deschide pe telefon: {qrUrl}
           </p>
+          <div className="mt-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-3 text-left text-xs text-amber-100/95 space-y-2">
+            <p className="font-medium text-amber-200">
+              Chrome pe telefon poate schimba singur <strong>http://</strong> în <strong>https://</strong> la adrese IP
+              → aceeași eroare „conexiunea nu e privată”, chiar dacă aici linkul e corect.
+            </p>
+            <p>
+              <strong>Recomandat:</strong> lasă <code className="text-amber-300">npm run dev:lan</code> pornit, deschide
+              un <strong>al doilea</strong> terminal în <code className="text-amber-300">align-app</code> și rulează{" "}
+              <code className="text-amber-300">npm run tunnel:lt</code>. Copiază URL-ul <strong>https://…</strong> afișat
+              și pune-l în <code className="text-amber-300">.env</code> la{" "}
+              <code className="text-amber-300">NEXT_PUBLIC_MOBILE_RECOVER_ORIGIN=</code> (fără slash la final),
+              repornește dev și generează din nou QR-ul. Prima deschidire pe telefon poate cere un click „Continue”
+              pe pagina localtunnel — e normal.
+            </p>
+            <p className="text-dark-200">
+              Alternativ: Chrome telefon → Setări → Confidențialitate → dezactivează „Folosește mereu conexiuni sigure” /
+              HTTPS-First; sau încearcă <strong>Firefox</strong> pe telefon cu același link <strong>http://</strong>.
+            </p>
+          </div>
           <p className="text-sm text-dark-300 mt-4 text-center">
             Așteptăm confirmarea pe telefon…
           </p>

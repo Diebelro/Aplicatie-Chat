@@ -8,6 +8,7 @@ type Log = {
   adminId: string;
   action: string;
   targetId: string | null;
+  details?: string | null;
   createdAt: string;
   adminEmail?: string;
 };
@@ -55,6 +56,7 @@ export default function AdminLogsPage() {
                   <td className="p-2">{l.action}</td>
                   <td className="p-2">{l.adminEmail ?? l.adminId}</td>
                   <td className="p-2 font-mono text-sm">{l.targetId ? `${l.targetId.slice(0, 12)}…` : "—"}</td>
+                  <td className="p-2 text-sm text-dark-300 max-w-xs break-words">{l.details?.trim() || "—"}</td>
                   <td className="p-2 text-dark-400 text-sm">{l.createdAt}</td>
                 </tr>
               ))}

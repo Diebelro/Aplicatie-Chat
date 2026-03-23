@@ -36,11 +36,20 @@ export default function AdminUserDetailPage() {
   useEffect(() => { load(); }, [id]);
 
   const ban = (action: "BAN" | "UNBAN") => {
+    let reason: string | undefined;
+    if (action === "BAN") {
+      const r = window.prompt(
+        "Motiv ban (opțional, se salvează în loguri admin). Lasă gol dacă nu vrei motiv:",
+        ""
+      );
+      if (r === null) return;
+      reason = r.trim() || undefined;
+    }
     setBusy(true);
     fetch("/api/admin/users/" + id + "/ban", {
       method: "POST",
       headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
-      body: JSON.stringify({ action }),
+      body: JSON.stringify({ action, ...(reason ? { reason } : {}) }),
     })
       .then((r) => (r.ok ? undefined : Promise.reject()))
       .then(() => load())
@@ -106,7 +115,12 @@ export default function AdminUserDetailPage() {
           <button onClick={() => ban("BAN")} disabled={busy} className="bg-amber-600 hover:bg-amber-700 disabled:opacity-50 px-3 py-2 rounded">Ban</button>
         )}
         <button onClick={deleteUser} disabled={busy} className="bg-red-600 hover:bg-red-700 disabled:opacity-50 px-3 py-2 rounded">Sterge user</button>
-        <Link href={"/admin/conversations/" + id} className="bg-dark-600 hover:bg-dark-500 px-3 py-2 rounded inline-block">Conversatii</Link>
+        <Link
+          href={"/admin/conversations?with=" + encodeURIComponent(id)}
+          className="bg-dark-600 hover:bg-dark-500 px-3 py-2 rounded inline-block"
+        >
+          Conversație (alege al doilea user)
+        </Link>
       </div>
 
       <div className="mt-6 p-4 rounded-xl bg-dark-800 border border-dark-600">

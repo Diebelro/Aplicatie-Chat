@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3005",
+    "dev:lan": "next dev -p 3005 -H 0.0.0.0",
+    "tunnel:lt": "npx --yes localtunnel --port 3005",
     "dev:auto": "next dev",
     "ports:free": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/free-next-ports.ps1",
     "signaling:dev": "node server/call-signaling-server.mjs",

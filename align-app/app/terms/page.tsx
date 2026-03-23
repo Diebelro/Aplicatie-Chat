@@ -23,6 +23,16 @@ export default function TermsPage() {
         </div>
       </header>
       <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-8">
+        <p className="text-dark-400 text-sm mb-4">
+          {String(t("legal.relatedDocs"))}{" "}
+          <Link href="/privacy" className="text-brand-400 hover:underline">
+            {String(t("legal.links.privacy"))}
+          </Link>
+          {" · "}
+          <Link href="/cookies" className="text-brand-400 hover:underline">
+            {String(t("legal.links.cookies"))}
+          </Link>
+        </p>
         <h1 className="text-2xl font-semibold text-white mb-8">{legal.termsTitle}</h1>
         <div className="prose prose-invert max-w-none space-y-8">
           {sections.map((section, i) => (

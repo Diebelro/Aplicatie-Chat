@@ -21,6 +21,7 @@ import {
 
 import { canSendMessage, PAYWALL_MESSAGE } from "@/lib/monetization";
 import { resolveRequestUserId } from "@/lib/sessionAuth";
+import { toClientMessageAttachmentFields } from "@/lib/chatAttachmentProxy";
 
 export async function GET(request: NextRequest) {
   const userId = resolveRequestUserId(request);
@@ -61,6 +62,11 @@ export async function GET(request: NextRequest) {
       const list = await prismaGetMessagesBetween(userId, withId);
       const messages = list.map((m) => {
         const rawStatus = (m as { status?: string }).status;
+        const att = toClientMessageAttachmentFields({
+          id: m.id,
+          attachmentUrl: m.attachmentUrl,
+          attachmentContentType: m.attachmentContentType,
+        });
         return {
           id: m.id,
           fromId: m.fromId,
@@ -69,10 +75,8 @@ export async function GET(request: NextRequest) {
           at: m.at,
           status: rawStatus != null && rawStatus !== "" ? rawStatus : "SENT",
           seenAt: (m as { seenAt?: string }).seenAt ?? null,
-          attachmentUrl: m.attachmentContentType === "application/pdf" && m.attachmentUrl
-            ? `/api/chat/attachment?messageId=${m.id}`
-            : m.attachmentUrl ?? null,
-          attachmentContentType: m.attachmentContentType ?? null,
+          attachmentUrl: att.attachmentUrl,
+          attachmentContentType: att.attachmentContentType,
         };
       });
       const matchId = await prismaGetMatchIdBetween(userId, withId);
@@ -179,7 +183,14 @@ export async function POST(request: NextRequest) {
         hasAttachment ? String(attachmentUrl) : undefined,
         hasAttachment ? String(attachmentContentType) : undefined
       );
-      return NextResponse.json({ message: msg });
+      const att = toClientMessageAttachmentFields({
+        id: msg.id,
+        attachmentUrl: msg.attachmentUrl,
+        attachmentContentType: msg.attachmentContentType,
+      });
+      return NextResponse.json({
+        message: { ...msg, attachmentUrl: att.attachmentUrl, attachmentContentType: att.attachmentContentType },
+      });
     } catch (err) {
       console.error("[api/messages POST]", err);
       const code = err && typeof err === "object" && "code" in err ? (err as { code: string }).code : "";

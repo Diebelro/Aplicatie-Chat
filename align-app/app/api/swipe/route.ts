@@ -1,16 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
-import { addLike, addPass, addMatch, canPerformLike, findUserById, hasSwiped, setUserActive, isMutualMatch } from "@/lib/store";
+import {
+  addMatch,
+  canPerformLike,
+  findUserById,
+  setUserActive,
+  isMutualMatch,
+  upsertUserSwipe,
+  removeMutualMatchPair,
+  getSwipeFromTo,
+  mutualMatchPairExists,
+} from "@/lib/store";
 import { adjustIntervalsAfterLike } from "@/lib/feedBuilder";
 import { isDeviceBlocked, recordSuspiciousBehavior, logSuspiciousEvent } from "@/lib/deviceBlock";
 import { checkRateLimit } from "@/lib/rateLimit";
 import {
   isPrismaAvailable,
   findUserOrPrisma,
-  prismaHasSwiped,
   prismaAddSwipe,
   prismaIsMutualMatch,
   prismaAddMatch,
   prismaLogRateLimit,
+  prismaGetSwipeLiked,
+  prismaDeleteMatchBetween,
+  prismaMatchRowExistsBetween,
 } from "@/lib/repo-prisma";
 import { resolveRequestUserId } from "@/lib/sessionAuth";
 
@@ -76,21 +88,30 @@ export async function POST(request: NextRequest) {
 
   if (isPrismaAvailable()) {
     try {
-      const already = await prismaHasSwiped(userId, toId);
-      if (already) {
-        return NextResponse.json({ ok: true, already: true, status: "ALREADY" });
+      const prev = await prismaGetSwipeLiked(userId, toId);
+      if (prev !== null && prev === liked) {
+        return NextResponse.json({ ok: true, unchanged: true, status: "UNCHANGED" });
       }
+
+      const hadMatchRow = await prismaMatchRowExistsBetween(userId, toId);
       await prismaAddSwipe(userId, toId, liked);
+
       if (!liked) {
+        await prismaDeleteMatchBetween(userId, toId);
         return NextResponse.json({ ok: true, fastSwipe: false, status: "NO_MATCH" });
       }
-      const matchCreated = await prismaIsMutualMatch(userId, toId);
-      if (matchCreated) {
+
+      const mutual = await prismaIsMutualMatch(userId, toId);
+      let matchCreated = false;
+      if (mutual) {
         await prismaAddMatch(userId, toId);
-        const updated = adjustIntervalsAfterLike(
-          typeof internalInterval === "number" ? internalInterval : 12,
-          typeof externalInterval === "number" ? externalInterval : 22
-        );
+        matchCreated = !hadMatchRow;
+      }
+      const updated = adjustIntervalsAfterLike(
+        typeof internalInterval === "number" ? internalInterval : 12,
+        typeof externalInterval === "number" ? externalInterval : 22
+      );
+      if (matchCreated) {
         return NextResponse.json({
           ok: true,
           matchCreated: true,
@@ -99,10 +120,6 @@ export async function POST(request: NextRequest) {
           externalInterval: updated.externalInterval,
         });
       }
-      const updated = adjustIntervalsAfterLike(
-        typeof internalInterval === "number" ? internalInterval : 12,
-        typeof externalInterval === "number" ? externalInterval : 22
-      );
       return NextResponse.json({
         ok: true,
         matchCreated: false,
@@ -115,13 +132,23 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  if (hasSwiped(userId, toId)) {
-    return NextResponse.json({ ok: true, already: true });
+  const existingSwipe = getSwipeFromTo(userId, toId);
+  if (existingSwipe && existingSwipe.liked === liked) {
+    return NextResponse.json({ ok: true, unchanged: true, status: "UNCHANGED" });
   }
+
+  const hadMatchPair = mutualMatchPairExists(userId, toId);
+
+  if (existingSwipe?.liked === true && liked === false) {
+    removeMutualMatchPair(userId, toId);
+  }
+
+  upsertUserSwipe(userId, toId, liked);
+
   if (!liked) {
-    addPass(userId, toId);
-    return NextResponse.json({ ok: true, fastSwipe: false });
+    return NextResponse.json({ ok: true, fastSwipe: false, status: "NO_MATCH" });
   }
+
   if (!canPerformLike(userId)) {
     recordSuspiciousBehavior(fingerprint ?? null, deviceId ?? null, {
       reason: "fast_swipe",
@@ -134,7 +161,7 @@ export async function POST(request: NextRequest) {
       { status: 429 }
     );
   }
-  addLike(userId, toId);
+
   const updated = adjustIntervalsAfterLike(
     typeof internalInterval === "number" ? internalInterval : 12,
     typeof externalInterval === "number" ? externalInterval : 22
@@ -142,7 +169,7 @@ export async function POST(request: NextRequest) {
   let matchCreated = false;
   if (isMutualMatch(userId, toId)) {
     addMatch(userId, toId);
-    matchCreated = true;
+    matchCreated = !hadMatchPair;
   }
   return NextResponse.json({
     matchCreated,

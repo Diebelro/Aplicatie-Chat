@@ -1,6 +1,6 @@
 /**
  * Atașamente chat: imagini (jpg/png/webp) + PDF, max 10MB.
- * Imagini → Blob public; PDF → Blob private.
+ * Imagini → Blob private (servire prin /api/chat/attachment); PDF → Blob private.
  */
 
 export const CHAT_ATTACHMENT = {

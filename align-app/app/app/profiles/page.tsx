@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Trash2, MessageCircle, Users, Clock, UserPlus, Eye, ArrowUpFromLine, MessageSquare, CheckCheck, Heart, ShieldOff, Flag, Circle, Sparkles, EyeOff } from "lucide-react";
+import { Trash2, MessageCircle, Users, Clock, UserPlus, Eye, MessageSquare, CheckCheck, Heart, ShieldOff, Flag, Circle, Sparkles, EyeOff } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { QuickCallButtons } from "@/components/QuickCallButtons";
 import type { User } from "@/lib/store";
@@ -44,7 +44,6 @@ const STATUS_ICONS: Record<string, React.ComponentType<{ className?: string }>> 
   pendingReceived: UserPlus,
   visitedByYou: Eye,
   visitedYou: Eye,
-  messageSent: ArrowUpFromLine,
   messageReceived: MessageSquare,
   messageSeen: CheckCheck,
   match: Heart,
@@ -347,7 +346,6 @@ export default function ProfilesPage() {
             { key: "match", label: "Match", color: FRIEND_CARD_COLORS.match },
             { key: "messageSeen", label: "Mesaj văzut", color: FRIEND_CARD_COLORS.messageSeen },
             { key: "messageReceived", label: "Mesaj primit", color: FRIEND_CARD_COLORS.messageReceived },
-            { key: "messageSent", label: "Mesaj trimis", color: FRIEND_CARD_COLORS.messageSent },
             { key: "visitedYou", label: "A vizitat profilul tău", color: FRIEND_CARD_COLORS.visitedYou },
             { key: "visitedByYou", label: "Vizitat de tine", color: FRIEND_CARD_COLORS.visitedByYou },
             { key: "online", label: "Online", color: FRIEND_CARD_COLORS.online },
@@ -412,7 +410,6 @@ export default function ProfilesPage() {
             match: u.match,
             messageSeen: u.messageSeen,
             receivedMessage: u.receivedMessage,
-            sentMessage: u.sentMessage,
             visitedByThem: u.visitedByThem,
             visited: u.visited,
             online: u.online,
@@ -430,42 +427,52 @@ export default function ProfilesPage() {
             className={`rounded-2xl overflow-hidden card-hover flex flex-col ${!border ? "bg-dark-800 border border-dark-600" : "border"}`}
             style={borderStyle}
           >
-            <div className="w-full h-32 bg-dark-700 overflow-hidden">
-              <SilhouetteAvatar
-                photoUrl={u.photos?.[0]}
-                gender={u.gender}
-                name={u.name}
-                className="w-full h-32"
-                imgClassName="w-full h-32 object-cover"
-              />
-            </div>
-            <div className="flex-1 min-w-0 p-4">
-              <p className="font-semibold text-white truncate">{displayName(u.username ?? u.name)}</p>
-              {statusLabel && (
-                <p className="text-xs mt-0.5 flex items-center gap-1 font-medium" style={{ color: stateColor || border || undefined }}>
-                  {IconComp && (
-                    <span className="shrink-0" style={{ color: stateColor || border || undefined }}>
-                      <IconComp className="w-3.5 h-3.5" />
-                    </span>
-                  )}
-                  {statusLabel}
+            <Link
+              href={`/app/user/${u.id}`}
+              className="block flex-1 min-w-0 cursor-pointer text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-dark-900 rounded-t-2xl group"
+              aria-label={`Vezi profilul: ${displayName(u.username ?? u.name)}`}
+            >
+              <div
+                className={`w-full h-32 bg-dark-700 overflow-hidden transition-[filter] group-hover:brightness-110 ${
+                  statusKey === "notVisited" ? "brightness-[0.9] saturate-[0.95]" : ""
+                }`}
+              >
+                <SilhouetteAvatar
+                  photoUrl={u.photos?.[0]}
+                  gender={u.gender}
+                  name={u.name}
+                  className="w-full h-32"
+                  imgClassName="w-full h-32 object-cover"
+                />
+              </div>
+              <div className="flex-1 min-w-0 p-4">
+                <p className="font-semibold text-white truncate group-hover:text-brand-200 transition-colors">{displayName(u.username ?? u.name)}</p>
+                {statusLabel && (
+                  <p className="text-xs mt-0.5 flex items-center gap-1 font-medium" style={{ color: stateColor || border || undefined }}>
+                    {IconComp && (
+                      <span className="shrink-0" style={{ color: stateColor || border || undefined }}>
+                        <IconComp className="w-3.5 h-3.5" />
+                      </span>
+                    )}
+                    {statusLabel}
+                  </p>
+                )}
+                {u.bio?.trim() && (
+                  <p className="text-sm text-dark-500 mt-1 line-clamp-2">
+                    {u.bio.trim()}
+                  </p>
+                )}
+                <p className="text-xs text-dark-400 mt-1 flex flex-wrap gap-x-2 gap-y-0">
+                  {u.age != null && <span>{u.age} ani</span>}
+                  {u.gender && <span>{u.gender === "male" ? "Bărbat" : u.gender === "female" ? "Femeie" : "Altul"}</span>}
+                  {u.height != null && <span>{u.height} cm</span>}
+                  {u.eyeColor && <span>ochi {u.eyeColor}</span>}
+                  {u.hairColor && <span>păr {u.hairColor}</span>}
+                  {u.city && <span>{u.city}</span>}
+                  <span title="Distanță față de tine">{getDistanceDisplay(u)}</span>
                 </p>
-              )}
-              {u.bio?.trim() && (
-                <p className="text-sm text-dark-500 mt-1 line-clamp-2">
-                  {u.bio.trim()}
-                </p>
-              )}
-              <p className="text-xs text-dark-400 mt-1 flex flex-wrap gap-x-2 gap-y-0">
-                {u.age != null && <span>{u.age} ani</span>}
-                {u.gender && <span>{u.gender === "male" ? "Bărbat" : u.gender === "female" ? "Femeie" : "Altul"}</span>}
-                {u.height != null && <span>{u.height} cm</span>}
-                {u.eyeColor && <span>ochi {u.eyeColor}</span>}
-                {u.hairColor && <span>păr {u.hairColor}</span>}
-                {u.city && <span>{u.city}</span>}
-                <span title="Distanță față de tine">{getDistanceDisplay(u)}</span>
-              </p>
-            </div>
+              </div>
+            </Link>
             <div className="flex flex-wrap items-center justify-between gap-2 px-4 pb-4 pt-3 border-t border-dark-600">
               <div className="flex items-center gap-2 shrink-0">
                 <AddFriendButton

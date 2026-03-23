@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUserId } from "@/lib/sessionAuth";
 import { isPrismaAvailable, prismaGetUserRole, prismaGetMessagesBetween, prismaCreateAdminLog, findUserOrPrisma } from "@/lib/repo-prisma";
+import { toClientMessageAttachmentFields } from "@/lib/chatAttachmentProxy";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const userId = getAuthenticatedUserId(request);
@@ -13,7 +14,15 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   if (parts.length !== 2) return NextResponse.json({ error: "ID invalid (userId1_userId2)." }, { status: 400 });
   const [userAId, userBId] = parts;
   try {
-    const messages = await prismaGetMessagesBetween(userAId, userBId);
+    const raw = await prismaGetMessagesBetween(userAId, userBId);
+    const messages = raw.map((m) => {
+      const att = toClientMessageAttachmentFields({
+        id: m.id,
+        attachmentUrl: m.attachmentUrl,
+        attachmentContentType: m.attachmentContentType,
+      });
+      return { ...m, attachmentUrl: att.attachmentUrl, attachmentContentType: att.attachmentContentType };
+    });
     const userA = await findUserOrPrisma(userAId);
     const userB = await findUserOrPrisma(userBId);
     await prismaCreateAdminLog(userId, "VIEW_CONVERSATION", id);

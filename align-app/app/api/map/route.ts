@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { findUserById, getUserPosition, getOnlineUsersWithPositions, setUserActive } from "@/lib/store";
+import { getProfileImageUrl } from "@/lib/profileImage";
 import {
   isPrismaAvailable,
   findUserOrPrisma,
   prismaGetMyLocation,
   prismaGetVisibleUsersForMap,
+  prismaGetFirstProfilePhotoUrl,
   prismaUpdateLastActive,
 } from "@/lib/repo-prisma";
 import { resolveRequestUserId } from "@/lib/sessionAuth";
@@ -26,10 +28,13 @@ export async function GET(request: Request) {
         });
       }
       await prismaUpdateLastActive(userId);
-      const myPos = await prismaGetMyLocation(userId);
-      const users = await prismaGetVisibleUsersForMap(userId);
+      const [myPos, myPhoto, users] = await Promise.all([
+        prismaGetMyLocation(userId),
+        prismaGetFirstProfilePhotoUrl(userId),
+        prismaGetVisibleUsersForMap(userId),
+      ]);
       return NextResponse.json({
-        me: myPos ? { lat: myPos.lat, lng: myPos.lng } : null,
+        me: myPos ? { lat: myPos.lat, lng: myPos.lng, photoUrl: myPhoto } : null,
         users,
       });
     } catch {
@@ -46,10 +51,13 @@ export async function GET(request: Request) {
     });
   }
   setUserActive(userId);
+  const meUser = findUserById(userId);
   const myPos = getUserPosition(userId);
   const users = getOnlineUsersWithPositions(userId);
   return NextResponse.json({
-    me: myPos ? { lat: myPos.lat, lng: myPos.lng } : null,
+    me: myPos
+      ? { lat: myPos.lat, lng: myPos.lng, photoUrl: getProfileImageUrl(meUser) }
+      : null,
     users,
   });
 }

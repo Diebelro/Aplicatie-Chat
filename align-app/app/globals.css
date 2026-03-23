@@ -71,3 +71,9 @@ body {
 .gradient-text {
   @apply bg-gradient-to-r from-brand-400 via-teal-300 to-emerald-400 bg-clip-text text-transparent;
 }
+
+/* Leaflet: markeri cu avatar (fără fundal alb implicit) */
+.leaflet-container .map-avatar-divicon {
+  background: transparent !important;
+  border: none !important;
+}

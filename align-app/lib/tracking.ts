@@ -61,7 +61,6 @@ export const track = {
   view_profile: (profileId: string) => trackEvent("view_profile", { profile_id: profileId }),
   like_sent: (toId: string) => trackEvent("like_sent", { to_id: toId }),
   match_created: (otherId: string) => trackEvent("match_created", { other_id: otherId }),
-  message_sent: (toId: string) => trackEvent("message_sent", { to_id: toId }),
   rewarded: () => trackEvent("rewarded", {}),
   subscription: (planId: string) => trackEvent("subscription", { plan_id: planId }),
 };

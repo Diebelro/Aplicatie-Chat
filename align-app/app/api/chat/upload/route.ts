@@ -24,7 +24,7 @@ export async function GET() {
 }
 
 /**
- * Upload un singur fișier pentru chat. Imagini (jpeg, png, webp) → public; PDF → private. Max 10MB.
+ * Upload un singur fișier pentru chat. Imagini → Blob private (acces prin /api/chat/attachment); PDF → private. Max 10MB.
  */
 export async function POST(request: NextRequest) {
   const userId = getAuthenticatedUserId(request);
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
       const pathname = `chat/${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`;
       try {
         const blob = await put(pathname, file, {
-          access: "public",
+          access: "private",
           contentType,
           addRandomSuffix: true,
           token: tokenImages,

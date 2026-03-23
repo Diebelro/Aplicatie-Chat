@@ -433,8 +433,10 @@ function SignUpContent() {
             <span className="text-dark-500 text-xs">
               Prin continuare, ești de acord cu{" "}
               <Link href="/terms" className="text-brand-400 hover:underline">Termenii</Link>
-              {" "}și{" "}
-              <Link href="/privacy" className="text-brand-400 hover:underline">Politica de Confidențialitate</Link>.
+              {", "}
+              <Link href="/privacy" className="text-brand-400 hover:underline">Politica de Confidențialitate</Link>
+              {" și "}
+              <Link href="/cookies" className="text-brand-400 hover:underline">Politica cookie</Link>.
             </span>
           </label>
           <div className="mt-2 pt-2 border-t border-dark-600/60">

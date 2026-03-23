@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { getPublicAppUrl } from "@/lib/appUrl";
 import { createUser, findUserByEmail, findUserByUsername, setPassword, getStoreId, getUsersCount, type Gender } from "@/lib/store";
 import { hashPassword, normalizeAuthEmail } from "@/lib/auth";
+import { isResendConfigured, sendEmailVerificationEmail } from "@/lib/email";
 import { verifyRecaptchaV3, RECAPTCHA_SUSPECT_THRESHOLD } from "@/lib/recaptcha";
 import { checkSignupRateLimit, recordSignup } from "@/lib/rateLimitSignup";
 import { createDevice, setDeviceTrusted } from "@/lib/devices";
@@ -10,6 +12,7 @@ import {
   prismaFindUserByEmailForLogin,
   prismaFindUserByUsername,
   prismaCreateUserWithProfile,
+  prismaCreateEmailVerificationToken,
   prismaUpsertDevice,
 } from "@/lib/repo-prisma";
 
@@ -182,6 +185,15 @@ export async function POST(request: Request) {
           birthDate: birthDateStr,
           gender: genderVal,
         });
+        try {
+          if (isResendConfigured()) {
+            const { token } = await prismaCreateEmailVerificationToken(user.id);
+            const verifyLink = `${getPublicAppUrl()}/verify-email?token=${encodeURIComponent(token)}`;
+            await sendEmailVerificationEmail({ to: user.email, verifyLink });
+          }
+        } catch (evErr) {
+          console.error("[auth signup] Email verificare", evErr);
+        }
         const dev = await prismaUpsertDevice({
           userId: user.id,
           fingerprint: fingerprintForDevice,

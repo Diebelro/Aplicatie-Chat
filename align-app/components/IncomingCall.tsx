@@ -28,6 +28,10 @@ export default function IncomingCall() {
   const [loading, setLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const incomingRef = useRef<IncomingCallData | null>(null);
+  const onCallPageRef = useRef(onCallPage);
+  incomingRef.current = incoming;
+  onCallPageRef.current = onCallPage;
 
   const fetchIncoming = useCallback(() => {
     fetch("/api/call/incoming", {
@@ -70,6 +74,42 @@ export default function IncomingCall() {
     };
   }, [fetchIncoming, onCallPage]);
 
+  /** Back browser cât e overlay „te sună”: respinge pe server ca să nu reapară la următorul back. */
+  useEffect(() => {
+    if (onCallPage || !incoming) return;
+    const roomId = incoming.roomId;
+    const onPopState = () => {
+      const cur = incomingRef.current;
+      if (!cur || cur.roomId !== roomId) return;
+      markIncomingCallDismissed(cur.roomId);
+      void fetch("/api/call/reject", {
+        method: "POST",
+        headers: getAuthHeaders(),
+        credentials: "same-origin",
+        keepalive: true,
+      }).catch(() => {});
+      setIncoming(null);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [incoming?.roomId, onCallPage]);
+
+  /** Ieșire din /app (logout etc.) cu overlay activ: curăță pending. */
+  useEffect(() => {
+    return () => {
+      if (onCallPageRef.current) return;
+      const cur = incomingRef.current;
+      if (!cur) return;
+      markIncomingCallDismissed(cur.roomId);
+      void fetch("/api/call/reject", {
+        method: "POST",
+        headers: getAuthHeaders(),
+        credentials: "same-origin",
+        keepalive: true,
+      }).catch(() => {});
+    };
+  }, []);
+
   const handleAnswer = () => {
     if (!incoming || loading) return;
     setActionError(null);
@@ -87,6 +127,8 @@ export default function IncomingCall() {
         }
         if (d.roomId) {
           const q = d.audioOnly ? "?audio=1" : "";
+          /** După accept, serverul curăță pending; marchează local ca să nu reapară overlay la poll între navigări. */
+          markIncomingCallDismissed(d.roomId);
           /** Nu setIncoming(null) înainte de navigare — altfel dispare overlay-ul și se vede o clipă pagina de dedesubt (ex. mesaje). */
           router.push(`/app/call/${d.roomId}${q}`);
         } else {

@@ -312,8 +312,10 @@ function LoginContent() {
             <span className="text-dark-500 text-xs">
               Prin continuare, ești de acord cu{" "}
               <Link href="/terms" className="text-brand-400 hover:underline">Termenii</Link>
-              {" "}și{" "}
-              <Link href="/privacy" className="text-brand-400 hover:underline">Politica de Confidențialitate</Link>.
+              {", "}
+              <Link href="/privacy" className="text-brand-400 hover:underline">Politica de Confidențialitate</Link>
+              {" și "}
+              <Link href="/cookies" className="text-brand-400 hover:underline">Politica cookie</Link>.
             </span>
           </label>
           <button
@@ -335,6 +337,13 @@ function LoginContent() {
           <Link href="/forgot-password" className="text-brand-400 hover:underline">
             Ai uitat parola?
           </Link>
+        </p>
+        <p className="mt-6 text-center text-dark-600 text-[11px] leading-relaxed px-2">
+          <Link href="/terms" className="text-brand-400/80 hover:underline">Termeni</Link>
+          {" · "}
+          <Link href="/privacy" className="text-brand-400/80 hover:underline">Confidențialitate</Link>
+          {" · "}
+          <Link href="/cookies" className="text-brand-400/80 hover:underline">Cookie</Link>
         </p>
       </div>
     </div>

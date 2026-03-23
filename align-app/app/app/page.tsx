@@ -19,7 +19,12 @@ import {
   type FeedItem,
 } from "@/lib/feedBuilder";
 import { getAuthHeaders } from "@/lib/authClient";
-import { getSmallCardState, FRIEND_CARD_COLORS, SMALL_CARD_STATUS_LABELS } from "@/lib/friendCardStates";
+import {
+  getSmallCardState,
+  getProfileCardChrome,
+  FRIEND_CARD_COLORS,
+  SMALL_CARD_STATUS_LABELS,
+} from "@/lib/friendCardStates";
 import { QuickCallButtons } from "@/components/QuickCallButtons";
 
 type UserWithMeta = User & {
@@ -365,20 +370,29 @@ export default function AppDiscoverPage() {
           <div className="bg-dark-800 border border-dark-600 rounded-2xl p-6 max-w-sm w-full shadow-xl text-center" onClick={(e) => e.stopPropagation()}>
             <p className="text-lg font-semibold text-white mb-1">Ești match!</p>
             <p className="text-dark-300 mb-6">Poți trimite mesaje lui {matchModal.name}.</p>
-            <div className="flex gap-3">
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setMatchModal(null)}
+                  className="flex-1 py-2.5 rounded-xl border border-dark-600 text-dark-300 hover:bg-dark-700"
+                >
+                  Rămân aici
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { router.push(`/app/chat/${matchModal.toId}`); setMatchModal(null); }}
+                  className="flex-1 py-2.5 rounded-xl bg-brand-500 text-white font-medium hover:bg-brand-600"
+                >
+                  Trimite mesaj
+                </button>
+              </div>
               <button
                 type="button"
-                onClick={() => setMatchModal(null)}
-                className="flex-1 py-2.5 rounded-xl border border-dark-600 text-dark-300 hover:bg-dark-700"
+                onClick={() => { router.push(`/app/review-swipes?focus=${encodeURIComponent(matchModal.toId)}`); setMatchModal(null); }}
+                className="w-full py-2.5 rounded-xl border border-amber-500/40 text-amber-400/95 text-sm hover:bg-amber-500/10"
               >
-                Rămân aici
-              </button>
-              <button
-                type="button"
-                onClick={() => { router.push(`/app/chat/${matchModal.toId}`); setMatchModal(null); }}
-                className="flex-1 py-2.5 rounded-xl bg-brand-500 text-white font-medium hover:bg-brand-600"
-              >
-                Trimite mesaj
+                Recenzează swipe-urile (inclusiv acest profil)
               </button>
             </div>
           </div>
@@ -511,7 +525,6 @@ export default function AppDiscoverPage() {
             { key: "match", label: "Match", color: FRIEND_CARD_COLORS.match },
             { key: "messageSeen", label: "Mesaj văzut", color: FRIEND_CARD_COLORS.messageSeen },
             { key: "messageReceived", label: "Mesaj primit", color: FRIEND_CARD_COLORS.messageReceived },
-            { key: "messageSent", label: "Mesaj trimis", color: FRIEND_CARD_COLORS.messageSent },
             { key: "visitedYou", label: "A vizitat profilul tău", color: FRIEND_CARD_COLORS.visitedYou },
             { key: "visitedByYou", label: "Vizitat de tine", color: FRIEND_CARD_COLORS.visitedByYou },
             { key: "online", label: "Online", color: FRIEND_CARD_COLORS.online },
@@ -534,8 +547,19 @@ export default function AppDiscoverPage() {
 
       {hasItems ? (
         <>
-          {currentItem.type === "profile" && current && (
-            <>
+          {currentItem.type === "profile" && current &&
+            (() => {
+                const cardChrome = getProfileCardChrome({
+                  friendStatus: current.friendStatus ?? null,
+                  match: !!(current.match || current.isMatched),
+                  messageSeen: current.messageSeen,
+                  receivedMessage: current.receivedMessage,
+                  visitedByThem: current.visitedByThem,
+                  visited: current.visited,
+                  online: current.online,
+                  isNew: current.isNew,
+                });
+                return (
               <div
                 ref={cardRef}
                 className="w-full max-w-sm touch-none select-none"
@@ -549,10 +573,11 @@ export default function AppDiscoverPage() {
                 onTouchEnd={onSwipeEnd}
               >
                 <div
-                  className="w-full aspect-[3/4] rounded-2xl overflow-hidden bg-dark-800 border border-dark-600 relative card-hover will-change-transform"
+                  className={`w-full aspect-[3/4] rounded-2xl overflow-hidden bg-dark-800 relative card-hover will-change-transform ${cardChrome.borderClassName}`}
                   style={{
                     transform: `translateX(${dragOffset}px) rotate(${dragOffset * 0.06}deg)`,
                     transition: isDragging ? "none" : "transform 0.18s cubic-bezier(0.34, 1.2, 0.64, 1)",
+                    ...cardChrome.frameStyle,
                   }}
                 >
                 {Math.abs(dragOffset) > 25 && (
@@ -573,6 +598,9 @@ export default function AppDiscoverPage() {
                     </span>
                   </div>
                 )}
+                <div
+                  className={`absolute inset-0 ${cardChrome.dimPhoto ? "brightness-[0.88] saturate-[0.92]" : ""}`}
+                >
                 {current.photos?.[0] ? (
                   <OptimizedImage
                     src={current.photos[0]}
@@ -592,6 +620,7 @@ export default function AppDiscoverPage() {
                     />
                   </div>
                 )}
+                </div>
                 <div className="absolute inset-0 p-6 flex flex-col justify-end bg-gradient-to-t from-black/80 to-transparent">
                   <h3 className="text-2xl font-bold text-white mb-1">{displayName(current.username ?? current.name)}</h3>
                   <div className="flex flex-wrap items-center gap-2 mb-2">
@@ -633,10 +662,9 @@ export default function AppDiscoverPage() {
                     {(() => {
                       const { statusKey } = getSmallCardState({
                         friendStatus: current.friendStatus ?? null,
-                        match: current.match,
+                        match: !!(current.match || current.isMatched),
                         messageSeen: current.messageSeen,
                         receivedMessage: current.receivedMessage,
-                        sentMessage: current.sentMessage,
                         visitedByThem: current.visitedByThem,
                         visited: current.visited,
                         online: current.online,
@@ -719,8 +747,8 @@ export default function AppDiscoverPage() {
                 </div>
                 </div>
               </div>
-            </>
-          )}
+                );
+              })()}
 
           {currentItem.type === "internal_ad" && (
             <div className="w-full max-w-sm aspect-[3/4] rounded-2xl overflow-hidden bg-dark-800 border border-dark-600 relative flex flex-col">

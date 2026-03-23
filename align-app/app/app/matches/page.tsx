@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, History } from "lucide-react";
 import type { User } from "@/lib/store";
 import { SilhouetteAvatar } from "@/components/SilhouetteAvatar";
 import { QuickCallButtons } from "@/components/QuickCallButtons";
@@ -80,6 +80,13 @@ export default function MatchesPage() {
               </div>
               <div className="shrink-0 flex items-center gap-2">
                 <QuickCallButtons toUserId={u.id} size="md" />
+                <Link
+                  href={`/app/review-swipes?focus=${encodeURIComponent(u.id)}`}
+                  className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-amber-400/90 hover:bg-amber-500/15 active:bg-amber-500/25 transition touch-manipulation"
+                  title="Recenzează swipe (like/pass) — se salvează doar dacă alegi din nou"
+                >
+                  <History className="w-5 h-5" />
+                </Link>
                 <Link
                   href={`/app/chat/${u.id}`}
                   className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-brand-400 hover:bg-brand-500/20 active:bg-brand-500/30 transition touch-manipulation"

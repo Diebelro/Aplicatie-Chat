@@ -38,6 +38,8 @@ export interface LegalSection {
 /** UI-only legal strings (titles + link labels). Full legal text lives in legalContent.ts. */
 export interface LegalTranslations {
   links: LegalLinkTranslations;
+  /** Intro line above cross-links on /terms, /privacy, /cookies */
+  relatedDocs: string;
   termsTitle: string;
   privacyTitle: string;
   cookiesTitle: string;

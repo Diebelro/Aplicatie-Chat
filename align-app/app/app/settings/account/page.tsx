@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
 import { getAuthHeaders } from "@/lib/authClient";
+import { LegalDocLinks } from "@/components/LegalDocLinks";
 
 export default function AccountSettingsPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -417,6 +418,11 @@ export default function AccountSettingsPage() {
             <p className="text-dark-500 text-xs mt-1">Ștergerea este permanentă. Va fi cerută parola.</p>
           </div>
         </div>
+      </section>
+
+      <section className="mt-10 pt-6 border-t border-dark-600">
+        <h3 className="text-sm font-medium text-dark-400 mb-3">Documente legale</h3>
+        <LegalDocLinks />
       </section>
 
       {deleteConfirmOpen && (

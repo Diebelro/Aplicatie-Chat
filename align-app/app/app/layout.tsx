@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { Menu, X, Compass, MessageCircle, Heart, MapPin, Video, Users, CreditCard, Settings, LogOut } from "lucide-react";
+import { Menu, X, Compass, MessageCircle, Heart, MapPin, Video, Users, CreditCard, Settings, LogOut, History } from "lucide-react";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
 import { getAuthHeaders } from "@/lib/authClient";
@@ -12,6 +12,7 @@ import { SilhouetteAvatar } from "@/components/SilhouetteAvatar";
 import IncomingCall from "@/components/IncomingCall";
 import { Watermark } from "@/components/Watermark";
 import { displayName } from "@/lib/displayName";
+import { LegalDocLinks } from "@/components/LegalDocLinks";
 
 export default function AppLayout({
   children,
@@ -327,6 +328,9 @@ export default function AppLayout({
             )}
             <Link href="/app/call/start" className="text-dark-400 hover:text-white transition text-sm">Conferință</Link>
             <Link href="/app/matches" className="text-dark-400 hover:text-white transition">Matches</Link>
+            <Link href="/app/review-swipes" className="text-amber-400/90 hover:text-amber-300 transition text-sm" title="Recenzează like/pass">
+              Recenzare swipe
+            </Link>
             <Link href="/app/map" className="text-dark-400 hover:text-white transition">Harta</Link>
             <Link href="/app/premium" className="text-amber-400 hover:text-amber-300 transition text-sm">Premium</Link>
             <Link href="/app/settings/account" className="text-dark-400 hover:text-white transition text-sm">Setări cont</Link>
@@ -364,6 +368,7 @@ export default function AppLayout({
               </Link>
             )}
             <Link href="/app/call/start" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-dark-300 hover:bg-dark-700"><Video className="w-5 h-5 shrink-0" /> Conferință</Link>
+            <Link href="/app/review-swipes" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-amber-400 hover:bg-dark-700"><History className="w-5 h-5 shrink-0" /> Recenzare swipe</Link>
             <Link href="/app/map" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-dark-300 hover:bg-dark-700"><MapPin className="w-5 h-5 shrink-0" /> Harta</Link>
             <Link href="/app/premium" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-amber-400 hover:bg-dark-700"><CreditCard className="w-5 h-5 shrink-0" /> Premium</Link>
             <Link href="/app/settings/account" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-dark-300 hover:bg-dark-700"><Settings className="w-5 h-5 shrink-0" /> Setări cont</Link>
@@ -373,6 +378,12 @@ export default function AppLayout({
       </header>
       <main className="flex-1 flex flex-col min-h-0 max-w-4xl w-full mx-auto px-4 py-4 md:py-6 pb-24 md:pb-6">
         {children}
+        <div className="mt-10 pt-4 border-t border-dark-700/80 shrink-0">
+          <p className="text-center text-dark-500 text-[10px] md:text-xs mb-2 px-2">
+            Documente legale — te rugăm să le citești înainte de a folosi serviciul.
+          </p>
+          <LegalDocLinks className="text-dark-500" />
+        </div>
       </main>
       {/* Bottom nav: doar pe mobile */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 border-t border-dark-600 bg-dark-900/98 backdrop-blur z-20 flex items-center justify-around safe-area-inset-bottom touch-manipulation" style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))", paddingTop: "0.5rem" }}>
