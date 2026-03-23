@@ -25,7 +25,8 @@ Fără aceste 3, login/sesiuni și DB nu vor funcționa corect în producție.
 
 | Variabilă | Pentru ce | Dacă lipsește |
 |-----------|-----------|----------------|
-| `NEXT_PUBLIC_APP_URL` | Link-uri din email (ex. reset parolă) | Linkurile din email vor pointa la localhost. |
+| `PUBLIC_APP_URL` | **Prioritar** pentru link-uri în email (reset, verificare), ex. `https://diebel.ro` | Dacă lipsește, se folosește `NEXT_PUBLIC_APP_URL`, apoi localhost în dev. |
+| `NEXT_PUBLIC_APP_URL` | URL în browser + fallback pentru link-uri email | Setează în producție la același host ca site-ul (ex. `https://diebel.ro`). |
 | `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` | reCAPTCHA la signup/login | App merge, dar fără protecție anti-bot. |
 | `RECAPTCHA_SECRET_KEY` | Validare reCAPTCHA pe server | Idem. |
 | `RESEND_API_KEY` | Trimitere email (reset parolă, verificare email) | Fluxurile de email nu vor trimite mesaje reale. |
