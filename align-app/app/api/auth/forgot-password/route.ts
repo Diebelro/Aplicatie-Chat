@@ -10,6 +10,9 @@ import {
 import { findUserByEmail } from "@/lib/store";
 import { createResetToken } from "@/lib/passwordReset";
 
+/** Citește env la runtime; nu Edge (evită surprize cu `process.env` / NODE_ENV). */
+export const runtime = "nodejs";
+
 /**
  * Nu dezvăluim dacă emailul există. Dacă Resend nu e configurat, tot returnăm ok (dev: logăm link în consolă).
  */
@@ -68,6 +71,16 @@ export async function POST(request: Request) {
       token = createResetToken(userId).token;
     }
 
+    /** Doar în development: același host ca `npm run dev` (ex. localhost:3005), ca resetarea să meargă fără site public. */
+    let devResetLink: string | undefined;
+    if (process.env.NODE_ENV === "development") {
+      try {
+        devResetLink = `${new URL(request.url).origin}/reset-password?token=${encodeURIComponent(token)}`;
+      } catch {
+        /* ignore */
+      }
+    }
+
     const resetLink = `${getPublicAppUrl()}/reset-password?token=${encodeURIComponent(token)}`;
     const sent = await sendPasswordResetEmail({
       to: resolvedEmail,
@@ -84,7 +97,9 @@ export async function POST(request: Request) {
       }
     }
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json(
+      devResetLink ? { ok: true, devResetLink } : { ok: true }
+    );
   } catch (err) {
     console.error("[forgot-password]", err);
     return NextResponse.json(

@@ -7,9 +7,10 @@
  * 3. **NEXT_PUBLIC_APP_URL** — fallback.
  * 4. `http://localhost:3005` — doar dacă lipsește tot.
  *
- * În **production**, dacă URL-ul rezolvat e exact apex **`https://diebel.ro`** (certificatul site-ului
- * firmă de obicei nu acoperă același app ca `chat.diebel.ro`), îl înlocuim automat cu
- * **`https://chat.diebel.ro`** ca să nu se mai trimită linkuri care duc la `NET::ERR_CERT_COMMON_NAME_INVALID`.
+ * Dacă baza rezolvată e **`diebel.ro`** sau **`www.diebel.ro`** (apex-ul site-ului firmă — cert greșit
+ * pentru app), o înlocuim cu **`https://chat.diebel.ro`**. Regula rulează **mereu** (nu doar la
+ * `NODE_ENV=production`), ca să nu depindem de cum setează platforma `NODE_ENV` în serverless.
+ * Dezactivezi cu **`DISABLE_DIEBEL_APEX_EMAIL_REDIRECT=1`**.
  *
  * În producție pe Vercel: setează `PUBLIC_APP_URL` și `NEXT_PUBLIC_APP_URL` la același HTTPS al chat-ului.
  */
@@ -20,9 +21,8 @@ function trimEnv(value: string | undefined): string {
 
 const CHAT_PUBLIC_FALLBACK = "https://chat.diebel.ro";
 
-/** În producție: evită linkuri email către apex diebel.ro (TLS greșit / alt vhost). */
-function normalizeEmailBaseUrlInProduction(url: string): string {
-  if (process.env.NODE_ENV !== "production") return url;
+/** Apex diebel.ro / www → chat (cert + vhost aplicație). */
+function normalizeApexDiebelForEmail(url: string): string {
   if (process.env.DISABLE_DIEBEL_APEX_EMAIL_REDIRECT === "1") return url;
 
   try {
@@ -41,7 +41,7 @@ let loggedPublicUrlOnce = false;
 
 /**
  * EMAIL_PUBLIC_APP_URL → PUBLIC_APP_URL → NEXT_PUBLIC_APP_URL → localhost
- * (fără trailing slash; în production normalizare apex diebel.ro → chat.diebel.ro)
+ * (fără trailing slash; normalizare apex diebel.ro → chat.diebel.ro)
  */
 export function getPublicAppUrl(): string {
   const fromEmail = trimEnv(process.env.EMAIL_PUBLIC_APP_URL);
@@ -50,7 +50,7 @@ export function getPublicAppUrl(): string {
   let resolved =
     fromEmail || fromPublic || fromNext || "http://localhost:3005";
 
-  resolved = normalizeEmailBaseUrlInProduction(resolved);
+  resolved = normalizeApexDiebelForEmail(resolved);
 
   if (process.env.NODE_ENV === "development" && !loggedPublicUrlOnce) {
     loggedPublicUrlOnce = true;
