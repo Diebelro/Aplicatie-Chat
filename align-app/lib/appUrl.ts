@@ -27,7 +27,8 @@ function normalizeEmailBaseUrlInProduction(url: string): string {
 
   try {
     const u = new URL(url);
-    if (u.hostname === "diebel.ro" && !u.port) {
+    const host = u.hostname.toLowerCase();
+    if (!u.port && (host === "diebel.ro" || host === "www.diebel.ro")) {
       return CHAT_PUBLIC_FALLBACK;
     }
   } catch {
