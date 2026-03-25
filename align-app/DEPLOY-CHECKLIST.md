@@ -25,8 +25,9 @@ Fără aceste 3, login/sesiuni și DB nu vor funcționa corect în producție.
 
 | Variabilă | Pentru ce | Dacă lipsește |
 |-----------|-----------|----------------|
-| `PUBLIC_APP_URL` | **Prioritar** pentru link-uri în email (reset, verificare), ex. `https://diebel.ro` | Dacă lipsește, se folosește `NEXT_PUBLIC_APP_URL`, apoi localhost în dev. |
-| `NEXT_PUBLIC_APP_URL` | URL în browser + fallback pentru link-uri email | Setează în producție la același host ca site-ul (ex. `https://diebel.ro`). |
+| `EMAIL_PUBLIC_APP_URL` | Opțional: **doar** baza URL pentru linkuri din email (override peste `PUBLIC_APP_URL`) | Folosește dacă vrei explicit `https://chat.diebel.ro` fără să atingi alte setări. |
+| `PUBLIC_APP_URL` | **Prioritar** (după `EMAIL_PUBLIC_APP_URL`) pentru link-uri în email (reset, verificare) | Ex. `https://chat.diebel.ro`. În **production**, dacă e greșit `https://diebel.ro` (apex), codul înlocuiește automat cu `https://chat.diebel.ro` (vezi `lib/appUrl.ts`). Excepție: `DISABLE_DIEBEL_APEX_EMAIL_REDIRECT=1`. |
+| `NEXT_PUBLIC_APP_URL` | URL în browser + fallback pentru link-uri email | Același ca `PUBLIC_APP_URL` + `NEXTAUTH_URL` (ex. `https://chat.diebel.ro`). |
 | `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` | reCAPTCHA la signup/login | App merge, dar fără protecție anti-bot. |
 | `RECAPTCHA_SECRET_KEY` | Validare reCAPTCHA pe server | Idem. |
 | `RESEND_API_KEY` | Trimitere email (reset parolă, verificare email) | Fluxurile de email nu vor trimite mesaje reale. |
