@@ -1,4 +1,5 @@
-# Verificare automată la push/PR (fără secrets). Deploy: Vercel → import repo, Root Directory = align-app
+# Verificare automată la push/PR (fără secrets).
+# Deploy Production/Preview: Vercel import repo + Root Directory = align-app → vezi align-app/docs/VERCEL-GIT-ROLLBACK.md
 name: align-app CI
 
 on:
@@ -26,3 +27,31 @@ jobs:
           cache-dependency-path: align-app/package-lock.json
       - run: npm ci
       - run: npm run lint
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: align-app/package-lock.json
+      - run: npm ci
+      - run: npm run test
+
+  build:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/ci
+      NEXTAUTH_SECRET: ci-build-placeholder-min-32-chars-long
+      NEXTAUTH_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: align-app/package-lock.json
+      - run: npm ci
+      - run: npm run build
