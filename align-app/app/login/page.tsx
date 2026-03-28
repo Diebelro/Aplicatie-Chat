@@ -172,7 +172,11 @@ function LoginContent() {
       } else {
         const text = await res.text();
         if (text.trim().startsWith("<")) {
-          setError("Serverul nu a răspuns corect. Verifică că serverul rulează (npm run dev) și încearcă din nou.");
+          setError(
+            process.env.NODE_ENV === "development"
+              ? "Răspuns neașteptat de la server. Verifică că rulează dev serverul și încearcă din nou."
+              : "Serverul nu a răspuns corect. Încearcă din nou."
+          );
           return;
         }
         try {
@@ -243,13 +247,8 @@ function LoginContent() {
         </Link>
         <h1 className="text-2xl font-semibold text-white mt-4">Log in</h1>
         <p className="text-sm text-dark-300 mt-2">
-          Introdu email-ul și parola cu care te-ai înregistrat.
-        </p>
-        <p className="text-sm text-dark-300 mt-2">
-          Folosește email-ul și parola contului. Dacă nu ai cont, <Link href="/signup" className="text-brand-400 hover:underline">înregistrează-te</Link>.
-        </p>
-        <p className="text-sm text-dark-400 mt-1">
-          Dacă ai repornit serverul (npm run dev), datele se pierd — creează cont din nou.
+          Email și parola contului. Fără cont?{" "}
+          <Link href="/signup" className="text-brand-400 hover:underline">Înregistrare</Link>.
         </p>
 
         {soonMessage && (
@@ -262,14 +261,10 @@ function LoginContent() {
           <AuthProviders compact />
         </div>
         <p className="text-xs text-dark-400 text-center mt-2">
-          Google, Facebook etc. vor fi disponibile în curând. Folosește email și parola mai jos.
+          Rețele sociale în curând — conectare cu formularul de mai jos.
         </p>
 
-        <p className="text-sm text-dark-300 opacity-70 text-center mt-4">
-          sau continuă cu email
-        </p>
-
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+        <form onSubmit={handleSubmit} className="space-y-4 mt-3">
           <label htmlFor="login-email" className="block text-sm font-medium text-dark-300">
             Email
           </label>

@@ -254,26 +254,27 @@ function SignUpContent() {
         </Link>
         <h1 className="text-2xl font-semibold text-white mt-4">Creează cont</h1>
         <p className="text-sm text-dark-300 mt-2">
-          La înregistrare completezi email, parolă, data nașterii (min. 18 ani) și genul. Numele, orașul și restul le completezi mai târziu din „Completează profilul”.
+          {searchParams.get("email") ? (
+            <>
+              <span className="text-brand-400/90">Email precompletat.</span> Adaugi parola, data nașterii (min. 18 ani) și
+              genul. Nume și oraș mai târziu din „Completează profilul”.
+            </>
+          ) : (
+            <>
+              Email, parolă, data nașterii (min. 18 ani) și genul. Nume, oraș și restul din „Completează profilul” după
+              înregistrare.
+            </>
+          )}
         </p>
-        {searchParams.get("email") && (
-          <p className="text-brand-400/90 text-sm mt-2">
-            Reconectare după repornire server: email-ul e deja completat, introdu parola și apasă Creează cont.
-          </p>
-        )}
 
         <div className="mt-6">
           <AuthProviders compact />
         </div>
         <p className="text-xs text-dark-400 text-center mt-2">
-          Google, Facebook etc. vor fi disponibile în curând. Folosește email și parola mai jos.
+          Rețele sociale în curând — completezi formularul de mai jos.
         </p>
 
-        <p className="text-sm text-dark-300 opacity-70 text-center mt-4">
-          sau continuă cu email
-        </p>
-
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+        <form onSubmit={handleSubmit} className="space-y-4 mt-3">
           <div>
             <label htmlFor="signup-email" className="block text-xs text-dark-400 mb-1">Email</label>
             <input
