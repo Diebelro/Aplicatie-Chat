@@ -2,6 +2,7 @@ import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "@/lib/db";
 import { verifyPassword } from "@/lib/auth";
+import { resolveNextAuthRedirect } from "@/lib/auth-redirect";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -48,11 +49,7 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
     redirect({ url, baseUrl }) {
-      const u = url.startsWith("/") ? new URL(url, baseUrl) : new URL(url);
-      if (u.origin !== baseUrl) return baseUrl;
-      const path = u.pathname;
-      if (path === "/api/auth/signin" || path === "/login" || path === "/signup") return `${baseUrl}/descopera`;
-      return url;
+      return resolveNextAuthRedirect(url, baseUrl);
     },
   },
   pages: {

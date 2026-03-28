@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUserId } from "@/lib/sessionAuth";
-import { findUserOrPrisma, isPrismaAvailable, prismaGetUserRole, prismaCreateAdminLog, prismaGetPremiumSubscription } from "@/lib/repo-prisma";
+import {
+  findUserOrPrisma,
+  isPrismaAvailable,
+  prismaGetUserRole,
+  prismaCreateAdminLog,
+  prismaGetPremiumSubscription,
+  prismaGetLatestBanLogForUser,
+  prismaGetReportsForReportedUser,
+} from "@/lib/repo-prisma";
 import { prisma } from "@/lib/db";
 
 export async function GET(_r: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -16,9 +24,28 @@ export async function GET(_r: NextRequest, { params }: { params: Promise<{ id: s
   const premiumUntil = premium?.currentPeriodEnd && premium.status === "active"
     ? premium.currentPeriodEnd.toISOString()
     : null;
+
+  const [banLog, reportsAboutUser] = user.isBanned
+    ? await Promise.all([prismaGetLatestBanLogForUser(id), prismaGetReportsForReportedUser(id)])
+    : await Promise.all([Promise.resolve(null), prismaGetReportsForReportedUser(id)]);
+
   return NextResponse.json({
     user,
     premium: premium ? { active: premium.status === "active", planId: premium.planId, premiumUntil } : { active: false, planId: null, premiumUntil: null },
+    banLog: banLog
+      ? {
+          reason: banLog.details,
+          at: banLog.createdAt.toISOString(),
+          adminEmail: banLog.adminEmail ?? null,
+        }
+      : null,
+    reportsAboutUser: reportsAboutUser.map((r) => ({
+      id: r.id,
+      reporterId: r.reporterId,
+      reason: r.reason,
+      createdAt: r.createdAt.toISOString(),
+      reporterEmail: r.reporterEmail ?? null,
+    })),
   });
 }
 

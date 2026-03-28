@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { Menu, X, Compass, MessageCircle, Heart, MapPin, Video, Users, CreditCard, Settings, LogOut, History } from "lucide-react";
+import { Menu, X, Compass, MessageCircle, Heart, MapPin, Video, Users, CreditCard, Settings, LogOut, History, Shield, Lightbulb } from "lucide-react";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
 import { getAuthHeaders } from "@/lib/authClient";
@@ -239,22 +239,65 @@ export default function AppLayout({
   };
   useEffect(() => {
     if (!user?.id) return;
-    fetchUnread();
-    fetchMissed();
-    fetchMatchesForNotification();
-    const t = setInterval(() => { fetchUnread(); fetchMissed(); }, 1000);
-    const tMatches = setInterval(fetchMatchesForNotification, 15000);
-    const onFocus = () => {
+    const UNREAD_MISS_MS = 2500;
+    const MATCHES_MS = 15000;
+    let unreadMissInterval: ReturnType<typeof setInterval> | null = null;
+    let matchesInterval: ReturnType<typeof setInterval> | null = null;
+
+    const clearPolls = () => {
+      if (unreadMissInterval != null) {
+        clearInterval(unreadMissInterval);
+        unreadMissInterval = null;
+      }
+      if (matchesInterval != null) {
+        clearInterval(matchesInterval);
+        matchesInterval = null;
+      }
+    };
+
+    const refreshAll = () => {
       fetchUnread();
       fetchMissed();
       fetchMatchesForNotification();
     };
-    const onConversationRead = () => { fetchUnread(); };
+
+    const startPolls = () => {
+      clearPolls();
+      if (typeof document === "undefined" || document.visibilityState !== "visible") return;
+      unreadMissInterval = setInterval(() => {
+        fetchUnread();
+        fetchMissed();
+      }, UNREAD_MISS_MS);
+      matchesInterval = setInterval(fetchMatchesForNotification, MATCHES_MS);
+    };
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        refreshAll();
+        startPolls();
+      } else {
+        clearPolls();
+      }
+    };
+
+    if (typeof document !== "undefined" && document.visibilityState === "visible") {
+      refreshAll();
+      startPolls();
+    }
+
+    document.addEventListener("visibilitychange", onVisibility);
+    const onFocus = () => {
+      refreshAll();
+      if (typeof document !== "undefined" && document.visibilityState === "visible") startPolls();
+    };
+    const onConversationRead = () => {
+      fetchUnread();
+    };
     window.addEventListener("focus", onFocus);
     window.addEventListener("align:conversation-read", onConversationRead);
     return () => {
-      clearInterval(t);
-      clearInterval(tMatches);
+      clearPolls();
+      document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("focus", onFocus);
       window.removeEventListener("align:conversation-read", onConversationRead);
     };
@@ -288,6 +331,8 @@ export default function AppLayout({
   }
 
   if (!user) return null;
+
+  const isAdmin = user.role === "ADMIN" || user.role === "SUPERADMIN";
 
   return (
     <div className="min-h-screen bg-dark-900 flex flex-col min-h-[100dvh]">
@@ -333,6 +378,19 @@ export default function AppLayout({
             </Link>
             <Link href="/app/map" className="text-dark-400 hover:text-white transition">Harta</Link>
             <Link href="/app/premium" className="text-amber-400 hover:text-amber-300 transition text-sm">Premium</Link>
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className="text-red-300 hover:text-red-200 transition text-sm inline-flex items-center gap-1"
+                title="Panou administrare"
+              >
+                <Shield className="w-4 h-4 shrink-0" aria-hidden />
+                Admin
+              </Link>
+            )}
+            <Link href="/app/settings/feedback" className="text-dark-400 hover:text-white transition text-sm">
+              Propuneri
+            </Link>
             <Link href="/app/settings/account" className="text-dark-400 hover:text-white transition text-sm">Setări cont</Link>
             <div className="flex items-center gap-2 border-l border-dark-600 pl-3">
               <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 bg-dark-700">
@@ -371,6 +429,12 @@ export default function AppLayout({
             <Link href="/app/review-swipes" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-amber-400 hover:bg-dark-700"><History className="w-5 h-5 shrink-0" /> Recenzare swipe</Link>
             <Link href="/app/map" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-dark-300 hover:bg-dark-700"><MapPin className="w-5 h-5 shrink-0" /> Harta</Link>
             <Link href="/app/premium" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-amber-400 hover:bg-dark-700"><CreditCard className="w-5 h-5 shrink-0" /> Premium</Link>
+            {isAdmin && (
+              <Link href="/admin" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-red-300 hover:bg-dark-700">
+                <Shield className="w-5 h-5 shrink-0" /> Admin
+              </Link>
+            )}
+            <Link href="/app/settings/feedback" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-dark-300 hover:bg-dark-700"><Lightbulb className="w-5 h-5 shrink-0" /> Propuneri și feedback</Link>
             <Link href="/app/settings/account" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-dark-300 hover:bg-dark-700"><Settings className="w-5 h-5 shrink-0" /> Setări cont</Link>
             <button type="button" onClick={() => { logout(); setMobileMenuOpen(false); }} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-red-400 hover:bg-dark-700 text-left w-full"><LogOut className="w-5 h-5 shrink-0" /> Ieșire</button>
           </div>

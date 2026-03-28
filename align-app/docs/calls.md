@@ -87,7 +87,7 @@ Notă: `lib/webrtc/signaling.ts` evită dublarea path-ului `/ws` dacă URL-ul î
 
 API (confirmare implementare — **nu loga secrete**):
 
-- **`GET /api/call/ice-config`** — `iceServers` cu `username` / `credential` efemere, **`ttl`: 600** (10 min), fără `TURN_AUTH_SECRET` în JSON. Rate limit 120/min per user.
+- **`GET /api/call/ice-config`** — autentificare obligatorie (ca `signaling-token`), `iceServers` cu credențiale efemere, **`ttl`** în răspuns; rate limit per user (vezi `app/api/call/ice-config/route.ts`).
 - **`GET /api/call/signaling-token`** — `token` HMAC, **`expiresInMs`: 600000** (10 min).
 
 Validare: `lib/env/webrtcConfig.ts` (Zod).
@@ -163,5 +163,5 @@ Semnalizare dev: `npm run signaling:dev` + `NEXT_PUBLIC_SIGNALING_WS_URL=ws://12
 ## Known issues
 
 - **Vercel** nu poate găzdui WS persistent — semnalizarea rămâne pe VPS.
-- **Conferință multi-participant** (`align-conf-*`): necesită SFU — mesaj explicit în UI.
+- **Conferință** (`align-conf-*`): mesh WebRTC între browsere (fără SFU), până la **6** participanți (setabil pe server: `SIGNALING_MAX_CONFERENCE_PEERS`). Consum mare de CPU/rețea la multe persoane; pentru grupuri mari e recomandat SFU.
 - **Jitsi** (`lib/useJitsiRoom.ts`): legacy, nefolosit de `CallUI`.

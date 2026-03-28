@@ -60,6 +60,11 @@ export type UseWebRtcCallOptions = {
 /** Heartbeat client 15–30s (server TTL ~75s implicit). */
 const HEARTBEAT_MS = 25_000;
 
+type PeerBundle = {
+  pc: RTCPeerConnection;
+  iceQueue: RTCIceCandidateInit[];
+};
+
 export function useWebRtcCall({
   roomId,
   userId,
@@ -83,6 +88,8 @@ export function useWebRtcCall({
   });
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
+  /** Conferință mesh: câte un RTCPeerConnection per participant distant. */
+  const peerMapRef = useRef<Map<string, PeerBundle>>(new Map());
   const wsRef = useRef<WebSocket | null>(null);
   const iceQueueRef = useRef<RTCIceCandidateInit[]>([]);
   const remoteIdRef = useRef<string | null>(null);
@@ -135,8 +142,30 @@ export function useWebRtcCall({
     });
     screenStreamRef.current = null;
 
+    for (const [, bundle] of peerMapRef.current) {
+      try {
+        bundle.pc.getReceivers().forEach((r) => {
+          try {
+            r.track?.stop();
+          } catch {}
+        });
+        bundle.pc.getSenders().forEach((x) => {
+          try {
+            x.track?.stop();
+          } catch {}
+        });
+        bundle.pc.close();
+      } catch {}
+    }
+    peerMapRef.current.clear();
+
     const pc = pcRef.current;
     if (pc) {
+      pc.getReceivers().forEach((r) => {
+        try {
+          r.track?.stop();
+        } catch {}
+      });
       pc.getSenders().forEach((x) => {
         try {
           x.track?.stop();
@@ -157,6 +186,9 @@ export function useWebRtcCall({
       } catch {}
     });
     localStreamRef.current = null;
+    callStartRef.current = 0;
+    reconnectAttemptRef.current = 0;
+    stableNetworkIntervalsRef.current = 0;
   }, [clearStatsMonitor]);
 
   const leave = useCallback(() => {
@@ -183,9 +215,13 @@ export function useWebRtcCall({
       });
       return { ...s, muted };
     });
-    pcRef.current?.getSenders().forEach((sender) => {
-      if (sender.track?.kind === "audio") sender.track.enabled = !muted;
-    });
+    const applyAudio = (pc: RTCPeerConnection) => {
+      pc.getSenders().forEach((sender) => {
+        if (sender.track?.kind === "audio") sender.track.enabled = !muted;
+      });
+    };
+    pcRef.current && applyAudio(pcRef.current);
+    for (const [, b] of peerMapRef.current) applyAudio(b.pc);
   }, []);
 
   const setVideoMuted = useCallback((videoMuted: boolean) => {
@@ -196,17 +232,25 @@ export function useWebRtcCall({
       });
       return { ...s, videoMuted };
     });
-    pcRef.current?.getSenders().forEach((sender) => {
-      if (sender.track?.kind === "video") sender.track.enabled = !videoMuted;
-    });
+    const applyVideo = (pc: RTCPeerConnection) => {
+      pc.getSenders().forEach((sender) => {
+        if (sender.track?.kind === "video") sender.track.enabled = !videoMuted;
+      });
+    };
+    pcRef.current && applyVideo(pcRef.current);
+    for (const [, b] of peerMapRef.current) applyVideo(b.pc);
   }, []);
 
   const restoreCameraAfterScreen = useCallback(async () => {
-    const pc = pcRef.current;
     const stream = localStreamRef.current;
-    if (!pc || !stream || audioOnly) return;
-    const sender = pc.getSenders().find((s) => s.track?.kind === "video");
-    if (!sender) return;
+    if (!stream || audioOnly) return;
+    const pcs = [
+      ...(pcRef.current ? [pcRef.current] : []),
+      ...[...peerMapRef.current.values()].map((b) => b.pc),
+    ];
+    if (pcs.length === 0) return;
+    const firstSender = pcs[0].getSenders().find((s) => s.track?.kind === "video");
+    if (!firstSender) return;
     screenStreamRef.current?.getTracks().forEach((t) => {
       try {
         t.stop();
@@ -221,21 +265,27 @@ export function useWebRtcCall({
       }
       const cam = await navigator.mediaDevices.getUserMedia({ audio: false, video });
       const vt = cam.getVideoTracks()[0];
-      const old = sender.track;
-      await sender.replaceTrack(vt);
-      old?.stop();
       stream.getVideoTracks().forEach((t) => {
         stream.removeTrack(t);
         t.stop();
       });
       stream.addTrack(vt);
+      for (const pc of pcs) {
+        const sender = pc.getSenders().find((s) => s.track?.kind === "video");
+        if (!sender) continue;
+        const old = sender.track;
+        await sender.replaceTrack(vt);
+        old?.stop();
+      }
       setState((s) => ({ ...s, screenSharing: false, localStream: stream }));
       await negotiateRef.current?.();
       const cfg = getWebrtcPublicConfig();
       const maxBps = isMobileDevice() ? cfg.CALL_MAX_BITRATE_MOBILE : cfg.CALL_MAX_BITRATE_DESKTOP;
       maxVideoBpsCapRef.current = maxBps;
       adaptiveVideoBpsRef.current = Math.min(adaptiveVideoBpsRef.current, maxBps);
-      await setMaxBitrate(pc, adaptiveVideoBpsRef.current);
+      for (const pc of pcs) {
+        await setMaxBitrate(pc, adaptiveVideoBpsRef.current);
+      }
     } catch {
       /* ignore */
     }
@@ -243,11 +293,14 @@ export function useWebRtcCall({
 
   const toggleScreenShare = useCallback(async () => {
     if (!isScreenshareFeatureEnabled() || audioOnly) return;
-    const pc = pcRef.current;
     const stream = localStreamRef.current;
-    if (!pc || !stream) return;
-    const sender = pc.getSenders().find((s) => s.track?.kind === "video");
-    if (!sender) return;
+    const pcs = [
+      ...(pcRef.current ? [pcRef.current] : []),
+      ...[...peerMapRef.current.values()].map((b) => b.pc),
+    ];
+    if (!stream || pcs.length === 0) return;
+    const firstSender = pcs[0].getSenders().find((s) => s.track?.kind === "video");
+    if (!firstSender) return;
 
     if (screenStreamRef.current) {
       await restoreCameraAfterScreen();
@@ -263,14 +316,18 @@ export function useWebRtcCall({
       vt.onended = () => {
         void restoreCameraAfterScreen();
       };
-      const old = sender.track;
-      await sender.replaceTrack(vt);
-      old?.stop();
       stream.getVideoTracks().forEach((t) => {
         stream.removeTrack(t);
         t.stop();
       });
       stream.addTrack(vt);
+      for (const pc of pcs) {
+        const sender = pc.getSenders().find((s) => s.track?.kind === "video");
+        if (!sender) continue;
+        const old = sender.track;
+        await sender.replaceTrack(vt);
+        old?.stop();
+      }
       screenStreamRef.current = dm;
       setState((s) => ({ ...s, screenSharing: true, localStream: stream }));
       await negotiateRef.current?.();
@@ -278,7 +335,9 @@ export function useWebRtcCall({
       const maxBps = isMobileDevice() ? cfg.CALL_MAX_BITRATE_MOBILE : cfg.CALL_MAX_BITRATE_DESKTOP;
       maxVideoBpsCapRef.current = maxBps;
       adaptiveVideoBpsRef.current = Math.min(adaptiveVideoBpsRef.current, maxBps);
-      await setMaxBitrate(pc, adaptiveVideoBpsRef.current);
+      for (const pc of pcs) {
+        await setMaxBitrate(pc, adaptiveVideoBpsRef.current);
+      }
     } catch {
       /* utilizator a anulat sau eroare */
     }
@@ -286,18 +345,21 @@ export function useWebRtcCall({
 
   const switchCamera = useCallback(async () => {
     if (audioOnly || screenStreamRef.current) return;
-    const pc = pcRef.current;
     const stream = localStreamRef.current;
-    if (!pc || !stream) return;
-    const sender = pc.getSenders().find((s) => s.track?.kind === "video");
-    if (!sender?.track) return;
+    const pcs = [
+      ...(pcRef.current ? [pcRef.current] : []),
+      ...[...peerMapRef.current.values()].map((b) => b.pc),
+    ];
+    if (!stream || pcs.length === 0) return;
+    const firstSender = pcs[0].getSenders().find((s) => s.track?.kind === "video");
+    if (!firstSender?.track) return;
     const prefer1080 = !isMobileDevice() && typeof window !== "undefined" && window.innerWidth >= 1200;
     const baseVc = getVideoConstraints(prefer1080);
     const vids = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === "videoinput");
 
     let videoConstraints: MediaTrackConstraints = baseVc;
     if (vids.length >= 2) {
-      const currentId = sender.track.getSettings().deviceId;
+      const currentId = firstSender.track.getSettings().deviceId;
       const idx = Math.max(0, vids.findIndex((d) => d.deviceId === currentId));
       const next = vids[(idx + 1) % vids.length];
       videoConstraints = { ...baseVc, deviceId: { exact: next.deviceId } };
@@ -314,11 +376,18 @@ export function useWebRtcCall({
         video: videoConstraints,
       });
       const vt = ns.getVideoTracks()[0];
-      const old = sender.track;
-      await sender.replaceTrack(vt);
-      old.stop();
-      stream.getVideoTracks().forEach((t) => stream.removeTrack(t));
+      stream.getVideoTracks().forEach((t) => {
+        stream.removeTrack(t);
+        t.stop();
+      });
       stream.addTrack(vt);
+      for (const pc of pcs) {
+        const sender = pc.getSenders().find((s) => s.track?.kind === "video");
+        if (!sender?.track) continue;
+        const old = sender.track;
+        await sender.replaceTrack(vt);
+        old.stop();
+      }
       ns.getAudioTracks().forEach((t) => t.stop());
       setState((s) => ({ ...s, localStream: stream }));
       await negotiateRef.current?.();
@@ -326,7 +395,9 @@ export function useWebRtcCall({
       const maxBps = isMobileDevice() ? cfg.CALL_MAX_BITRATE_MOBILE : cfg.CALL_MAX_BITRATE_DESKTOP;
       maxVideoBpsCapRef.current = maxBps;
       adaptiveVideoBpsRef.current = Math.min(adaptiveVideoBpsRef.current, maxBps);
-      await setMaxBitrate(pc, adaptiveVideoBpsRef.current);
+      for (const pc of pcs) {
+        await setMaxBitrate(pc, adaptiveVideoBpsRef.current);
+      }
     } catch {
       /* ignore */
     }
@@ -343,18 +414,372 @@ export function useWebRtcCall({
   useEffect(() => {
     if (!roomId || !userId || typeof window === "undefined") return;
 
-    if (isConference) {
+    let cancelled = false;
+
+    /** Conferință mesh (fără SFU): câte un RTCPeerConnection per participant. */
+    const runConference = async (signalingBaseUrl: string) => {
+      const cfg = getWebrtcPublicConfig();
+      maxMinutesRef.current = cfg.CALL_MAX_MINUTES;
+      const maxVideoBps = isMobileDevice() ? cfg.CALL_MAX_BITRATE_MOBILE : cfg.CALL_MAX_BITRATE_DESKTOP;
       setState((s) => ({
         ...s,
-        status: "error",
+        status: "connecting",
+        error: null,
         permissionHelp: null,
-        error:
-          "Conferința în grup (link deschis) necesită încă un server media (SFU). Folosește apel 1-la-1 din profil sau chat.",
+        banner: null,
+        canSwitchCamera: false,
+        screenSharing: false,
+        remoteParticipants: [],
       }));
-      return;
-    }
 
-    let cancelled = false;
+      for (const [, b] of peerMapRef.current) {
+        try {
+          b.pc.close();
+        } catch {
+          /* ignore */
+        }
+      }
+      peerMapRef.current.clear();
+
+      let localStream: MediaStream;
+      let cameraUnavailable = false;
+      try {
+        const acquired = await acquireCallMediaStream(audioOnly);
+        localStream = acquired.stream;
+        cameraUnavailable = acquired.cameraUnavailable;
+      } catch (e) {
+        if (!cancelled) {
+          const help = formatMediaPermissionHelp(e);
+          setState((s) => ({
+            ...s,
+            status: "permission_help",
+            error: null,
+            permissionHelp: help,
+          }));
+        }
+        return;
+      }
+      if (cancelled) {
+        localStream.getTracks().forEach((t) => t.stop());
+        return;
+      }
+
+      localStreamRef.current = localStream;
+      const videoMutedNow = audioOnly || cameraUnavailable;
+      setState((s) => ({
+        ...s,
+        localStream,
+        videoMuted: videoMutedNow,
+        banner:
+          cameraUnavailable && !audioOnly
+            ? "Camera nu e activă — auzi și vorbești normal. Permite camera din setările browserului pentru acest site dacă vrei imagine."
+            : s.banner,
+      }));
+
+      try {
+        const devs = await navigator.mediaDevices.enumerateDevices();
+        const n = devs.filter((d) => d.kind === "videoinput").length;
+        if (!cancelled) {
+          const mobile = isMobileDevice();
+          setState((s) => ({
+            ...s,
+            canSwitchCamera: !audioOnly && !cameraUnavailable && (n >= 2 || mobile),
+          }));
+        }
+      } catch {
+        if (!cancelled) setState((s) => ({ ...s, canSwitchCamera: false }));
+      }
+
+      const iceRes = await fetch("/api/call/ice-config", {
+        cache: "no-store",
+        credentials: "same-origin",
+        headers: getAuthHeaders(),
+      });
+      if (!iceRes.ok) {
+        const err = await iceRes.json().catch(() => ({}));
+        if (!cancelled) {
+          const apiErr = (err as { error?: string }).error?.trim();
+          const msg =
+            iceRes.status === 401
+              ? apiErr || "Trebuie să fii autentificat pentru ICE/TURN."
+              : apiErr || "ICE/TURN indisponibil.";
+          setState((s) => ({
+            ...s,
+            status: "error",
+            error: msg,
+          }));
+        }
+        localStream.getTracks().forEach((t) => t.stop());
+        return;
+      }
+      const iceJson = (await iceRes.json()) as {
+        iceServers?: { urls: string[]; username?: string; credential?: string }[];
+      };
+      const rawServers = iceJson.iceServers;
+      if (!rawServers?.length) {
+        console.warn("[WebRTC] iceServers from /api/call/ice-config is empty");
+      }
+      const first = rawServers?.[0];
+      const iceServers = first
+        ? buildIceServers(
+            Array.isArray(first.urls) ? first.urls : [String(first.urls)],
+            first.username ?? "",
+            first.credential ?? ""
+          )
+        : [{ urls: "stun:stun.l.google.com:19302" }];
+
+      const tokRes = await fetch("/api/call/signaling-token", {
+        headers: getAuthHeaders(),
+        credentials: "same-origin",
+        cache: "no-store",
+      });
+      if (!tokRes.ok) {
+        const errBody = await tokRes.json().catch(() => ({}));
+        const apiErr = (errBody as { error?: string }).error?.trim();
+        let msg = apiErr || "Token semnalizare respins.";
+        if (tokRes.status === 401) {
+          msg = apiErr || "Neautorizat la token semnalizare — ieși și intră din nou în cont.";
+        } else if (tokRes.status === 503) {
+          msg =
+            apiErr ||
+            "Semnalizare neconfigurată pe server: pune TURN_AUTH_SECRET (min 16) și SIGNALING_TOKEN_SECRET sau NEXTAUTH_SECRET pe Vercel (Production).";
+        }
+        if (!cancelled) {
+          setState((s) => ({
+            ...s,
+            status: "error",
+            error: process.env.NODE_ENV === "development" ? `[${tokRes.status}] ${msg}` : msg,
+          }));
+        }
+        localStream.getTracks().forEach((t) => t.stop());
+        return;
+      }
+      const { token } = (await tokRes.json()) as { token?: string };
+      if (!token) {
+        if (!cancelled) setState((s) => ({ ...s, status: "error", error: "Token semnalizare lipsă." }));
+        localStream.getTracks().forEach((t) => t.stop());
+        return;
+      }
+
+      const base = signalingBaseUrl.trim();
+      if (!base) {
+        if (!cancelled) setState((s) => ({ ...s, status: "error", error: "NEXT_PUBLIC_SIGNALING_WS_URL lipsă." }));
+        localStream.getTracks().forEach((t) => t.stop());
+        return;
+      }
+      if (cancelled) {
+        localStream.getTracks().forEach((t) => t.stop());
+        return;
+      }
+
+      const wsUrl = signalingWsConnectUrl(base, token);
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+
+      const flushPeerIce = (bundle: PeerBundle) => {
+        const q = bundle.iceQueue;
+        bundle.iceQueue = [];
+        for (const c of q) {
+          void bundle.pc.addIceCandidate(c).catch(() => {});
+        }
+      };
+
+      negotiateRef.current = async () => {
+        const w = wsRef.current;
+        if (!w || w.readyState !== WebSocket.OPEN || cancelled) return;
+        for (const [peerId, { pc }] of peerMapRef.current) {
+          if (userId >= peerId) continue;
+          try {
+            const offer = await pc.createOffer({
+              offerToReceiveAudio: true,
+              offerToReceiveVideo: true,
+            });
+            await pc.setLocalDescription(offer);
+            w.send(JSON.stringify({ t: "offer", sdp: offer.sdp ?? "", to: peerId }));
+          } catch {
+            /* ignore */
+          }
+        }
+      };
+
+      const ensurePeer = async (remoteUserId: string, shouldOffer: boolean) => {
+        if (peerMapRef.current.has(remoteUserId)) return;
+        const pc = new RTCPeerConnection(buildRtcPeerConnectionConfig(iceServers));
+        peerMapRef.current.set(remoteUserId, { pc, iceQueue: [] });
+        localStream.getTracks().forEach((track) => {
+          if (track.kind === "video") {
+            try {
+              track.contentHint = "motion";
+            } catch {
+              /* ignore */
+            }
+          }
+          pc.addTrack(track, localStream);
+        });
+        applyCodecPreferencesIfSupported(pc);
+        void (async () => {
+          await setMaxBitrate(pc, maxVideoBps);
+          await applyVideoDegradationPreference(pc, "maintain-framerate");
+        })();
+
+        pc.ontrack = (ev) => {
+          if (cancelled) return;
+          applyInboundAudioPlayoutHint(ev.receiver);
+          const stream = ev.streams[0] ?? new MediaStream([ev.track]);
+          setState((s) => {
+            const others = s.remoteParticipants.filter((p) => p.id !== remoteUserId);
+            return {
+              ...s,
+              status: "connected",
+              remoteParticipants: [
+                ...others,
+                {
+                  id: remoteUserId,
+                  displayName: `Participant ${remoteUserId.slice(0, 8)}`,
+                  stream,
+                },
+              ],
+            };
+          });
+        };
+
+        pc.onicecandidate = (ev) => {
+          if (ev.candidate && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ t: "ice", candidate: ev.candidate.toJSON(), to: remoteUserId }));
+          }
+        };
+
+        if (shouldOffer) {
+          try {
+            const offer = await pc.createOffer({
+              offerToReceiveAudio: true,
+              offerToReceiveVideo: true,
+            });
+            await pc.setLocalDescription(offer);
+            ws.send(JSON.stringify({ t: "offer", sdp: offer.sdp ?? "", to: remoteUserId }));
+          } catch {
+            if (!cancelled) setState((s) => ({ ...s, error: "Nu am putut porni oferta WebRTC." }));
+          }
+        }
+      };
+
+      const applyMeshPeers = async (
+        peers: Array<{ remoteUserId?: string; shouldOffer?: boolean }>
+      ) => {
+        const valid = peers.filter(
+          (p): p is { remoteUserId: string; shouldOffer: boolean } =>
+            typeof p.remoteUserId === "string" && typeof p.shouldOffer === "boolean"
+        );
+        const targetIds = new Set(valid.map((p) => p.remoteUserId));
+        for (const id of [...peerMapRef.current.keys()]) {
+          if (!targetIds.has(id)) {
+            peerMapRef.current.get(id)?.pc.close();
+            peerMapRef.current.delete(id);
+            if (!cancelled) {
+              setState((s) => ({
+                ...s,
+                remoteParticipants: s.remoteParticipants.filter((p) => p.id !== id),
+              }));
+            }
+          }
+        }
+        for (const p of valid) {
+          if (!peerMapRef.current.has(p.remoteUserId)) {
+            await ensurePeer(p.remoteUserId, p.shouldOffer);
+          }
+        }
+      };
+
+      ws.onopen = () => {
+        ws.send(JSON.stringify({ t: "join", roomId, userId, isCaller: false }));
+        heartbeatRef.current = setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ t: "heartbeat" }));
+        }, HEARTBEAT_MS);
+        callStartRef.current = Date.now();
+      };
+
+      ws.onmessage = async (ev) => {
+        if (cancelled) return;
+        const msg = parseSignalingIncoming(String(ev.data));
+        if (!msg || typeof msg !== "object" || !("t" in msg)) return;
+        const m = msg as {
+          t: string;
+          sdp?: string;
+          candidate?: RTCIceCandidateInit;
+          from?: string;
+          peers?: Array<{ remoteUserId?: string; shouldOffer?: boolean }>;
+        };
+
+        if (m.t === "mesh-peers" && Array.isArray(m.peers)) {
+          await applyMeshPeers(m.peers);
+          return;
+        }
+
+        if (m.t === "offer" && typeof m.sdp === "string" && typeof m.from === "string") {
+          let bundle = peerMapRef.current.get(m.from);
+          if (!bundle) {
+            await ensurePeer(m.from, false);
+            bundle = peerMapRef.current.get(m.from);
+          }
+          if (!bundle || cancelled) return;
+          const { pc } = bundle;
+          try {
+            await pc.setRemoteDescription({ type: "offer", sdp: m.sdp });
+            flushPeerIce(bundle);
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            ws.send(JSON.stringify({ t: "answer", sdp: answer.sdp ?? "", to: m.from }));
+            setState((s) => ({ ...s, status: "connected" }));
+          } catch {
+            if (!cancelled) setState((s) => ({ ...s, error: "Nu am putut negocia conexiunea (offer)." }));
+          }
+          return;
+        }
+
+        if (m.t === "answer" && typeof m.sdp === "string" && typeof m.from === "string") {
+          const bundle = peerMapRef.current.get(m.from);
+          if (!bundle) return;
+          try {
+            await bundle.pc.setRemoteDescription({ type: "answer", sdp: m.sdp });
+            flushPeerIce(bundle);
+            setState((s) => ({ ...s, status: "connected" }));
+          } catch {
+            if (!cancelled) setState((s) => ({ ...s, error: "Nu am putut negocia conexiunea (answer)." }));
+          }
+          return;
+        }
+
+        if (m.t === "ice" && m.candidate && typeof m.from === "string") {
+          const bundle = peerMapRef.current.get(m.from);
+          if (!bundle) return;
+          const { pc, iceQueue } = bundle;
+          if (!pc.remoteDescription) {
+            iceQueue.push(m.candidate);
+            return;
+          }
+          try {
+            await pc.addIceCandidate(m.candidate);
+          } catch {
+            /* ignore */
+          }
+          return;
+        }
+
+        if (m.t === "call-end" && typeof m.from === "string" && m.from !== userId) {
+          peerMapRef.current.get(m.from)?.pc.close();
+          peerMapRef.current.delete(m.from);
+          setState((s) => ({
+            ...s,
+            remoteParticipants: s.remoteParticipants.filter((p) => p.id !== m.from),
+          }));
+          return;
+        }
+      };
+
+      ws.onerror = () => {
+        if (!cancelled) setState((s) => ({ ...s, error: "Eroare WebSocket semnalizare." }));
+      };
+    };
 
     const run = async (signalingBaseUrl: string) => {
       const cfg = getWebrtcPublicConfig();
@@ -420,14 +845,23 @@ export function useWebRtcCall({
         if (!cancelled) setState((s) => ({ ...s, canSwitchCamera: false }));
       }
 
-      const iceRes = await fetch("/api/call/ice-config", { cache: "no-store" });
+      const iceRes = await fetch("/api/call/ice-config", {
+        cache: "no-store",
+        credentials: "same-origin",
+        headers: getAuthHeaders(),
+      });
       if (!iceRes.ok) {
         const err = await iceRes.json().catch(() => ({}));
         if (!cancelled) {
+          const apiErr = (err as { error?: string }).error?.trim();
+          const msg =
+            iceRes.status === 401
+              ? apiErr || "Trebuie să fii autentificat pentru ICE/TURN."
+              : apiErr || "ICE/TURN indisponibil.";
           setState((s) => ({
             ...s,
             status: "error",
-            error: (err as { error?: string }).error ?? "ICE/TURN indisponibil.",
+            error: msg,
           }));
         }
         localStream.getTracks().forEach((t) => t.stop());
@@ -541,7 +975,8 @@ export function useWebRtcCall({
       negotiateRef.current = async () => {
         const p = pcRef.current;
         const w = wsRef.current;
-        if (!p || !w || w.readyState !== WebSocket.OPEN || cancelled) return;
+        const to = remoteIdRef.current;
+        if (!p || !w || w.readyState !== WebSocket.OPEN || cancelled || !to) return;
         try {
           const offer = await p.createOffer({
             offerToReceiveAudio: true,
@@ -549,7 +984,7 @@ export function useWebRtcCall({
           });
           await p.setLocalDescription(offer);
           console.info("[SIGNALING] outbound offer");
-          w.send(JSON.stringify({ t: "offer", sdp: offer.sdp ?? "" }));
+          w.send(JSON.stringify({ t: "offer", sdp: offer.sdp ?? "", to }));
         } catch {
           /* ignore */
         }
@@ -635,12 +1070,13 @@ export function useWebRtcCall({
       };
 
       pc.onicecandidate = (ev) => {
-        if (ev.candidate && ws.readyState === WebSocket.OPEN) {
+        const to = remoteIdRef.current;
+        if (ev.candidate && ws.readyState === WebSocket.OPEN && to) {
           console.info("[ICE] sending local candidate via signaling", {
             type: ev.candidate.type,
             protocol: ev.candidate.protocol,
           });
-          ws.send(JSON.stringify({ t: "ice", candidate: ev.candidate.toJSON() }));
+          ws.send(JSON.stringify({ t: "ice", candidate: ev.candidate.toJSON(), to }));
         } else if (!ev.candidate) {
           console.info("[ICE] local ICE gathering complete (null candidate)");
         }
@@ -658,12 +1094,13 @@ export function useWebRtcCall({
         reconnectAttemptRef.current += 1;
         reconnectTimerRef.current = setTimeout(() => {
           void (async () => {
-            if (cancelled || ws.readyState !== WebSocket.OPEN) return;
+            const to = remoteIdRef.current;
+            if (cancelled || ws.readyState !== WebSocket.OPEN || !to) return;
             try {
               const offer = await pc.createOffer({ iceRestart: true });
               await pc.setLocalDescription(offer);
               console.info("[SIGNALING] outbound offer (iceRestart)");
-              ws.send(JSON.stringify({ t: "offer", sdp: offer.sdp ?? "" }));
+              ws.send(JSON.stringify({ t: "offer", sdp: offer.sdp ?? "", to }));
             } catch {
               /* ignore */
             }
@@ -703,11 +1140,13 @@ export function useWebRtcCall({
       };
 
       const sendOffer = async () => {
+        const to = remoteIdRef.current;
+        if (!to) return;
         try {
           const offer = await pc.createOffer();
           await pc.setLocalDescription(offer);
           console.info("[SIGNALING] outbound offer (initial)");
-          ws.send(JSON.stringify({ t: "offer", sdp: offer.sdp ?? "" }));
+          ws.send(JSON.stringify({ t: "offer", sdp: offer.sdp ?? "", to }));
         } catch {
           if (!cancelled) setState((s) => ({ ...s, error: "Nu am putut porni oferta WebRTC." }));
         }
@@ -731,6 +1170,7 @@ export function useWebRtcCall({
           candidate?: RTCIceCandidateInit;
           remoteUserId?: string;
           shouldOffer?: boolean;
+          from?: string;
         };
 
         if (m.t !== "pong" && m.t !== "heartbeat") {
@@ -746,13 +1186,18 @@ export function useWebRtcCall({
         }
 
         if (m.t === "offer" && typeof m.sdp === "string") {
+          const answerTo = typeof m.from === "string" ? m.from : remoteIdRef.current;
           try {
             await pc.setRemoteDescription({ type: "offer", sdp: m.sdp });
             flushIceQueue(pc);
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
             console.info("[SIGNALING] outbound answer");
-            ws.send(JSON.stringify({ t: "answer", sdp: answer.sdp ?? "" }));
+            if (answerTo) {
+              ws.send(JSON.stringify({ t: "answer", sdp: answer.sdp ?? "", to: answerTo }));
+            } else {
+              ws.send(JSON.stringify({ t: "answer", sdp: answer.sdp ?? "" }));
+            }
             setState((s) => ({ ...s, status: "connected" }));
           } catch {
             if (!cancelled) setState((s) => ({ ...s, error: "Nu am putut negocia conexiunea (offer)." }));
@@ -854,7 +1299,11 @@ export function useWebRtcCall({
         }));
         return;
       }
-      void run(signalingBase);
+      if (isConference) {
+        void runConference(signalingBase);
+      } else {
+        void run(signalingBase);
+      }
     })();
 
     let limitHit = false;
@@ -884,14 +1333,6 @@ export function useWebRtcCall({
       cancelled = true;
       clearInterval(limitTimer);
       cleanupMedia();
-        setState((s) => ({
-          ...s,
-          localStream: null,
-          remoteParticipants: [],
-          canSwitchCamera: false,
-          screenSharing: false,
-          permissionHelp: null,
-        }));
     };
   }, [roomId, userId, audioOnly, isCaller, isConference, flushIceQueue, cleanupMedia, clearStatsMonitor]);
 

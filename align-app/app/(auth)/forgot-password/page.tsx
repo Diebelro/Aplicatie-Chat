@@ -42,6 +42,8 @@ export default function ForgotPasswordPage() {
   const [sessionId, setSessionId] = useState("");
   const [qrToken, setQrToken] = useState("");
   const [qrUrl, setQrUrl] = useState("");
+  /** Doar în `NODE_ENV=development`: link direct la /reset-password pe același host ca dev serverul. */
+  const [devResetLink, setDevResetLink] = useState<string | null>(null);
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,6 +57,7 @@ export default function ForgotPasswordPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Eroare la trimitere");
+      setDevResetLink(typeof data.devResetLink === "string" ? data.devResetLink : null);
       setMode("email_sent");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Eroare");
@@ -119,6 +122,42 @@ export default function ForgotPasswordPage() {
           <p className="text-sm text-dark-300 mt-2">
             Deschide linkul din email pentru a reseta parola. Verifică și dosarul de spam.
           </p>
+          {devResetLink && (
+            <div className="mt-4 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-3 text-left text-xs text-emerald-100/95 space-y-2">
+              <p className="font-medium text-emerald-200">
+                Mod local (development)
+              </p>
+              <p>
+                Linkul din email duce la <strong>domeniul public al aplicației</strong> (ex.{" "}
+                <strong>chat.diebel.ro</strong> — nu la <code className="text-emerald-300">localhost</code>). Pe
+                producție e corect. Cutia asta apare doar la <code className="text-emerald-300">npm run dev</code>: ca
+                să resetezi parola <strong>pe același PC</strong> fără să deschizi mailul pe chat live, folosește
+                linkul de mai jos (expiră în ~15 minute).
+              </p>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <a
+                  href={devResetLink}
+                  className="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-500"
+                >
+                  Deschide resetarea aici
+                </a>
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center rounded-lg border border-emerald-500/50 px-3 py-2 text-sm font-medium text-emerald-200 hover:bg-emerald-500/20"
+                  onClick={() => {
+                    void navigator.clipboard.writeText(devResetLink).then(
+                      () => {},
+                      () => {
+                        window.prompt("Copiază manual linkul:", devResetLink);
+                      }
+                    );
+                  }}
+                >
+                  Copiază linkul
+                </button>
+              </div>
+            </div>
+          )}
           <div className="mt-6">
             <Link
               href="/login"
@@ -206,7 +245,7 @@ export default function ForgotPasswordPage() {
           </Link>
           <button
             type="button"
-            onClick={() => { setMode("choose"); setError(""); }}
+            onClick={() => { setMode("choose"); setError(""); setDevResetLink(null); }}
             className="text-dark-400 text-sm mt-2"
           >
             ← Înapoi la opțiuni
@@ -265,7 +304,7 @@ export default function ForgotPasswordPage() {
         <div className="mt-6 flex flex-col gap-2">
           <button
             type="button"
-            onClick={() => setMode("email")}
+            onClick={() => { setMode("email"); setDevResetLink(null); }}
             className="w-full !h-11 !min-h-[44px] !max-h-[44px] !py-0 px-4 rounded-xl border border-dark-600 bg-dark-800 hover:bg-dark-700 text-white font-medium text-sm transition flex items-center justify-center"
           >
             Trimite link pe email

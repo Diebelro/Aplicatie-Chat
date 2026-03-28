@@ -1,0 +1,34 @@
+# Exemplu systemd — copiază la /etc/systemd/system/align-chat.service
+# Adaptează: User, WorkingDirectory, EnvironmentFile
+#
+# sudo cp align-chat.service.example /etc/systemd/system/align-chat.service
+# sudo systemctl daemon-reload && sudo systemctl enable --now align-chat
+
+[Unit]
+Description=Align chat (Next.js production)
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/srv/aplicatie-chat/align-app
+
+# Recomandat: fișier cu DATABASE_URL, NEXTAUTH_*, RESEND_*, etc. (chmod 640)
+EnvironmentFile=/srv/aplicatie-chat/align-app/.env.production
+
+Environment=NODE_ENV=production
+Environment=PORT=3000
+
+# Build o dată înainte de primul start: cd WorkingDirectory && npm ci && npm run build
+ExecStart=/usr/bin/npm run start
+Restart=on-failure
+RestartSec=5
+
+# Loguri: journalctl -u align-chat -f
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=align-chat
+
+[Install]
+WantedBy=multi-user.target

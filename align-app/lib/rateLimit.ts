@@ -3,6 +3,8 @@
  * Store în memorie (pentru producție folosiți Redis sau similar).
  */
 
+import { recordRateLimitRejected } from "@/lib/securityThreats";
+
 const buckets = new Map<string, number[]>();
 const WINDOW_MS = 60 * 1000; // 1 minut
 const LIMITS: Record<string, number> = {
@@ -14,6 +16,9 @@ const LIMITS: Record<string, number> = {
   "/api/messages": 100,
   "/api/check-email": 60,
   "/api/check-username": 60,
+  "/api/admin/moderation-ai-thread": 12,
+  "/api/feedback": 12,
+  "/api/metrics/vitals": 45,
 };
 
 /** IP client pentru rate limit (x-forwarded-for / x-real-ip). */
@@ -43,7 +48,10 @@ export function checkRateLimit(ip: string, userId: string | null, pathname: stri
   const limit = getLimit(pathname);
   let list = buckets.get(key) ?? [];
   list = prune(list);
-  if (list.length >= limit) return false;
+  if (list.length >= limit) {
+    recordRateLimitRejected(ip, userId, pathname, limit);
+    return false;
+  }
   list.push(Date.now());
   buckets.set(key, list);
   return true;
@@ -54,4 +62,9 @@ export function getRateLimitRemaining(ip: string, userId: string | null, pathnam
   const limit = getLimit(pathname);
   const list = prune(buckets.get(key) ?? []);
   return Math.max(0, limit - list.length);
+}
+
+/** Pentru monitorizare: număr aproximativ de chei active (rate limit). */
+export function getRateLimitBucketApproxSize(): number {
+  return buckets.size;
 }

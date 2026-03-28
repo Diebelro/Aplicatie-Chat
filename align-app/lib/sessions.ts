@@ -4,6 +4,8 @@
  * Folosim globalThis ca același Map să fie folosit de toate rutele API (login și /api/me).
  */
 
+import { randomBytes } from "crypto";
+
 const SESSION_COOKIE_NAME = "align_sid";
 const SESSION_DURATION_MS = 45 * 60 * 1000; // 45 minute
 const PERSISTENT_DURATION_MS = 30 * 24 * 60 * 60 * 1000; // 30 zile
@@ -21,7 +23,7 @@ if (!globalStore.__align_sessions) globalStore.__align_sessions = new Map();
 const sessions = globalStore.__align_sessions;
 
 function generateSessionId(): string {
-  return Math.random().toString(36).slice(2) + Date.now().toString(36) + Math.random().toString(36).slice(2);
+  return randomBytes(32).toString("base64url");
 }
 
 export function createSession(

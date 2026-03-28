@@ -223,6 +223,20 @@ export default function AccountSettingsPage() {
         <h1 className="text-xl font-semibold text-white">Setări cont</h1>
       </div>
 
+      <section className="p-6 rounded-2xl bg-dark-800 border border-dark-600 border-brand-500/20">
+        <h2 className="text-lg font-medium text-white mb-2">Propuneri și feedback</h2>
+        <p className="text-dark-500 text-sm mb-4">
+          Ai o idee ca să îmbunătățim aplicația sau ai întâlnit ceva care nu merge? Scrie-ne — citim tot și ne ajută să
+          reparăm rapid.
+        </p>
+        <Link
+          href="/app/settings/feedback"
+          className="inline-block px-4 py-2 rounded-lg bg-brand-500/20 text-brand-400 border border-brand-500/40 hover:bg-brand-500/30 font-medium text-sm transition"
+        >
+          Trimite un mesaj
+        </Link>
+      </section>
+
       {/* A) Personal info */}
       <section className="p-6 rounded-2xl bg-dark-800 border border-dark-600">
         <h2 className="text-lg font-medium text-white mb-4">Informații personale</h2>

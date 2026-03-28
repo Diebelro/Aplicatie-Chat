@@ -14,7 +14,8 @@
  *   NOTĂ: `GET /api/ws` în Next este doar documentare — nu înlocuiește acest proces.
  *
  * Env proces: SIGNALING_TOKEN_SECRET (sau NEXTAUTH_SECRET), SIGNALING_PORT (default 4001), NODE_ENV
- * Opțional: SIGNALING_MAX_CONN_PER_IP, SIGNALING_MSG_BURST_PER_10S, SIGNALING_MAX_MSG_BYTES, SIGNALING_HEARTBEAT_TTL_MS
+ * Opțional: SIGNALING_MAX_CONN_PER_IP, SIGNALING_MSG_BURST_PER_10S, SIGNALING_MAX_MSG_BYTES, SIGNALING_HEARTBEAT_TTL_MS,
+ * SIGNALING_MAX_CONFERENCE_PEERS (implicit 6) pentru camere `align-conf-*`
  */
 import { WebSocketServer } from "ws";
 import { createServer } from "http";
@@ -27,6 +28,11 @@ const MAX_CONN_PER_IP = Number(process.env.SIGNALING_MAX_CONN_PER_IP || 40);
 const MSG_BURST = Number(process.env.SIGNALING_MSG_BURST_PER_10S || 100);
 const MAX_MSG_BYTES = Number(process.env.SIGNALING_MAX_MSG_BYTES || 65536);
 const HEARTBEAT_TTL_MS = Number(process.env.SIGNALING_HEARTBEAT_TTL_MS || 75_000);
+/** Camere `align-conf-*`: mesh WebRTC (fără SFU); limită practică CPU/rețea. */
+const MAX_CONFERENCE_PEERS = Math.min(
+  16,
+  Math.max(2, Number(process.env.SIGNALING_MAX_CONFERENCE_PEERS || 6))
+);
 
 function logWarn(msg) {
   if (IS_PROD) console.warn(`[signaling] ${msg}`);
@@ -76,6 +82,10 @@ function roomKey(roomId) {
 
 function safeRoomId(roomId) {
   return typeof roomId === "string" && roomId.startsWith("align-") && roomId.length < 200;
+}
+
+function isConferenceRoomId(roomId) {
+  return typeof roomId === "string" && roomId.startsWith("align-conf-");
 }
 
 function getRoom(roomId) {
@@ -133,12 +143,38 @@ function broadcastSession(roomId) {
   if (b.ws.readyState === 1) b.ws.send(msgB);
 }
 
-function relay(roomId, fromUserId, raw) {
+/** Mesh: fiecare client primește lista de peers; shouldOffer = userId < remote (ofertă de la id mai mic). */
+function broadcastConferencePeers(roomId) {
+  const clients = rooms.get(roomKey(roomId));
+  if (!clients || clients.size === 0) return;
+  for (const [uid, c] of clients.entries()) {
+    const peers = [];
+    for (const [otherId] of clients.entries()) {
+      if (otherId === uid) continue;
+      peers.push({
+        remoteUserId: otherId,
+        shouldOffer: uid < otherId,
+      });
+    }
+    if (c.ws.readyState === 1) {
+      c.ws.send(JSON.stringify({ t: "mesh-peers", peers }));
+    }
+  }
+}
+
+function relaySignaling(roomId, fromUserId, msg) {
   const clients = rooms.get(roomKey(roomId));
   if (!clients) return;
+  const lineObj = { ...msg, from: fromUserId };
+  const line = JSON.stringify(lineObj);
+  if (typeof msg.to === "string") {
+    const peer = clients.get(msg.to);
+    if (peer?.ws.readyState === 1) peer.ws.send(line);
+    return;
+  }
   for (const [uid, c] of clients.entries()) {
     if (uid === fromUserId) continue;
-    if (c.ws.readyState === 1) c.ws.send(raw);
+    if (c.ws.readyState === 1) c.ws.send(line);
   }
 }
 
@@ -240,9 +276,11 @@ wss.on("connection", (ws, req) => {
       removeFromAllRooms(userId, ws);
       currentRoom = msg.roomId;
       const r = getRoom(msg.roomId);
-      if (r.size >= 2 && !r.has(userId)) {
+      const conf = isConferenceRoomId(msg.roomId);
+      const maxPeers = conf ? MAX_CONFERENCE_PEERS : 2;
+      if (r.size >= maxPeers && !r.has(userId)) {
         ws.send(JSON.stringify({ t: "error", code: "ROOM_FULL" }));
-        ws.close(4002, "Room full");
+        ws.close(4002, conf ? "Conference room full" : "Room full");
         return;
       }
       r.set(userId, {
@@ -252,15 +290,28 @@ wss.on("connection", (ws, req) => {
         heartbeat: Date.now(),
       });
       ws.send(JSON.stringify({ t: "joined", roomId: msg.roomId, peers: [...r.keys()] }));
-      broadcastSession(msg.roomId);
+      if (conf) {
+        broadcastConferencePeers(msg.roomId);
+      } else {
+        broadcastSession(msg.roomId);
+      }
       return;
     }
 
     if (!currentRoom || !safeRoomId(currentRoom)) return;
 
-    if (["offer", "answer", "ice", "call-end"].includes(msg.t)) {
-      const line = JSON.stringify({ ...msg, from: userId });
-      relay(currentRoom, userId, line);
+    if (msg.t === "call-end") {
+      for (const [uid, c] of rooms.get(roomKey(currentRoom))?.entries() ?? []) {
+        if (uid === userId) continue;
+        if (c.ws.readyState === 1) {
+          c.ws.send(JSON.stringify({ ...msg, from: userId }));
+        }
+      }
+      return;
+    }
+
+    if (["offer", "answer", "ice"].includes(msg.t)) {
+      relaySignaling(currentRoom, userId, msg);
     }
   });
 
@@ -270,8 +321,19 @@ wss.on("connection", (ws, req) => {
       const r = rooms.get(roomKey(currentRoom));
       if (r) {
         r.delete(userId);
-        relay(currentRoom, userId, JSON.stringify({ t: "call-end", from: userId }));
-        if (r.size === 0) rooms.delete(roomKey(currentRoom));
+        const conf = isConferenceRoomId(currentRoom);
+        for (const [uid, c] of r.entries()) {
+          if (c.ws.readyState === 1) {
+            c.ws.send(JSON.stringify({ t: "call-end", from: userId }));
+          }
+        }
+        if (r.size === 0) {
+          rooms.delete(roomKey(currentRoom));
+        } else if (conf) {
+          broadcastConferencePeers(currentRoom);
+        } else {
+          broadcastSession(currentRoom);
+        }
       }
     }
     removeFromAllRooms(userId, ws);

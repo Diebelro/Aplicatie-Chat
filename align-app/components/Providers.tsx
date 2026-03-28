@@ -7,11 +7,13 @@ import { CookieConsentBanner } from "@/components/CookieConsent/CookieConsentBan
 import { CookieConsentFloatingButton } from "@/components/CookieConsent/CookieConsentFloatingButton";
 import { TrackingScripts } from "@/components/TrackingScripts";
 import { Footer } from "@/components/Footer";
+import { AppWebVitalsBeacon } from "@/components/AppWebVitalsBeacon";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <I18nProvider>
       <CookieConsentProvider>
+        <AppWebVitalsBeacon />
         {children}
         <CookieConsentBanner />
         <CookieConsentFloatingButton />

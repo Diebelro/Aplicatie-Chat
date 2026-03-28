@@ -14,6 +14,8 @@ import {
   prismaProfileCompleted,
   prismaUpsertDevice,
 } from "@/lib/repo-prisma";
+import { recordSecurityThreat } from "@/lib/securityThreats";
+import { recordApiRouteError } from "@/lib/serverErrorRing";
 
 const TEN_MIN_MS = 10 * 60 * 1000;
 const MAX_FAILED_ATTEMPTS = 5;
@@ -50,6 +52,21 @@ function recordLoginFailure(ip: string, fingerprint: string | null): void {
   const ipList = pruneOld(loginFailuresByIp.get(ip) ?? [], TEN_MIN_MS);
   ipList.push(now);
   loginFailuresByIp.set(ip, ipList);
+  if (ipList.length === 3) {
+    recordSecurityThreat({
+      severity: "medium",
+      type: "login_failures",
+      message: "3+ încercări eșuate de login (același IP, 10 min)",
+      ip,
+    });
+  } else if (ipList.length === 5) {
+    recordSecurityThreat({
+      severity: "high",
+      type: "login_failures",
+      message: "5 încercări eșuate de login (același IP, 10 min) — posibil bruteforce",
+      ip,
+    });
+  }
   if (fingerprint && fingerprint.length > 0) {
     const fpList = pruneOld(loginFailuresByFingerprint.get(fingerprint) ?? [], TEN_MIN_MS);
     fpList.push(now);
@@ -93,6 +110,13 @@ export async function POST(request: Request) {
     const fp = deviceFingerprint != null ? String(deviceFingerprint).trim().slice(0, 128) : null;
 
     if (isLoginRateLimited(ip, fp)) {
+      recordSecurityThreat({
+        severity: "high",
+        type: "login_cooldown",
+        message: "Login blocat: prea multe eșecuri pe IP/fingerprint (10 min)",
+        ip,
+        meta: fp ?? undefined,
+      });
       const headers: HeadersInit = {};
       if (recaptchaScore > 0.7) headers["Retry-After"] = "600";
       return NextResponse.json(
@@ -109,7 +133,7 @@ export async function POST(request: Request) {
       try {
         const prismaUser = await prismaFindUserByEmailForLogin(emailStr);
         if (prismaUser) {
-          user = { id: prismaUser.id, email: prismaUser.email };
+          user = { id: prismaUser.id, email: prismaUser.email, isBanned: prismaUser.isBanned };
           const hash = await prismaGetPasswordHash(prismaUser.id);
           if (!hash || !verifyPassword(String(password), hash)) {
             recordLoginFailure(ip, fp);
@@ -119,6 +143,7 @@ export async function POST(request: Request) {
         }
       } catch (err) {
         console.error("[auth login] Prisma error", err);
+        recordApiRouteError("POST /api/auth/login", err);
         return NextResponse.json(
           { error: "Eroare la conexiunea cu baza de date. Verifică DATABASE_URL în .env și rulează npm run db:setup." },
           { status: 503 }
@@ -130,7 +155,11 @@ export async function POST(request: Request) {
       if (localUser) {
         const hash = getPasswordHash(localUser.id);
         if (hash && verifyPassword(String(password), hash)) {
-          user = { id: localUser.id, email: localUser.email };
+          user = {
+            id: localUser.id,
+            email: localUser.email,
+            isBanned: !!(localUser as { isBanned?: boolean }).isBanned,
+          };
           usePrisma = false;
         } else if (hash) {
           // Contul există (memorie); parola greșită — nu 404 „nu există cont”
@@ -147,6 +176,23 @@ export async function POST(request: Request) {
           ? "Nu există acest cont în sesiunea locală (npm run dev folosește memorie, nu baza de date). Contul de pe site-ul live nu apare aici. Deschide producția pentru acel cont sau înregistrează-te local."
           : "Nu există cont cu acest email. Înregistrează-te mai întâi.";
       return NextResponse.json({ error: errLocal }, { status: 404 });
+    }
+
+    if (user.isBanned === true) {
+      let banUntilIso: string | null = null;
+      if (usePrisma) {
+        const { prisma } = await import("@/lib/db");
+        const u = await prisma.user.findUnique({
+          where: { id: user.id },
+          select: { banUntil: true },
+        });
+        banUntilIso = u?.banUntil?.toISOString() ?? null;
+      }
+      return NextResponse.json({
+        user: { id: user.id, email: user.email ?? "", isBanned: true, banUntil: banUntilIso },
+        sessionType: "none",
+        profileComplete: false,
+      });
     }
 
     const userAgent = request.headers.get("user-agent") ?? "";
@@ -203,7 +249,8 @@ export async function POST(request: Request) {
       ...(cookieOpts.maxAge != null && { maxAge: cookieOpts.maxAge }),
     });
     return res;
-  } catch {
+  } catch (e) {
+    recordApiRouteError("POST /api/auth/login", e);
     return NextResponse.json(
       { error: "Eroare la logare." },
       { status: 500 }

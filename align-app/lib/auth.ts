@@ -7,7 +7,8 @@ import crypto from "crypto";
 import bcrypt from "bcryptjs";
 
 const KEY_LEN = 64;
-const BCRYPT_ROUNDS = 10;
+/** Cost deliberat ridicat (parole noi); verificarea rămîne rapidă pentru hash-uri vechi. */
+const BCRYPT_ROUNDS = 12;
 
 /** Email pentru login/signup: trim, lowercase, Unicode normalizat (evită duplicate „invizibile”). */
 export function normalizeAuthEmail(raw: string): string {

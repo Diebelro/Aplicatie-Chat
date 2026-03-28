@@ -3,22 +3,28 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3005",
+    "dev": "node scripts/dev-and-open.mjs",
+    "dev:server": "next dev -p 3005",
+    "dev:quiet": "next dev -p 3005",
     "dev:lan": "next dev -p 3005 -H 0.0.0.0",
     "tunnel:lt": "npx --yes localtunnel --port 3005",
     "dev:auto": "next dev",
     "ports:free": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/free-next-ports.ps1",
-    "signaling:dev": "node server/call-signaling-server.mjs",
+    "signaling:dev": "npx --yes dotenv-cli@8 -e .env -e .env.local -- node server/call-signaling-server.mjs",
+    "env:pull-production": "npx --yes vercel@latest env pull .env.local --environment production",
     "build": "next build",
     "start": "next start --port 3000",
-    "lint": "next lint",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "verify-i18n": "node scripts/verify-i18n-keys.cjs",
     "postinstall": "prisma generate",
-    "db:setup": "prisma generate && prisma db push",
-    "db:push": "prisma db push",
+    "db:setup": "npx --yes dotenv-cli@8 -e .env -e .env.local -- prisma generate && npx --yes dotenv-cli@8 -e .env -e .env.local -- prisma db push",
+    "db:push": "npx --yes dotenv-cli@8 -e .env -e .env.local -- prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
-    "db:ensure-contact": "ts-node --project scripts/tsconfig.json scripts/ensure-contact-user.ts"
+    "db:ensure-contact": "ts-node --project scripts/tsconfig.json scripts/ensure-contact-user.ts",
+    "db:grant-admin": "npx --yes dotenv-cli@8 -e .env -e .env.local -- node scripts/grant-admin.mjs"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
@@ -29,7 +35,7 @@
     "bcryptjs": "^2.4.3",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.400.0",
-    "next": "^14.2.0",
+    "next": "^16.2.1",
     "next-auth": "^4.24.10",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -46,12 +52,13 @@
     "@types/react-dom": "^18.2.0",
     "@types/ws": "^8.18.1",
     "autoprefixer": "^10.4.0",
-    "eslint": "^8.57.1",
-    "eslint-config-next": "^14.2.18",
+    "eslint": "^9.15.0",
+    "eslint-config-next": "^16.2.1",
     "postcss": "^8.4.0",
     "prisma": "^5.22.0",
     "tailwindcss": "^3.4.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "vitest": "^3.0.0"
   }
 }

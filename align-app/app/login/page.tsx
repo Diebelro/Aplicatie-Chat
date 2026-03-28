@@ -1,12 +1,13 @@
 "use client";
 
 export const dynamic = "force-dynamic";
-import { Suspense, useState, useEffect } from "react";
+import { Suspense, useState, useEffect, useLayoutEffect } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import AuthProviders from "@/components/AuthProviders";
 import { getDeviceFingerprint } from "@/lib/deviceFingerprint";
+import { clearLoginEmailDraft, readLoginEmailDraft, writeLoginEmailDraft } from "@/lib/formDrafts";
 
 const RECAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY ?? "";
 
@@ -69,7 +70,7 @@ function LoginContent() {
   const [rememberDevice, setRememberDevice] = useState(false);
   const [retryAfterSeconds, setRetryAfterSeconds] = useState(0);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (typeof window === "undefined") return;
     try {
       const loc = window.localStorage;
@@ -78,6 +79,11 @@ function LoginContent() {
         loc.removeItem(k);
         ses.removeItem(k);
       });
+      const draft = readLoginEmailDraft();
+      if (draft.length > 0) {
+        setEmail(draft);
+        return;
+      }
       const last = loc.getItem(LAST_EMAIL_KEY);
       if (last != null && !String(last).trim().includes("@")) {
         loc.removeItem(LAST_EMAIL_KEY);
@@ -89,6 +95,11 @@ function LoginContent() {
       // ignore
     }
   }, []);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => writeLoginEmailDraft(email), 350);
+    return () => clearTimeout(t);
+  }, [email]);
 
   useEffect(() => {
     const auth = searchParams.get("auth");
@@ -182,9 +193,13 @@ function LoginContent() {
         }
         return;
       }
-      const userObj = data.user as { isBanned?: boolean } | undefined;
+      const userObj = data.user as { isBanned?: boolean; email?: string; banUntil?: string | null } | undefined;
       if (userObj?.isBanned) {
-        router.push("/cont-blocat");
+        const q = new URLSearchParams();
+        if (trimmedEmail) q.set("email", trimmedEmail);
+        if (userObj.banUntil) q.set("until", userObj.banUntil);
+        const qs = q.toString();
+        router.push("/cont-blocat" + (qs ? "?" + qs : ""));
         return;
       }
       const storage = data.sessionType === "persistent" ? localStorage : sessionStorage;
@@ -201,6 +216,7 @@ function LoginContent() {
           // ignore
         }
       }
+      clearLoginEmailDraft();
       other.removeItem("align_user");
       other.removeItem("align_session_token");
       other.removeItem("align_device_id");

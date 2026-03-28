@@ -1,5 +1,6 @@
 /**
- * Helper pentru autentificare: citește cookie align_sid sau header x-user-id.
+ * Helper pentru autentificare: cookie `align_sid` sau perechea `x-session-token` + `x-user-id`
+ * (userId din header trebuie să coincidă cu sesiunea — nu acceptăm `x-user-id` singur).
  * Când sesiunea e validă, actualizează lastUsedAt pe device.
  */
 
@@ -64,8 +65,7 @@ export async function getAuthFromHeaders(): Promise<AuthResult> {
 }
 
 /**
- * Returnează userId dacă există sesiune (cookie align_sid sau header x-user-id).
- * Existența userului în store sau Prisma se verifică în fiecare rută API (findUserOrPrisma).
+ * Returnează userId dacă există sesiune validă (cookie sau token + user aliniați).
  */
 export function getAuthenticatedUserId(request: Request): string | null {
   const { userId } = getAuthFromRequest(request);
@@ -73,12 +73,9 @@ export function getAuthenticatedUserId(request: Request): string | null {
 }
 
 /**
- * Pentru API routes: întâi `x-user-id` din header (cum trimite clientul din storage),
- * apoi același user ca la login prin cookie `align_sid`.
- * Dacă lipsește ambele, 401 — altfel feed/profiluri/poze par „dispărute”.
+ * Pentru API routes: userId **doar** din sesiune verificată (același contract ca `getAuthenticatedUserId`).
+ * `x-user-id` singur nu este sursă de adevăr — previne spoofing.
  */
 export function resolveRequestUserId(request: Request): string | null {
-  const fromHeader = request.headers.get("x-user-id")?.trim();
-  if (fromHeader) return fromHeader;
   return getAuthenticatedUserId(request);
 }

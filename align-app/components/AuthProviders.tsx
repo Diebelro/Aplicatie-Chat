@@ -40,6 +40,9 @@ const compactButtonClass = `
 `.replace(/\s+/g, " ").trim();
 
 export default function AuthProviders({ compact }: AuthProvidersProps) {
+  if (process.env.NEXT_PUBLIC_ENABLE_SOCIAL_LOGIN !== "true") {
+    return null;
+  }
   return (
     <div className={compact ? "flex flex-col gap-2" : "space-y-2"}>
       {PROVIDERS.map((p) => (

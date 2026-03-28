@@ -14,6 +14,8 @@ model User {
   emailVerified DateTime?
   role         String   @default("USER")
   isBanned     Boolean  @default(false)
+  /// Dacă e în viitor: suspendare temporară — la expirare, login /api/me eliberează automat accesul.
+  banUntil     DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   profile      Profile?
@@ -31,11 +33,27 @@ model User {
   blocksReceived  Block[] @relation("Blocked")
   reportsMade     Report[] @relation("Reporter")
   reportsReceived Report[] @relation("Reported")
+  appFeedback     AppFeedback[]
   adminLogs       AdminLog[]
   visitsAsViewer  Visit[]  @relation("VisitViewer")
   visitsAsProfile Visit[]  @relation("VisitProfile")
   passwordResetTokens PasswordResetToken[]
   emailVerificationTokens EmailVerificationToken[]
+  banAppeals BanAppeal[]
+}
+
+/// Contestare blocare cont (user crede că a fost blocat nedrept).
+model BanAppeal {
+  id         String    @id @default(cuid())
+  userId     String
+  message    String
+  status     String    @default("PENDING")
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
 }
 
 /// Token hash (SHA-256) pentru verificare email la înregistrare.
@@ -233,6 +251,19 @@ model Report {
   reported   User     @relation("Reported", fields: [reportedId], references: [id], onDelete: Cascade)
   @@index([reporterId])
   @@index([reportedId])
+}
+
+/// Sugestii / feedback despre aplicație (nu sunt rapoarte împotriva unui user).
+model AppFeedback {
+  id        String   @id @default(cuid())
+  userId    String
+  message   String
+  pageUrl   String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
 }
 
 model Visit {

@@ -15,6 +15,7 @@ import {
   prismaCreateEmailVerificationToken,
   prismaUpsertDevice,
 } from "@/lib/repo-prisma";
+import { recordApiRouteError } from "@/lib/serverErrorRing";
 
 const VALID_GENDERS: Gender[] = ["male", "female", "other"];
 
@@ -247,7 +248,8 @@ export async function POST(request: Request) {
       ...(cookieOpts.maxAge != null && { maxAge: cookieOpts.maxAge }),
     });
     return res;
-  } catch {
+  } catch (e) {
+    recordApiRouteError("POST /api/auth/signup", e);
     return NextResponse.json(
       { error: "Eroare la crearea contului." },
       { status: 500 }

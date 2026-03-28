@@ -1,14 +1,12 @@
 ---
-description: Mod de lucru implicit – analizează și explică mai întâi, fără modificări de cod
+description: Analiză fără cod doar la întrebări deschise; NU blochează cereri explicite de implementare
 ---
 
-# Analizează și explică mai întâi
+# Analiză înainte — doar când nu ți s-a cerut să faci ceva
 
-**Regulă implicită în acest proiect:**
+**Nu se aplică** când utilizatorul dă o **instrucțiune clară de acțiune** (implementare, rulare comenzi, modificare fișiere). Atunci: **execută direct** — vezi regula `auto-trivial-ask-important.mdc`.
 
-1. **Analizează** cererea utilizatorului și codul/fișierele relevante.
-2. **Explică** ce ai face și de ce (plan, pași, motivare). **Nu modifica niciun cod** și nu scrie în fișiere.
-3. **Oprește-te** după explicare. Nu executa editări, aplică modificări sau rulează comenzi care schimbă codul.
-4. **Fă modificări DOAR** când utilizatorul scrie explicit: **MAKE THE CHANGE**.
+**Se aplică** când mesajul e în principal o **întrebare** („cum funcționează X?”, „are sens Y?”) **fără** „fă”, „implementează”, „rulează”:
 
-Până la acel moment, răspunde doar cu analiză și explicație.
+1. Poți analiza și explica.
+2. **Nu modifica cod** și nu rula comenzi care schimbă repo-ul până nu cere explicit implementare sau „MAKE THE CHANGE”.

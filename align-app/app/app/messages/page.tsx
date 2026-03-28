@@ -98,14 +98,43 @@ export default function MessagesPage() {
     })();
   }, []);
 
-  // Polling listă conversații + prieteni la ~2s (ca WhatsApp)
+  // Polling listă conversații + prieteni; pauză cât tab-ul nu e vizibil.
   useEffect(() => {
     if (loading) return;
-    const t = setInterval(() => {
+    const POLL_MS = 2500;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+    const clearPoll = () => {
+      if (intervalId != null) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+    };
+    const tick = () => {
       fetchConversations();
       fetchFriends();
-    }, 2000);
-    return () => clearInterval(t);
+    };
+    const startPoll = () => {
+      clearPoll();
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      intervalId = setInterval(tick, POLL_MS);
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        tick();
+        startPoll();
+      } else {
+        clearPoll();
+      }
+    };
+    if (typeof document !== "undefined" && document.visibilityState === "visible") {
+      tick();
+      startPoll();
+    }
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      clearPoll();
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [loading]);
 
   useEffect(() => {
@@ -218,14 +247,17 @@ export default function MessagesPage() {
             const preview = noMessagesYet
               ? "Trimite un mesaj"
               : (isFromMe ? "Tu: " : "") + (lastMessage.text.length > 50 ? lastMessage.text.slice(0, 50) + "…" : lastMessage.text);
+            const otherLabel = displayName(otherUser.username ?? otherUser.name);
             return (
               <li
                 key={otherUser.id}
                 className="flex items-stretch rounded-xl bg-dark-800 border border-dark-600 hover:border-dark-500 active:bg-dark-700/80 transition overflow-hidden touch-manipulation"
               >
                 <Link
-                  href={`/app/chat/${otherUser.id}`}
-                  className="flex flex-1 items-center gap-3 sm:gap-4 min-h-[56px] p-3 sm:p-4 min-w-0"
+                  href={`/app/user/${otherUser.id}`}
+                  title="Vezi profilul"
+                  aria-label={`Vezi profilul: ${otherLabel}`}
+                  className="flex shrink-0 items-center justify-center py-3 pl-3 pr-2 sm:py-4 sm:pl-4 sm:pr-2 hover:bg-dark-700/50 active:bg-dark-700/70 transition"
                 >
                   <div className="relative w-12 h-12 shrink-0 rounded-full overflow-hidden bg-brand-500/20">
                     <SilhouetteAvatar
@@ -237,16 +269,22 @@ export default function MessagesPage() {
                     />
                     {unreadCount > 0 && (
                       <span
-                        className="absolute -top-1 -right-1 min-w-[1.25rem] h-5 px-1.5 rounded-full bg-brand-500 text-dark-900 text-xs font-semibold flex items-center justify-center"
+                        className="absolute -top-1 -right-1 min-w-[1.25rem] h-5 px-1.5 rounded-full bg-brand-500 text-dark-900 text-xs font-semibold flex items-center justify-center pointer-events-none"
                         title={`${unreadCount} necitite`}
                       >
                         {unreadCount > 99 ? "99+" : unreadCount}
                       </span>
                     )}
                   </div>
+                </Link>
+                <Link
+                  href={`/app/chat/${otherUser.id}`}
+                  aria-label={`Deschide chat cu ${otherLabel}`}
+                  className="flex flex-1 items-center gap-3 sm:gap-4 min-h-[56px] min-w-0 py-3 pr-2 sm:py-4 sm:pr-3 hover:bg-dark-700/50 active:bg-dark-700/70 transition"
+                >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium text-white truncate">{displayName(otherUser.username ?? otherUser.name)}</span>
+                      <span className="font-medium text-white truncate">{otherLabel}</span>
                       {otherUser.online && (
                         <span className="shrink-0 w-2 h-2 rounded-full bg-green-400" title="Online" />
                       )}

@@ -11,6 +11,7 @@ import { track } from "@/lib/tracking";
 import { displayName } from "@/lib/displayName";
 import { getAuthHeaders } from "@/lib/authClient";
 import { messageAttachmentProxyPath, shouldProxyChatAttachment } from "@/lib/chatAttachmentProxy";
+import { clearChatDraft, readChatDraft, writeChatDraft } from "@/lib/formDrafts";
 
 const ALLOWED_ATTACH_ACCEPT = "image/jpeg,image/png,image/webp,application/pdf";
 const MAX_ATTACH_MB = 10;
@@ -77,8 +78,12 @@ export default function ChatPage() {
   /** Doar zona listei de mesaje — evită scrollIntoView care poate derula tot viewport-ul și ascunde câmpul de scris. */
   const messagesScrollRef = useRef<HTMLDivElement>(null);
   const initialScrollDoneRef = useRef(false);
+  /** După încărcare conversație: câteva sute de ms ținem lista lipită de jos când crește înălțimea (imagini, font). */
+  const pinListToBottomUntilRef = useRef(0);
   const otherPollTickRef = useRef(0);
   const prevMessageCountRef = useRef(0);
+  const chatTextRef = useRef("");
+  const chatOtherIdRef = useRef("");
 
   const meRaw = typeof window !== "undefined" ? getStoredUserRaw() : null;
   const me: User | null = meRaw ? (() => { try { return JSON.parse(meRaw); } catch { return null; } })() : null;
@@ -176,7 +181,29 @@ export default function ChatPage() {
     initialScrollDoneRef.current = false;
     otherPollTickRef.current = 0;
     prevMessageCountRef.current = 0;
+    pinListToBottomUntilRef.current = 0;
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    }
   }, [otherId]);
+
+  chatTextRef.current = text;
+  chatOtherIdRef.current = otherId;
+
+  /** Ciornă mesaj: sessionStorage pe tab, per conversație (nu parolă / nu alt tab). */
+  useLayoutEffect(() => {
+    const saved = readChatDraft(otherId);
+    setText(saved);
+  }, [otherId]);
+
+  useEffect(() => {
+    const convId = otherId;
+    const t = window.setTimeout(() => {
+      if (chatOtherIdRef.current !== convId) return;
+      writeChatDraft(convId, chatTextRef.current);
+    }, 450);
+    return () => clearTimeout(t);
+  }, [text, otherId]);
 
   /** Deschidere chat: mesaje + header în paralel; nu așteptăm visit/upload ca să nu pară „blocat”. */
   useEffect(() => {
@@ -219,18 +246,44 @@ export default function ChatPage() {
     };
   }, [otherId, fetchMessages]);
 
-  /** Poll: fără markRead pe fiecare tick. Mai mic = celălalt vede mesajele mai repede (cost: mai multe cereri la DB). */
-  const POLL_MS = 1500;
+  /** Poll: fără markRead pe fiecare tick. Pauză cât tab-ul nu e vizibil. */
+  const POLL_MS = 2500;
   useEffect(() => {
     if (!otherId || loading) return;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+    const clearPoll = () => {
+      if (intervalId != null) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+    };
     const tick = () => {
       void fetchMessages({ markConversationRead: false });
       otherPollTickRef.current += 1;
       if (otherPollTickRef.current % 3 === 0) void fetchOther();
     };
-    tick();
-    const t = setInterval(tick, POLL_MS);
-    return () => clearInterval(t);
+    const startPoll = () => {
+      clearPoll();
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      intervalId = setInterval(tick, POLL_MS);
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        tick();
+        startPoll();
+      } else {
+        clearPoll();
+      }
+    };
+    if (typeof document !== "undefined" && document.visibilityState === "visible") {
+      tick();
+      startPoll();
+    }
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      clearPoll();
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [otherId, loading, fetchMessages]);
 
   useEffect(() => {
@@ -259,6 +312,41 @@ export default function ChatPage() {
     if (!el) return;
     el.scrollTo({ top: el.scrollHeight, behavior });
   }, []);
+
+  /** După ce se termină încărcarea conversației: întoarcem pagina sus + scroll jos în panoul de mesaje (repetat pentru layout mobil / imagini). Nu depinde de `messages` ca să nu resetăm la fiecare poll. */
+  useEffect(() => {
+    if (loading) return;
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    }
+    pinListToBottomUntilRef.current = Date.now() + 2000;
+    if (messages.length === 0) return;
+
+    const run = () => scrollMessagesToBottom("auto");
+    run();
+    const timeouts = [40, 120, 300, 700].map((ms) => setTimeout(run, ms));
+    const raf1 = requestAnimationFrame(() => {
+      run();
+      requestAnimationFrame(run);
+    });
+    return () => {
+      timeouts.forEach(clearTimeout);
+      cancelAnimationFrame(raf1);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- doar la schimbare conversație / sfârșit încărcare
+  }, [loading, otherId, scrollMessagesToBottom]);
+
+  useEffect(() => {
+    if (loading) return;
+    const el = messagesScrollRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => {
+      if (Date.now() > pinListToBottomUntilRef.current) return;
+      scrollMessagesToBottom("auto");
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [loading, otherId, scrollMessagesToBottom]);
 
   /** Deschidere: scroll instant în panoul mesaje. După: doar dacă tu trimiți (sau încă pending), fără scroll pe tot documentul. */
   useLayoutEffect(() => {
@@ -350,6 +438,7 @@ export default function ChatPage() {
           msg.attachmentUrl = messageAttachmentProxyPath(msg.id);
         }
         setMessages((prev) => prev.map((m) => (m.id === optimisticId ? msg : m)));
+        clearChatDraft(otherId);
         /** Răspunsul POST conține deja mesajul — fără al doilea GET (mai puțină latență percepută). */
       } else {
         setMessages((prev) => prev.filter((m) => m.id !== optimisticId));

@@ -1,0 +1,27 @@
+---
+description: Instrucțiune clară = execuție directă; întrebi doar când lipsește claritatea sau impactul e mare
+alwaysApply: true
+---
+
+# Prioritate: ce a cerut utilizatorul, fără pași în plus
+
+## Instrucțiune clară („fă X”, „rulează Y”, „adaugă Z”, „schimbă W”)
+
+- **Execută direct** ce ți-a cerut: cod, comenzi, fișiere.
+- **Nu** trece prin pași intermediari de tip: doar analiză lungă fără acțiune, plan înainte de exec când cererea e deja concretă, „să confirmi?” / „vrei să…?”.
+- **Nu** întreba dacă din mesaj reiese deja ce trebuie făcut.
+- Poți citi cod/fișiere cât e nevoie tehnic — asta nu e „pas în plus” în fața utilizatorului.
+
+## Banal / rutină (tot fără întrebare)
+
+- Comenzi explicite (`npm run …`, `tsc`, `git …`), pornește dev/signaling la cerere.
+- Fixuri minime strict în scope-ul spus.
+- **Nu lărgii** task-ul pe ascuns (fără refactor sau fișiere colaterale).
+
+## Când întrebi înainte
+
+- Cererea e **ambiguu** sau lipsesc date esențiale.
+- Impact **mare**: securitate, schema DB, ștergeri masive, feature nou nedelimitat, costuri.
+- Utilizatorul **nu** a spus să faci ceva concret — de ex. doar „cum ar merge?” — atunci poți explica sau propune, fără a modifica până cere clar implementare.
+
+Principiu: **clar + „fă” = execuție imediată; altfel transparență unde contează.**

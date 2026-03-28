@@ -477,9 +477,15 @@ export default function CallUI({
         <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4 px-4 text-center">
           <p className="text-red-400 font-medium">{error}</p>
           <p className="text-dark-500 text-sm max-w-md">
-            Verifică <code className="text-dark-400">docs/calls.md</code>: server semnalizare (WS), coturn/TURN, variabilele{" "}
+            Pe Vercel aceste valori sunt în Settings → Environment Variables; local pune-le în{" "}
+            <code className="text-dark-400">.env.local</code> (ex.{" "}
+            <code className="text-dark-400">npm run env:pull-production</code> după{" "}
+            <code className="text-dark-400">vercel link</code>). Vezi{" "}
+            <code className="text-dark-400">docs/calls.md</code>:{" "}
             <code className="text-dark-400">NEXT_PUBLIC_SIGNALING_WS_URL</code>,{" "}
-            <code className="text-dark-400">NEXT_PUBLIC_TURN_URLS</code>, <code className="text-dark-400">TURN_AUTH_SECRET</code>.
+            <code className="text-dark-400">NEXT_PUBLIC_TURN_URLS</code>,{" "}
+            <code className="text-dark-400">TURN_REALM</code>, <code className="text-dark-400">TURN_STATIC_SECRET</code>,{" "}
+            <code className="text-dark-400">TURN_AUTH_SECRET</code>.
           </p>
           <Link href="/app/messages" className="text-brand-400 hover:underline mt-2">
             Înapoi la mesaje

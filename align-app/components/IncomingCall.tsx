@@ -9,7 +9,7 @@ import { getStoredUserRaw } from "@/lib/store";
 import { getAuthHeaders } from "@/lib/authClient";
 import { markIncomingCallDismissed, shouldIgnorePolledIncoming } from "@/lib/callIncomingDismiss";
 
-const POLL_MS = 1000;
+const POLL_MS = 2500;
 
 interface IncomingCallData {
   fromId: string;
@@ -67,10 +67,38 @@ export default function IncomingCall() {
       }
       return;
     }
-    fetchIncoming();
-    pollRef.current = setInterval(fetchIncoming, POLL_MS);
+
+    const clearPoll = () => {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
+
+    const startPoll = () => {
+      clearPoll();
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      pollRef.current = setInterval(fetchIncoming, POLL_MS);
+    };
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        fetchIncoming();
+        startPoll();
+      } else {
+        clearPoll();
+      }
+    };
+
+    if (typeof document !== "undefined" && document.visibilityState === "visible") {
+      fetchIncoming();
+      startPoll();
+    }
+
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
+      clearPoll();
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [fetchIncoming, onCallPage]);
 

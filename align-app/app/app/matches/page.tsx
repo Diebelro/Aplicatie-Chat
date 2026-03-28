@@ -49,36 +49,44 @@ export default function MatchesPage() {
         </p>
       ) : (
         <ul className="space-y-4">
-          {matches.map((u) => (
+          {matches.map((u) => {
+            const matchLabel = displayName(u.username ?? u.name);
+            return (
             <li
               key={u.id}
-              className="bg-dark-800 border border-dark-600 rounded-xl p-4 flex items-center gap-4"
+              className="flex items-stretch rounded-xl bg-dark-800 border border-dark-600 hover:border-dark-500 overflow-hidden touch-manipulation"
             >
-              <div className="w-12 h-12 rounded-full overflow-hidden bg-brand-500/20 flex items-center justify-center shrink-0">
-                <SilhouetteAvatar
-                  photoUrl={u.photos?.[0]}
-                  gender={u.gender}
-                  name={u.name}
-                  className="w-full h-full text-brand-400"
-                  imgClassName="w-full h-full object-cover"
-                />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="font-medium text-white">{displayName(u.username ?? u.name)}</p>
-                <p className="text-sm text-dark-500 line-clamp-1">{u.bio || "—"}</p>
-                <p className="text-xs text-dark-400 mt-1">
-                  {u.distanceHidden || u.distanceKm == null
-                    ? "Distanță ascunsă"
-                    : u.distanceKm < 1
-                      ? "În apropiere"
-                      : formatDistance(u.distanceKm)}
-                  <span className="mx-2">·</span>
-                  <span className={u.online ? "text-green-400" : "text-dark-500"}>
-                    {u.online ? "Online" : "Offline"}
-                  </span>
-                </p>
-              </div>
-              <div className="shrink-0 flex items-center gap-2">
+              <Link
+                href={`/app/user/${u.id}`}
+                className="flex flex-1 min-w-0 items-center gap-4 p-4 min-h-[56px] hover:bg-dark-700/50 active:bg-dark-700/70 transition"
+                aria-label={`Vezi profilul: ${matchLabel}`}
+              >
+                <div className="w-12 h-12 rounded-full overflow-hidden bg-brand-500/20 flex items-center justify-center shrink-0">
+                  <SilhouetteAvatar
+                    photoUrl={u.photos?.[0]}
+                    gender={u.gender}
+                    name={u.name}
+                    className="w-full h-full text-brand-400"
+                    imgClassName="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-white">{matchLabel}</p>
+                  <p className="text-sm text-dark-500 line-clamp-1">{u.bio || "—"}</p>
+                  <p className="text-xs text-dark-400 mt-1">
+                    {u.distanceHidden || u.distanceKm == null
+                      ? "Distanță ascunsă"
+                      : u.distanceKm < 1
+                        ? "În apropiere"
+                        : formatDistance(u.distanceKm)}
+                    <span className="mx-2">·</span>
+                    <span className={u.online ? "text-green-400" : "text-dark-500"}>
+                      {u.online ? "Online" : "Offline"}
+                    </span>
+                  </p>
+                </div>
+              </Link>
+              <div className="shrink-0 flex items-center gap-2 pr-3 pl-2 border-l border-dark-600 bg-dark-800">
                 <QuickCallButtons toUserId={u.id} size="md" />
                 <Link
                   href={`/app/review-swipes?focus=${encodeURIComponent(u.id)}`}
@@ -96,7 +104,8 @@ export default function MatchesPage() {
                 </Link>
               </div>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </div>

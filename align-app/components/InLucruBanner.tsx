@@ -21,6 +21,7 @@ export function InLucruBanner() {
 
 /** Reminder compact pe pagini (login, signup, etc.) */
 export function InLucruReminder() {
+  if (process.env.NEXT_PUBLIC_SHOW_WIP_BANNER !== "true") return null;
   return (
     <p className="rounded-lg border border-white/[0.08] bg-dark-800/60 px-3 py-2 text-center text-xs font-medium text-dark-400">
       {MESSAGE}

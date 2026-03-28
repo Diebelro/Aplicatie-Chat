@@ -36,7 +36,7 @@ export default function RootLayout({
         }}
       >
         <DisableDevTools />
-        <InLucruBanner />
+        {process.env.NEXT_PUBLIC_SHOW_WIP_BANNER === "true" ? <InLucruBanner /> : null}
         <Providers>{children}</Providers>
       </body>
     </html>

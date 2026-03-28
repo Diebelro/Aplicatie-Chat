@@ -22,6 +22,7 @@ import {
 import { canSendMessage, PAYWALL_MESSAGE } from "@/lib/monetization";
 import { resolveRequestUserId } from "@/lib/sessionAuth";
 import { toClientMessageAttachmentFields } from "@/lib/chatAttachmentProxy";
+import { recordApiRouteError } from "@/lib/serverErrorRing";
 
 export async function GET(request: NextRequest) {
   const userId = resolveRequestUserId(request);
@@ -86,6 +87,7 @@ export async function GET(request: NextRequest) {
       );
     } catch (err) {
       console.error("[api/messages GET]", err);
+      recordApiRouteError("GET /api/messages", err);
       const msg = err && typeof err === "object" && "message" in err ? String((err as { message: unknown }).message).split("\n")[0]?.trim() : "";
       const errText = process.env.NODE_ENV === "development" && msg ? msg : "Eroare server. Încearcă din nou.";
       return NextResponse.json({ error: errText }, { status: 500 });
@@ -193,6 +195,7 @@ export async function POST(request: NextRequest) {
       });
     } catch (err) {
       console.error("[api/messages POST]", err);
+      recordApiRouteError("POST /api/messages", err);
       const code = err && typeof err === "object" && "code" in err ? (err as { code: string }).code : "";
       const message = err && typeof err === "object" && "message" in err ? String((err as { message: unknown }).message).split("\n")[0]?.trim() : "";
       if (code === "P2003") {

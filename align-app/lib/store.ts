@@ -96,6 +96,8 @@ export interface User {
   role?: string;
   /** Cont blocat de admin */
   isBanned?: boolean;
+  /** Suspendare temporară — ISO; acces blocat până la acest moment */
+  banUntil?: string | null;
 }
 
 export interface Match {
