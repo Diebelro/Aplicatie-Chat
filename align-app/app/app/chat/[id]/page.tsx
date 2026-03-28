@@ -187,6 +187,16 @@ export default function ChatPage() {
     }
   }, [otherId]);
 
+  /** Fără restaurarea automată a scroll-ului din istoric — alfel conversația se deschide „pe la mijloc”. */
+  useEffect(() => {
+    if (typeof window === "undefined" || !("scrollRestoration" in window.history)) return;
+    const prev = window.history.scrollRestoration;
+    window.history.scrollRestoration = "manual";
+    return () => {
+      window.history.scrollRestoration = prev;
+    };
+  }, []);
+
   chatTextRef.current = text;
   chatOtherIdRef.current = otherId;
 
@@ -310,7 +320,8 @@ export default function ChatPage() {
   const scrollMessagesToBottom = useCallback((behavior: ScrollBehavior) => {
     const el = messagesScrollRef.current;
     if (!el) return;
-    el.scrollTo({ top: el.scrollHeight, behavior });
+    const top = el.scrollHeight - el.clientHeight;
+    el.scrollTo({ top: Math.max(0, top), behavior });
   }, []);
 
   /** După ce se termină încărcarea conversației: întoarcem pagina sus + scroll jos în panoul de mesaje (repetat pentru layout mobil / imagini). Nu depinde de `messages` ca să nu resetăm la fiecare poll. */
@@ -319,12 +330,12 @@ export default function ChatPage() {
     if (typeof window !== "undefined") {
       window.scrollTo({ top: 0, left: 0, behavior: "instant" });
     }
-    pinListToBottomUntilRef.current = Date.now() + 2000;
+    pinListToBottomUntilRef.current = Date.now() + 4500;
     if (messages.length === 0) return;
 
     const run = () => scrollMessagesToBottom("auto");
     run();
-    const timeouts = [40, 120, 300, 700].map((ms) => setTimeout(run, ms));
+    const timeouts = [40, 120, 300, 700, 1200, 2200, 3500].map((ms) => setTimeout(run, ms));
     const raf1 = requestAnimationFrame(() => {
       run();
       requestAnimationFrame(run);
@@ -359,7 +370,13 @@ export default function ChatPage() {
 
     if (!initialScrollDoneRef.current) {
       scrollMessagesToBottom("auto");
-      initialScrollDoneRef.current = true;
+      requestAnimationFrame(() => {
+        scrollMessagesToBottom("auto");
+        requestAnimationFrame(() => {
+          scrollMessagesToBottom("auto");
+          initialScrollDoneRef.current = true;
+        });
+      });
       return;
     }
     if (grew && (last?.clientPending || lastIsMine)) {

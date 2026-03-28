@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Activity, ChevronRight } from "lucide-react";
-import { getAuthHeaders } from "@/lib/authClient";
+import { fetchWithAuthRetry } from "@/lib/authClient";
 
 type Snap = {
   overall: "ok" | "warn" | "critical";
@@ -23,7 +23,7 @@ export function AdminSystemStrip() {
     let cancelled = false;
     const load = () => {
       const t0 = performance.now();
-      fetch("/api/admin/system-status", { headers: getAuthHeaders(), cache: "no-store" })
+      fetchWithAuthRetry("/api/admin/system-status", { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null))
         .then((d: Snap | null) => {
           if (cancelled || !d) return;

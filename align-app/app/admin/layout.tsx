@@ -25,27 +25,41 @@ export default function AdminLayout({
       setAllowed(false);
       return;
     }
-    fetch("/api/me", { headers: getAuthHeaders() })
-      .then((res) => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const req = () =>
+          fetch("/api/me", { headers: getAuthHeaders(), credentials: "include" });
+        let res = await req();
+        if (cancelled) return;
+        if (res.status === 401) {
+          await new Promise((r) => setTimeout(r, 400));
+          if (cancelled) return;
+          res = await req();
+        }
         if (!res.ok) {
-          router.replace("/admin/setup");
+          if (!cancelled) router.replace("/admin/setup");
           return;
         }
-        return res.json();
-      })
-      .then((data) => {
+        const data = (await res.json()) as { user?: { role?: string } };
+        if (cancelled) return;
         if (!data?.user) {
           router.replace("/admin/setup");
           return;
         }
-        const role = (data.user as { role?: string }).role ?? "USER";
+        const role = data.user.role ?? "USER";
         if (role !== "ADMIN" && role !== "SUPERADMIN") {
           router.replace("/admin/setup");
           return;
         }
         setAllowed(true);
-      })
-      .catch(() => router.replace("/admin/setup"));
+      } catch {
+        if (!cancelled) router.replace("/admin/setup");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [router, isSetupPage]);
 
   if (isSetupPage) {

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { getAuthHeaders } from "@/lib/authClient";
+import { fetchWithAuthRetry } from "@/lib/authClient";
 import { ShieldAlert } from "lucide-react";
 
 type Ev = {
@@ -27,7 +27,7 @@ export default function AdminSecurityPage() {
 
   const load = useCallback(() => {
     setErr(null);
-    fetch(`/api/admin/security-threats?windowMin=${win}`, { headers: getAuthHeaders(), cache: "no-store" })
+    fetchWithAuthRetry(`/api/admin/security-threats?windowMin=${win}`, { cache: "no-store" })
       .then(async (r) => {
         const d = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(typeof d.error === "string" ? d.error : "Eroare");

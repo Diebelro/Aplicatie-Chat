@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ShieldAlert } from "lucide-react";
-import { getAuthHeaders } from "@/lib/authClient";
+import { fetchWithAuthRetry } from "@/lib/authClient";
 
 type Snapshot = {
   shouldAlert: boolean;
@@ -19,7 +19,7 @@ export function AdminSecurityThreatBanner() {
   useEffect(() => {
     let cancelled = false;
     const load = () => {
-      fetch("/api/admin/security-threats?windowMin=15", { headers: getAuthHeaders(), cache: "no-store" })
+      fetchWithAuthRetry("/api/admin/security-threats?windowMin=15", { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null))
         .then((d: Snapshot | null) => {
           if (!cancelled && d) setSnap(d);

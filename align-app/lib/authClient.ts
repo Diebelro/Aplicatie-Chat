@@ -26,3 +26,25 @@ export function getAuthHeaders(): HeadersInit {
     return {};
   }
 }
+
+/**
+ * Fetch cu cookie + headere sesiune și un retry scurt la 401 (serverless / cursă la login).
+ */
+export async function fetchWithAuthRetry(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
+  const buildInit = (): RequestInit => {
+    const base = new Headers(init.headers);
+    const auth = getAuthHeaders();
+    if (auth && typeof auth === "object" && !Array.isArray(auth)) {
+      for (const [k, v] of Object.entries(auth as Record<string, string>)) {
+        if (v) base.set(k, v);
+      }
+    }
+    return { ...init, headers: base, credentials: "include" as const };
+  };
+  let res = await fetch(input, buildInit());
+  if (typeof window !== "undefined" && res.status === 401) {
+    await new Promise((r) => setTimeout(r, 400));
+    res = await fetch(input, buildInit());
+  }
+  return res;
+}

@@ -6,7 +6,12 @@ import { getSecurityThreatsSnapshot } from "@/lib/securityThreats";
 export async function GET(request: Request) {
   const userId = getAuthenticatedUserId(request);
   if (!userId) return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
-  if (!isPrismaAvailable()) return NextResponse.json({ error: "Neautorizat." }, { status: 403 });
+  if (!isPrismaAvailable()) {
+    return NextResponse.json(
+      { error: "Monitorul securitate necesită DATABASE_URL configurat pe server." },
+      { status: 503 }
+    );
+  }
   const role = await prismaGetUserRole(userId);
   if (role !== "ADMIN" && role !== "SUPERADMIN") {
     return NextResponse.json({ error: "Acces interzis." }, { status: 403 });

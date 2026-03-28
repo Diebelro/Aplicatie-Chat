@@ -7,7 +7,12 @@ import { recordApiRouteError } from "@/lib/serverErrorRing";
 export async function GET(request: Request) {
   const userId = getAuthenticatedUserId(request);
   if (!userId) return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
-  if (!isPrismaAvailable()) return NextResponse.json({ error: "Neautorizat." }, { status: 403 });
+  if (!isPrismaAvailable()) {
+    return NextResponse.json(
+      { error: "Bordul sistem necesită DATABASE_URL configurat pe server." },
+      { status: 503 }
+    );
+  }
 
   try {
     const role = await prismaGetUserRole(userId);

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, type ComponentType } from "react";
 import Link from "next/link";
-import { getAuthHeaders } from "@/lib/authClient";
+import { fetchWithAuthRetry } from "@/lib/authClient";
 import {
   Activity,
   Database,
@@ -81,7 +81,7 @@ export default function AdminSystemDashboardPage() {
   const load = useCallback(() => {
     setErr(null);
     const t0 = typeof performance !== "undefined" ? performance.now() : 0;
-    fetch("/api/admin/system-status", { headers: getAuthHeaders(), cache: "no-store" })
+    fetchWithAuthRetry("/api/admin/system-status", { cache: "no-store" })
       .then(async (r) => {
         const d = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(typeof d.error === "string" ? d.error : "Eroare");

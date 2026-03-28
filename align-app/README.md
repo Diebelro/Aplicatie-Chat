@@ -101,7 +101,7 @@ Dacă în PowerShell vezi **`npm is not recognized`** / **`node is not recognize
 ## Checklist scurt producție
 
 1. **Variabile**: Vercel (sau host) — `DATABASE_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `NEXT_PUBLIC_APP_URL`, email (`RESEND_*`), Blob dacă folosești atașamente, semnalizare/TURN dacă ai apeluri (vezi `.env.example`).
-2. **UI**: fără bandă WIP — nu seta `NEXT_PUBLIC_SHOW_WIP_BANNER` sau lasă-o `false`. Butoane sociale — doar după OAuth real: `NEXT_PUBLIC_ENABLE_SOCIAL_LOGIN=true`.
+2. **UI**: fără bandă WIP — nu seta `NEXT_PUBLIC_SHOW_WIP_BANNER` sau lasă-o `false`. Butoane sociale — afișate implicit (stub); ascunde cu `NEXT_PUBLIC_ENABLE_SOCIAL_LOGIN=false`.
 3. **Tracking**: setează `NEXT_PUBLIC_GA4_ID` / Meta / Ads doar cu ID-uri reale; altfel scripturile nu se încarcă.
 4. **Verificare locală**: din `align-app`, `npm run lint`, `npm run test`, `npm run build`.
 5. **Deploy**: Root Directory `align-app`; detalii în [DEPLOY-ONLINE.md](./DEPLOY-ONLINE.md) și `/docs/BUILD_AND_DEPLOY.md`.

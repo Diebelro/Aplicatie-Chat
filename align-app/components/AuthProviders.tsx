@@ -40,7 +40,8 @@ const compactButtonClass = `
 `.replace(/\s+/g, " ").trim();
 
 export default function AuthProviders({ compact }: AuthProvidersProps) {
-  if (process.env.NEXT_PUBLIC_ENABLE_SOCIAL_LOGIN !== "true") {
+  // Implicit afișat (ca în UI inițial + disclaimer „în curând”). Ascunde doar cu NEXT_PUBLIC_ENABLE_SOCIAL_LOGIN=false.
+  if (process.env.NEXT_PUBLIC_ENABLE_SOCIAL_LOGIN === "false") {
     return null;
   }
   return (
