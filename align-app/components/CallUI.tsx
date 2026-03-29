@@ -450,6 +450,9 @@ export default function CallUI({
       <RemotePlaybackContext.Provider value={remotePlayback}>
         <div className="flex flex-col items-center justify-center min-h-[50vh] gap-6 px-5 py-10 text-center bg-dark-950">
           <div className="max-w-lg rounded-2xl border border-amber-500/40 bg-amber-500/[0.12] px-6 py-6 text-left shadow-lg shadow-amber-900/20">
+            <p className="text-amber-200/80 text-xs font-medium uppercase tracking-wide mb-2">
+              Ce înseamnă acest ecran
+            </p>
             <p className="text-amber-50 font-semibold text-lg mb-4">{permissionHelp.headline}</p>
             <ul className="text-amber-100/90 text-sm space-y-3 list-disc pl-5 leading-relaxed">
               {permissionHelp.lines.map((line, i) => (

@@ -90,16 +90,17 @@ export function formatMediaPermissionHelp(err: unknown): { headline: string; lin
   const name = err instanceof DOMException ? err.name : "";
   const headline =
     name === "NotAllowedError"
-      ? "Acces refuzat la microfon sau cameră"
+      ? "Browserul blochează microfonul sau camera"
       : name === "NotFoundError"
         ? "Nu s-a găsit microfon sau cameră"
-        : "Nu putem folosi microfonul";
+        : "Nu putem porni microfonul";
 
   const lines = [
-    "Apasă pe iconița de lacăt sau „i” în bara de adresă a browserului și setează Microfon (și Camera, dacă e apel video) la „Permite”.",
-    "Pe Android (Chrome): meniul site-ului → Permisiuni → Microfon / Cameră.",
-    "Pe iPhone (Safari): Setări → Safari → Microfon / Cameră și verifică acest site.",
-    "După ce permiți, închide apelul și intră din nou — nu e nevoie de mesaj roșu, e doar o setare a telefonului sau browserului.",
+    "Nu e o eroare în Align — Chrome, Safari sau telefonul trebuie să îți permită accesul. E același lucru la apel 1-la-1 și la conferință: o singură dată permis pentru site, apoi merge peste tot aici.",
+    "Desktop: iconița de lacăt sau „i” lângă adresa site-ului → Microfon și Camera → „Permite”.",
+    "Android (Chrome): meniul site-ului → Permisiuni → Microfon / Cameră.",
+    "iPhone (Safari): Setări → Safari → Microfon / Cameră pentru acest site.",
+    "După ce modifici permisiunile: închide fereastra de apel și intră din nou (sau reîmprospătează pagina), apoi Acceptă din nou.",
   ];
 
   return { headline, lines };
