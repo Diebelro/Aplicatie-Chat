@@ -79,9 +79,10 @@ export async function getAdminSystemSnapshot(): Promise<{
     overall = bump(overall, "warn");
     reasons.push("Latentă DB ridicată");
   }
+  /** Pe Vercel serverless, Next + Prisma depășesc des ~500 MB fără leak; praguri mai realiste ca să nu fie mereu galben. */
   const heapMb = mem.heapUsed / MB;
-  if (heapMb > 512) {
-    overall = bump(overall, heapMb > 900 ? "critical" : "warn");
+  if (heapMb > 700) {
+    overall = bump(overall, heapMb > 1100 ? "critical" : "warn");
     reasons.push("Memorie heap ridicată");
   }
   const avgLcp = vitals.avgLcpLast20;
