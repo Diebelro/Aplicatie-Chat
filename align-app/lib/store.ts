@@ -1,3 +1,5 @@
+import { RING_PENDING_MAX_MS } from "./callRingConstants";
+
 /** În browser: citește user din localStorage sau sessionStorage („Ține-mă minte”). */
 export function getStoredUserRaw(): string | null {
   if (typeof window === "undefined") return null;
@@ -531,7 +533,7 @@ export function deleteUser(userId: string): boolean {
   const i = s.users.findIndex((u) => u.id === userId);
   if (i < 0) return false;
 
-  const { deleteAllSessionsForUser } = require("@/lib/sessions");
+  const { clearAllSessionsForUserInMemory } = require("@/lib/sessions");
   const { deleteDevicesForUser } = require("@/lib/devices");
 
   s.passwordHashes.delete(userId);
@@ -570,7 +572,7 @@ export function deleteUser(userId: string): boolean {
     map.delete(userId);
   }
 
-  deleteAllSessionsForUser(userId);
+  clearAllSessionsForUserInMemory(userId);
   deleteDevicesForUser(userId);
 
   s.users.splice(i, 1);
@@ -785,7 +787,8 @@ const pendingCallByToId = new Map<
   string,
   { fromId: string; roomId: string; at: string; audioOnly: boolean }
 >();
-const PENDING_CALL_EXPIRE_MS = 60 * 1000;
+
+const PENDING_CALL_EXPIRE_MS = RING_PENDING_MAX_MS;
 
 export function setPendingCall(
   toId: string,

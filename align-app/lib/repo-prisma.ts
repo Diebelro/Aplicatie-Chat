@@ -6,7 +6,9 @@
 import crypto from "crypto";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { normalizeAuthEmail } from "@/lib/auth";
 import { logDevPrismaNoticeOnce } from "@/lib/dev-prisma-notice";
+import { RING_PENDING_MAX_MS } from "@/lib/callRingConstants";
 import type { User, Match, Message } from "@/lib/store";
 import type { Gender } from "@/lib/store";
 
@@ -319,10 +321,12 @@ export async function prismaCreateUserWithProfile(data: {
 }
 
 /** Găsește user doar după email (pentru login). Nu cere Profile – astfel conturile existente sunt găsite mereu. */
-export async function prismaFindUserByEmailForLogin(email: string): Promise<{ id: string; email: string; isBanned: boolean } | null> {
+export async function prismaFindUserByEmailForLogin(
+  email: string
+): Promise<{ id: string; email: string; isBanned: boolean; role: string } | null> {
   const user = await prisma.user.findUnique({
     where: { email: email.trim().toLowerCase() },
-    select: { id: true, email: true, isBanned: true, banUntil: true },
+    select: { id: true, email: true, isBanned: true, banUntil: true, role: true },
   });
   if (!user) return null;
   await prismaClearBanIfExpired(user.id);
@@ -331,7 +335,28 @@ export async function prismaFindUserByEmailForLogin(email: string): Promise<{ id
     select: { isBanned: true, banUntil: true },
   });
   const blocked = !!(fresh?.isBanned || (fresh?.banUntil && fresh.banUntil > new Date()));
-  return { id: user.id, email: user.email, isBanned: blocked };
+  return { id: user.id, email: user.email, isBanned: blocked, role: user.role };
+}
+
+/**
+ * Un singur cont „proprietar” primește automat rol ADMIN dacă emailul coincide cu ADMIN_OWNER_EMAIL sau CONTACT_EMAIL.
+ * Nu modifică SUPERADMIN. Pe Vercel setează CONTACT_EMAIL=contact@diebel.ro (sau ADMIN_OWNER_EMAIL) ca să nu mai depinzi de scripturi manuale.
+ */
+export async function prismaEnsureOwnerAdminRole(userId: string, email: string): Promise<boolean> {
+  const ownerRaw = (process.env.ADMIN_OWNER_EMAIL || process.env.CONTACT_EMAIL || "").trim().toLowerCase();
+  if (!ownerRaw) return false;
+  const em = normalizeAuthEmail(email);
+  if (!em || em !== ownerRaw) return false;
+  const row = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+  if (!row || row.role === "SUPERADMIN" || row.role === "ADMIN") return false;
+  await prisma.user.update({
+    where: { id: userId },
+    data: { role: "ADMIN" },
+  });
+  return true;
 }
 
 export async function prismaGetPasswordHash(userId: string): Promise<string | null> {
@@ -1845,7 +1870,8 @@ export async function prismaUpsertPendingIncomingCall(
   await prisma.pendingIncomingCall.upsert({
     where: { toUserId },
     create: { toUserId, fromId, roomId, audioOnly },
-    update: { fromId, roomId, audioOnly },
+    /** Resetează createdAt la fiecare apel nou — altfel TTL-ul ar șterge imediat la re-sunare după un pending vechi. */
+    update: { fromId, roomId, audioOnly, createdAt: new Date() },
   });
 }
 
@@ -1855,6 +1881,10 @@ export async function prismaGetPendingIncomingCall(
   try {
     const row = await prisma.pendingIncomingCall.findUnique({ where: { toUserId } });
     if (!row) return null;
+    if (Date.now() - row.createdAt.getTime() > RING_PENDING_MAX_MS) {
+      await prisma.pendingIncomingCall.delete({ where: { toUserId } }).catch(() => {});
+      return null;
+    }
     return { fromId: row.fromId, roomId: row.roomId, audioOnly: row.audioOnly };
   } catch {
     return null;

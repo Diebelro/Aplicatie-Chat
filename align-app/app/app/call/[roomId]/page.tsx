@@ -64,6 +64,44 @@ export default function CallPage() {
     };
   }, [roomId]);
 
+  /**
+   * Închidere filă / browser: React cleanup poate să nu apuce să trimită fetch; sendBeacon/keepalive
+   * ajunge mai des la server ca să nu rămână „te sună” la celălalt.
+   * (Nu folosim visibilitychange — la schimbare tab s-ar încheia apelul greșit.)
+   */
+  useEffect(() => {
+    const body = JSON.stringify({ roomId });
+    const flush = () => {
+      markIncomingCallDismissed(roomId);
+      try {
+        if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+          const blob = new Blob([body], { type: "application/json" });
+          if (navigator.sendBeacon("/api/call/end", blob)) return;
+        }
+      } catch {
+        /* fall through */
+      }
+      try {
+        void fetch("/api/call/end", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body,
+          keepalive: true,
+        });
+      } catch {
+        /* ignore */
+      }
+    };
+    const onPageHide = (e: PageTransitionEvent) => {
+      /** Pagina intră în bfcache (Back rapid) — nu încheiem apelul. */
+      if (e.persisted) return;
+      flush();
+    };
+    window.addEventListener("pagehide", onPageHide);
+    return () => window.removeEventListener("pagehide", onPageHide);
+  }, [roomId]);
+
   /** Încărcare: fullscreen negru ca la apel — fără „Se încarcă” în layout (evită clip cu mesajele de dedesubt). */
   if (allowed === null || user === null) {
     return (
