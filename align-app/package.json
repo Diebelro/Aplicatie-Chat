@@ -22,6 +22,7 @@
     "db:setup": "npx --yes dotenv-cli@8 -e .env -e .env.local -- prisma generate && npx --yes dotenv-cli@8 -e .env -e .env.local -- prisma db push",
     "db:push": "npx --yes dotenv-cli@8 -e .env -e .env.local -- prisma db push",
     "db:migrate": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "db:ensure-contact": "ts-node --project scripts/tsconfig.json scripts/ensure-contact-user.ts",
     "db:grant-admin": "npx --yes dotenv-cli@8 -e .env -e .env.local -- node scripts/grant-admin.mjs"
