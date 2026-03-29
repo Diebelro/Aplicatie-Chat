@@ -4,7 +4,7 @@ import { confirmRecovery } from "@/lib/recoverySessions";
 
 export async function POST(request: Request) {
   try {
-    const userId = getAuthenticatedUserId(request);
+    const userId = await getAuthenticatedUserId(request);
     if (!userId) {
       return NextResponse.json(
         { error: "Trebuie să fii logat pe acest dispozitiv (telefon)." },

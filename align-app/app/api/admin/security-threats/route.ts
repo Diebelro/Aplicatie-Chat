@@ -4,7 +4,7 @@ import { isPrismaAvailable, prismaGetUserRole } from "@/lib/repo-prisma";
 import { getSecurityThreatsSnapshot } from "@/lib/securityThreats";
 
 export async function GET(request: Request) {
-  const userId = getAuthenticatedUserId(request);
+  const userId = await getAuthenticatedUserId(request);
   if (!userId) return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   if (!isPrismaAvailable()) {
     return NextResponse.json(

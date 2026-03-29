@@ -3,7 +3,7 @@ import { getAuthenticatedUserId } from "@/lib/sessionAuth";
 import { isPrismaAvailable, prismaGetUserRole, prismaGetAdminLogs } from "@/lib/repo-prisma";
 
 async function requireAdmin(request: Request): Promise<NextResponse | null> {
-  const userId = getAuthenticatedUserId(request);
+  const userId = await getAuthenticatedUserId(request);
   if (!userId) return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   if (!isPrismaAvailable()) return NextResponse.json({ error: "Neautorizat." }, { status: 403 });
   const role = await prismaGetUserRole(userId);

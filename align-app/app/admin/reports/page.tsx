@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { getAuthHeaders } from "@/lib/authClient";
+import { fetchWithAuthRetry } from "@/lib/authClient";
 import { AlertTriangle } from "lucide-react";
 
 type Report = {
@@ -23,7 +23,7 @@ export default function AdminReportsPage() {
 
   const load = () => {
     setLoading(true);
-    fetch("/api/admin/reports", { headers: getAuthHeaders() })
+    fetchWithAuthRetry("/api/admin/reports")
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("Eroare"))))
       .then((data) => {
         setReports(
@@ -50,9 +50,9 @@ export default function AdminReportsPage() {
     if (reason === null) return;
     setBanningId(r.id);
     setError(null);
-    fetch("/api/admin/users/" + encodeURIComponent(r.reportedId) + "/ban", {
+    fetchWithAuthRetry("/api/admin/users/" + encodeURIComponent(r.reportedId) + "/ban", {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "BAN", reason: reason.trim().slice(0, 4000) }),
     })
       .then((res) =>

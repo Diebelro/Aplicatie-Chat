@@ -15,7 +15,7 @@ function isAdminRole(role: string | null): boolean {
 async function requireAdmin(request: NextRequest): Promise<
   { ok: true; userId: string } | { ok: false; response: NextResponse }
 > {
-  const userId = getAuthenticatedUserId(request);
+  const userId = await getAuthenticatedUserId(request);
   if (!userId) {
     return { ok: false, response: NextResponse.json({ error: "Neautorizat." }, { status: 401 }) };
   }

@@ -17,6 +17,15 @@ export default function CompleteazaProfilulPage() {
       router.replace("/login");
       return;
     }
+    try {
+      const u = JSON.parse(raw) as { role?: string };
+      if (u.role === "ADMIN" || u.role === "SUPERADMIN") {
+        router.replace("/app");
+        return;
+      }
+    } catch {
+      /* fall through */
+    }
     router.replace("/app/profile");
   }, [router]);
 

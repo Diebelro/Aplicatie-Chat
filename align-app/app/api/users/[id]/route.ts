@@ -23,7 +23,7 @@ export async function GET(
   if (!user) {
     return NextResponse.json({ error: "Profil negăsit." }, { status: 404 });
   }
-  const meId = resolveRequestUserId(request);
+  const meId = await resolveRequestUserId(request);
   if (!meId || meId === id) {
     return NextResponse.json({ user });
   }

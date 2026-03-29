@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { getAuthHeaders } from "@/lib/authClient";
+import { fetchWithAuthRetry } from "@/lib/authClient";
 import {
   AlertTriangle,
   Image as ImageIcon,
@@ -100,7 +100,7 @@ export default function AdminModerationScanPage() {
   const [threadAnchorMsgId, setThreadAnchorMsgId] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    fetch("/api/admin/moderation-ai-report", { headers: getAuthHeaders() })
+    fetchWithAuthRetry("/api/admin/moderation-ai-report")
       .then((r) => (r.ok ? r.json() : Promise.resolve({ configured: false })))
       .then((d) => setAiConfigured(Boolean(d.configured)))
       .catch(() => setAiConfigured(false));
@@ -122,7 +122,7 @@ export default function AdminModerationScanPage() {
     if (mode === "text" && selectedCats.size > 0 && selectedCats.size < CAT_OPTS.length) {
       q.set("categories", Array.from(selectedCats).join(","));
     }
-    fetch("/api/admin/moderation-scan?" + q, { headers: getAuthHeaders() })
+    fetchWithAuthRetry("/api/admin/moderation-scan?" + q)
       .then((r) => (r.ok ? r.json() : r.json().then((j) => Promise.reject(new Error(j.error || "Eroare")))))
       .then((d) => {
         setRows(d.results ?? []);
@@ -138,9 +138,9 @@ export default function AdminModerationScanPage() {
   const runAiReport = useCallback(() => {
     setAiLoading(true);
     setAiError(null);
-    fetch("/api/admin/moderation-ai-report", {
+    fetchWithAuthRetry("/api/admin/moderation-ai-report", {
       method: "POST",
-      headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ limit: aiLimit }),
     })
       .then((r) =>
@@ -193,9 +193,9 @@ export default function AdminModerationScanPage() {
     setThreadLoadingConv(k);
     setAiError(null);
     try {
-      const res = await fetch("/api/admin/moderation-ai-thread", {
+      const res = await fetchWithAuthRetry("/api/admin/moderation-ai-thread", {
         method: "POST",
-        headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fromUserId, toUserId, limit: 30 }),
       });
       const data = (await res.json()) as {

@@ -6,7 +6,7 @@ import { findUserById } from "@/lib/store";
 
 /** Poll: apel în așteptare pentru utilizatorul curent (callee). */
 export async function GET(request: NextRequest) {
-  const userId = resolveRequestUserId(request);
+  const userId = await resolveRequestUserId(request);
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   }

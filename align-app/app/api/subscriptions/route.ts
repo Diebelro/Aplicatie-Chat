@@ -10,7 +10,7 @@ const PLANS = [
 
 /** GET /api/subscriptions – planuri disponibile + abonamentul curent al utilizatorului (dacă e autentificat). */
 export async function GET(request: NextRequest) {
-  const userId = getAuthenticatedUserId(request);
+  const userId = await getAuthenticatedUserId(request);
   let current = null;
   if (userId) {
     const user = findUserById(userId);

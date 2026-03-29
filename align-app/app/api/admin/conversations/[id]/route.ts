@@ -4,7 +4,7 @@ import { isPrismaAvailable, prismaGetUserRole, prismaGetMessagesBetween, prismaC
 import { toClientMessageAttachmentFields } from "@/lib/chatAttachmentProxy";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const userId = getAuthenticatedUserId(request);
+  const userId = await getAuthenticatedUserId(request);
   if (!userId) return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   if (!isPrismaAvailable()) return NextResponse.json({ error: "Neautorizat." }, { status: 403 });
   const role = await prismaGetUserRole(userId);

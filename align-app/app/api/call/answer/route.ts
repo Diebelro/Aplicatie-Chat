@@ -6,7 +6,7 @@ import { getPendingIncomingForCallee, clearPendingIncomingForCallee } from "@/li
 
 /** Răspunde la apel: șterge apelul în așteptare și returnează roomId pentru redirect. */
 export async function POST(request: NextRequest) {
-  const userId = resolveRequestUserId(request);
+  const userId = await resolveRequestUserId(request);
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   }

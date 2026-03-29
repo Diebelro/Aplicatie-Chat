@@ -4,6 +4,7 @@ import { getAuthenticatedUserId, resolveRequestUserId } from "@/lib/sessionAuth"
 import {
   isPrismaAvailable,
   findUserOrPrisma,
+  prismaEnsureOwnerAdminRole,
   prismaFindUserByIdForMe,
   prismaUpdateProfile,
   prismaUpsertProfilePhotos,
@@ -16,15 +17,19 @@ import {
 const VALID_GENDERS: Gender[] = ["male", "female", "other"];
 
 export async function GET(request: NextRequest) {
-  const userId = getAuthenticatedUserId(request);
+  const userId = await getAuthenticatedUserId(request);
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   }
   setUserActive(userId);
   if (isPrismaAvailable()) {
     try {
-      const user = await prismaFindUserByIdForMe(userId);
+      let user = await prismaFindUserByIdForMe(userId);
       if (user) {
+        const promoted = await prismaEnsureOwnerAdminRole(userId, user.email);
+        if (promoted) {
+          user = (await prismaFindUserByIdForMe(userId)) ?? { ...user, role: "ADMIN" };
+        }
         await prismaUpdateLastActive(userId);
         return NextResponse.json({ user });
       }
@@ -41,7 +46,7 @@ export async function GET(request: NextRequest) {
 
 /** Actualizează poziția utilizatorului (lat/lng din geolocation). */
 export async function POST(request: NextRequest) {
-  const userId = resolveRequestUserId(request);
+  const userId = await resolveRequestUserId(request);
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   }
@@ -85,7 +90,7 @@ export async function POST(request: NextRequest) {
 
 /** Actualizează profilul (nume, bio, vârstă, gen, oraș). */
 export async function PATCH(request: NextRequest) {
-  const userId = getAuthenticatedUserId(request);
+  const userId = await getAuthenticatedUserId(request);
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   }

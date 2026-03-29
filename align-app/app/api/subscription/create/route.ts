@@ -7,7 +7,7 @@ import { recordApiRouteError } from "@/lib/serverErrorRing";
 /** Stub: creează sesiune checkout sau marchează planul. În producție integrezi Stripe/plata. */
 export async function POST(request: NextRequest) {
   try {
-    const userId = getAuthenticatedUserId(request);
+    const userId = await getAuthenticatedUserId(request);
     if (!userId) {
       return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
     }

@@ -17,7 +17,7 @@ function distanceHaversine(lat1: number, lng1: number, lat2: number, lng2: numbe
 }
 
 export async function GET(request: NextRequest) {
-  const userId = resolveRequestUserId(request);
+  const userId = await resolveRequestUserId(request);
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   }

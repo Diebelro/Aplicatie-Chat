@@ -4,7 +4,7 @@ import { findUserOrPrisma, isPrismaAvailable, prismaDeleteMatchById } from "@/li
 import { prisma } from "@/lib/db";
 
 export async function POST(request: NextRequest) {
-  const userId = getAuthenticatedUserId(request);
+  const userId = await getAuthenticatedUserId(request);
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   }

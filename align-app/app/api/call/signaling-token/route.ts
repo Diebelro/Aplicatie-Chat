@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 const TOKEN_TTL_MS = 10 * 60 * 1000;
 
 export async function GET(request: NextRequest) {
-  const userId = resolveRequestUserId(request);
+  const userId = await resolveRequestUserId(request);
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   }

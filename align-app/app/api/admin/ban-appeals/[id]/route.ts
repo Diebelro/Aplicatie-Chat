@@ -6,7 +6,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const adminId = getAuthenticatedUserId(request);
+  const adminId = await getAuthenticatedUserId(request);
   if (!adminId) return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   if (!isPrismaAvailable()) return NextResponse.json({ error: "Neautorizat." }, { status: 403 });
   const role = await prismaGetUserRole(adminId);

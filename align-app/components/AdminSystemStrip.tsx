@@ -96,7 +96,7 @@ export function AdminSystemStrip() {
           href="/admin/system"
           className="ml-auto inline-flex items-center gap-0.5 font-medium underline-offset-2 hover:underline shrink-0"
         >
-          Bord complet <ChevronRight className="w-3.5 h-3.5" />
+          Vezi detalii <ChevronRight className="w-3.5 h-3.5" />
         </Link>
       </div>
     </div>

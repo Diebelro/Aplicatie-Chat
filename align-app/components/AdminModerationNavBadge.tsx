@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { getAuthHeaders } from "@/lib/authClient";
+import { fetchWithAuthRetry } from "@/lib/authClient";
 import {
   ADMIN_CHECKPOINT_UPDATED_EVENT,
   readModerationSince,
@@ -16,7 +16,7 @@ export function AdminModerationNavBadge() {
   const load = useCallback(() => {
     const since = readModerationSince();
     const q = new URLSearchParams({ since: since.toISOString() });
-    fetch("/api/admin/summary?" + q.toString(), { headers: getAuthHeaders() })
+    fetchWithAuthRetry("/api/admin/summary?" + q.toString())
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (!d) {

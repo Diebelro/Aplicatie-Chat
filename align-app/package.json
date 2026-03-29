@@ -4,9 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "node scripts/dev-and-open.mjs",
-    "dev:server": "next dev -p 3005",
-    "dev:quiet": "next dev -p 3005",
-    "dev:lan": "next dev -p 3005 -H 0.0.0.0",
+    "dev:server": "next dev -p 3005 --turbo",
+    "dev:quiet": "next dev -p 3005 --turbo",
+    "dev:lan": "next dev -p 3005 -H 0.0.0.0 --turbo",
     "tunnel:lt": "npx --yes localtunnel --port 3005",
     "dev:auto": "next dev",
     "ports:free": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/free-next-ports.ps1",

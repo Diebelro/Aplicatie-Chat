@@ -12,7 +12,7 @@ import { isImageContentType, isPdfContentType } from "@/lib/chatAttachments";
  * GET /api/chat/attachment?messageId=...
  */
 export async function GET(request: NextRequest) {
-  const userId = getAuthenticatedUserId(request);
+  const userId = await getAuthenticatedUserId(request);
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   }

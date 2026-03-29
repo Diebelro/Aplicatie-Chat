@@ -5,7 +5,7 @@ import { verifyPassword, hashPassword } from "@/lib/auth";
 import { isPrismaAvailable, findUserOrPrisma, prismaGetPasswordHash, prismaUpdatePassword } from "@/lib/repo-prisma";
 
 export async function PATCH(request: NextRequest) {
-  const userId = getAuthenticatedUserId(request);
+  const userId = await getAuthenticatedUserId(request);
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   }

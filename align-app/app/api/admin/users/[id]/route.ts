@@ -12,7 +12,7 @@ import {
 import { prisma } from "@/lib/db";
 
 export async function GET(_r: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const userId = getAuthenticatedUserId(_r);
+  const userId = await getAuthenticatedUserId(_r);
   if (!userId) return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   if (!isPrismaAvailable()) return NextResponse.json({ error: "Neautorizat." }, { status: 403 });
   const role = await prismaGetUserRole(userId);
@@ -50,7 +50,7 @@ export async function GET(_r: NextRequest, { params }: { params: Promise<{ id: s
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const userId = getAuthenticatedUserId(request);
+  const userId = await getAuthenticatedUserId(request);
   if (!userId) return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   if (!isPrismaAvailable()) return NextResponse.json({ error: "Neautorizat." }, { status: 403 });
   const role = await prismaGetUserRole(userId);

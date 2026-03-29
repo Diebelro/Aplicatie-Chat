@@ -6,7 +6,7 @@ import { getPendingIncomingForCallee, clearPendingIncomingForCallee } from "@/li
 
 /** Reject the call (callee). Caller will see "Call rejected" when they poll outgoing-status. */
 export async function POST(request: NextRequest) {
-  const userId = resolveRequestUserId(request);
+  const userId = await resolveRequestUserId(request);
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }

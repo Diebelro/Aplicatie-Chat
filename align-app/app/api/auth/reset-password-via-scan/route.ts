@@ -3,7 +3,7 @@ import { consumeRecoverySession } from "@/lib/recoverySessions";
 import { findUserById, setPassword } from "@/lib/store";
 import { hashPassword } from "@/lib/auth";
 import {
-  createSession,
+  createSessionAsync,
   SESSION_COOKIE,
   getSessionCookieOptions,
 } from "@/lib/sessions";
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
       });
     }
 
-    const { sessionId: sid, maxAgeSeconds } = createSession(user.id, device.id, true);
+    const { sessionId: sid, maxAgeSeconds } = await createSessionAsync(user.id, device.id, true);
     const cookieOpts = getSessionCookieOptions(maxAgeSeconds);
     const res = NextResponse.json({ ok: true, user, sessionToken: sid, deviceId: device.id });
     res.cookies.set(SESSION_COOKIE, sid, {

@@ -35,7 +35,7 @@ function getClientIp(req: NextRequest): string {
 }
 
 export async function POST(request: NextRequest) {
-  const userId = resolveRequestUserId(request);
+  const userId = await resolveRequestUserId(request);
   const deviceId = request.headers.get("x-device-id")?.trim();
   const fingerprint = request.headers.get("x-device-fingerprint")?.trim() ?? null;
   if (!userId) {

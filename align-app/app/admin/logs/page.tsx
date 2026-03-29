@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getAuthHeaders } from "@/lib/authClient";
+import { fetchWithAuthRetry } from "@/lib/authClient";
 
 type Log = {
   id: string;
@@ -19,7 +19,7 @@ export default function AdminLogsPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/admin/logs", { headers: getAuthHeaders() })
+    fetchWithAuthRetry("/api/admin/logs")
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("Eroare"))))
       .then((data) => {
         setLogs(

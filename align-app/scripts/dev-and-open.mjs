@@ -18,7 +18,19 @@ const npmBin = isWin ? "npm.cmd" : "npm";
 function openBrowser(url) {
   const safe = url.replace(/"/g, "");
   if (isWin) {
-    exec(`cmd /c start "" "${safe}"`);
+    // `cmd start` eșuează uneori din terminale integrate / fără STA; rundll32 deschide browserul implicit stabil.
+    const rundll = process.env.SystemRoot
+      ? path.join(process.env.SystemRoot, "System32", "rundll32.exe")
+      : "rundll32";
+    const ps = spawn(
+      rundll,
+      ["url.dll,FileProtocolHandler", safe],
+      { detached: true, stdio: "ignore", windowsHide: true }
+    );
+    ps.unref();
+    ps.on("error", () => {
+      exec(`cmd /c start "" "${safe}"`);
+    });
   } else if (process.platform === "darwin") {
     exec(`open "${safe}"`);
   } else {
@@ -45,7 +57,7 @@ async function tryOpenWhenReady() {
       clearTimeout(t);
       if (!opened && res != null) {
         opened = true;
-        console.log(`\n[dev] Browser: ${openUrl}\n`);
+        console.log(`\n[dev] Deschid browser: ${openUrl}\n`);
         openBrowser(openUrl);
       }
       return;
@@ -53,6 +65,11 @@ async function tryOpenWhenReady() {
       /* încă pornește */
     }
   }
+  console.error(
+    "\n[dev] Serverul nu a răspuns în 60s — verifică erorile de mai sus sau portul",
+    port,
+    ".\n"
+  );
 }
 
 void tryOpenWhenReady();

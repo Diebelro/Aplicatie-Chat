@@ -6,9 +6,10 @@ import { findUserByEmail, getPasswordHash, getStoreId, getUsersCount } from "@/l
 import { verifyPassword, normalizeAuthEmail } from "@/lib/auth";
 import { verifyRecaptchaV3 } from "@/lib/recaptcha";
 import { findDevice, createDevice, setDeviceTrusted } from "@/lib/devices";
-import { createSession, SESSION_COOKIE, getSessionCookieOptions } from "@/lib/sessions";
+import { createSessionAsync, SESSION_COOKIE, getSessionCookieOptions } from "@/lib/sessions";
 import {
   isPrismaAvailable,
+  prismaEnsureOwnerAdminRole,
   prismaFindUserByEmailForLogin,
   prismaGetPasswordHash,
   prismaProfileCompleted,
@@ -133,13 +134,34 @@ export async function POST(request: Request) {
       try {
         const prismaUser = await prismaFindUserByEmailForLogin(emailStr);
         if (prismaUser) {
-          user = { id: prismaUser.id, email: prismaUser.email, isBanned: prismaUser.isBanned };
+          user = {
+            id: prismaUser.id,
+            email: prismaUser.email,
+            isBanned: prismaUser.isBanned,
+            role: prismaUser.role,
+          };
           const hash = await prismaGetPasswordHash(prismaUser.id);
           if (!hash || !verifyPassword(String(password), hash)) {
             recordLoginFailure(ip, fp);
             return NextResponse.json({ error: "Parolă incorectă." }, { status: 401 });
           }
           profileComplete = await prismaProfileCompleted(prismaUser.id);
+          if (prismaUser.role === "ADMIN" || prismaUser.role === "SUPERADMIN") {
+            profileComplete = true;
+          }
+          await prismaEnsureOwnerAdminRole(prismaUser.id, emailStr);
+          const refreshedUser = await prismaFindUserByEmailForLogin(emailStr);
+          if (refreshedUser) {
+            user = {
+              id: refreshedUser.id,
+              email: refreshedUser.email,
+              isBanned: refreshedUser.isBanned,
+              role: refreshedUser.role,
+            };
+            if (refreshedUser.role === "ADMIN" || refreshedUser.role === "SUPERADMIN") {
+              profileComplete = true;
+            }
+          }
         }
       } catch (err) {
         console.error("[auth login] Prisma error", err);
@@ -155,12 +177,17 @@ export async function POST(request: Request) {
       if (localUser) {
         const hash = getPasswordHash(localUser.id);
         if (hash && verifyPassword(String(password), hash)) {
+          const lu = localUser as { id: string; email: string; isBanned?: boolean; role?: string };
           user = {
-            id: localUser.id,
-            email: localUser.email,
-            isBanned: !!(localUser as { isBanned?: boolean }).isBanned,
+            id: lu.id,
+            email: lu.email,
+            isBanned: !!lu.isBanned,
+            ...(lu.role ? { role: lu.role } : {}),
           };
           usePrisma = false;
+          if (lu.role === "ADMIN" || lu.role === "SUPERADMIN") {
+            profileComplete = true;
+          }
         } else if (hash) {
           // Contul există (memorie); parola greșită — nu 404 „nu există cont”
           recordLoginFailure(ip, fp);
@@ -232,7 +259,7 @@ export async function POST(request: Request) {
       deviceId = device.id;
     }
 
-    const { sessionId, maxAgeSeconds } = createSession(user.id, deviceId, persistent);
+    const { sessionId, maxAgeSeconds } = await createSessionAsync(user.id, deviceId, persistent);
     const cookieOpts = getSessionCookieOptions(maxAgeSeconds);
     const res = NextResponse.json({
       user,
@@ -251,9 +278,17 @@ export async function POST(request: Request) {
     return res;
   } catch (e) {
     recordApiRouteError("POST /api/auth/login", e);
-    return NextResponse.json(
-      { error: "Eroare la logare." },
-      { status: 500 }
-    );
+    const code =
+      e && typeof e === "object" && "code" in e ? String((e as { code?: unknown }).code) : "";
+    if (code === "P2021") {
+      return NextResponse.json(
+        {
+          error:
+            "Baza de date nu are tabelele necesare (ex. UserSession). Pe Vercel asigură-te că build-ul rulează `prisma migrate deploy` sau aplică migrările în Neon.",
+        },
+        { status: 503 }
+      );
+    }
+    return NextResponse.json({ error: "Eroare la logare." }, { status: 500 });
   }
 }

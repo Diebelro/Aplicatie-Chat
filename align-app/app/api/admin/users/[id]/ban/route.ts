@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { findUserOrPrisma, isPrismaAvailable, prismaGetUserRole, prismaCreateAdminLog } from "@/lib/repo-prisma";
 
 async function requireAdmin(request: NextRequest): Promise<{ userId: string } | NextResponse> {
-  const userId = getAuthenticatedUserId(request);
+  const userId = await getAuthenticatedUserId(request);
   if (!userId) return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   if (!isPrismaAvailable()) return NextResponse.json({ error: "Neautorizat." }, { status: 403 });
   const role = await prismaGetUserRole(userId);

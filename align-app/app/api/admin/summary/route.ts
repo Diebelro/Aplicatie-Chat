@@ -10,7 +10,7 @@ import {
 const MAX_SINCE_AGE_MS = 366 * 24 * 60 * 60 * 1000;
 
 export async function GET(request: NextRequest) {
-  const userId = getAuthenticatedUserId(request);
+  const userId = await getAuthenticatedUserId(request);
   if (!userId) return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   if (!isPrismaAvailable()) {
     return NextResponse.json(

@@ -10,7 +10,7 @@ import { deleteDevicesForUser } from "@/lib/devices";
 
 /** Ștergere cont doar la cererea utilizatorului (parolă confirmată). Nicio ștergere automată. */
 export async function POST(request: NextRequest) {
-  const userId = getAuthenticatedUserId(request);
+  const userId = await getAuthenticatedUserId(request);
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   }
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     } catch {
       return NextResponse.json({ error: "Nu s-a putut șterge contul." }, { status: 500 });
     }
-    deleteAllSessionsForUser(userId);
+    await deleteAllSessionsForUser(userId);
     deleteDevicesForUser(userId);
   }
   if (inStore) {

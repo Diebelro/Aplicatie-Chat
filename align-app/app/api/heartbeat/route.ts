@@ -5,7 +5,7 @@ import { isPrismaAvailable, findUserOrPrisma, prismaUpdateLastActive } from "@/l
 
 /** Apelat la fiecare ~5s cât timp utilizatorul e pe site → online în timp real. */
 export async function POST(request: NextRequest) {
-  let userId = getAuthenticatedUserId(request);
+  let userId = await getAuthenticatedUserId(request);
   if (!userId && isPrismaAvailable()) {
     const headerId = request.headers.get("x-user-id")?.trim();
     if (headerId) {

@@ -226,18 +226,6 @@ export default function MessagesPage() {
             Mergi la <Link href="/app/profiles" className="text-brand-400 hover:underline">Toate profilurile</Link> sau la{" "}
             <Link href="/app/matches" className="text-brand-400 hover:underline">Matches</Link> și trimite un mesaj.
           </p>
-          <p className="text-dark-500 text-sm mt-4">
-            Pentru <strong>apel 1-la-1</strong>, folosește butoanele Video / Audio lângă fiecare conversație (când ai mesaje), sau din{" "}
-            <Link href="/app" className="text-brand-400 hover:underline">Descoperă</Link>,{" "}
-            <Link href="/app/matches" className="text-brand-400 hover:underline">Matches</Link>,{" "}
-            <Link href="/app/profiles" className="text-brand-400 hover:underline">Profiluri</Link> — și în <strong>chat</strong> (sus, Apel: Video | Audio).
-          </p>
-          <Link
-            href="/app/call/start"
-            className="inline-flex items-center gap-2 mt-6 px-5 py-2.5 rounded-xl bg-brand-500/20 text-brand-400 hover:bg-brand-500/30 border border-brand-500/40 transition font-medium"
-          >
-            Apel în conferință (3+ persoane)
-          </Link>
         </div>
       ) : (
         <ul className="space-y-1">

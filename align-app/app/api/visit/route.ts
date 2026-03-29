@@ -4,7 +4,7 @@ import { isPrismaAvailable, findUserOrPrisma, prismaAddVisit } from "@/lib/repo-
 import { resolveRequestUserId } from "@/lib/sessionAuth";
 
 export async function POST(request: NextRequest) {
-  const userId = resolveRequestUserId(request);
+  const userId = await resolveRequestUserId(request);
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   }

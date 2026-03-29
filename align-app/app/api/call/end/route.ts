@@ -7,7 +7,7 @@ import { canAccessRoom } from "@/lib/videoCall";
 
 /** Încheie apelul: curăță pending pentru tine și, dacă trimiți roomId valid, pentru întreg apelul (nu mai „sună” la celălalt). */
 export async function POST(request: NextRequest) {
-  const userId = resolveRequestUserId(request);
+  const userId = await resolveRequestUserId(request);
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { getAuthHeaders } from "@/lib/authClient";
+import { fetchWithAuthRetry } from "@/lib/authClient";
 import { Clock, ShieldAlert, Trash2, ExternalLink } from "lucide-react";
 
 type UserRow = {
@@ -33,7 +33,7 @@ export default function AdminUsersPage() {
     setLoading(true);
     const q = new URLSearchParams();
     if (search.trim()) q.set("search", search.trim());
-    fetch("/api/admin/users?" + q.toString(), { headers: getAuthHeaders() })
+    fetchWithAuthRetry("/api/admin/users?" + q.toString())
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("Eroare"))))
       .then((data) => {
         const list = data.users ?? [];
@@ -57,9 +57,9 @@ export default function AdminUsersPage() {
     setBusyId(userId);
     setBusyAction(actionKey);
     setError(null);
-    fetch("/api/admin/users/" + encodeURIComponent(userId) + "/ban", {
+    fetchWithAuthRetry("/api/admin/users/" + encodeURIComponent(userId) + "/ban", {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     })
       .then((r) => (r.ok ? r.json() : r.json().then((j) => Promise.reject(new Error(j.error || "Eroare")))))
@@ -101,7 +101,7 @@ export default function AdminUsersPage() {
     setBusyId(userId);
     setBusyAction("del");
     setError(null);
-    fetch("/api/admin/users/" + encodeURIComponent(userId), { method: "DELETE", headers: getAuthHeaders() })
+    fetchWithAuthRetry("/api/admin/users/" + encodeURIComponent(userId), { method: "DELETE" })
       .then((r) => (r.ok ? undefined : Promise.reject(new Error("Eroare ștergere"))))
       .then(() => load())
       .catch((e) => setError(e instanceof Error ? e.message : "Eroare."))

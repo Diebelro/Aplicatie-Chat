@@ -6,7 +6,7 @@ import { isResendConfigured, sendEmailVerificationEmail } from "@/lib/email";
 import { verifyRecaptchaV3, RECAPTCHA_SUSPECT_THRESHOLD } from "@/lib/recaptcha";
 import { checkSignupRateLimit, recordSignup } from "@/lib/rateLimitSignup";
 import { createDevice, setDeviceTrusted } from "@/lib/devices";
-import { createSession, SESSION_COOKIE, getSessionCookieOptions } from "@/lib/sessions";
+import { createSessionAsync, SESSION_COOKIE, getSessionCookieOptions } from "@/lib/sessions";
 import {
   isPrismaAvailable,
   prismaFindUserByEmailForLogin,
@@ -232,7 +232,7 @@ export async function POST(request: Request) {
 
     recordSignup(request, fp, isSuspect);
 
-    const { sessionId, maxAgeSeconds } = createSession(user.id, deviceId, persistent);
+    const { sessionId, maxAgeSeconds } = await createSessionAsync(user.id, deviceId, persistent);
     const cookieOpts = getSessionCookieOptions(maxAgeSeconds);
     const res = NextResponse.json({
       user,

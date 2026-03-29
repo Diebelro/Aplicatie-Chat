@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { getAuthHeaders } from "@/lib/authClient";
+import { fetchWithAuthRetry } from "@/lib/authClient";
 import { APP_CREDIT } from "@/lib/site";
 import { AdminModerationNavBadge } from "@/components/AdminModerationNavBadge";
 import { AdminSecurityThreatBanner } from "@/components/AdminSecurityThreatBanner";
@@ -28,33 +28,36 @@ export default function AdminLayout({
     let cancelled = false;
     (async () => {
       try {
-        const req = () =>
-          fetch("/api/me", { headers: getAuthHeaders(), credentials: "include" });
-        let res = await req();
+        const res = await fetchWithAuthRetry("/api/me");
         if (cancelled) return;
-        if (res.status === 401) {
-          await new Promise((r) => setTimeout(r, 400));
-          if (cancelled) return;
-          res = await req();
-        }
+        const goLogin = () => {
+          const p =
+            typeof window !== "undefined" ? window.location.pathname || "/admin" : "/admin";
+          router.replace("/login?redirect=" + encodeURIComponent(p));
+        };
         if (!res.ok) {
-          if (!cancelled) router.replace("/admin/setup");
+          if (cancelled) return;
+          if (res.status === 401 || res.status === 403) goLogin();
+          else router.replace("/app");
           return;
         }
         const data = (await res.json()) as { user?: { role?: string } };
         if (cancelled) return;
         if (!data?.user) {
-          router.replace("/admin/setup");
+          goLogin();
           return;
         }
         const role = data.user.role ?? "USER";
         if (role !== "ADMIN" && role !== "SUPERADMIN") {
-          router.replace("/admin/setup");
+          if (!cancelled) router.replace("/app");
           return;
         }
         setAllowed(true);
       } catch {
-        if (!cancelled) router.replace("/admin/setup");
+        if (!cancelled) {
+          const p = typeof window !== "undefined" ? window.location.pathname || "/admin" : "/admin";
+          router.replace("/login?redirect=" + encodeURIComponent(p));
+        }
       }
     })();
     return () => {

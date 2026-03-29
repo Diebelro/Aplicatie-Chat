@@ -6,11 +6,11 @@ import { SESSION_COOKIE } from "@/lib/sessions";
 
 /** Șterge toate sesiunile userului, setează trusted=false pe toate device-urile, șterge cookie-ul. */
 export async function POST(request: Request) {
-  const userId = getAuthenticatedUserId(request);
+  const userId = await getAuthenticatedUserId(request);
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   }
-  deleteAllSessionsForUser(userId);
+  await deleteAllSessionsForUser(userId);
   setAllDevicesUntrusted(userId);
   const res = NextResponse.json({ ok: true });
   res.cookies.set(SESSION_COOKIE, "", {

@@ -7,7 +7,7 @@ import { resolveRequestUserId } from "@/lib/sessionAuth";
 
 /** Sună pe toId: înregistrează apelul în așteptare ca celălalt să vadă „X te sună”. */
 export async function POST(request: NextRequest) {
-  const userId = resolveRequestUserId(request);
+  const userId = await resolveRequestUserId(request);
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   }

@@ -6,7 +6,7 @@ import { getPendingIncomingForCallee, clearPendingIncomingForCallee } from "@/li
 
 /** Reject the call (callee). Notifies caller via rejected room so they see "Call rejected". */
 export async function POST(request: NextRequest) {
-  const userId = resolveRequestUserId(request);
+  const userId = await resolveRequestUserId(request);
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   }

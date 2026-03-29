@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { getAuthHeaders } from "@/lib/authClient";
+import { fetchWithAuthRetry } from "@/lib/authClient";
 
 type Row = {
   id: string;
@@ -19,7 +19,7 @@ export default function AdminAppFeedbackPage() {
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/admin/app-feedback", { headers: getAuthHeaders() })
+    fetchWithAuthRetry("/api/admin/app-feedback")
       .then(async (r) => {
         const d = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(typeof d.error === "string" ? d.error : "Eroare");

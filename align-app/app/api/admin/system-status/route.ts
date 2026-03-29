@@ -5,7 +5,7 @@ import { getAdminSystemSnapshot } from "@/lib/systemHealth";
 import { recordApiRouteError } from "@/lib/serverErrorRing";
 
 export async function GET(request: Request) {
-  const userId = getAuthenticatedUserId(request);
+  const userId = await getAuthenticatedUserId(request);
   if (!userId) return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   if (!isPrismaAvailable()) {
     return NextResponse.json(

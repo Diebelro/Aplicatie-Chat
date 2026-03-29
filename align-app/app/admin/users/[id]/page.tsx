@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { getAuthHeaders } from "@/lib/authClient";
+import { fetchWithAuthRetry } from "@/lib/authClient";
 import { AlertTriangle, Clock, Crown } from "lucide-react";
 
 type User = {
@@ -39,7 +39,7 @@ export default function AdminUserDetailPage() {
 
   const load = () => {
     setLoading(true);
-    fetch("/api/admin/users/" + id, { headers: getAuthHeaders() })
+    fetchWithAuthRetry("/api/admin/users/" + id)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("Eroare"))))
       .then((data) => {
         setUser(data.user);
@@ -65,9 +65,9 @@ export default function AdminUserDetailPage() {
       reason = r.trim() || undefined;
     }
     setBusy(true);
-    fetch("/api/admin/users/" + id + "/ban", {
+    fetchWithAuthRetry("/api/admin/users/" + id + "/ban", {
       method: "POST",
-      headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action, ...(reason ? { reason } : {}) }),
     })
       .then((r) => (r.ok ? undefined : Promise.reject()))
@@ -85,9 +85,9 @@ export default function AdminUserDetailPage() {
       return;
     const reason = window.prompt("Motiv scurt (opțional):", "") ?? "";
     setBusy(true);
-    fetch("/api/admin/users/" + id + "/ban", {
+    fetchWithAuthRetry("/api/admin/users/" + id + "/ban", {
       method: "POST",
-      headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "SUSPEND", hours, reason: reason.trim() }),
     })
       .then((r) => (r.ok ? undefined : Promise.reject()))
@@ -99,7 +99,7 @@ export default function AdminUserDetailPage() {
   const deleteUser = () => {
     if (!confirm("Stergi acest utilizator? Actiunea este ireversibila.")) return;
     setBusy(true);
-    fetch("/api/admin/users/" + id, { method: "DELETE", headers: getAuthHeaders() })
+    fetchWithAuthRetry("/api/admin/users/" + id, { method: "DELETE" })
       .then((r) => (r.ok ? undefined : Promise.reject()))
       .then(() => router.push("/admin/users"))
       .catch(() => { setError("Eroare stergere."); setBusy(false); });
@@ -115,9 +115,9 @@ export default function AdminUserDetailPage() {
     }
     setBusy(true);
     setError(null);
-    fetch("/api/admin/users/" + id + "/premium", {
+    fetchWithAuthRetry("/api/admin/users/" + id + "/premium", {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type, days: type === "trial" ? days : undefined }),
     })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("Eroare"))))

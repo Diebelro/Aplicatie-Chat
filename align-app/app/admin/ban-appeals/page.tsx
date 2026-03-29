@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { getAuthHeaders } from "@/lib/authClient";
+import { fetchWithAuthRetry } from "@/lib/authClient";
 import { Scale } from "lucide-react";
 
 type Appeal = {
@@ -22,7 +22,7 @@ export default function AdminBanAppealsPage() {
   const load = useCallback(() => {
     setLoading(true);
     setError(null);
-    fetch("/api/admin/ban-appeals", { headers: getAuthHeaders() })
+    fetchWithAuthRetry("/api/admin/ban-appeals")
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("Eroare"))))
       .then((d) => {
         setAppeals(
@@ -49,9 +49,9 @@ export default function AdminBanAppealsPage() {
         : "Respingi cererea? Contul rămâne blocat.";
     if (!confirm(msg)) return;
     setBusyId(id);
-    fetch("/api/admin/ban-appeals/" + encodeURIComponent(id), {
+    fetchWithAuthRetry("/api/admin/ban-appeals/" + encodeURIComponent(id), {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action }),
     })
       .then((r) => (r.ok ? r.json() : r.json().then((j) => Promise.reject(new Error(j.error || "Eroare")))))

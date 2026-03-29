@@ -8,7 +8,7 @@ import { findUserById, listMySwipeTargetsForReview } from "@/lib/store";
  * Doar vizualizarea listei / parcurgerea nu modifică nimic; schimbarea se face prin POST /api/swipe.
  */
 export async function GET(request: Request) {
-  const userId = resolveRequestUserId(request);
+  const userId = await resolveRequestUserId(request);
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   }

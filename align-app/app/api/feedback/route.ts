@@ -8,7 +8,7 @@ const MIN_LEN = 8;
 const MAX_LEN = 8000;
 
 export async function POST(request: NextRequest) {
-  const userId = getAuthenticatedUserId(request);
+  const userId = await getAuthenticatedUserId(request);
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   }

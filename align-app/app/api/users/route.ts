@@ -63,7 +63,7 @@ function parseFilters(searchParams: URLSearchParams): {
 
 export async function GET(request: NextRequest) {
   seedFakeProfiles();
-  const userId = resolveRequestUserId(request);
+  const userId = await resolveRequestUserId(request);
   if (userId) setUserActive(userId);
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });

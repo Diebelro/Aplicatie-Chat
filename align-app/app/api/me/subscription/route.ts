@@ -3,7 +3,7 @@ import { findUserById } from "@/lib/store";
 import { getAuthenticatedUserId } from "@/lib/sessionAuth";
 
 export async function GET(request: NextRequest) {
-  const userId = getAuthenticatedUserId(request);
+  const userId = await getAuthenticatedUserId(request);
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   }

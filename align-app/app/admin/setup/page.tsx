@@ -71,7 +71,8 @@ export default function AdminSetupPage() {
       <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-dark-900 text-white">
         <h1 className="text-xl font-semibold mb-2 text-green-400">Gata!</h1>
         <p className="text-dark-300 text-center mb-4">
-          Contul tău a fost făcut admin. Loghează-te acum cu același email și parolă.
+          Contul tău a fost făcut admin. Loghează-te cu același email și parolă — vei intra în aplicație și vei vedea butonul{" "}
+          <strong className="text-dark-200">Admin</strong> în meniu (nu ești obligat să completezi profilul întâi).
         </p>
         <Link href="/login" className="px-4 py-2 rounded-lg bg-brand-500 text-dark-900 font-medium hover:bg-brand-400">
           Mergi la Login

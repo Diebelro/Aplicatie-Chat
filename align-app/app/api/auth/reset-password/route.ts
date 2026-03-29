@@ -8,7 +8,7 @@ import {
 } from "@/lib/repo-prisma";
 import { findUserById, setPassword } from "@/lib/store";
 import {
-  createSession,
+  createSessionAsync,
   SESSION_COOKIE,
   getSessionCookieOptions,
 } from "@/lib/sessions";
@@ -127,7 +127,7 @@ export async function POST(request: Request) {
       deviceId = device.id;
     }
 
-    const { sessionId, maxAgeSeconds } = createSession(userId, deviceId, true);
+    const { sessionId, maxAgeSeconds } = await createSessionAsync(userId, deviceId, true);
     const cookieOpts = getSessionCookieOptions(maxAgeSeconds);
     const res = NextResponse.json({
       ok: true,

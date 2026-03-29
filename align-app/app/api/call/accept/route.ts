@@ -6,7 +6,7 @@ import { getPendingIncomingForCallee, clearPendingIncomingForCallee } from "@/li
 
 /** Accept the call (callee). Same as /api/call/answer. Returns roomId and audioOnly for redirect. */
 export async function POST(request: NextRequest) {
-  const userId = resolveRequestUserId(request);
+  const userId = await resolveRequestUserId(request);
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }

@@ -27,7 +27,7 @@ export async function GET() {
  * Upload un singur fișier pentru chat. Imagini → Blob private (acces prin /api/chat/attachment); PDF → private. Max 10MB.
  */
 export async function POST(request: NextRequest) {
-  const userId = getAuthenticatedUserId(request);
+  const userId = await getAuthenticatedUserId(request);
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   }

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { getAuthHeaders } from "@/lib/authClient";
+import { fetchWithAuthRetry } from "@/lib/authClient";
 import { isImageContentType, isPdfContentType } from "@/lib/chatAttachments";
 
 type Message = {
@@ -51,7 +51,7 @@ export default function AdminConversationPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/admin/conversations/" + id, { headers: getAuthHeaders(), credentials: "include" })
+    fetchWithAuthRetry("/api/admin/conversations/" + id)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("Eroare"))))
       .then((data) => {
         setMessages((data.messages ?? []).map((m: Message & { at?: Date }) => ({ ...m, at: m.at ? new Date(m.at).toISOString() : "" })));
@@ -65,7 +65,7 @@ export default function AdminConversationPage() {
   const deleteMessage = (messageId: string) => {
     if (!confirm("Stergi acest mesaj?")) return;
     setDeletingId(messageId);
-    fetch("/api/admin/messages/" + messageId, { method: "DELETE", headers: getAuthHeaders() })
+    fetchWithAuthRetry("/api/admin/messages/" + messageId, { method: "DELETE" })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then(() => setMessages((prev) => prev.filter((m) => m.id !== messageId)))
       .finally(() => setDeletingId(null));

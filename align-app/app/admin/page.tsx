@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { getAuthHeaders } from "@/lib/authClient";
+import { fetchWithAuthRetry } from "@/lib/authClient";
 import {
   markModerationReviewedNow,
   readModerationSince,
@@ -33,7 +33,7 @@ export default function AdminDashboardPage() {
     const since = readModerationSince();
     setHasCheckpoint(typeof window !== "undefined" && !!localStorage.getItem(ADMIN_MODERATION_CHECKPOINT_KEY));
     const q = new URLSearchParams({ since: since.toISOString() });
-    fetch("/api/admin/summary?" + q, { headers: getAuthHeaders() })
+    fetchWithAuthRetry("/api/admin/summary?" + q)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("Eroare"))))
       .then((d: Summary) => setSummary(d))
       .catch(() => setError("Nu s-a putut încărca rezumatul."));
