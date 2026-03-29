@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Plus, X } from "lucide-react";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
-import { getAuthHeaders } from "@/lib/authClient";
+import { fetchWithAuthRetry, getAuthHeaders } from "@/lib/authClient";
 import { OptimizedImage } from "@/components/OptimizedImage";
 
 const MAX_PHOTOS = 5;
@@ -237,11 +237,7 @@ export default function ProfilePage() {
       setLoading(false);
     }
     (async () => {
-      let res = await fetch("/api/me", { headers: getAuthHeaders(), credentials: "include" });
-      if (res.status === 401) {
-        await new Promise((r) => setTimeout(r, 400));
-        res = await fetch("/api/me", { headers: getAuthHeaders(), credentials: "include" });
-      }
+      let res = await fetchWithAuthRetry("/api/me");
       const data = await res.json();
       if (res.ok && data.user) {
         skipAutosaveAfterServerHydrateRef.current = true;

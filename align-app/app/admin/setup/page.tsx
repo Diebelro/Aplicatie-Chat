@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { fetchWithAuthRetry } from "@/lib/authClient";
 
 export default function AdminSetupPage() {
   const router = useRouter();
@@ -19,6 +20,31 @@ export default function AdminSetupPage() {
       .then((d) => setCanSetup(d.canSetup === true))
       .catch(() => setCanSetup(false));
   }, []);
+
+  /**
+   * /admin/setup e doar pentru „primul admin”. Dacă adminul există deja dar tu ești logat ca admin
+   * (Back din browser, link vechi etc.), du-te direct la panou — fără „ne învârtim în cerc”.
+   */
+  useEffect(() => {
+    if (canSetup !== false) return;
+    let cancelled = false;
+    (async () => {
+      const res = await fetchWithAuthRetry("/api/me");
+      if (cancelled || !res.ok) return;
+      try {
+        const data = (await res.json()) as { user?: { role?: string } };
+        const role = data?.user?.role ?? "USER";
+        if (role === "ADMIN" || role === "SUPERADMIN") {
+          router.replace("/admin");
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [canSetup, router]);
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,15 +78,22 @@ export default function AdminSetupPage() {
   if (!canSetup) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-dark-900 text-white">
-        <h1 className="text-xl font-semibold mb-2">Admin deja configurat</h1>
-        <p className="text-dark-400 text-center mb-4">
-          Există deja un cont de admin. Loghează-te cu acel cont, apoi mergi la /admin.
+        <p className="text-dark-500 text-sm mb-2">Se verifică accesul…</p>
+        <h1 className="text-xl font-semibold mb-2">Panoul admin e deja configurat</h1>
+        <p className="text-dark-400 text-center mb-6 max-w-md">
+          Pagina aceasta e doar pentru primul admin. Dacă ești deja logat ca admin, ești redirecționat automat la panou. Altfel, intră cu contul de admin sau deschide panoul de mai jos.
         </p>
-        <Link href="/login" className="text-brand-400 hover:underline">
-          Mergi la Login
+        <Link
+          href="/admin"
+          className="px-5 py-2.5 rounded-xl bg-brand-500 text-dark-900 font-medium hover:bg-brand-400"
+        >
+          Deschide panoul Admin
         </Link>
-        <Link href="/admin" className="mt-2 text-dark-400 hover:text-white">
-          Încearcă /admin
+        <Link href="/login?redirect=%2Fadmin" className="mt-4 text-brand-400 hover:underline text-sm">
+          Login ca admin
+        </Link>
+        <Link href="/app" className="mt-2 text-dark-500 hover:text-dark-300 text-sm">
+          Înapoi la aplicație
         </Link>
       </div>
     );
