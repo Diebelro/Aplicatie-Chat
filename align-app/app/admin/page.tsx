@@ -15,8 +15,14 @@ type Summary = {
   totalUsers: number;
   bannedUsers: number;
   totalReports: number;
+  signupsLast24Hours: number;
   signupsLast7Days: number;
+  signupsLast15Days: number;
+  signupsLast30Days: number;
+  reportsLast24Hours: number;
   reportsLast7Days: number;
+  reportsLast15Days: number;
+  reportsLast30Days: number;
   newUsersSince: number;
   newReportsSince: number;
   pendingBanAppeals: number;
@@ -134,8 +140,22 @@ export default function AdminDashboardPage() {
                 Total utilizatori
               </div>
               <p className="text-2xl font-semibold text-white">{summary.totalUsers}</p>
-              <p className="text-dark-500 text-xs mt-1">
-                În ultimele 7 zile: +{summary.signupsLast7Days} înscrieri
+              <ul className="text-dark-500 text-xs mt-2 space-y-1 tabular-nums">
+                <li>
+                  Ultimele 24 h: <strong className="text-dark-300">+{summary.signupsLast24Hours}</strong> înscrieri
+                </li>
+                <li>
+                  Ultimele 7 zile: <strong className="text-dark-300">+{summary.signupsLast7Days}</strong> înscrieri
+                </li>
+                <li>
+                  Ultimele 15 zile: <strong className="text-dark-300">+{summary.signupsLast15Days}</strong> înscrieri
+                </li>
+                <li>
+                  Ultimele 30 zile: <strong className="text-dark-300">+{summary.signupsLast30Days}</strong> înscrieri
+                </li>
+              </ul>
+              <p className="text-dark-600 text-[11px] mt-2 leading-snug">
+                Ferestre rulante (de acum înapoi) — utile la buget reclamă / facturare la ~15 zile.
               </p>
             </div>
             <div className="rounded-xl border border-dark-600 bg-dark-800/60 p-4">
@@ -144,7 +164,20 @@ export default function AdminDashboardPage() {
                 Rapoarte (total)
               </div>
               <p className="text-2xl font-semibold text-white">{summary.totalReports}</p>
-              <p className="text-dark-500 text-xs mt-1">Ultimele 7 zile: {summary.reportsLast7Days} rapoarte</p>
+              <ul className="text-dark-500 text-xs mt-2 space-y-1 tabular-nums">
+                <li>
+                  Ultimele 24 h: <strong className="text-dark-300">{summary.reportsLast24Hours}</strong> rapoarte
+                </li>
+                <li>
+                  Ultimele 7 zile: <strong className="text-dark-300">{summary.reportsLast7Days}</strong> rapoarte
+                </li>
+                <li>
+                  Ultimele 15 zile: <strong className="text-dark-300">{summary.reportsLast15Days}</strong> rapoarte
+                </li>
+                <li>
+                  Ultimele 30 zile: <strong className="text-dark-300">{summary.reportsLast30Days}</strong> rapoarte
+                </li>
+              </ul>
             </div>
             <div className="rounded-xl border border-red-900/50 bg-red-950/20 p-4 sm:col-span-2">
               <div className="flex items-center gap-2 text-red-300/90 text-sm mb-1">

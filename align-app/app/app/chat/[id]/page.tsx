@@ -31,6 +31,8 @@ interface Message {
   attachmentContentType?: string | null;
   /** Mesaj optimist: încă nu a răspuns serverul */
   clientPending?: boolean;
+  /** Notificare moderare / reguli — afișată centrat, nu ca mesaj de la interlocutor */
+  isPlatformNotice?: boolean;
 }
 
 function isImageType(ct: string | null | undefined): boolean {
@@ -758,8 +760,8 @@ export default function ChatPage() {
         )}
         {messages.map((m) => {
           const fromId = m.fromId != null ? String(m.fromId) : "";
-          const toId = m.toId != null ? String(m.toId) : "";
-          const isMe = callerId != null && fromId === callerId;
+          const isPlatform = !!m.isPlatformNotice;
+          const isMe = !isPlatform && callerId != null && fromId === callerId;
           const status = String(m.status ?? "").trim().toUpperCase();
           const isRead = status === "SEEN" || !!m.seenAt;
           const showTick = isMe;
@@ -768,6 +770,23 @@ export default function ChatPage() {
             : isRead
               ? "Citit"
               : "Trimis";
+          if (isPlatform) {
+            return (
+              <div key={m.id} className="flex justify-center px-1">
+                <div
+                  className="max-w-[95%] rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-center"
+                  role="status"
+                >
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-200/90 mb-1">
+                    Notificare platformă
+                  </p>
+                  {(m.text?.trim() ?? "") ? (
+                    <p className="text-sm text-dark-100 whitespace-pre-wrap break-words">{m.text}</p>
+                  ) : null}
+                </div>
+              </div>
+            );
+          }
           return (
             <div
               key={m.id}

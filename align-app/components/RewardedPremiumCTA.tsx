@@ -43,7 +43,7 @@ export function RewardedPremiumCTA() {
     setMessage(null);
     // Simulare: utilizatorul "urmareste" reclama (pe web nu avem AdMob rewarded, deci activam direct dupa confirmare)
     const confirmed = typeof window !== "undefined" && window.confirm(
-      "Urmaresti o reclama scurta pentru 1 ora de Premium fara reclame. Continuati?"
+      "Urmărești o reclamă scurtă pentru 1 oră de Premium fără reclame. Continui?"
     );
     if (!confirmed) {
       setActivating(false);
@@ -104,10 +104,10 @@ export function RewardedPremiumCTA() {
     <div className="rounded-xl bg-dark-800 border border-dark-600 p-4">
       <div className="flex items-center gap-2 text-white font-medium mb-1">
         <Gift className="w-5 h-5 text-amber-400" />
-        Premium 1 ora – Urmareste o reclama
+        Premium 1 ora – Urmărește o reclamă
       </div>
       <p className="text-dark-400 text-sm mb-3">
-        Ai {state.rewardedActivationsToday}/{state.rewardedActivationsMax} activari astazi. Urmareste o reclama scurta pentru 1 ora fara reclame.
+        Ai {state.rewardedActivationsToday}/{state.rewardedActivationsMax} activări astăzi. Urmărește o reclamă scurtă pentru 1 oră fără reclame.
       </p>
       {message && <p className="text-sm mb-2 text-brand-400">{message}</p>}
       <button

@@ -117,6 +117,8 @@ export interface Message {
   at: string;
   attachmentUrl?: string | null;
   attachmentContentType?: string | null;
+  /** Doar modul Prisma: mesaj centrat ca notificare de sistem în chat. */
+  isPlatformNotice?: boolean;
 }
 
 /** Singleton pe globalThis ca login și signup (chiar din chunk-uri diferite Next.js) să partajeze aceleași date. */

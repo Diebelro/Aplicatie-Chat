@@ -107,11 +107,14 @@ export default function AppDiscoverPage() {
   const [isDragging, setIsDragging] = useState(false);
   const dragStartX = useRef(0);
   const isDraggingRef = useRef(false);
+  const swipeMaxAbsDeltaRef = useRef(0);
   const cardRef = useRef<HTMLDivElement>(null);
   const [matchModal, setMatchModal] = useState<{ toId: string; name: string } | null>(null);
   const SWIPE_THRESHOLD = 55;
   const SWIPE_EXIT_OFFSET = 400;
   const FLY_OUT_MS = 100;
+  /** Sub această mișcare orizontală, eliberarea e tratată ca tap → deschide profilul (nu swipe). */
+  const TAP_OPEN_PROFILE_MAX_PX = 18;
 
   const triggerHaptic = () => {
     if (typeof navigator !== "undefined" && navigator.vibrate?.(8)) return;
@@ -263,8 +266,13 @@ export default function AppDiscoverPage() {
   const getClientX = (e: React.MouseEvent | React.TouchEvent): number =>
     "touches" in e && e.touches.length ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
 
+  const isInteractiveSwipeTarget = (target: EventTarget | null) =>
+    target instanceof HTMLElement &&
+    !!target.closest("button, a, [role='button'], input, textarea, select");
+
   const onSwipeStart = (e: React.MouseEvent | React.TouchEvent) => {
-    if ((e.target as HTMLElement).closest("button")) return;
+    if (isInteractiveSwipeTarget(e.target)) return;
+    swipeMaxAbsDeltaRef.current = 0;
     isDraggingRef.current = true;
     setIsDragging(true);
     dragStartX.current = getClientX(e);
@@ -274,6 +282,7 @@ export default function AppDiscoverPage() {
     if (!isDraggingRef.current) return;
     const x = "touches" in e && e.touches.length ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
     const delta = Math.max(-260, Math.min(260, x - dragStartX.current));
+    swipeMaxAbsDeltaRef.current = Math.max(swipeMaxAbsDeltaRef.current, Math.abs(delta));
     setDragOffset(delta);
   };
 
@@ -282,6 +291,8 @@ export default function AppDiscoverPage() {
     isDraggingRef.current = false;
     setIsDragging(false);
     const offset = dragOffset;
+    const maxAbs = swipeMaxAbsDeltaRef.current;
+    swipeMaxAbsDeltaRef.current = 0;
     if (Math.abs(offset) >= SWIPE_THRESHOLD && current) {
       triggerHaptic();
       const liked = offset > 0;
@@ -293,6 +304,11 @@ export default function AppDiscoverPage() {
       }, FLY_OUT_MS);
     } else {
       setDragOffset(0);
+      const feelsLikeTap =
+        maxAbs < TAP_OPEN_PROFILE_MAX_PX && Math.abs(offset) < SWIPE_THRESHOLD;
+      if (feelsLikeTap && current) {
+        router.push(`/app/user/${current.id}`);
+      }
     }
   };
 
@@ -564,6 +580,7 @@ export default function AppDiscoverPage() {
                 ref={cardRef}
                 className="w-full max-w-sm touch-none select-none"
                 style={{ touchAction: "none" }}
+                title="Atinge pentru profil (oraș, detalii). Trage stânga/dreapta pentru Nu / Like."
                 onMouseDown={onSwipeStart}
                 onMouseMove={onSwipeMove}
                 onMouseUp={onSwipeEnd}
@@ -621,8 +638,8 @@ export default function AppDiscoverPage() {
                   </div>
                 )}
                 </div>
-                <div className="absolute inset-0 p-6 flex flex-col justify-end bg-gradient-to-t from-black/80 to-transparent">
-                  <h3 className="text-2xl font-bold text-white mb-1">{displayName(current.username ?? current.name)}</h3>
+                <div className="absolute inset-0 px-5 pt-5 pb-36 sm:pb-32 flex flex-col justify-end bg-gradient-to-t from-black/80 via-black/50 to-transparent pointer-events-none [&>_*]:pointer-events-auto">
+                  <h3 className="text-2xl font-bold text-white mb-1 pr-14 sm:pr-16 line-clamp-2">{displayName(current.username ?? current.name)}</h3>
                   <div className="flex flex-wrap items-center gap-2 mb-2">
                     {current.friendStatus === "accepted" && (
                       <span className="text-xs px-2 py-0.5 rounded-full bg-[#4DA6FF]/30 text-[#4DA6FF] border border-[#4DA6FF]/50">
@@ -699,16 +716,7 @@ export default function AppDiscoverPage() {
                     {current.distanceHidden && " · Distanță ascunsă"}
                     {!current.distanceHidden && current.distanceKm != null && ` · ${getDistanceDisplay(current)}`}
                   </p>
-                  <p className="text-gray-300 text-sm line-clamp-3 mb-2">{current.bio || "Fără descriere."}</p>
-                  <div className="flex flex-wrap gap-2 text-xs text-gray-400 mb-2">
-                    {current.visitedByThem && <span className="text-[#9D4EDD]">A vizitat profilul tău</span>}
-                    {current.messageSeen && <span className="text-[#22B8CF]">A văzut mesajul tău</span>}
-                    {current.online && <span style={{ color: FRIEND_CARD_COLORS.online }}>Online</span>}
-                    {!current.online && current.lastActivityAt != null && (
-                      <span>{formatLastActive(current.lastActivityAt)}</span>
-                    )}
-                  </div>
-                  <div className="mb-2">
+                  <div className="mb-2 z-[1]">
                     <AddFriendButton
                       userId={current.id}
                       friendStatus={current.friendStatus ?? null}
@@ -716,9 +724,18 @@ export default function AppDiscoverPage() {
                       variant="big"
                     />
                   </div>
+                  <p className="text-gray-300 text-sm line-clamp-2 sm:line-clamp-3 mb-2">{current.bio || "Fără descriere."}</p>
+                  <div className="flex flex-wrap gap-2 text-xs text-gray-400 mb-0">
+                    {current.visitedByThem && <span className="text-[#9D4EDD]">A vizitat profilul tău</span>}
+                    {current.messageSeen && <span className="text-[#22B8CF]">A văzut mesajul tău</span>}
+                    {current.online && <span style={{ color: FRIEND_CARD_COLORS.online }}>Online</span>}
+                    {!current.online && current.lastActivityAt != null && (
+                      <span>{formatLastActive(current.lastActivityAt)}</span>
+                    )}
+                  </div>
                 </div>
 
-                <div className="absolute bottom-4 left-0 right-0 flex flex-wrap justify-center items-center gap-2 sm:gap-3 px-1">
+                <div className="absolute bottom-3 left-0 right-0 z-20 flex flex-wrap justify-center items-center gap-2 sm:gap-3 px-1 pb-1 max-w-full">
                   <button
                     type="button"
                     onClick={() => onButtonSwipe(false)}

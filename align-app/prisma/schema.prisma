@@ -193,6 +193,10 @@ model Message {
   createdAt             DateTime @default(now())
   deliveredAt           DateTime?
   seenAt                DateTime?
+  /// Afișat în chat ca notificare de sistem (moderare), nu ca mesaj de la interlocutor.
+  isPlatformNotice      Boolean  @default(false)
+  /// După această dată notificarea nu mai e returnată în API-uri de chat (null = vechi, fără expirare).
+  platformNoticeExpiresAt DateTime?
   @@index([fromUserId, toUserId])
   @@index([toUserId, fromUserId])
 }

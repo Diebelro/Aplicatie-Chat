@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Crown, Gift, Check } from "lucide-react";
+import { Crown, Check } from "lucide-react";
 import { RewardedPremiumCTA } from "@/components/RewardedPremiumCTA";
 import { getStoredUserRaw } from "@/lib/store";
 import type { User } from "@/lib/store";
@@ -14,7 +14,7 @@ interface Plan {
   name: string;
   description: string;
   priceMonthly: number;
-  interval: string;
+  interval: "month" | "six_month" | "year";
   features: string[];
 }
 
@@ -76,7 +76,9 @@ export default function PremiumPage() {
         <Crown className="w-8 h-8 text-amber-400" />
         <div>
           <h1 className="text-2xl font-bold text-white">Premium</h1>
-          <p className="text-dark-400 text-sm">Fara reclame, beneficii exclusive.</p>
+          <p className="text-dark-400 text-sm">
+            Beneficii extra, opționale. Funcțiile de bază sunt gratuite în perioada de lansare.
+          </p>
         </div>
       </div>
 
@@ -84,27 +86,28 @@ export default function PremiumPage() {
 
       <section>
         <h2 className="text-lg font-semibold text-white mb-4">Abonamente</h2>
+        <p className="text-dark-400 text-sm mb-4">
+          Mesajele și profilul sunt gratuite în perioada de lansare. Abonamentele Premium adaugă beneficii extra
+          (ex. fără reclame) — nu sunt obligatorii.
+        </p>
         <div className="grid gap-4 sm:grid-cols-3">
           {plans.map((plan) => {
             const isCurrent = subscription?.planId === plan.id;
-            const isLifetime = plan.id === "lifetime";
             const priceLabel =
-              plan.interval === "lifetime"
-                ? `${plan.priceMonthly} RON (o singura data)`
-                : plan.interval === "year"
-                  ? `${(plan.priceMonthly * 12).toFixed(0)} RON / an`
+              plan.interval === "year"
+                ? `${(plan.priceMonthly * 12).toFixed(0)} RON / an`
+                : plan.interval === "six_month"
+                  ? `${(plan.priceMonthly * 6).toFixed(0)} RON / 6 luni`
                   : `${plan.priceMonthly} RON / luna`;
             return (
               <div
                 key={plan.id}
-                className={`rounded-2xl border p-5 flex flex-col ${
-                  isLifetime ? "border-amber-500/50 bg-amber-500/5" : "border-dark-600 bg-dark-800"
-                }`}
+                className="rounded-2xl border p-5 flex flex-col border-dark-600 bg-dark-800"
               >
                 <h3 className="font-semibold text-white mb-1">{plan.name}</h3>
                 <p className="text-dark-500 text-sm mb-3">{plan.description}</p>
                 <p className="text-xl font-bold text-white mb-4">{priceLabel}</p>
-                <ul className="space-y-2 mb-6 flex-1">
+                <ul className="space-y-2 mb-3 flex-1">
                   {plan.features.map((f, i) => (
                     <li key={i} className="flex items-center gap-2 text-dark-300 text-sm">
                       <Check className="w-4 h-4 text-green-400 shrink-0" />
@@ -112,6 +115,9 @@ export default function PremiumPage() {
                     </li>
                   ))}
                 </ul>
+                <p className="text-dark-500 text-xs mb-6">
+                  Free (deocamdată): mesaje & profil. Gratis în perioada de lansare — utilizare de bază.
+                </p>
                 <button
                   type="button"
                   onClick={() => subscribe(plan.id)}

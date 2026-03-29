@@ -3,6 +3,7 @@ import { findUserById, updateUser } from "@/lib/store";
 import { getAuthenticatedUserId } from "@/lib/sessionAuth";
 import { isPrismaAvailable, findUserOrPrisma, prismaActivatePremiumDemo } from "@/lib/repo-prisma";
 import { recordApiRouteError } from "@/lib/serverErrorRing";
+import { SUBSCRIPTION_CREATE_PLAN_IDS } from "@/lib/subscriptionPlans";
 
 /** Stub: creează sesiune checkout sau marchează planul. În producție integrezi Stripe/plata. */
 export async function POST(request: NextRequest) {
@@ -19,11 +20,11 @@ export async function POST(request: NextRequest) {
     const planId = body?.planId ?? body?.plan_id;
     if (!planId || typeof planId !== "string") {
       return NextResponse.json(
-        { error: "Lipsește planId (monthly, yearly, lifetime)." },
+        { error: "Lipsește planId (monthly, six_month, yearly, lifetime)." },
         { status: 400 }
       );
     }
-    const validPlans = ["monthly", "yearly", "lifetime"];
+    const validPlans: string[] = [...SUBSCRIPTION_CREATE_PLAN_IDS];
     if (!validPlans.includes(planId)) {
       return NextResponse.json({ error: "Plan invalid." }, { status: 400 });
     }
@@ -48,6 +49,7 @@ export async function POST(request: NextRequest) {
 
     const periodEnd = new Date();
     if (planId === "yearly") periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+    else if (planId === "six_month") periodEnd.setMonth(periodEnd.getMonth() + 6);
     else periodEnd.setMonth(periodEnd.getMonth() + 1);
 
     if (isPrismaAvailable()) {

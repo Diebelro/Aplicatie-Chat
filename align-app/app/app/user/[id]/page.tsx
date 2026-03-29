@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { MessageCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight, MessageCircle, X } from "lucide-react";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
 import { getAuthHeaders } from "@/lib/authClient";
@@ -36,6 +36,8 @@ export default function PublicUserProfilePage() {
   const [user, setUser] = useState<UserPublic | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  /** null = închis, 0..photos.length-1 = poză în vizualizare mare */
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   const meRaw = typeof window !== "undefined" ? getStoredUserRaw() : null;
   const me: User | null = meRaw
@@ -86,6 +88,20 @@ export default function PublicUserProfilePage() {
       .catch(() => {});
   }, [id, me?.id, router, refetch]);
 
+  useEffect(() => {
+    if (lightboxIndex == null) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setLightboxIndex(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [lightboxIndex]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -109,6 +125,9 @@ export default function PublicUserProfilePage() {
   const distanceStr =
     typeof user.distanceKm === "number" ? formatDistance(user.distanceKm) : null;
   const photos = user.photos?.filter(Boolean) ?? [];
+  const scrollToGallery = () => {
+    document.getElementById("profile-photos")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   const row = (label: string, value: string | number | null | undefined) => {
     if (value === null || value === undefined || String(value).trim() === "") return null;
@@ -133,8 +152,83 @@ export default function PublicUserProfilePage() {
         <h1 className="text-xl font-semibold truncate">{name}</h1>
       </div>
 
+      {lightboxIndex != null && photos[lightboxIndex] && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/92 p-2"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Galerie foto"
+          onClick={() => setLightboxIndex(null)}
+        >
+          <button
+            type="button"
+            className="absolute top-3 right-3 z-10 p-3 rounded-full bg-dark-800 text-white hover:bg-dark-600 border border-dark-500"
+            aria-label="Închide"
+            onClick={(e) => {
+              e.stopPropagation();
+              setLightboxIndex(null);
+            }}
+          >
+            <X className="w-6 h-6" />
+          </button>
+          {photos.length > 1 && (
+            <>
+              <button
+                type="button"
+                className="absolute left-2 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-dark-800/90 text-white border border-dark-500 disabled:opacity-30"
+                aria-label="Poză anterioară"
+                disabled={lightboxIndex <= 0}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setLightboxIndex((i) => (i != null && i > 0 ? i - 1 : i));
+                }}
+              >
+                <ChevronLeft className="w-8 h-8" />
+              </button>
+              <button
+                type="button"
+                className="absolute right-2 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-dark-800/90 text-white border border-dark-500 disabled:opacity-30"
+                aria-label="Poză următoare"
+                disabled={lightboxIndex >= photos.length - 1}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setLightboxIndex((i) =>
+                    i != null && i < photos.length - 1 ? i + 1 : i
+                  );
+                }}
+              >
+                <ChevronRight className="w-8 h-8" />
+              </button>
+            </>
+          )}
+          <div
+            className="relative w-full max-w-lg aspect-[3/4] max-h-[85vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <OptimizedImage
+              src={photos[lightboxIndex]}
+              alt=""
+              fill
+              className="object-contain"
+              sizes="100vw"
+              priority
+            />
+          </div>
+          <p className="absolute bottom-4 left-0 right-0 text-center text-dark-400 text-sm tabular-nums">
+            {lightboxIndex + 1} / {photos.length}
+          </p>
+        </div>
+      )}
+
       <div className="rounded-2xl overflow-hidden border border-dark-600 bg-dark-800 mb-4">
-        <div className="w-full h-52 sm:h-60 bg-dark-700 overflow-hidden">
+        <button
+          type="button"
+          className={`w-full h-52 sm:h-60 bg-dark-700 overflow-hidden relative border-0 p-0 block text-left ${photos.length ? "cursor-zoom-in focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" : ""}`}
+          onClick={() => {
+            if (photos.length > 0) setLightboxIndex(0);
+          }}
+          title={photos.length > 1 ? "Atinge pentru mărire sau vezi mai jos toate pozele" : photos.length === 1 ? "Atinge pentru mărire" : undefined}
+        >
           <SilhouetteAvatar
             photoUrl={photos[0]}
             gender={user.gender}
@@ -142,7 +236,12 @@ export default function PublicUserProfilePage() {
             className="w-full h-full"
             imgClassName="w-full h-full object-cover"
           />
-        </div>
+          {photos.length > 1 && (
+            <span className="absolute bottom-2 right-2 rounded-full bg-black/65 text-white text-xs px-2 py-1 tabular-nums">
+              {photos.length} poze
+            </span>
+          )}
+        </button>
         <div className="p-4 space-y-3">
           <div className="flex flex-wrap items-center gap-2 text-sm">
             {user.online ? (
@@ -167,6 +266,17 @@ export default function PublicUserProfilePage() {
 
           {user.bio?.trim() && <p className="text-dark-300 text-sm whitespace-pre-wrap">{user.bio.trim()}</p>}
 
+          {photos.length > 1 && (
+            <button
+              type="button"
+              onClick={scrollToGallery}
+              className="text-sm text-brand-400 hover:text-brand-300 font-medium underline underline-offset-2"
+            >
+              Vezi toate pozele ({photos.length}){" "}
+              <span className="text-dark-500 font-normal no-underline">· glisează mai jos</span>
+            </button>
+          )}
+
           <div className="flex flex-wrap gap-2 pt-2">
             <AddFriendButton
               userId={user.id}
@@ -186,14 +296,22 @@ export default function PublicUserProfilePage() {
         </div>
       </div>
 
-      {photos.length > 1 && (
-        <div className="mb-4">
-          <h2 className="text-sm font-medium text-dark-400 mb-2">Poze</h2>
-          <div className="grid grid-cols-2 gap-2">
-            {photos.slice(1).map((src, i) => (
-              <div key={`${i}-${src.slice(0, 40)}`} className="relative aspect-square rounded-xl overflow-hidden bg-dark-700 border border-dark-600">
-                <OptimizedImage src={src} alt="" fill className="object-cover" sizes="(max-width: 512px) 50vw, 256px" />
-              </div>
+      {photos.length > 0 && (
+        <div id="profile-photos" className="mb-4 scroll-mt-4">
+          <h2 className="text-sm font-medium text-dark-400 mb-2">
+            {photos.length > 1 ? `Poze (${photos.length})` : "Poză profil"}
+          </h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {photos.map((src, i) => (
+              <button
+                key={`${i}-${src.slice(0, 48)}`}
+                type="button"
+                className="relative aspect-square rounded-xl overflow-hidden bg-dark-700 border border-dark-600 cursor-zoom-in focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 w-full p-0"
+                onClick={() => setLightboxIndex(i)}
+                aria-label={`Poză ${i + 1} din ${photos.length}`}
+              >
+                <OptimizedImage src={src} alt="" fill className="object-cover" sizes="(max-width: 512px) 33vw, 200px" />
+              </button>
             ))}
           </div>
         </div>

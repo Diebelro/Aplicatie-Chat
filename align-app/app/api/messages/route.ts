@@ -78,6 +78,7 @@ export async function GET(request: NextRequest) {
           seenAt: (m as { seenAt?: string }).seenAt ?? null,
           attachmentUrl: att.attachmentUrl,
           attachmentContentType: att.attachmentContentType,
+          isPlatformNotice: !!(m as { isPlatformNotice?: boolean }).isPlatformNotice,
         };
       });
       const matchId = await prismaGetMatchIdBetween(userId, withId);

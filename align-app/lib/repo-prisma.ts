@@ -11,6 +11,20 @@ import { logDevPrismaNoticeOnce } from "@/lib/dev-prisma-notice";
 import { RING_PENDING_MAX_MS } from "@/lib/callRingConstants";
 import type { User, Match, Message } from "@/lib/store";
 import type { Gender } from "@/lib/store";
+import { PLATFORM_NOTICE_VISIBLE_DAYS } from "@/lib/platformModerationNotice";
+
+/** Ascunde în chat notificările platformă expirate (rândul poate exista încă în DB). */
+export function prismaMessageWhereChatVisible(): Prisma.MessageWhereInput {
+  return {
+    NOT: {
+      AND: [
+        { isPlatformNotice: true },
+        { platformNoticeExpiresAt: { not: null } },
+        { platformNoticeExpiresAt: { lt: new Date() } },
+      ],
+    },
+  };
+}
 
 function profileToUserDTO(
   p: {
@@ -616,7 +630,7 @@ export async function prismaAddMatch(userAId: string, userBId: string): Promise<
   });
 }
 
-export type MessageWithStatus = Message & { status?: string; seenAt?: string };
+export type MessageWithStatus = Message & { status?: string; seenAt?: string; isPlatformNotice?: boolean };
 
 export async function prismaAddMessage(
   fromId: string,
@@ -645,7 +659,52 @@ export async function prismaAddMessage(
     seenAt: m.seenAt?.toISOString() ?? undefined,
     attachmentUrl: m.attachmentUrl ?? undefined,
     attachmentContentType: m.attachmentContentType ?? undefined,
+    isPlatformNotice: m.isPlatformNotice ?? false,
   };
+}
+
+export async function prismaInsertPlatformNoticeInThread(
+  fromUserId: string,
+  toUserId: string,
+  text: string
+): Promise<MessageWithStatus> {
+  const platformNoticeExpiresAt = new Date(
+    Date.now() + PLATFORM_NOTICE_VISIBLE_DAYS * 24 * 60 * 60 * 1000
+  );
+  const m = await prisma.message.create({
+    data: {
+      fromUserId,
+      toUserId,
+      text: text.trim().slice(0, 8000),
+      status: "SENT",
+      isPlatformNotice: true,
+      platformNoticeExpiresAt,
+    },
+  });
+  return {
+    id: m.id,
+    fromId: m.fromUserId,
+    toId: m.toUserId,
+    text: m.text,
+    at: m.createdAt.toISOString(),
+    status: m.status,
+    seenAt: m.seenAt?.toISOString() ?? undefined,
+    attachmentUrl: m.attachmentUrl ?? undefined,
+    attachmentContentType: m.attachmentContentType ?? undefined,
+    isPlatformNotice: true,
+  };
+}
+
+export async function prismaDeleteAllMessagesBetweenUsers(userId1: string, userId2: string): Promise<number> {
+  const r = await prisma.message.deleteMany({
+    where: {
+      OR: [
+        { fromUserId: userId1, toUserId: userId2 },
+        { fromUserId: userId2, toUserId: userId1 },
+      ],
+    },
+  });
+  return r.count;
 }
 
 export async function prismaGetMessagesBetween(
@@ -654,9 +713,14 @@ export async function prismaGetMessagesBetween(
 ): Promise<MessageWithStatus[]> {
   const list = await prisma.message.findMany({
     where: {
-      OR: [
-        { fromUserId: userId1, toUserId: userId2 },
-        { fromUserId: userId2, toUserId: userId1 },
+      AND: [
+        {
+          OR: [
+            { fromUserId: userId1, toUserId: userId2 },
+            { fromUserId: userId2, toUserId: userId1 },
+          ],
+        },
+        prismaMessageWhereChatVisible(),
       ],
     },
     orderBy: { createdAt: "asc" },
@@ -671,6 +735,7 @@ export async function prismaGetMessagesBetween(
     seenAt: m.seenAt?.toISOString() ?? undefined,
     attachmentUrl: m.attachmentUrl ?? undefined,
     attachmentContentType: m.attachmentContentType ?? undefined,
+    isPlatformNotice: m.isPlatformNotice ?? false,
   }));
 }
 
@@ -705,9 +770,14 @@ export async function prismaAdminGetLastMessagesBetween(
   const cap = Math.min(80, Math.max(5, take));
   const rows = await prisma.message.findMany({
     where: {
-      OR: [
-        { fromUserId: userA, toUserId: userB },
-        { fromUserId: userB, toUserId: userA },
+      AND: [
+        {
+          OR: [
+            { fromUserId: userA, toUserId: userB },
+            { fromUserId: userB, toUserId: userA },
+          ],
+        },
+        prismaMessageWhereChatVisible(),
       ],
     },
     orderBy: { createdAt: "desc" },
@@ -1044,9 +1114,14 @@ export async function prismaGetFeedTestModeMeta(
     prismaGetMutualMatchPartnerIds(userId),
     prisma.message.findMany({
       where: {
-        OR: [
-          { fromUserId: userId, toUserId: { in: profileIds } },
-          { fromUserId: { in: profileIds }, toUserId: userId },
+        AND: [
+          {
+            OR: [
+              { fromUserId: userId, toUserId: { in: profileIds } },
+              { fromUserId: { in: profileIds }, toUserId: userId },
+            ],
+          },
+          prismaMessageWhereChatVisible(),
         ],
       },
       select: { fromUserId: true, toUserId: true },
@@ -1251,9 +1326,10 @@ export async function prismaGetPremiumSubscription(userId: string): Promise<{
 export async function prismaGetUnreadFrom(meId: string, otherId: string): Promise<number> {
   const count = await prisma.message.count({
     where: {
-      fromUserId: otherId,
-      toUserId: meId,
-      seenAt: null,
+      AND: [
+        { fromUserId: otherId, toUserId: meId, seenAt: null },
+        prismaMessageWhereChatVisible(),
+      ],
     },
   });
   return count;
@@ -1261,7 +1337,9 @@ export async function prismaGetUnreadFrom(meId: string, otherId: string): Promis
 
 export async function prismaGetTotalUnread(meId: string): Promise<number> {
   const count = await prisma.message.count({
-    where: { toUserId: meId, seenAt: null },
+    where: {
+      AND: [{ toUserId: meId, seenAt: null }, prismaMessageWhereChatVisible()],
+    },
   });
   return count;
 }
@@ -1269,9 +1347,10 @@ export async function prismaGetTotalUnread(meId: string): Promise<number> {
 export async function prismaMarkConversationAsRead(meId: string, otherId: string): Promise<void> {
   await prisma.message.updateMany({
     where: {
-      fromUserId: otherId,
-      toUserId: meId,
-      seenAt: null,
+      AND: [
+        { fromUserId: otherId, toUserId: meId, seenAt: null },
+        prismaMessageWhereChatVisible(),
+      ],
     },
     data: { status: "SEEN", seenAt: new Date() },
   });
@@ -1289,17 +1368,29 @@ export async function prismaGetMessageFlagsForProfiles(
 
   const [sent, receivedUnread, seen] = await Promise.all([
     prisma.message.findMany({
-      where: { fromUserId: meId, toUserId: { in: otherIds } },
+      where: {
+        AND: [{ fromUserId: meId, toUserId: { in: otherIds } }, prismaMessageWhereChatVisible()],
+      },
       select: { toUserId: true },
       distinct: ["toUserId"],
     }),
     prisma.message.findMany({
-      where: { fromUserId: { in: otherIds }, toUserId: meId, seenAt: null },
+      where: {
+        AND: [
+          { fromUserId: { in: otherIds }, toUserId: meId, seenAt: null },
+          prismaMessageWhereChatVisible(),
+        ],
+      },
       select: { fromUserId: true },
       distinct: ["fromUserId"],
     }),
     prisma.message.findMany({
-      where: { fromUserId: meId, toUserId: { in: otherIds }, seenAt: { not: null } },
+      where: {
+        AND: [
+          { fromUserId: meId, toUserId: { in: otherIds }, seenAt: { not: null } },
+          prismaMessageWhereChatVisible(),
+        ],
+      },
       select: { toUserId: true },
       distinct: ["toUserId"],
     }),
@@ -1346,17 +1437,22 @@ export async function prismaGetVisitFlagsForProfiles(
 
 export interface ConversationSummaryPrisma {
   otherUser: User;
-  lastMessage: { id: string; fromId: string; toId: string; text: string; at: string };
+  lastMessage: { id: string; fromId: string; toId: string; text: string; at: string; isPlatformNotice?: boolean };
   /** true dacă nu există niciun mesaj încă (doar match). */
   noMessagesYet?: boolean;
 }
 
 export async function prismaGetConversations(userId: string): Promise<ConversationSummaryPrisma[]> {
   const messages = await prisma.message.findMany({
-    where: { OR: [{ fromUserId: userId }, { toUserId: userId }] },
+    where: {
+      AND: [{ OR: [{ fromUserId: userId }, { toUserId: userId }] }, prismaMessageWhereChatVisible()],
+    },
     orderBy: { createdAt: "desc" },
   });
-  const byOther = new Map<string, { id: string; fromId: string; toId: string; text: string; at: string }>();
+  const byOther = new Map<
+    string,
+    { id: string; fromId: string; toId: string; text: string; at: string; isPlatformNotice?: boolean }
+  >();
   for (const m of messages) {
     const other = m.fromUserId === userId ? m.toUserId : m.fromUserId;
     if (!byOther.has(other)) {
@@ -1366,6 +1462,7 @@ export async function prismaGetConversations(userId: string): Promise<Conversati
         toId: m.toUserId,
         text: m.text,
         at: m.createdAt.toISOString(),
+        isPlatformNotice: m.isPlatformNotice ?? false,
       });
     }
   }
@@ -1400,7 +1497,7 @@ export async function prismaGetConversationsWithMatches(userId: string): Promise
     if (otherUser) {
       toAdd.push({
         otherUser,
-        lastMessage: { id: `match-${otherId}`, fromId: otherId, toId: userId, text: "", at },
+        lastMessage: { id: `match-${otherId}`, fromId: otherId, toId: userId, text: "", at, isPlatformNotice: false },
         noMessagesYet: true,
       });
     }
@@ -1726,29 +1823,50 @@ export type AdminModerationSummary = {
   totalUsers: number;
   bannedUsers: number;
   totalReports: number;
+  signupsLast24Hours: number;
   signupsLast7Days: number;
+  signupsLast15Days: number;
+  signupsLast30Days: number;
+  reportsLast24Hours: number;
   reportsLast7Days: number;
+  reportsLast15Days: number;
+  reportsLast30Days: number;
   newUsersSince: number;
   newReportsSince: number;
 };
 
 /** Rezumat pentru dashboard moderare. `since` = începutul ferestrei „ce e nou de când am verificat”. */
 export async function prismaGetAdminModerationSummary(since: Date): Promise<AdminModerationSummary> {
+  const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const fifteenDaysAgo = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000);
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const [
     totalUsers,
     bannedUsers,
     totalReports,
+    signupsLast24Hours,
     signupsLast7Days,
+    signupsLast15Days,
+    signupsLast30Days,
+    reportsLast24Hours,
     reportsLast7Days,
+    reportsLast15Days,
+    reportsLast30Days,
     newUsersSince,
     newReportsSince,
   ] = await Promise.all([
     prisma.user.count(),
     prisma.user.count({ where: { isBanned: true } }),
     prisma.report.count(),
+    prisma.user.count({ where: { createdAt: { gte: twentyFourHoursAgo } } }),
     prisma.user.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
+    prisma.user.count({ where: { createdAt: { gte: fifteenDaysAgo } } }),
+    prisma.user.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
+    prisma.report.count({ where: { createdAt: { gte: twentyFourHoursAgo } } }),
     prisma.report.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
+    prisma.report.count({ where: { createdAt: { gte: fifteenDaysAgo } } }),
+    prisma.report.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
     prisma.user.count({ where: { createdAt: { gte: since } } }),
     prisma.report.count({ where: { createdAt: { gte: since } } }),
   ]);
@@ -1756,8 +1874,14 @@ export async function prismaGetAdminModerationSummary(since: Date): Promise<Admi
     totalUsers,
     bannedUsers,
     totalReports,
+    signupsLast24Hours,
     signupsLast7Days,
+    signupsLast15Days,
+    signupsLast30Days,
+    reportsLast24Hours,
     reportsLast7Days,
+    reportsLast15Days,
+    reportsLast30Days,
     newUsersSince,
     newReportsSince,
   };
@@ -1819,7 +1943,7 @@ export async function prismaAdminFetchMessagesForModerationScan(
     where.text = { not: "" };
   }
   const rows = await prisma.message.findMany({
-    where,
+    where: { AND: [where, prismaMessageWhereChatVisible()] },
     orderBy: { createdAt: "desc" },
     take: cap,
     select: {

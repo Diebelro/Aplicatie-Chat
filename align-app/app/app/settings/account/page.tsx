@@ -295,8 +295,16 @@ export default function AccountSettingsPage() {
         <h2 className="text-lg font-medium text-white mb-4">Abonament Premium</h2>
         <p className="text-dark-500 text-sm mb-3">
           {subscriptionPlan
-            ? `Plan activ: ${subscriptionPlan === "lifetime" ? "Premium permanent" : subscriptionPlan === "yearly" ? "Premium anual" : "Premium lunar"}.`
-            : "Nu ai abonament activ. Poti activa Premium rewarded (1h) sau abonament lunar/anual/permanent."}
+            ? `Plan activ: ${
+                subscriptionPlan === "lifetime"
+                  ? "Premium permanent"
+                  : subscriptionPlan === "yearly"
+                    ? "Premium anual"
+                    : subscriptionPlan === "six_month"
+                      ? "Premium 6 luni"
+                      : "Premium lunar"
+              }.`
+            : "Nu ai abonament activ. Poti activa Premium rewarded (1h) sau abonament lunar / 6 luni / anual."}
         </p>
         <Link
           href="/app/premium"

@@ -232,9 +232,13 @@ export default function MessagesPage() {
           {conversations.map(({ otherUser, lastMessage, receivedCount, unreadCount, noMessagesYet }) => {
             const isFromMe =
               me?.id != null && String(lastMessage.fromId) === String(me.id);
+            const isPlatformNotice = !!(lastMessage as Message & { isPlatformNotice?: boolean }).isPlatformNotice;
             const preview = noMessagesYet
               ? "Trimite un mesaj"
-              : (isFromMe ? "Tu: " : "") + (lastMessage.text.length > 50 ? lastMessage.text.slice(0, 50) + "…" : lastMessage.text);
+              : isPlatformNotice
+                ? "Notificare platformă"
+                : (isFromMe ? "Tu: " : "") +
+                  (lastMessage.text.length > 50 ? lastMessage.text.slice(0, 50) + "…" : lastMessage.text);
             const otherLabel = displayName(otherUser.username ?? otherUser.name);
             return (
               <li
