@@ -40,6 +40,19 @@ model User {
   passwordResetTokens PasswordResetToken[]
   emailVerificationTokens EmailVerificationToken[]
   banAppeals BanAppeal[]
+  sessions   UserSession[]
+}
+
+/// Sesiune login (token = valoarea cookie align_sid / x-session-token). Persistată pentru Vercel / mai multe instanțe.
+model UserSession {
+  token     String   @id
+  userId    String
+  deviceId  String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 /// Contestare blocare cont (user crede că a fost blocat nedrept).
