@@ -4,8 +4,6 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { Phone, PhoneOff } from "lucide-react";
-import type { User } from "@/lib/store";
-import { getStoredUserRaw } from "@/lib/store";
 import { getAuthHeaders } from "@/lib/authClient";
 import { markIncomingCallDismissed, shouldIgnorePolledIncoming } from "@/lib/callIncomingDismiss";
 
@@ -29,9 +27,7 @@ export default function IncomingCall() {
   const [actionError, setActionError] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const incomingRef = useRef<IncomingCallData | null>(null);
-  const onCallPageRef = useRef(onCallPage);
   incomingRef.current = incoming;
-  onCallPageRef.current = onCallPage;
 
   const fetchIncoming = useCallback(() => {
     fetch("/api/call/incoming", {
@@ -39,9 +35,18 @@ export default function IncomingCall() {
       credentials: "same-origin",
       cache: "no-store",
     })
-      .then((r) => r.json())
+      .then(async (r) => {
+        /** 401: nu reseta overlay — poate cursă cookie/header după login sau schimbare tab; următorul poll reușește. */
+        if (r.status === 401) return null;
+        try {
+          return await r.json();
+        } catch {
+          return null;
+        }
+      })
       .then((d) => {
-        const inc = d.incoming as IncomingCallData | null | undefined;
+        if (!d || typeof d !== "object") return;
+        const inc = (d as { incoming?: IncomingCallData | null }).incoming as IncomingCallData | null | undefined;
         if (inc?.roomId && shouldIgnorePolledIncoming(inc.roomId)) {
           setIncoming(null);
           void fetch("/api/call/end", {
@@ -122,21 +127,10 @@ export default function IncomingCall() {
     return () => window.removeEventListener("popstate", onPopState);
   }, [incoming?.roomId, onCallPage]);
 
-  /** Ieșire din /app (logout etc.) cu overlay activ: curăță pending. */
-  useEffect(() => {
-    return () => {
-      if (onCallPageRef.current) return;
-      const cur = incomingRef.current;
-      if (!cur) return;
-      markIncomingCallDismissed(cur.roomId);
-      void fetch("/api/call/reject", {
-        method: "POST",
-        headers: getAuthHeaders(),
-        credentials: "same-origin",
-        keepalive: true,
-      }).catch(() => {});
-    };
-  }, []);
+  /**
+   * Fără reject la unmount: navigarea /app → /admin, /login etc. demonta layout-ul și respingea apelul
+   * fără acțiunea utilizatorului. Respingerea rămâne doar la Respinge, Back și popstate.
+   */
 
   const handleAnswer = () => {
     if (!incoming || loading) return;

@@ -331,7 +331,7 @@ function LoginContent() {
           </label>
           <button
             type="submit"
-            disabled={loading || !acceptTerms || retryAfterSeconds > 0}
+            disabled={loading || retryAfterSeconds > 0}
             className="w-full !h-11 !min-h-[44px] !max-h-[44px] !py-0 px-4 rounded-xl bg-brand-500 hover:bg-brand-400 text-dark-900 font-medium text-sm transition disabled:opacity-50"
           >
             {loading ? "Se conectează..." : retryAfterSeconds > 0 ? `Conectare (${retryAfterSeconds}s)` : "Conectare"}
