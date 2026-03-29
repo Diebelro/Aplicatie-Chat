@@ -199,6 +199,10 @@ export default function ProfilePage() {
   const router = useRouter();
   const hasUnsavedChanges = useRef(false);
   const initialFormDone = useRef(false);
+  /** După ce /api/me înlocuiește formularul, nu porni autosave (evită PATCH în cursă cu sesiunea proaspătă de la login). */
+  const skipAutosaveAfterServerHydrateRef = useRef(false);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const messageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fillForm = (u: User) => {
     setName(u.name ?? "");
@@ -233,9 +237,18 @@ export default function ProfilePage() {
       setLoading(false);
     }
     (async () => {
-      const res = await fetch("/api/me", { headers: getAuthHeaders() });
+      let res = await fetch("/api/me", { headers: getAuthHeaders(), credentials: "include" });
+      if (res.status === 401) {
+        await new Promise((r) => setTimeout(r, 400));
+        res = await fetch("/api/me", { headers: getAuthHeaders(), credentials: "include" });
+      }
       const data = await res.json();
       if (res.ok && data.user) {
+        skipAutosaveAfterServerHydrateRef.current = true;
+        if (saveTimeoutRef.current) {
+          clearTimeout(saveTimeoutRef.current);
+          saveTimeoutRef.current = null;
+        }
         setUser(data.user);
         fillForm(data.user);
         setServerHasUser(true);
@@ -246,8 +259,6 @@ export default function ProfilePage() {
     })();
   }, []);
 
-  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const messageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   type SaveProfileOpts = { reason?: "photos"; skipNameValidation?: boolean; photosOverride?: string[] };
   const saveProfileRef = useRef<(opts?: SaveProfileOpts) => Promise<void>>(() => Promise.resolve());
 
@@ -289,12 +300,20 @@ export default function ProfilePage() {
       if (bodyType.trim()) payload.bodyType = bodyType.trim();
       if (eyeColor.trim()) payload.eyeColor = eyeColor.trim();
       if (hairColor.trim()) payload.hairColor = hairColor.trim();
-      const res = await fetch("/api/me", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-        body: JSON.stringify(payload),
-        credentials: "include",
-      });
+      const patchBody = JSON.stringify(payload);
+      const patchHeaders = { "Content-Type": "application/json", ...getAuthHeaders() } as Record<string, string>;
+      const doPatch = () =>
+        fetch("/api/me", {
+          method: "PATCH",
+          headers: patchHeaders,
+          body: patchBody,
+          credentials: "include",
+        });
+      let res = await doPatch();
+      if (res.status === 401) {
+        await new Promise((r) => setTimeout(r, 450));
+        res = await doPatch();
+      }
       const data = await res.json();
       if (res.status === 404) {
         setMessage("not_on_server");
@@ -302,7 +321,9 @@ export default function ProfilePage() {
       }
       if (res.status === 401) {
         setMessage("error");
-        setErrorDetail("Sesiunea a expirat. Te rugăm să te deloghezi și reconectezi din meniu (Ieșire din cont).");
+        setErrorDetail(
+          "Nu am putut salva: sesiune nevalidă sau întreruptă. Ieși din cont (meniu) și intră din nou; dacă persistă, șterge cookie-urile pentru acest site."
+        );
         return;
       }
       if (!res.ok) throw new Error(data.error || "Eroare");
@@ -330,6 +351,15 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!user) return;
+    if (skipAutosaveAfterServerHydrateRef.current) {
+      skipAutosaveAfterServerHydrateRef.current = false;
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+      }
+      initialFormDone.current = true;
+      return;
+    }
     if (!initialFormDone.current) {
       initialFormDone.current = true;
       return;
@@ -772,7 +802,7 @@ export default function ProfilePage() {
         {message === "error" && (
           <p className="text-red-400 text-sm">
             {errorDetail || "Eroare la salvare."}
-            {errorDetail.includes("Sesiunea") && (
+            {/sesiune|ieși din cont/i.test(errorDetail) && (
               <>{" "}<Link href="/login" className="underline font-medium">Loghează-te acum</Link></>
             )}
           </p>
