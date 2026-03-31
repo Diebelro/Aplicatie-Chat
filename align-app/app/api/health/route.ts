@@ -9,12 +9,18 @@ import { maybeNotifyOpsCritical } from "@/lib/opsCriticalNotify";
  */
 export async function GET() {
   const t0 = Date.now();
+  const build =
+    process.env.NEXT_PUBLIC_BUILD_HASH ||
+    process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 16) ||
+    undefined;
+
   if (!process.env.DATABASE_URL || !isPrismaAvailable()) {
     return NextResponse.json({
       ok: true,
       app: "up",
       database: "skipped",
       ms: Date.now() - t0,
+      ...(build ? { build } : {}),
     });
   }
   try {
@@ -24,6 +30,7 @@ export async function GET() {
       app: "up",
       database: "up",
       ms: Date.now() - t0,
+      ...(build ? { build } : {}),
     });
   } catch {
     maybeNotifyOpsCritical({
@@ -38,6 +45,7 @@ export async function GET() {
         app: "up",
         database: "down",
         ms: Date.now() - t0,
+        ...(build ? { build } : {}),
       },
       { status: 503 }
     );

@@ -2,9 +2,36 @@
 /** Nu seta `output: "export"` — dezactivează Route Handlers; `/api/*` (ex. ice-config) devin 404. */
 const crypto = require("crypto");
 const path = require("path");
+const { execSync } = require("child_process");
 
-// Hash unic per build pentru watermark și audit (nu expune secrets)
-const buildHash = process.env.NEXT_PUBLIC_BUILD_HASH || crypto.createHash("sha256").update(`${Date.now()}-${process.pid}`).digest("hex").slice(0, 16);
+/**
+ * Identificator stabil per commit: local (git), Vercel (VERCEL_GIT_COMMIT_SHA), sau override explicit.
+ * Fără asta, Date.now()+pid schimba „versiunea” la fiecare restart / build incomparabil cu git.
+ */
+function resolveBuildHash() {
+  if (process.env.NEXT_PUBLIC_BUILD_HASH) {
+    return String(process.env.NEXT_PUBLIC_BUILD_HASH).slice(0, 16);
+  }
+  const vercelSha = process.env.VERCEL_GIT_COMMIT_SHA;
+  if (vercelSha && /^[a-f0-9]{7,40}$/i.test(vercelSha.trim())) {
+    return vercelSha.trim().slice(0, 16);
+  }
+  try {
+    const head = execSync("git rev-parse HEAD", {
+      cwd: __dirname,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    if (head && /^[a-f0-9]{7,40}$/i.test(head)) {
+      return head.slice(0, 16);
+    }
+  } catch {
+    // fără .git (ex. deploy din arhivă)
+  }
+  return crypto.createHash("sha256").update(`${Date.now()}-${process.pid}`).digest("hex").slice(0, 16);
+}
+
+const buildHash = resolveBuildHash();
 
 const nextConfig = {
   /** Dev: permite HMR când deschizi site-ul pe 127.0.0.1 vs localhost (altfel Next blochează /_next/webpack-hmr). */
