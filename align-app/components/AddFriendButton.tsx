@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { UserPlus, Clock, Users, UserMinus, Check, X } from "lucide-react";
 import { getAuthHeaders } from "@/lib/authClient";
+import { useI18n } from "@/lib/i18n/context";
 
 export type FriendStatusForButton = "pending_sent" | "pending_received" | "accepted" | "rejected" | null;
 
@@ -21,6 +22,7 @@ export function AddFriendButton({
   variant = "small",
   className = "",
 }: AddFriendButtonProps) {
+  const { tStr } = useI18n();
   const [loading, setLoading] = useState(false);
 
   const api = async (path: string, body?: { friend_id: string }) => {
@@ -33,7 +35,7 @@ export function AddFriendButton({
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
-        throw new Error(d.error || "Eroare");
+        throw new Error(d.error || tStr("pages.addFriend.errGeneric"));
       }
       onStatusChange?.();
     } finally {
@@ -58,10 +60,10 @@ export function AddFriendButton({
         onClick={handleSendRequest}
         disabled={loading}
         className={`${baseClass} bg-[#4DA6FF]/20 text-[#4DA6FF] hover:bg-[#4DA6FF]/30 border border-[#4DA6FF]/50 ${className}`}
-        title="Adaugă prieten"
+        title={tStr("pages.addFriend.addTitle")}
       >
         <UserPlus className={isBig ? "w-4 h-4" : "w-3.5 h-3.5"} />
-        {isBig ? "Adaugă prieten" : "Adaugă"}
+        {isBig ? tStr("pages.addFriend.addBig") : tStr("pages.addFriend.add")}
       </button>
     );
   }
@@ -70,10 +72,10 @@ export function AddFriendButton({
     return (
       <span
         className={`${baseClass} bg-[#A0A0A0]/20 text-[#A0A0A0] border border-[#A0A0A0]/50 cursor-default ${className}`}
-        title="Cerere trimisă"
+        title={tStr("pages.addFriend.pendingTitle")}
       >
         <Clock className={isBig ? "w-4 h-4" : "w-3.5 h-3.5"} />
-        {isBig ? "Cerere trimisă" : "În așteptare…"}
+        {isBig ? tStr("pages.addFriend.pendingBig") : tStr("pages.addFriend.pendingSmall")}
       </span>
     );
   }
@@ -86,20 +88,20 @@ export function AddFriendButton({
           onClick={handleAccept}
           disabled={loading}
           className={`${baseClass} bg-[#69DB7C]/20 text-[#69DB7C] hover:bg-[#69DB7C]/30 border border-[#69DB7C]/50`}
-          title="Acceptă"
+          title={tStr("pages.addFriend.acceptTitle")}
         >
           <Check className={isBig ? "w-4 h-4" : "w-3.5 h-3.5"} />
-          {isBig ? "Acceptă" : "Accept"}
+          {isBig ? tStr("pages.addFriend.acceptBig") : tStr("pages.addFriend.acceptSmall")}
         </button>
         <button
           type="button"
           onClick={handleReject}
           disabled={loading}
           className={`${baseClass} bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/50`}
-          title="Refuză"
+          title={tStr("pages.addFriend.rejectTitle")}
         >
           <X className={isBig ? "w-4 h-4" : "w-3.5 h-3.5"} />
-          {isBig ? "Refuză" : "Refuz"}
+          {isBig ? tStr("pages.addFriend.rejectBig") : tStr("pages.addFriend.rejectSmall")}
         </button>
       </div>
     );
@@ -110,20 +112,20 @@ export function AddFriendButton({
       <div className={`flex items-center gap-1 ${className}`}>
         <span
           className={`${baseClass} bg-[#4DA6FF]/20 text-[#4DA6FF] border border-[#4DA6FF]/50 cursor-default`}
-          title="Prieteni"
+          title={tStr("pages.addFriend.friendsTitle")}
         >
           <Users className={isBig ? "w-4 h-4" : "w-3.5 h-3.5"} />
-          {isBig ? "Prieteni" : "Prieteni"}
+          {tStr("pages.addFriend.friendsLabel")}
         </span>
         <button
           type="button"
           onClick={handleRemove}
           disabled={loading}
           className={`${baseClass} bg-dark-600 text-dark-400 hover:bg-red-500/20 hover:text-red-400 border border-dark-500`}
-          title="Elimină din prieteni"
+          title={tStr("pages.addFriend.removeTitle")}
         >
           <UserMinus className={isBig ? "w-4 h-4" : "w-3.5 h-3.5"} />
-          {isBig ? "Elimină" : ""}
+          {isBig ? tStr("pages.addFriend.removeBig") : ""}
         </button>
       </div>
     );

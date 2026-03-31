@@ -29,6 +29,8 @@ export interface User {
   latitude?: number | null;
   longitude?: number | null;
   location_enabled?: boolean;
+  /** Vizibilitate pe hartă până la acest timestamp (ms); doar cu locație activă. */
+  map_visible_until?: number | null;
   /** Privacy: show my distance to others (default true) */
   show_distance?: boolean;
   /** Privacy: show online status (default true) */
@@ -260,7 +262,15 @@ export function setUserLocation(
     s.userPositions.set(userId, { lat, lng });
   } else {
     s.userPositions.delete(userId);
+    s.users[i].map_visible_until = null;
   }
+}
+
+export function setUserMapVisibility(userId: string, untilMs: number | null): void {
+  const s = getState();
+  const u = s.users.find((x) => x.id === userId);
+  if (!u) return;
+  u.map_visible_until = untilMs;
 }
 
 /** Distance from viewer to target. Returns null if target hides distance or has no location. */
@@ -282,7 +292,7 @@ export function getDistanceKmForDisplay(viewerId: string, targetId: string): num
   return R * c;
 }
 
-/** Listă utilizatori online care au poziție setată (pentru hartă), excluzând meId. */
+/** Listă utilizatori online care au poziție setată, excluzând meId. */
 export function getOnlineUsersWithPositions(meId: string): {
   id: string;
   name: string;
@@ -304,6 +314,46 @@ export function getOnlineUsersWithPositions(meId: string): {
   }[] = [];
   for (const u of s.users) {
     if (u.id === meId || !isUserOnline(u.id)) continue;
+    const pos = s.userPositions.get(u.id);
+    if (!pos) continue;
+    result.push({
+      id: u.id,
+      name: u.name,
+      username: u.username ?? u.name,
+      lat: pos.lat,
+      lng: pos.lng,
+      photoUrl: u.photos?.[0] ?? null,
+      online: isUserOnlineVisible(u.id),
+    });
+  }
+  return result;
+}
+
+/** Useri vizibili pe hartă: fereastră explicită map_visible_until + poziție (modul fără Prisma). */
+export function getMapVisibleUsers(meId: string): {
+  id: string;
+  name: string;
+  username: string;
+  lat: number;
+  lng: number;
+  photoUrl: string | null;
+  online: boolean;
+}[] {
+  const s = getState();
+  const result: {
+    id: string;
+    name: string;
+    username: string;
+    lat: number;
+    lng: number;
+    photoUrl: string | null;
+    online: boolean;
+  }[] = [];
+  for (const u of s.users) {
+    if (u.id === meId) continue;
+    if (u.show_distance === false) continue;
+    const until = u.map_visible_until;
+    if (until == null || until <= Date.now()) continue;
     const pos = s.userPositions.get(u.id);
     if (!pos) continue;
     result.push({

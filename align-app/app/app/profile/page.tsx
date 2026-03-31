@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, X } from "lucide-react";
@@ -8,6 +8,9 @@ import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
 import { fetchWithAuthRetry, getAuthHeaders } from "@/lib/authClient";
 import { OptimizedImage } from "@/components/OptimizedImage";
+import { useI18n } from "@/lib/i18n/context";
+import { formatTpl } from "@/lib/i18n/formatTpl";
+import { translateApiErrorMessage } from "@/lib/i18n/translateApiError";
 
 const MAX_PHOTOS = 5;
 const PHOTO_MAX_SIZE = 400;
@@ -61,7 +64,15 @@ const WANTS_CHILDREN_OPTIONS = ["", "da", "nu", "poate", "deja am"];
 const CLOTHING_STYLE_OPTIONS = ["", "casual", "elegant", "sport", "boem", "clasic", "modern", "minimalist"];
 const PHYSICAL_ASSET_FEMALE = ["", "Ochi", "Zâmbet", "Păr", "Siluetă", "Talie", "Picioare", "Postură", "Umeri", "Spate", "Energie / prezență fizică"];
 const PHYSICAL_ASSET_MALE = ["", "Umeri", "Spate", "Brațe", "Piept", "Postură", "Înălțime", "Siluetă", "Maxilar / trăsături faciale", "Ochi", "Energie / prezență fizică"];
-const MONTH_NAMES = ["", "ianuarie", "februarie", "martie", "aprilie", "mai", "iunie", "iulie", "august", "septembrie", "octombrie", "noiembrie", "decembrie"];
+
+type ProfileOptGroup = "eye" | "hair" | "bodyType" | "education" | "marital" | "wantsChildren" | "clothing" | "physicalFemale" | "physicalMale";
+
+function trOpt(tStr: (path: string) => string, group: ProfileOptGroup, value: string): string {
+  if (!value) return "";
+  const s = tStr(`pages.profile.opt.${group}.${value}`);
+  return s || value;
+}
+
 const inputClass = "w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-zinc-900 placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500";
 const labelClass = "block text-dark-500 text-sm mb-1";
 
@@ -97,6 +108,7 @@ function computeAgeFromBirthDate(birthDateStr: string): number | null {
 }
 
 function PrivacySettingsSection() {
+  const { tStr } = useI18n();
   const [allowFriendRequests, setAllowFriendRequests] = useState(true);
   const [allowVisitVisibility, setAllowVisitVisibility] = useState(true);
   const [allowReadReceipts, setAllowReadReceipts] = useState(true);
@@ -132,7 +144,7 @@ function PrivacySettingsSection() {
       });
   };
 
-  if (loading) return <p className="text-dark-500 text-sm">Se încarcă...</p>;
+  if (loading) return <p className="text-dark-500 text-sm">{tStr("pages.profile.privacyLoading")}</p>;
 
   return (
     <div className="space-y-3">
@@ -143,7 +155,7 @@ function PrivacySettingsSection() {
           onChange={(e) => update("allowFriendRequests", e.target.checked)}
           className="rounded border-dark-600 bg-dark-800 text-brand-500 focus:ring-brand-500"
         />
-        <span className="text-sm text-gray-300">Permite cereri de prietenie</span>
+        <span className="text-sm text-gray-300">{tStr("pages.profile.friendReq")}</span>
       </label>
       <label className="flex items-center gap-3 cursor-pointer">
         <input
@@ -152,7 +164,7 @@ function PrivacySettingsSection() {
           onChange={(e) => update("allowVisitVisibility", e.target.checked)}
           className="rounded border-dark-600 bg-dark-800 text-brand-500 focus:ring-brand-500"
         />
-        <span className="text-sm text-gray-300">Alții pot vedea când le vizitez profilul</span>
+        <span className="text-sm text-gray-300">{tStr("pages.profile.visitVis")}</span>
       </label>
       <label className="flex items-center gap-3 cursor-pointer">
         <input
@@ -161,13 +173,18 @@ function PrivacySettingsSection() {
           onChange={(e) => update("allowReadReceipts", e.target.checked)}
           className="rounded border-dark-600 bg-dark-800 text-brand-500 focus:ring-brand-500"
         />
-        <span className="text-sm text-gray-300">Arată „citit” la mesaje (read receipts)</span>
+        <span className="text-sm text-gray-300">{tStr("pages.profile.readRcpt")}</span>
       </label>
     </div>
   );
 }
 
 export default function ProfilePage() {
+  const { tStr } = useI18n();
+  const monthLabels = useMemo(
+    () => ["", ...Array.from({ length: 12 }, (_, i) => tStr(`common.months.${i + 1}`))],
+    [tStr]
+  );
   const [user, setUser] = useState<User | null>(null);
   const [name, setName] = useState("");
   const [bio, setBio] = useState("");
@@ -264,7 +281,7 @@ export default function ProfilePage() {
     const trimmedName = name.trim();
     const nameValid = trimmedName.length >= 3 && /^\p{L}+$/u.test(trimmedName);
     if (!skipNameValidation && !nameValid) {
-      setErrorDetail("Numele trebuie să aibă cel puțin 3 litere și să conțină doar litere.");
+      setErrorDetail(tStr("pages.profile.errNameField"));
       // Nu oprim salvarea: trimitem restul (poze, data nașterii etc.) fără nume
     }
     setSaving(true);
@@ -317,9 +334,7 @@ export default function ProfilePage() {
       }
       if (res.status === 401) {
         setMessage("error");
-        setErrorDetail(
-          "Nu am putut salva: sesiune nevalidă sau întreruptă. Ieși din cont (meniu) și intră din nou; dacă persistă, șterge cookie-urile pentru acest site."
-        );
+        setErrorDetail(tStr("pages.profile.errSessionSave"));
         return;
       }
       if (!res.ok) throw new Error(data.error || "Eroare");
@@ -338,7 +353,8 @@ export default function ProfilePage() {
       }, 2000);
     } catch (err) {
       setMessage("error");
-      setErrorDetail(err instanceof Error ? err.message : "Eroare la salvare.");
+      const msg = err instanceof Error ? err.message : "";
+      setErrorDetail(translateApiErrorMessage(msg, tStr) || msg || tStr("pages.profile.errSave"));
     } finally {
       setSaving(false);
     }
@@ -434,7 +450,7 @@ export default function ProfilePage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <span className="text-dark-500">Se încarcă...</span>
+        <span className="text-dark-500">{tStr("pages.profile.loading")}</span>
       </div>
     );
   }
@@ -442,30 +458,34 @@ export default function ProfilePage() {
   if (!user) {
     return (
       <div className="py-12 text-center">
-        <p className="text-dark-500 mb-4">Nu ești autentificat sau nu există date în sesiune.</p>
+        <p className="text-dark-500 mb-4">{tStr("pages.profile.notAuth")}</p>
         <Link href="/login" className="text-brand-400 hover:underline">
-          Log in
+          {tStr("pages.profile.login")}
         </Link>
-        <span className="text-dark-500 mx-2">sau</span>
+        <span className="text-dark-500 mx-2">{tStr("pages.profile.or")}</span>
         <Link href="/app" className="text-brand-400 hover:underline">
-          Înapoi
+          {tStr("pages.profile.backApp")}
         </Link>
       </div>
     );
   }
 
+  const physicalOptGroup: ProfileOptGroup = gender === "male" ? "physicalMale" : "physicalFemale";
+
   return (
     <div>
-      <h2 className="text-2xl font-semibold text-zinc-900 mt-4">Profilul meu</h2>
+      <h2 className="text-2xl font-semibold text-zinc-900 mt-4">{tStr("pages.profile.title")}</h2>
 
       {!serverHasUser && (
         <div className="mt-4 p-4 rounded-xl bg-amber-500/10 border border-amber-500/40 text-amber-200 text-sm">
-          <strong>Contul tău nu este găsit pe server</strong> (de ex. după repornirea aplicației). Datele de mai jos sunt din sesiunea ta. Modificările se salvează automat; dacă nu merge, <Link href="/login" className="underline">ieși</Link> și <Link href="/signup" className="underline">înregistrează-te din nou</Link> cu același email.
+          <strong>{tStr("pages.profile.serverMissingBold")}</strong> {tStr("pages.profile.serverMissingLine")}{" "}
+          <Link href="/login" className="underline">{tStr("pages.profile.serverMissingLogout")}</Link> {tStr("pages.profile.serverMissingMid")}{" "}
+          <Link href="/signup" className="underline">{tStr("pages.profile.serverMissingSignup")}</Link> {tStr("pages.profile.serverMissingEnd")}
         </div>
       )}
 
       <p className="text-sm text-dark-300 mt-2">
-        Minim obligatoriu: Prenume și Sex. Restul sunt opționale. Datele sunt folosite la căutare și potriviri. Modificările se salvează automat.
+        {tStr("pages.profile.introMin")}
       </p>
 
       {/* Profil X% complet (doar afișare) */}
@@ -496,7 +516,8 @@ export default function ProfilePage() {
         return (
           <div className="mt-4 max-w-2xl">
             <p className="text-sm text-dark-400">
-              Profil <span className="text-dark-200 font-medium">{percent}%</span> complet
+              {tStr("pages.profile.profilePercent")}{" "}
+              <span className="text-dark-200 font-medium">{percent}%</span> {tStr("pages.profile.profileComplete")}
             </p>
             <div className="mt-1.5 h-1.5 w-full rounded-full bg-dark-700 overflow-hidden">
               <div
@@ -507,19 +528,19 @@ export default function ProfilePage() {
             <div className="mt-2 flex flex-wrap gap-2">
               {photos.length >= 1 && (
                 <span className="inline-flex items-center rounded-full bg-dark-700 px-2.5 py-0.5 text-xs text-dark-200 border border-dark-600">
-                  Cu poză
+                  {tStr("pages.profile.badgePhoto")}
                 </span>
               )}
               {bio.trim().length > 0 && (
                 <span className="inline-flex items-center rounded-full bg-dark-700 px-2.5 py-0.5 text-xs text-dark-200 border border-dark-600">
-                  Cu descriere
+                  {tStr("pages.profile.badgeBio")}
                 </span>
               )}
               <Link
                 href="/app/profiles?preview=me"
                 className="inline-flex items-center rounded-full bg-brand-500/20 px-3 py-1.5 text-xs font-medium text-brand-400 border border-brand-500/50 hover:bg-brand-500/30 transition"
               >
-                Profilul meu
+                {tStr("pages.profile.previewMe")}
               </Link>
             </div>
           </div>
@@ -529,35 +550,49 @@ export default function ProfilePage() {
       {/* Rezumat profil: doar câmpurile completate */}
       {(name.trim() || bio.trim() || birthDate.trim() || gender || city.trim() || postalCode.trim() || educationLevel.trim() || occupation.trim() || maritalStatus.trim() || wantsChildren.trim() || (birthDate.trim() && computeAgeFromBirthDate(birthDate.trim()) != null) || height.trim() || weight.trim() || bodyType.trim() || eyeColor.trim() || hairColor.trim() || clothingStyle.trim() || distinctiveFeatures.trim() || physicalAsset.trim() || physicalAssetDetail.trim()) && (
         <section className="mt-4 p-4 rounded-2xl bg-dark-800/50 border border-dark-600 max-w-2xl">
-          <h3 className="text-sm font-semibold text-zinc-900 mb-3">Rezumat profil</h3>
+          <h3 className="text-sm font-semibold text-zinc-900 mb-3">{tStr("pages.profile.summaryTitle")}</h3>
           <dl className="space-y-1.5 text-sm">
-            {name.trim() && <><dt className="text-dark-500 inline">Prenume: </dt><dd className="inline text-dark-200">{name.trim()}</dd></>}
-            {gender && <><dt className="text-dark-500 inline">Sex: </dt><dd className="inline text-dark-200">{gender === "male" ? "Bărbat" : gender === "female" ? "Femeie" : "Altul"}</dd></>}
-            {birthDate.trim() && <><dt className="text-dark-500 inline">Data nașterii: </dt><dd className="inline text-dark-200">{birthDate.trim()}</dd></>}
-            {city.trim() && <><dt className="text-dark-500 inline">Oraș: </dt><dd className="inline text-dark-200">{city.trim()}</dd></>}
-            {postalCode.trim() && <><dt className="text-dark-500 inline">Cod poștal: </dt><dd className="inline text-dark-200">{postalCode.trim()}</dd></>}
-            {educationLevel.trim() && <><dt className="text-dark-500 inline">Educație: </dt><dd className="inline text-dark-200">{educationLevel.trim()}</dd></>}
-            {occupation.trim() && <><dt className="text-dark-500 inline">Ocupație: </dt><dd className="inline text-dark-200">{occupation.trim()}</dd></>}
-            {maritalStatus.trim() && <><dt className="text-dark-500 inline">Statut marital: </dt><dd className="inline text-dark-200">{maritalStatus.trim()}</dd></>}
-            {wantsChildren.trim() && <><dt className="text-dark-500 inline">Dorință copii: </dt><dd className="inline text-dark-200">{wantsChildren.trim()}</dd></>}
-            {birthDate.trim() && computeAgeFromBirthDate(birthDate.trim()) != null && <><dt className="text-dark-500 inline">Vârstă: </dt><dd className="inline text-dark-200">{computeAgeFromBirthDate(birthDate.trim())} ani</dd></>}
-            {height.trim() && <><dt className="text-dark-500 inline">Înălțime: </dt><dd className="inline text-dark-200">{height.trim()} cm</dd></>}
-            {weight.trim() && <><dt className="text-dark-500 inline">Greutate: </dt><dd className="inline text-dark-200">{weight.trim()} kg</dd></>}
-            {bodyType.trim() && <><dt className="text-dark-500 inline">Tip corp: </dt><dd className="inline text-dark-200">{bodyType.trim()}</dd></>}
-            {eyeColor.trim() && <><dt className="text-dark-500 inline">Ochi: </dt><dd className="inline text-dark-200">{eyeColor.trim()}</dd></>}
-            {hairColor.trim() && <><dt className="text-dark-500 inline">Păr: </dt><dd className="inline text-dark-200">{hairColor.trim()}</dd></>}
-            {clothingStyle.trim() && <><dt className="text-dark-500 inline">Stil vestimentar: </dt><dd className="inline text-dark-200">{clothingStyle.trim()}</dd></>}
-            {distinctiveFeatures.trim() && <><dt className="text-dark-500 inline">Trăsături distinctive: </dt><dd className="inline text-dark-200">{distinctiveFeatures.trim()}</dd></>}
-            {physicalAsset.trim() && <><dt className="text-dark-500 inline">Atu fizic: </dt><dd className="inline text-dark-200">{physicalAsset.trim()}{physicalAssetDetail.trim() ? ` (${physicalAssetDetail.trim()})` : ""}</dd></>}
-            {bio.trim() && <><dt className="text-dark-500 block mt-2">Descriere: </dt><dd className="text-dark-200 block">{bio.trim()}</dd></>}
+            {name.trim() && <><dt className="text-dark-500 inline">{tStr("pages.profile.lblFirstName")} </dt><dd className="inline text-dark-200">{name.trim()}</dd></>}
+            {gender && <><dt className="text-dark-500 inline">{tStr("pages.profile.lblGender")} </dt><dd className="inline text-dark-200">{gender === "male" ? tStr("pages.signup.genderMale") : gender === "female" ? tStr("pages.signup.genderFemale") : tStr("pages.signup.genderOther")}</dd></>}
+            {birthDate.trim() && <><dt className="text-dark-500 inline">{tStr("pages.profile.lblBirth")} </dt><dd className="inline text-dark-200">{birthDate.trim()}</dd></>}
+            {city.trim() && <><dt className="text-dark-500 inline">{tStr("pages.profile.lblCity")} </dt><dd className="inline text-dark-200">{city.trim()}</dd></>}
+            {postalCode.trim() && <><dt className="text-dark-500 inline">{tStr("pages.profile.lblPostal")} </dt><dd className="inline text-dark-200">{postalCode.trim()}</dd></>}
+            {educationLevel.trim() && <><dt className="text-dark-500 inline">{tStr("pages.profile.lblEdu")} </dt><dd className="inline text-dark-200">{trOpt(tStr, "education", educationLevel.trim())}</dd></>}
+            {occupation.trim() && <><dt className="text-dark-500 inline">{tStr("pages.profile.lblOcc")} </dt><dd className="inline text-dark-200">{occupation.trim()}</dd></>}
+            {maritalStatus.trim() && <><dt className="text-dark-500 inline">{tStr("pages.profile.lblMarital")} </dt><dd className="inline text-dark-200">{trOpt(tStr, "marital", maritalStatus.trim())}</dd></>}
+            {wantsChildren.trim() && <><dt className="text-dark-500 inline">{tStr("pages.profile.lblChildren")} </dt><dd className="inline text-dark-200">{trOpt(tStr, "wantsChildren", wantsChildren.trim())}</dd></>}
+            {birthDate.trim() && computeAgeFromBirthDate(birthDate.trim()) != null && (
+              <>
+                <dt className="text-dark-500 inline">{tStr("pages.profile.lblAge")} </dt>
+                <dd className="inline text-dark-200">
+                  {formatTpl(tStr("pages.userPublic.ageYears"), { n: computeAgeFromBirthDate(birthDate.trim())! })}
+                </dd>
+              </>
+            )}
+            {height.trim() && <><dt className="text-dark-500 inline">{tStr("pages.profile.lblHeight")} </dt><dd className="inline text-dark-200">{formatTpl(tStr("pages.userPublic.heightCm"), { n: height.trim() })}</dd></>}
+            {weight.trim() && <><dt className="text-dark-500 inline">{tStr("pages.profile.lblWeight")} </dt><dd className="inline text-dark-200">{formatTpl(tStr("pages.userPublic.weightKg"), { n: weight.trim() })}</dd></>}
+            {bodyType.trim() && <><dt className="text-dark-500 inline">{tStr("pages.profile.lblBody")} </dt><dd className="inline text-dark-200">{trOpt(tStr, "bodyType", bodyType.trim())}</dd></>}
+            {eyeColor.trim() && <><dt className="text-dark-500 inline">{tStr("pages.profile.lblEyes")} </dt><dd className="inline text-dark-200">{trOpt(tStr, "eye", eyeColor.trim())}</dd></>}
+            {hairColor.trim() && <><dt className="text-dark-500 inline">{tStr("pages.profile.lblHair")} </dt><dd className="inline text-dark-200">{trOpt(tStr, "hair", hairColor.trim())}</dd></>}
+            {clothingStyle.trim() && <><dt className="text-dark-500 inline">{tStr("pages.profile.lblClothing")} </dt><dd className="inline text-dark-200">{trOpt(tStr, "clothing", clothingStyle.trim())}</dd></>}
+            {distinctiveFeatures.trim() && <><dt className="text-dark-500 inline">{tStr("pages.profile.lblFeatures")} </dt><dd className="inline text-dark-200">{distinctiveFeatures.trim()}</dd></>}
+            {physicalAsset.trim() && (
+              <>
+                <dt className="text-dark-500 inline">{tStr("pages.profile.lblPhysical")} </dt>
+                <dd className="inline text-dark-200">
+                  {trOpt(tStr, physicalOptGroup, physicalAsset.trim())}{physicalAssetDetail.trim() ? ` (${physicalAssetDetail.trim()})` : ""}
+                </dd>
+              </>
+            )}
+            {bio.trim() && <><dt className="text-dark-500 block mt-2">{tStr("pages.profile.lblBio")} </dt><dd className="text-dark-200 block">{bio.trim()}</dd></>}
           </dl>
         </section>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-8 max-w-2xl">
         <div>
-          <label className={labelClass}>Poze profil (max {MAX_PHOTOS}) (opțional)</label>
-          <p className="text-xs text-dark-500 mb-2">Prima poză este afișată ca poză de profil (cercul din header). Bifează alta pentru a o seta ca poză de profil.</p>
+          <label className={labelClass}>{formatTpl(tStr("pages.profile.photosLabel"), { max: MAX_PHOTOS })}</label>
+          <p className="text-xs text-dark-500 mb-2">{tStr("pages.profile.photosHint")}</p>
           <div className="flex flex-wrap gap-3 items-start">
             {photos.map((src, i) => (
               <div key={i} className="relative group flex flex-col items-center">
@@ -567,7 +602,7 @@ export default function ProfilePage() {
                     type="button"
                     onClick={() => handlePhotoRemove(i)}
                     className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center opacity-90 hover:opacity-100"
-                    aria-label="Șterge poza"
+                    aria-label={tStr("pages.profile.delPhotoAria")}
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -580,7 +615,7 @@ export default function ProfilePage() {
                     onChange={() => setProfilePhoto(i)}
                     className="rounded-full border-dark-500 text-brand-500 focus:ring-brand-500"
                   />
-                  <span>{i === 0 ? "Poză de profil" : "Setează ca poză de profil"}</span>
+                  <span>{i === 0 ? tStr("pages.profile.radioProfilePhoto") : tStr("pages.profile.radioSetProfilePhoto")}</span>
                 </label>
               </div>
             ))}
@@ -599,27 +634,27 @@ export default function ProfilePage() {
 
         {/* 1. Date personale */}
         <section className="p-5 rounded-2xl bg-dark-800/50 border border-dark-600">
-          <h3 className="text-base font-semibold text-zinc-900 mb-4">1. Date personale</h3>
+          <h3 className="text-base font-semibold text-zinc-900 mb-4">{tStr("pages.profile.secPersonal")}</h3>
           <div className="space-y-4">
             <div>
-              <label className={labelClass}>Prenume (obligatoriu)</label>
+              <label className={labelClass}>{tStr("pages.profile.lblNameReq")}</label>
               <input type="text" value={name} onChange={(e) => setName(e.target.value)} required className={inputClass} />
               {name.trim().length > 0 && (name.trim().length < 3 || !/^\p{L}+$/u.test(name.trim())) && (
-                <p className="text-red-400 text-xs mt-1">Numele trebuie să aibă cel puțin 3 litere și să conțină doar litere.</p>
+                <p className="text-red-400 text-xs mt-1">{tStr("pages.profile.errNameField")}</p>
               )}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className={labelClass}>Sex (obligatoriu)</label>
+                <label className={labelClass}>{tStr("pages.profile.lblGenderReq")}</label>
                 <select value={gender} onChange={(e) => setGender(e.target.value)} required className={inputClass}>
-                  <option value="">—</option>
-                  <option value="male">Bărbat</option>
-                  <option value="female">Femeie</option>
-                  <option value="other">Altul</option>
+                  <option value="">{tStr("pages.profile.selectDash")}</option>
+                  <option value="male">{tStr("pages.signup.genderMale")}</option>
+                  <option value="female">{tStr("pages.signup.genderFemale")}</option>
+                  <option value="other">{tStr("pages.signup.genderOther")}</option>
                 </select>
               </div>
               <div>
-                <label className={labelClass}>Data nașterii (opțional)</label>
+                <label className={labelClass}>{tStr("pages.profile.lblBirthOpt")}</label>
                 <div className="grid grid-cols-3 gap-2">
                   <select
                     value={parseBirthDate(birthDate).day}
@@ -630,7 +665,7 @@ export default function ProfilePage() {
                     }}
                     className={inputClass}
                   >
-                    <option value="">Zi</option>
+                    <option value="">{tStr("common.day")}</option>
                     {Array.from({ length: 31 }, (_, i) => i + 1).map((n) => (
                       <option key={n} value={String(n)}>{n}</option>
                     ))}
@@ -644,8 +679,8 @@ export default function ProfilePage() {
                     }}
                     className={inputClass}
                   >
-                    <option value="">Lună</option>
-                    {MONTH_NAMES.slice(1).map((label, i) => (
+                    <option value="">{tStr("common.month")}</option>
+                    {monthLabels.slice(1).map((label, i) => (
                       <option key={i} value={String(i + 1).padStart(2, "0")}>{label}</option>
                     ))}
                   </select>
@@ -658,7 +693,7 @@ export default function ProfilePage() {
                     }}
                     className={inputClass}
                   >
-                    <option value="">An</option>
+                    <option value="">{tStr("common.year")}</option>
                     {(() => {
                       const end = new Date().getFullYear() - 18;
                       const start = end - 82;
@@ -672,156 +707,161 @@ export default function ProfilePage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className={labelClass}>Oraș (opțional)</label>
-                <input type="text" placeholder="ex. București" value={city} onChange={(e) => setCity(e.target.value)} className={inputClass} />
+                <label className={labelClass}>{tStr("pages.profile.lblCityOpt")}</label>
+                <input type="text" placeholder={tStr("pages.profile.phCity")} value={city} onChange={(e) => setCity(e.target.value)} className={inputClass} />
               </div>
               <div>
-                <label className={labelClass}>Cod poștal (opțional)</label>
-                <input type="text" placeholder="ex. 010101" value={postalCode} onChange={(e) => setPostalCode(e.target.value)} className={inputClass} />
+                <label className={labelClass}>{tStr("pages.profile.lblPostalOpt")}</label>
+                <input type="text" placeholder={tStr("pages.profile.phPostal")} value={postalCode} onChange={(e) => setPostalCode(e.target.value)} className={inputClass} />
               </div>
             </div>
             <div>
-              <label className={labelClass}>Nivel de educație (opțional)</label>
+              <label className={labelClass}>{tStr("pages.profile.lblEduOpt")}</label>
               <select value={educationLevel} onChange={(e) => setEducationLevel(e.target.value)} className={inputClass}>
                 {EDUCATION_OPTIONS.map((o) => (
-                  <option key={o || "x"} value={o}>{o || "—"}</option>
+                  <option key={o || "x"} value={o}>{o ? trOpt(tStr, "education", o) : tStr("pages.profile.selectDash")}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className={labelClass}>Ocupație (opțional)</label>
-              <input type="text" placeholder="ex. Designer, profesor" value={occupation} onChange={(e) => setOccupation(e.target.value)} className={inputClass} />
+              <label className={labelClass}>{tStr("pages.profile.lblOccOpt")}</label>
+              <input type="text" placeholder={tStr("pages.profile.phOcc")} value={occupation} onChange={(e) => setOccupation(e.target.value)} className={inputClass} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className={labelClass}>Statut marital (opțional)</label>
+                <label className={labelClass}>{tStr("pages.profile.lblMaritalOpt")}</label>
                 <select value={maritalStatus} onChange={(e) => setMaritalStatus(e.target.value)} className={inputClass}>
                   {MARITAL_OPTIONS.map((o) => (
-                    <option key={o || "x"} value={o}>{o || "—"}</option>
+                    <option key={o || "x"} value={o}>{o ? trOpt(tStr, "marital", o) : tStr("pages.profile.selectDash")}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className={labelClass}>Dorință de copii (opțional)</label>
+                <label className={labelClass}>{tStr("pages.profile.lblWantsOpt")}</label>
                 <select value={wantsChildren} onChange={(e) => setWantsChildren(e.target.value)} className={inputClass}>
                   {WANTS_CHILDREN_OPTIONS.map((o) => (
-                    <option key={o || "x"} value={o}>{o || "—"}</option>
+                    <option key={o || "x"} value={o}>{o ? trOpt(tStr, "wantsChildren", o) : tStr("pages.profile.selectDash")}</option>
                   ))}
                 </select>
               </div>
             </div>
             {birthDate.trim() && computeAgeFromBirthDate(birthDate.trim()) != null && (
               <div>
-                <span className={labelClass}>Vârstă: </span>
-                <span className="text-dark-200">{computeAgeFromBirthDate(birthDate.trim())} ani (calculată din data nașterii)</span>
+                <span className={labelClass}>{tStr("pages.profile.lblAge")} </span>
+                <span className="text-dark-200">
+                  {formatTpl(tStr("pages.userPublic.ageYears"), { n: computeAgeFromBirthDate(birthDate.trim())! })} {tStr("pages.profile.ageComputed")}
+                </span>
               </div>
             )}
           </div>
         </section>
 
-        {/* 2. Aspect fizic */}
         <section className="p-5 rounded-2xl bg-dark-800/50 border border-dark-600">
-          <h3 className="text-base font-semibold text-zinc-900 mb-4">2. Aspect fizic</h3>
+          <h3 className="text-base font-semibold text-zinc-900 mb-4">{tStr("pages.profile.secPhysical")}</h3>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className={labelClass}>Înălțime (cm) (opțional)</label>
+                <label className={labelClass}>{tStr("pages.profile.lblHeightOpt")}</label>
                 <input type="number" min={100} max={250} placeholder="170" value={height} onChange={(e) => setHeight(e.target.value)} className={inputClass} />
               </div>
               <div>
-                <label className={labelClass}>Greutate (kg) (opțional)</label>
+                <label className={labelClass}>{tStr("pages.profile.lblWeightOpt")}</label>
                 <input type="number" min={30} max={250} placeholder="70" value={weight} onChange={(e) => setWeight(e.target.value)} className={inputClass} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className={labelClass}>Culoarea ochilor (opțional)</label>
+                <label className={labelClass}>{tStr("pages.profile.lblEyesOpt")}</label>
                 <select value={eyeColor} onChange={(e) => setEyeColor(e.target.value)} className={inputClass}>
                   {EYE_OPTIONS.map((o) => (
-                    <option key={o || "x"} value={o}>{o || "—"}</option>
+                    <option key={o || "x"} value={o}>{o ? trOpt(tStr, "eye", o) : tStr("pages.profile.selectDash")}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className={labelClass}>Culoarea părului (opțional)</label>
+                <label className={labelClass}>{tStr("pages.profile.lblHairOpt")}</label>
                 <select value={hairColor} onChange={(e) => setHairColor(e.target.value)} className={inputClass}>
                   {HAIR_OPTIONS.map((o) => (
-                    <option key={o || "x"} value={o}>{o || "—"}</option>
+                    <option key={o || "x"} value={o}>{o ? trOpt(tStr, "hair", o) : tStr("pages.profile.selectDash")}</option>
                   ))}
                 </select>
               </div>
             </div>
             <div>
-              <label className={labelClass}>Stil vestimentar (opțional)</label>
+              <label className={labelClass}>{tStr("pages.profile.lblClothingOpt")}</label>
               <select value={clothingStyle} onChange={(e) => setClothingStyle(e.target.value)} className={inputClass}>
                 {CLOTHING_STYLE_OPTIONS.map((o) => (
-                  <option key={o || "x"} value={o}>{o || "—"}</option>
+                  <option key={o || "x"} value={o}>{o ? trOpt(tStr, "clothing", o) : tStr("pages.profile.selectDash")}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className={labelClass}>Trăsături distinctive (ochelari, tatuaje etc.) (opțional)</label>
-              <input type="text" placeholder="ex. ochelari, tatuaje discrete" value={distinctiveFeatures} onChange={(e) => setDistinctiveFeatures(e.target.value)} className={inputClass} />
+              <label className={labelClass}>{tStr("pages.profile.lblFeaturesOpt")}</label>
+              <input type="text" placeholder={tStr("pages.profile.phFeatures")} value={distinctiveFeatures} onChange={(e) => setDistinctiveFeatures(e.target.value)} className={inputClass} />
             </div>
             <div>
-              <label className={labelClass}>Tip corp / silueta (opțional)</label>
+              <label className={labelClass}>{tStr("pages.profile.lblBodyOpt")}</label>
               <select value={bodyType} onChange={(e) => setBodyType(e.target.value)} className={inputClass}>
                 {BODY_TYPE_OPTIONS.map((o) => (
-                  <option key={o || "x"} value={o}>{o || "—"}</option>
+                  <option key={o || "x"} value={o}>{o ? trOpt(tStr, "bodyType", o) : tStr("pages.profile.selectDash")}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className={labelClass}>Atu fizic (opțional)</label>
+              <label className={labelClass}>{tStr("pages.profile.lblPhysicalOpt")}</label>
               <select value={physicalAsset} onChange={(e) => setPhysicalAsset(e.target.value)} className={inputClass}>
                 {(gender === "male" ? PHYSICAL_ASSET_MALE : PHYSICAL_ASSET_FEMALE).map((o) => (
-                  <option key={o || "x"} value={o}>{o || "—"}</option>
+                  <option key={o || "x"} value={o}>
+                    {o ? trOpt(tStr, gender === "male" ? "physicalMale" : "physicalFemale", o) : tStr("pages.profile.selectDash")}
+                  </option>
                 ))}
               </select>
             </div>
             <div>
-              <label className={labelClass}>Detaliu (opțional)</label>
-              <input type="text" maxLength={40} placeholder="max 40 caractere" value={physicalAssetDetail} onChange={(e) => setPhysicalAssetDetail(e.target.value.slice(0, 40))} className={inputClass} />
+              <label className={labelClass}>{tStr("pages.profile.lblDetailOpt")}</label>
+              <input type="text" maxLength={40} placeholder={tStr("pages.profile.phDetailMax")} value={physicalAssetDetail} onChange={(e) => setPhysicalAssetDetail(e.target.value.slice(0, 40))} className={inputClass} />
             </div>
           </div>
         </section>
 
         {/* Descriere */}
         <div>
-          <label className={labelClass}>Descriere (despre tine) (opțional)</label>
-          <textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Scrie câteva fraze despre tine: ce îți place, cum ești, ce cauți..." rows={4} className={`${inputClass} resize-y min-h-[100px]`} />
+          <label className={labelClass}>{tStr("pages.profile.lblBioOpt")}</label>
+          <textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder={tStr("pages.profile.phBio")} rows={4} className={`${inputClass} resize-y min-h-[100px]`} />
         </div>
 
         {message === "saved" && (
-          <p className="text-green-400 text-sm">Salvat automat.</p>
+          <p className="text-green-400 text-sm">{tStr("pages.profile.autoSaved")}</p>
         )}
         {message === "error" && (
           <p className="text-red-400 text-sm">
-            {errorDetail || "Eroare la salvare."}
-            {/sesiune|ieși din cont/i.test(errorDetail) && (
-              <>{" "}<Link href="/login" className="underline font-medium">Loghează-te acum</Link></>
+            {translateApiErrorMessage(errorDetail, tStr) || errorDetail || tStr("pages.profile.errSave")}
+            {/sesiune|session|Sitzung|ieși|sign out|log ?out|Abmelden|cookie/i.test(errorDetail) && (
+              <>{" "}<Link href="/login" className="underline font-medium">{tStr("pages.profile.loginNowLink")}</Link></>
             )}
           </p>
         )}
         {message === "not_on_server" && (
           <p className="text-red-400 text-sm">
-            Contul tău nu există pe server. <Link href="/login" className="underline">Ieși</Link> și <Link href="/signup" className="underline">înregistrează-te din nou</Link> (poți folosi același email și parolă).
+            {tStr("pages.profile.errNotOnServerLine1")}{" "}
+            <Link href="/login" className="underline">{tStr("pages.profile.linkLogout")}</Link> {tStr("pages.profile.errNotOnServerBetween")}{" "}
+            <Link href="/signup" className="underline">{tStr("pages.profile.linkSignup")}</Link> {tStr("pages.profile.errNotOnServerEnd")}
           </p>
         )}
-        {saving && <p className="text-dark-400 text-sm">Se salvează...</p>}
+        {saving && <p className="text-dark-400 text-sm">{tStr("pages.profile.saving")}</p>}
 
         <section className="mt-10 pt-8 border-t border-dark-600">
-          <h3 className="text-base font-semibold text-zinc-900 mb-2">Setări confidențialitate și prieteni</h3>
+          <h3 className="text-base font-semibold text-zinc-900 mb-2">{tStr("pages.profile.privacyTitle")}</h3>
           <p className="text-dark-500 text-sm mb-3">
-            Controlează ce informații sunt vizibile pentru alții.
+            {tStr("pages.profile.privacyIntro")}
           </p>
           <PrivacySettingsSection />
         </section>
 
         <section className="mt-10 pt-8 border-t border-dark-600">
-          <h3 className="text-base font-semibold text-zinc-900 mb-2">Setări cont</h3>
+          <h3 className="text-base font-semibold text-zinc-900 mb-2">{tStr("pages.profile.accountTitle")}</h3>
           <p className="text-dark-500 text-sm mb-3">
-            Deloghează-te de pe toate dispozitivele (inclusiv acest browser). Va trebui să te loghezi din nou peste tot.
+            {tStr("pages.profile.accountIntro")}
           </p>
           <button
             type="button"
@@ -846,7 +886,7 @@ export default function ProfilePage() {
             }}
             className="!h-11 !min-h-[44px] !max-h-[44px] !py-0 px-4 rounded-xl bg-dark-700 hover:bg-dark-600 border border-dark-600 text-zinc-900 font-medium text-sm transition disabled:opacity-50"
           >
-            {logoutAllLoading ? "Se procesează..." : "Deloghează-mă de pe toate dispozitivele"}
+            {logoutAllLoading ? tStr("pages.profile.logoutAllBusy") : tStr("pages.profile.logoutAllBtn")}
           </button>
         </section>
       </form>

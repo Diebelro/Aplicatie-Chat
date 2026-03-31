@@ -22,6 +22,7 @@ import {
   type Gender,
 } from "@/lib/store";
 import { resolveRequestUserId } from "@/lib/sessionAuth";
+import { parseMaxDistanceKmQuery } from "@/lib/profileSearchConstants";
 
 function parseFilters(searchParams: URLSearchParams): {
   gender?: Gender | "";
@@ -36,7 +37,7 @@ function parseFilters(searchParams: URLSearchParams): {
   const gender = searchParams.get("gender") ?? "";
   const minAge = searchParams.get("minAge");
   const maxAge = searchParams.get("maxAge");
-  const maxDistanceKm = searchParams.get("maxDistanceKm");
+  const maxDistanceKmParam = searchParams.get("maxDistanceKm");
   const country = searchParams.get("country") ?? "";
   const city = searchParams.get("city") ?? "";
   const onlineOnly = searchParams.get("onlineOnly") === "true" || searchParams.get("onlineOnly") === "1";
@@ -49,11 +50,13 @@ function parseFilters(searchParams: URLSearchParams): {
   let finalMax = maxAgeOk ? maxAgeNum : undefined;
   if (finalMin != null && finalMax != null && finalMin > finalMax) finalMax = finalMin;
 
+  const maxDist = parseMaxDistanceKmQuery(maxDistanceKmParam);
+
   return {
     ...(gender && { gender: gender as Gender | "" }),
     ...(finalMin != null && { minAge: finalMin }),
     ...(finalMax != null && { maxAge: finalMax }),
-    ...(maxDistanceKm != null && maxDistanceKm !== "" && { maxDistanceKm: Number(maxDistanceKm) }),
+    ...(maxDist !== undefined && { maxDistanceKm: maxDist }),
     ...(country.trim() && { country: country.trim() }),
     ...(city.trim() && { city: city.trim() }),
     ...(onlineOnly && { onlineOnly: true }),

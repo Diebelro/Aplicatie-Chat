@@ -5,6 +5,13 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { fetchWithAuthRetry } from "@/lib/authClient";
 import { isImageContentType, isPdfContentType } from "@/lib/chatAttachments";
+import {
+  formatLocationCoordsExact,
+  formatLocationPrimaryLine,
+  googleMapsUrl,
+  isAlignLocationContentType,
+  parseAlignLocationPayload,
+} from "@/lib/chatLocation";
 
 type Message = {
   id: string;
@@ -35,6 +42,7 @@ function formatMessageAt(iso: string): string {
 }
 
 function attachmentDisplayUrl(m: Message): string | null {
+  if (isAlignLocationContentType(m.attachmentContentType)) return null;
   if (isImageContentType(m.attachmentContentType ?? "") || isPdfContentType(m.attachmentContentType ?? "")) {
     return m.attachmentUrl ?? `/api/chat/attachment?messageId=${encodeURIComponent(m.id)}`;
   }
@@ -300,6 +308,9 @@ export default function AdminConversationPage() {
       <div className="space-y-4">
         {messages.map((m) => {
           const attachHref = attachmentDisplayUrl(m);
+          const locationPt = isAlignLocationContentType(m.attachmentContentType)
+            ? parseAlignLocationPayload(m.attachmentUrl ?? null)
+            : null;
           const showImage =
             attachHref && isImageContentType(m.attachmentContentType ?? "");
           const fromLabel = labelForId(m.fromId);
@@ -353,7 +364,33 @@ export default function AdminConversationPage() {
                     </a>
                   </p>
                 ) : null}
-                {m.attachmentUrl && !showImage && !isPdfContentType(m.attachmentContentType ?? "") ? (
+                {locationPt ? (
+                  <div className="mt-2 text-sm space-y-1">
+                    <p className="text-dark-100">
+                      <span className="text-dark-400">Adresă / poziție: </span>
+                      <span className="break-words">{formatLocationPrimaryLine(locationPt, 6)}</span>
+                    </p>
+                    <p className="text-dark-500 text-xs tabular-nums">
+                      WGS84: {formatLocationCoordsExact(locationPt.lat, locationPt.lng, 6)}
+                    </p>
+                    <a
+                      href={googleMapsUrl(locationPt.lat, locationPt.lng)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-brand-400 hover:underline inline-block"
+                    >
+                      Google Maps
+                    </a>
+                  </div>
+                ) : null}
+                {isAlignLocationContentType(m.attachmentContentType) && m.attachmentUrl && !locationPt ? (
+                  <p className="mt-2 text-amber-400/90 text-sm">Locație invalidă (payload).</p>
+                ) : null}
+                {m.attachmentUrl &&
+                !showImage &&
+                !isPdfContentType(m.attachmentContentType ?? "") &&
+                !locationPt &&
+                !isAlignLocationContentType(m.attachmentContentType) ? (
                   <p className="mt-3 text-dark-400 text-sm break-all">
                     Atașament:{" "}
                     <a href={m.attachmentUrl} target="_blank" rel="noopener noreferrer" className="text-brand-400 hover:underline">

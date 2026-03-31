@@ -3,18 +3,51 @@
 import { useEffect, useState, useRef, useCallback, useLayoutEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Send, Video, Phone, Check, Loader2, Paperclip, X, FileText } from "lucide-react";
-import type { User } from "@/lib/store";
+import { Send, Video, Phone, Check, Loader2, Paperclip, X, FileText, MapPin } from "lucide-react";
+import type { Gender, User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
 import { getVideoRoomId } from "@/lib/videoCall";
 import { track } from "@/lib/tracking";
 import { displayName } from "@/lib/displayName";
 import { getAuthHeaders } from "@/lib/authClient";
 import { messageAttachmentProxyPath, shouldProxyChatAttachment } from "@/lib/chatAttachmentProxy";
+import {
+  ALIGN_LOCATION_CONTENT_TYPE,
+  formatLocationCoordsExact,
+  formatLocationPrimaryLine,
+  googleMapsUrl,
+  isAlignLocationContentType,
+  parseAlignLocationPayload,
+  serializeAlignLocation,
+} from "@/lib/chatLocation";
 import { clearChatDraft, readChatDraft, writeChatDraft } from "@/lib/formDrafts";
+import { useI18n } from "@/lib/i18n/context";
+import { formatTpl } from "@/lib/i18n/formatTpl";
+import { translateApiErrorMessage } from "@/lib/i18n/translateApiError";
+import type { Locale } from "@/lib/i18n/types";
 
 const ALLOWED_ATTACH_ACCEPT = "image/jpeg,image/png,image/webp,application/pdf";
 const MAX_ATTACH_MB = 10;
+
+function intlTagForLocale(locale: Locale): string {
+  if (locale === "en") return "en-US";
+  if (locale === "de") return "de-DE";
+  return "ro-RO";
+}
+
+function formatChatDistanceKm(distanceKm: number, locale: Locale, tStr: (path: string) => string): string {
+  const tag = intlTagForLocale(locale);
+  if (distanceKm < 1) {
+    return formatTpl(tStr("pages.chat.distanceM"), { n: Math.round(distanceKm * 1000) });
+  }
+  const rounded = Math.round(distanceKm * 10) / 10;
+  const n = new Intl.NumberFormat(tag, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(rounded);
+  return formatTpl(tStr("pages.chat.distanceKm"), { n });
+}
+
+function withDevStatusPrefix(code: number, message: string): string {
+  return [401, 402, 403, 500].includes(code) && process.env.NODE_ENV === "development" ? `[${code}] ${message}` : message;
+}
 
 interface Message {
   id: string;
@@ -37,6 +70,91 @@ interface Message {
 
 function isImageType(ct: string | null | undefined): boolean {
   return ct === "image/jpeg" || ct === "image/png" || ct === "image/webp";
+}
+
+function locationBubbleParsed(m: Message): ReturnType<typeof parseAlignLocationPayload> {
+  if (!isAlignLocationContentType(m.attachmentContentType)) return null;
+  return parseAlignLocationPayload(m.attachmentUrl ?? null);
+}
+
+/** Culori soft pentru cardul de locație: albastru (ea → el), roz (el → ea), altfel nuanțe teal ca în brand. */
+function locationShareBubblePalette(
+  senderGender: Gender | undefined,
+  recipientGender: Gender | undefined,
+  isOnMyMessageBubble: boolean
+): { box: string; muted: string; link: string; pin: string } {
+  const femaleToMale = senderGender === "female" && recipientGender === "male";
+  const maleToFemale = senderGender === "male" && recipientGender === "female";
+
+  if (femaleToMale) {
+    return isOnMyMessageBubble
+      ? {
+          box: "border-sky-400/55 bg-sky-100 text-sky-950",
+          muted: "text-sky-900/75",
+          link: "text-sky-800 underline font-medium",
+          pin: "text-sky-700",
+        }
+      : {
+          box: "border-sky-200 bg-sky-50 text-sky-950 shadow-sm",
+          muted: "text-sky-800/85",
+          link: "text-sky-700 underline font-medium",
+          pin: "text-sky-600",
+        };
+  }
+  if (maleToFemale) {
+    return isOnMyMessageBubble
+      ? {
+          box: "border-rose-400/55 bg-rose-100 text-rose-950",
+          muted: "text-rose-900/75",
+          link: "text-rose-800 underline font-medium",
+          pin: "text-rose-700",
+        }
+      : {
+          box: "border-rose-200 bg-rose-50 text-rose-950 shadow-sm",
+          muted: "text-rose-800/85",
+          link: "text-rose-700 underline font-medium",
+          pin: "text-rose-600",
+        };
+  }
+  return isOnMyMessageBubble
+    ? {
+        box: "border-teal-400/50 bg-teal-100 text-teal-950",
+        muted: "text-teal-900/75",
+        link: "text-teal-800 underline font-medium",
+        pin: "text-teal-800",
+      }
+    : {
+        box: "border-teal-200 bg-emerald-50/90 text-teal-950 shadow-sm",
+        muted: "text-teal-800/85",
+        link: "text-brand-600 underline font-medium",
+        pin: "text-teal-700",
+      };
+}
+
+/** Fundal modal confirmare trimite locație (nu se poate stiliza `window.confirm`). */
+function locationShareConfirmTheme(sender: Gender | undefined, recipient: Gender | undefined) {
+  if (sender === "female" && recipient === "male") {
+    return {
+      panel: "bg-sky-100 border-sky-300/90 text-sky-950",
+      sub: "text-sky-900/90",
+      primary: "bg-sky-600 hover:bg-sky-500 text-white",
+      secondary: "border-sky-400 bg-sky-50/80 text-sky-950 hover:bg-sky-200/90",
+    };
+  }
+  if (sender === "male" && recipient === "female") {
+    return {
+      panel: "bg-rose-100 border-rose-300/90 text-rose-950",
+      sub: "text-rose-900/90",
+      primary: "bg-rose-600 hover:bg-rose-500 text-white",
+      secondary: "border-rose-400 bg-rose-50/80 text-rose-950 hover:bg-rose-200/90",
+    };
+  }
+  return {
+    panel: "bg-teal-50 border-teal-300/80 text-teal-950",
+    sub: "text-teal-900/90",
+    primary: "bg-brand-600 hover:bg-brand-500 text-white",
+    secondary: "border-teal-400 bg-white/70 text-teal-950 hover:bg-teal-100/90",
+  };
 }
 
 /** Compară ID-uri user indiferent de tip (numeric vs string) sau spații. */
@@ -66,6 +184,7 @@ export default function ChatPage() {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [sendingLocation, setSendingLocation] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const [isPaywallError, setIsPaywallError] = useState(false);
   const [calling, setCalling] = useState<"video" | "audio" | null>(null);
@@ -82,6 +201,8 @@ export default function ChatPage() {
   /** Fallback când lipsește align_user în storage dar sesiunea (cookie) e validă — ca butoanele Apel să apară. */
   const [meIdFromMeApi, setMeIdFromMeApi] = useState<string | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [locationShareConfirmOpen, setLocationShareConfirmOpen] = useState(false);
+  const locationSharePendingRef = useRef<{ backupText: string; fromId: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textInputRef = useRef<HTMLInputElement>(null);
   /** Doar zona listei de mesaje — evită scrollIntoView care poate derula tot viewport-ul și ascunde câmpul de scris. */
@@ -94,6 +215,8 @@ export default function ChatPage() {
   const prevMessageCountRef = useRef(0);
   const chatTextRef = useRef("");
   const chatOtherIdRef = useRef("");
+
+  const { tStr, locale } = useI18n();
 
   const meRaw = typeof window !== "undefined" ? getStoredUserRaw() : null;
   const me: User | null = meRaw ? (() => { try { return JSON.parse(meRaw); } catch { return null; } })() : null;
@@ -180,11 +303,13 @@ export default function ChatPage() {
         }
       } else if ([401, 402, 403, 500].includes(res.status)) {
         const code = res.status;
-        const msg = (data?.error as string) || "Eroare";
-        setFetchError(process.env.NODE_ENV === "development" ? `[${code}] ${msg}` : msg);
+        const raw = String((data?.error as string) ?? "").trim();
+        const localized =
+          (raw ? translateApiErrorMessage(raw, tStr) : "") || (raw || tStr("pages.chat.fetchErrGeneric"));
+        setFetchError(withDevStatusPrefix(code, localized));
       }
     },
-    [otherId]
+    [otherId, tStr]
   );
 
   useEffect(() => {
@@ -420,14 +545,14 @@ export default function ChatPage() {
     e.preventDefault();
     const hasText = text.trim().length > 0;
     const hasAttach = !!pendingAttachment;
-    if ((!hasText && !hasAttach) || sending) return;
+    if ((!hasText && !hasAttach) || sending || sendingLocation) return;
 
     const backupText = text.trim();
     const backupAttach = pendingAttachment;
     const fromIdOptimistic =
       (callerId || meIdFromMeApi || inferredFromMessages || "").trim();
     if (!fromIdOptimistic) {
-      setSendError("Se încarcă contul… încearcă din nou imediat.");
+      setSendError(tStr("pages.chat.accountLoadingRetry"));
       return;
     }
 
@@ -464,7 +589,7 @@ export default function ChatPage() {
         setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
         setText(backupText);
         setPendingAttachment(backupAttach);
-        setSendError("Nu ești autentificat. Reconectează-te.");
+        setSendError(tStr("pages.chat.notAuthenticated"));
         return;
       }
       const body: { toId: string; text: string; attachmentUrl?: string; attachmentContentType?: string } = {
@@ -493,18 +618,23 @@ export default function ChatPage() {
         setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
         setText(backupText);
         setPendingAttachment(backupAttach);
-        const paywall = res.status === 402 || (res.status === 403 && data.error?.includes("abonament"));
+        const paywall =
+          res.status === 402 ||
+          (res.status === 403 &&
+            (String(data.error ?? "").includes("abonament") || String(data.error ?? "").toLowerCase().includes("subscription")));
         setIsPaywallError(!!paywall);
         const code = res.status;
-        const msg = data.error || "Eroare la trimitere. Încearcă din nou.";
-        setSendError([401, 402, 403, 500].includes(code) && process.env.NODE_ENV === "development" ? `[${code}] ${msg}` : msg);
+        const rawErr = String(data.error ?? "").trim();
+        const localized =
+          translateApiErrorMessage(rawErr, tStr) || (rawErr || tStr("pages.chat.sendFailed"));
+        setSendError(withDevStatusPrefix(code, localized));
       }
     } catch {
       setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
       setText(backupText);
       setPendingAttachment(backupAttach);
       setIsPaywallError(false);
-      setSendError("Eroare de rețea. Mesajul nu s-a salvat; poți retrimite.");
+      setSendError(tStr("pages.chat.networkErrorMessage"));
     } finally {
       setSending(false);
       queueMicrotask(() => textInputRef.current?.focus());
@@ -517,13 +647,13 @@ export default function ChatPage() {
     if (!file) return;
     if (file.size > MAX_ATTACH_MB * 1024 * 1024) {
       setIsPaywallError(false);
-      setSendError(`Fișierul depășește ${MAX_ATTACH_MB} MB.`);
+      setSendError(formatTpl(tStr("pages.chat.fileTooBig"), { mb: MAX_ATTACH_MB }));
       return;
     }
     const allowed = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
     if (!allowed.includes(file.type)) {
       setIsPaywallError(false);
-      setSendError("Tip permis: JPEG, PNG, WebP sau PDF.");
+      setSendError(tStr("pages.chat.fileTypeNotAllowed"));
       return;
     }
     setUploadingAttachment(true);
@@ -548,21 +678,159 @@ export default function ChatPage() {
         });
       } else {
         setIsPaywallError(false);
-        const msg = data?.error ?? "Eroare la încărcare.";
-        const friendly =
-          res.status === 503 && (msg.includes("Blob") || msg.includes("configurat"))
-            ? "Atașamentele nu sunt disponibile momentan. Poți trimite doar text."
-            : msg;
+        const rawMsg = String(data?.error ?? "").trim();
+        const isBlob503 =
+          res.status === 503 &&
+          (/blob/i.test(rawMsg) || /configurat|configured/i.test(rawMsg));
+        const friendly = isBlob503
+          ? tStr("pages.chat.attachmentsUnavailable")
+          : translateApiErrorMessage(rawMsg, tStr) || rawMsg || tStr("pages.chat.uploadFailed");
         setSendError(friendly);
         if (res.status === 503) setUploadConfigured(false);
       }
     } catch {
       setIsPaywallError(false);
-      setSendError("Eroare la încărcare.");
+      setSendError(tStr("pages.chat.uploadFailed"));
     } finally {
       setUploadingAttachment(false);
     }
   };
+
+  const runShareLocationWithGeolocation = (backupText: string, fromIdOptimistic: string) => {
+    setSendingLocation(true);
+    setSendError(null);
+    setIsPaywallError(false);
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        const payload = serializeAlignLocation(lat, lng);
+        const optimisticId = `local-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+        const optimistic: Message = {
+          id: optimisticId,
+          fromId: fromIdOptimistic,
+          toId: otherId,
+          text: backupText,
+          at: new Date().toISOString(),
+          status: "SENT",
+          seenAt: null,
+          attachmentUrl: payload,
+          attachmentContentType: ALIGN_LOCATION_CONTENT_TYPE,
+          clientPending: true,
+        };
+        setMessages((prev) => [...prev, optimistic]);
+        setText("");
+        clearChatDraft(otherId);
+
+        try {
+          const headers = getAuthHeaders() as Record<string, string>;
+          if (!headers["x-user-id"]) {
+            setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
+            setText(backupText);
+            setSendError(tStr("pages.chat.notAuthenticated"));
+            return;
+          }
+          const res = await fetch("/api/messages", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...headers },
+            body: JSON.stringify({
+              toId: otherId,
+              text: backupText,
+              latitude: lat,
+              longitude: lng,
+            }),
+          });
+          const data = await res.json();
+          if (res.ok && data.message) {
+            const msg = { ...(data.message as Message), clientPending: false };
+            if (shouldProxyChatAttachment(msg.attachmentUrl, msg.attachmentContentType)) {
+              msg.attachmentUrl = messageAttachmentProxyPath(msg.id);
+            }
+            setMessages((prev) => prev.map((m) => (m.id === optimisticId ? msg : m)));
+            clearChatDraft(otherId);
+          } else {
+            setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
+            setText(backupText);
+            const paywall =
+              res.status === 402 ||
+              (res.status === 403 &&
+                (String(data.error ?? "").includes("abonament") ||
+                  String(data.error ?? "").toLowerCase().includes("subscription")));
+            setIsPaywallError(!!paywall);
+            const code = res.status;
+            const rawErr = String(data.error ?? "").trim();
+            const localized =
+              translateApiErrorMessage(rawErr, tStr) || (rawErr || tStr("pages.chat.sendFailed"));
+            setSendError(withDevStatusPrefix(code, localized));
+          }
+        } catch {
+          setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
+          setText(backupText);
+          setIsPaywallError(false);
+          setSendError(tStr("pages.chat.networkErrorLocation"));
+        } finally {
+          setSendingLocation(false);
+          queueMicrotask(() => textInputRef.current?.focus());
+        }
+      },
+      () => {
+        setSendingLocation(false);
+        setIsPaywallError(false);
+        setSendError(tStr("pages.chat.geoPermission"));
+        queueMicrotask(() => textInputRef.current?.focus());
+      },
+      { enableHighAccuracy: false, maximumAge: 120_000, timeout: 22_000 }
+    );
+  };
+
+  const shareCurrentLocation = () => {
+    if (sending || sendingLocation || uploadingAttachment) return;
+    if (pendingAttachment) {
+      setIsPaywallError(false);
+      setSendError(tStr("pages.chat.removeAttachmentFirst"));
+      return;
+    }
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setIsPaywallError(false);
+      setSendError(tStr("pages.chat.noGeoBrowser"));
+      return;
+    }
+    const backupText = text.trim();
+    const fromIdOptimistic =
+      (callerId || meIdFromMeApi || inferredFromMessages || "").trim();
+    if (!fromIdOptimistic) {
+      setSendError(tStr("pages.chat.accountLoadingRetry"));
+      return;
+    }
+    locationSharePendingRef.current = { backupText, fromId: fromIdOptimistic };
+    setLocationShareConfirmOpen(true);
+  };
+
+  const confirmLocationShare = () => {
+    const p = locationSharePendingRef.current;
+    setLocationShareConfirmOpen(false);
+    locationSharePendingRef.current = null;
+    if (!p) return;
+    runShareLocationWithGeolocation(p.backupText, p.fromId);
+  };
+
+  const cancelLocationShare = () => {
+    setLocationShareConfirmOpen(false);
+    locationSharePendingRef.current = null;
+  };
+
+  useEffect(() => {
+    if (!locationShareConfirmOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setLocationShareConfirmOpen(false);
+        locationSharePendingRef.current = null;
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [locationShareConfirmOpen]);
 
   const ringAndGoCall = useCallback(
     async (audioOnly: boolean) => {
@@ -587,7 +855,7 @@ export default function ChatPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <span className="text-dark-500">Se încarcă...</span>
+        <span className="text-dark-500">{tStr("pages.chat.loading")}</span>
       </div>
     );
   }
@@ -595,31 +863,69 @@ export default function ChatPage() {
   if (!other && !me) {
     return (
       <div className="py-12 text-center">
-        <p className="text-dark-500 mb-4">Profil negăsit.</p>
+        <p className="text-dark-500 mb-4">{tStr("pages.chat.profileNotFound")}</p>
         <Link href="/app/profiles" className="text-brand-400 hover:underline">
-          Înapoi la profiluri
+          {tStr("pages.chat.backToProfiles")}
         </Link>
       </div>
     );
   }
 
   const otherUser = other || (me?.id === otherId ? me : null);
-  const displayNameStr = otherUser ? displayName(otherUser.username ?? otherUser.name) : "Profil";
+  const displayNameStr = otherUser ? displayName(otherUser.username ?? otherUser.name) : tStr("pages.chat.profileFallback");
   const distanceStr =
-    other && typeof other.distanceKm === "number"
-      ? other.distanceKm < 1
-        ? `${Math.round(other.distanceKm * 1000)} m`
-        : `${(Math.round(other.distanceKm * 10) / 10).toFixed(1).replace(".", ",")} km`
-      : null;
+    other && typeof other.distanceKm === "number" ? formatChatDistanceKm(other.distanceKm, locale, tStr) : null;
+
+  const locShareDialogTheme = locationShareConfirmTheme(me?.gender, other?.gender);
 
   return (
     <div className="flex flex-col flex-1 min-h-0 w-full">
+      {locationShareConfirmOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-[2px]"
+          role="presentation"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) cancelLocationShare();
+          }}
+        >
+          <div
+            className={`max-w-md w-full rounded-2xl border-2 shadow-2xl p-5 sm:p-6 ${locShareDialogTheme.panel}`}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="loc-share-confirm-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="loc-share-confirm-title" className="text-lg font-semibold mb-2">
+              {tStr("pages.chat.locShareTitle")}
+            </h2>
+            <p className={`text-sm leading-relaxed ${locShareDialogTheme.sub}`}>
+              {tStr("pages.chat.locShareBody")}
+            </p>
+            <div className="flex flex-wrap justify-end gap-2 mt-6">
+              <button
+                type="button"
+                className={`px-4 py-2.5 rounded-xl text-sm font-medium border ${locShareDialogTheme.secondary}`}
+                onClick={cancelLocationShare}
+              >
+                {tStr("pages.chat.cancel")}
+              </button>
+              <button
+                type="button"
+                className={`px-4 py-2.5 rounded-xl text-sm font-semibold ${locShareDialogTheme.primary}`}
+                onClick={confirmLocationShare}
+              >
+                {tStr("pages.chat.continueBtn")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="flex flex-col gap-3 pb-4 border-b border-dark-600 shrink-0">
         <div className="flex items-center gap-3">
           <Link
             href="/app/profiles"
             className="min-h-[44px] min-w-[44px] flex items-center justify-center -ml-2 text-dark-500 hover:text-zinc-900 active:text-zinc-900 transition shrink-0 touch-manipulation"
-            aria-label="Înapoi"
+            aria-label={tStr("pages.chat.backAria")}
           >
             ←
           </Link>
@@ -631,13 +937,15 @@ export default function ChatPage() {
                 <>
                   {distanceStr != null && <span>·</span>}
                   {other?.online ? (
-                    <span className="text-green-400">Online</span>
+                    <span className="text-green-400">{tStr("pages.messages.online")}</span>
                   ) : other?.lastActivityAt != null ? (
                     <span>
-                      Acum {Math.floor((Date.now() - other.lastActivityAt) / 60000)} min
+                      {formatTpl(tStr("pages.chat.lastActiveMin"), {
+                        n: Math.floor((Date.now() - other.lastActivityAt) / 60000),
+                      })}
                     </span>
                   ) : (
-                    <span>Offline</span>
+                    <span>{tStr("pages.messages.offline")}</span>
                   )}
                 </>
               )}
@@ -646,10 +954,10 @@ export default function ChatPage() {
         </div>
         {otherUser && (
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs text-dark-500 shrink-0">Apel:</span>
+            <span className="text-xs text-dark-500 shrink-0">{tStr("pages.chat.callLabel")}</span>
             {!callerId ? (
               <span className="text-xs text-amber-400/90 max-w-[min(100%,220px)]">
-                Se încarcă ID cont… Reîncarcă pagina sau iese și intră din nou dacă nu apar butoanele.
+                {tStr("pages.chat.loadingAccountId")}
               </span>
             ) : (
               <>
@@ -658,20 +966,20 @@ export default function ChatPage() {
                   disabled={!!calling}
                   onClick={() => void ringAndGoCall(false)}
                   className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand-500/25 text-brand-400 hover:bg-brand-500/35 border border-brand-500/40 transition disabled:opacity-50"
-                  title="Apel video"
+                  title={tStr("pages.chat.videoCallTitle")}
                 >
                   <Video className="w-5 h-5" />
-                  <span className="text-sm font-medium">Video</span>
+                  <span className="text-sm font-medium">{tStr("pages.chat.video")}</span>
                 </button>
                 <button
                   type="button"
                   disabled={!!calling}
                   onClick={() => void ringAndGoCall(true)}
                   className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-sky-500/15 text-sky-600 hover:bg-sky-500/25 border border-sky-500/40 transition disabled:opacity-50"
-                  title="Apel audio"
+                  title={tStr("pages.chat.audioCallTitle")}
                 >
                   <Phone className="w-5 h-5" />
-                  <span className="text-sm font-medium">Audio</span>
+                  <span className="text-sm font-medium">{tStr("pages.chat.audio")}</span>
                 </button>
               </>
             )}
@@ -683,7 +991,7 @@ export default function ChatPage() {
             type="button"
             disabled={actionBusy}
             onClick={async () => {
-              if (!confirm("Blochezi acest utilizator? Nu veți mai putea trimite mesaje.")) return;
+              if (!confirm(tStr("pages.chat.blockConfirm"))) return;
               setActionBusy(true);
               try {
                 const res = await fetch("/api/block", {
@@ -692,44 +1000,55 @@ export default function ChatPage() {
                   body: JSON.stringify({ targetUserId: otherId }),
                 });
                 if (res.ok) router.replace("/app/profiles");
-                else setSendError((await res.json()).error ?? "Eroare");
+                else {
+                  const j = await res.json();
+                  const raw = String(j.error ?? "").trim();
+                  setSendError(translateApiErrorMessage(raw, tStr) || raw || tStr("pages.chat.errGeneric"));
+                }
               } finally {
                 setActionBusy(false);
               }
             }}
             className="text-sm text-dark-400 hover:text-amber-400 transition disabled:opacity-50"
           >
-            Blochează
+            {tStr("pages.chat.block")}
           </button>
           <button
             type="button"
             disabled={actionBusy}
             onClick={async () => {
-              const reason = window.prompt("Motivul raportului (opțional):");
+              const reason = window.prompt(tStr("pages.chat.reportPrompt"));
               if (reason === null) return;
               setActionBusy(true);
               try {
                 const res = await fetch("/api/report", {
                   method: "POST",
                   headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-                  body: JSON.stringify({ targetUserId: otherId, reason: reason || "Raport din chat" }),
+                  body: JSON.stringify({
+                    targetUserId: otherId,
+                    reason: reason || tStr("pages.chat.reportDefaultReason"),
+                  }),
                 });
                 if (res.ok) setSendError(null);
-                else setSendError((await res.json()).error ?? "Eroare");
+                else {
+                  const j = await res.json();
+                  const raw = String(j.error ?? "").trim();
+                  setSendError(translateApiErrorMessage(raw, tStr) || raw || tStr("pages.chat.errGeneric"));
+                }
               } finally {
                 setActionBusy(false);
               }
             }}
             className="text-sm text-dark-400 hover:text-amber-400 transition disabled:opacity-50"
           >
-            Raportează
+            {tStr("pages.profiles.reportTitle")}
           </button>
           {matchId && (
             <button
               type="button"
               disabled={actionBusy}
               onClick={async () => {
-                if (!confirm("Anulezi match-ul? Conversația va rămâne, dar nu veți mai apărea unul altuia în lista de match-uri.")) return;
+                if (!confirm(tStr("pages.chat.unmatchConfirm"))) return;
                 setActionBusy(true);
                 try {
                   const res = await fetch("/api/unmatch", {
@@ -738,21 +1057,25 @@ export default function ChatPage() {
                     body: JSON.stringify({ matchId }),
                   });
                   if (res.ok) router.replace("/app/profiles");
-                  else setSendError((await res.json()).error ?? "Eroare");
+                  else {
+                    const j = await res.json();
+                    const raw = String(j.error ?? "").trim();
+                    setSendError(translateApiErrorMessage(raw, tStr) || raw || tStr("pages.chat.errGeneric"));
+                  }
                 } finally {
                   setActionBusy(false);
                 }
               }}
               className="text-sm text-dark-400 hover:text-red-400 transition disabled:opacity-50"
             >
-              Anulează match
+              {tStr("pages.chat.unmatch")}
             </button>
           )}
           <button
             type="button"
             disabled={actionBusy}
             onClick={async () => {
-              if (!confirm("Ștergi toată conversația? Mesajele vor dispărea pentru amândoi.")) return;
+              if (!confirm(tStr("pages.chat.deleteConversationConfirm"))) return;
               setActionBusy(true);
               try {
                 const res = await fetch("/api/conversations/delete", {
@@ -761,14 +1084,18 @@ export default function ChatPage() {
                   body: JSON.stringify({ conversationId: otherId }),
                 });
                 if (res.ok) router.replace("/app/profiles");
-                else setSendError((await res.json()).error ?? "Eroare");
+                else {
+                  const j = await res.json();
+                  const raw = String(j.error ?? "").trim();
+                  setSendError(translateApiErrorMessage(raw, tStr) || raw || tStr("pages.chat.errGeneric"));
+                }
               } finally {
                 setActionBusy(false);
               }
             }}
             className="text-sm text-dark-400 hover:text-red-400 transition disabled:opacity-50"
           >
-            Șterge conversația
+            {tStr("pages.chat.deleteConversation")}
           </button>
         </div>
         )}
@@ -785,7 +1112,7 @@ export default function ChatPage() {
         )}
         {messages.length === 0 && (
           <p className="text-center text-dark-500 text-sm">
-            Niciun mesaj. Scrie ceva mai jos.
+            {tStr("pages.chat.emptyMessages")}
           </p>
         )}
         {messages.map((m) => {
@@ -798,11 +1125,14 @@ export default function ChatPage() {
           const status = String(m.status ?? "").trim().toUpperCase();
           const isRead = status === "SEEN" || !!m.seenAt;
           const showTick = isMe;
+          const senderGender = isMe ? me?.gender : other?.gender;
+          const recipientGender = isMe ? other?.gender : me?.gender;
+          const locPal = locationShareBubblePalette(senderGender, recipientGender, isMe);
           const tickTitle = m.clientPending
-            ? "Se trimite…"
+            ? tStr("pages.chat.tickSending")
             : isRead
-              ? "Citit"
-              : "Trimis";
+              ? tStr("pages.chat.tickRead")
+              : tStr("pages.chat.tickSent");
           if (isPlatform) {
             return (
               <div key={m.id} className="flex justify-center px-1">
@@ -811,7 +1141,7 @@ export default function ChatPage() {
                   role="status"
                 >
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-200/90 mb-1">
-                    Notificare platformă
+                    {tStr("pages.chat.platformNotice")}
                   </p>
                   {(m.text?.trim() ?? "") ? (
                     <p className="text-sm text-zinc-800 whitespace-pre-wrap break-words">{m.text}</p>
@@ -834,21 +1164,63 @@ export default function ChatPage() {
               >
                 {m.attachmentUrl && (
                   <div className="mb-2">
-                    {isImageType(m.attachmentContentType) ? (
-                      <a href={m.attachmentUrl} target="_blank" rel="noopener noreferrer" className="block rounded-lg overflow-hidden max-w-full">
-                        <img src={m.attachmentUrl} alt="" className="max-h-48 w-auto object-contain rounded-lg" />
-                      </a>
-                    ) : (
-                      <a
-                        href={m.attachmentUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 text-sm underline"
-                      >
-                        <FileText className="w-4 h-4 shrink-0" />
-                        Deschide PDF
-                      </a>
-                    )}
+                    {(() => {
+                      const loc = locationBubbleParsed(m);
+                      if (loc) {
+                        const gmaps = googleMapsUrl(loc.lat, loc.lng);
+                        return (
+                          <div className={`rounded-lg border px-3 py-2 text-sm ${locPal.box}`}>
+                            <div className="flex items-center gap-2 font-medium">
+                              <MapPin className={`w-4 h-4 shrink-0 ${locPal.pin}`} aria-hidden />
+                              {tStr("pages.chat.locationSent")}
+                            </div>
+                            <p className={`text-xs mt-0.5 break-words leading-snug ${locPal.muted}`}>
+                              {formatLocationPrimaryLine(loc, 6)}
+                            </p>
+                            {loc.label ? (
+                              <p className={`text-[10px] mt-0.5 tabular-nums ${locPal.muted}`}>
+                                {formatLocationCoordsExact(loc.lat, loc.lng, 6)} · WGS84
+                              </p>
+                            ) : (
+                              <p className={`text-[10px] mt-0.5 ${locPal.muted}`}>WGS84</p>
+                            )}
+                            <a
+                              href={gmaps}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={`inline-block mt-2 text-sm ${locPal.link}`}
+                            >
+                              {tStr("pages.chat.openGoogleMaps")}
+                            </a>
+                          </div>
+                        );
+                      }
+                      if (isAlignLocationContentType(m.attachmentContentType)) {
+                        return (
+                          <div className={`rounded-lg border px-3 py-2 text-sm ${locPal.box}`}>
+                            <p className={`text-xs ${locPal.muted}`}>{tStr("pages.chat.locationInvalid")}</p>
+                          </div>
+                        );
+                      }
+                      if (isImageType(m.attachmentContentType)) {
+                        return (
+                          <a href={m.attachmentUrl} target="_blank" rel="noopener noreferrer" className="block rounded-lg overflow-hidden max-w-full">
+                            <img src={m.attachmentUrl} alt="" className="max-h-48 w-auto object-contain rounded-lg" />
+                          </a>
+                        );
+                      }
+                      return (
+                        <a
+                          href={m.attachmentUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 text-sm underline"
+                        >
+                          <FileText className="w-4 h-4 shrink-0" />
+                          {tStr("pages.chat.openPdf")}
+                        </a>
+                      );
+                    })()}
                   </div>
                 )}
                 {(m.text?.trim() ?? "") && (
@@ -895,7 +1267,7 @@ export default function ChatPage() {
             </p>
             {isPaywallError && (
               <Link href="/app/premium" className="text-sm text-brand-400 hover:text-brand-300 font-medium">
-                Vezi abonament
+                {tStr("pages.chat.paywallLink")}
               </Link>
             )}
           </div>
@@ -909,7 +1281,9 @@ export default function ChatPage() {
                 className="h-12 w-auto rounded object-cover"
               />
             ) : (
-              <span className="flex items-center gap-1"><FileText className="w-4 h-4" /> PDF atașat</span>
+              <span className="flex items-center gap-1">
+                <FileText className="w-4 h-4" /> {tStr("pages.chat.pdfAttached")}
+              </span>
             )}
             <button
               type="button"
@@ -920,7 +1294,7 @@ export default function ChatPage() {
                 })
               }
               className="p-1 rounded hover:bg-dark-600 text-dark-400"
-              aria-label="Elimină atașament"
+              aria-label={tStr("pages.chat.removeAttachmentAria")}
             >
               <X className="w-4 h-4" />
             </button>
@@ -938,44 +1312,56 @@ export default function ChatPage() {
             type="button"
             onClick={() => {
               if (!uploadConfigured) {
-                setSendError(
-                  "Pe Vercel: adaugă BLOB_READ_WRITE_TOKEN (și PDF: BLOB_READ_WRITE_TOKEN_PDF) în Environment Variables. Local cu npm run dev: pozele merg fără Blob (salvare în _chatDev, afișare prin API). Vezi .env.example."
-                );
+                setSendError(tStr("pages.chat.blobConfigHint"));
                 setIsPaywallError(false);
                 return;
               }
               fileInputRef.current?.click();
             }}
-            disabled={uploadingAttachment || sending}
+            disabled={uploadingAttachment || sending || sendingLocation}
             className={`min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-dark-700 hover:bg-dark-600 active:bg-dark-600 text-dark-300 disabled:opacity-50 transition shrink-0 touch-manipulation ${!uploadConfigured ? "opacity-60" : ""}`}
             title={
               uploadConfigured
-                ? "Atașează poză sau PDF (max 10 MB)"
-                : "Lipsește configurarea Blob (BLOB_READ_WRITE_TOKEN) — apasă pentru mesaj"
+                ? formatTpl(tStr("pages.chat.attachTitleOk"), { mb: MAX_ATTACH_MB })
+                : tStr("pages.chat.attachTitleNoBlob")
             }
-            aria-label="Atașează fișier"
+            aria-label={tStr("pages.chat.attachAria")}
           >
             <Paperclip className="w-5 h-5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => shareCurrentLocation()}
+            disabled={uploadingAttachment || sending || sendingLocation}
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-dark-700 hover:bg-dark-600 active:bg-dark-600 text-emerald-400 disabled:opacity-50 transition shrink-0 touch-manipulation"
+            title={tStr("pages.chat.sendLocationTitle")}
+            aria-label={tStr("pages.chat.sendLocationAria")}
+          >
+            {sendingLocation ? (
+              <Loader2 className="w-5 h-5 animate-spin" strokeWidth={2.25} aria-hidden />
+            ) : (
+              <MapPin className="w-5 h-5" aria-hidden />
+            )}
           </button>
           {otherUser && callerId && (
             <>
               <button
                 type="button"
-                disabled={!!calling || sending || uploadingAttachment}
+                disabled={!!calling || sending || uploadingAttachment || sendingLocation}
                 onClick={() => void ringAndGoCall(false)}
                 className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-brand-500/25 text-brand-400 hover:bg-brand-500/35 border border-brand-500/40 disabled:opacity-50 transition shrink-0 touch-manipulation"
-                title="Apel video"
-                aria-label="Apel video"
+                title={tStr("pages.chat.videoCallTitle")}
+                aria-label={tStr("pages.chat.videoCallTitle")}
               >
                 <Video className="w-5 h-5" />
               </button>
               <button
                 type="button"
-                disabled={!!calling || sending || uploadingAttachment}
+                disabled={!!calling || sending || uploadingAttachment || sendingLocation}
                 onClick={() => void ringAndGoCall(true)}
                 className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-sky-500/15 text-sky-600 hover:bg-sky-500/25 border border-sky-500/40 disabled:opacity-50 transition shrink-0 touch-manipulation"
-                title="Apel audio"
-                aria-label="Apel audio"
+                title={tStr("pages.chat.audioCallTitle")}
+                aria-label={tStr("pages.chat.audioCallTitle")}
               >
                 <Phone className="w-5 h-5" />
               </button>
@@ -989,15 +1375,15 @@ export default function ChatPage() {
               setText(e.target.value);
               setSendError(null);
             }}
-            placeholder="Scrie un mesaj..."
+            placeholder={tStr("pages.chat.placeholder")}
             className="flex-1 min-h-[44px] text-base bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-zinc-900 placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500 touch-manipulation"
             autoComplete="off"
           />
           <button
             type="submit"
-            disabled={(!text.trim() && !pendingAttachment) || sending || uploadingAttachment}
+            disabled={(!text.trim() && !pendingAttachment) || sending || uploadingAttachment || sendingLocation}
             className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-brand-500 hover:bg-brand-400 active:bg-brand-400 text-dark-900 disabled:opacity-50 transition shrink-0 touch-manipulation"
-            aria-label="Trimite mesaj"
+            aria-label={tStr("pages.chat.sendAria")}
           >
             <Send className="w-5 h-5" />
           </button>

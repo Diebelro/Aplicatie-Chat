@@ -74,7 +74,7 @@ export function useWebRtcCall({
   isConference,
   onAutoEnded,
 }: UseWebRtcCallOptions) {
-  /** Incrementat la „Încearcă din nou” pe ecranul de permisiuni — rerulează inițializarea (getUserMedia + semnalizare). */
+  /** Reîncercare după refuz permisiuni — rerulează efectul (getUserMedia + semnalizare). */
   const [permissionRetryKey, setPermissionRetryKey] = useState(0);
 
   const [state, setState] = useState<CallState>({
@@ -1318,6 +1318,7 @@ export function useWebRtcCall({
         }));
         return;
       }
+
       if (isConference) {
         void runConference(signalingBase);
       } else {

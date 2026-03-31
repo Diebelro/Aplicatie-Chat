@@ -56,9 +56,45 @@ export interface LegalTranslations {
   cookiesTitle: string;
 }
 
+/** Meniu principal aplicație autentificată (/app). */
+export interface AppNavTranslations {
+  loading: string;
+  completeProfile: string;
+  discover: string;
+  allProfiles: string;
+  messages: string;
+  missedCalls: string;
+  conference: string;
+  matches: string;
+  reviewSwipes: string;
+  reviewSwipesTitle: string;
+  map: string;
+  premium: string;
+  admin: string;
+  adminPanelTitle: string;
+  suggestions: string;
+  accountSettings: string;
+  logout: string;
+  menuOpen: string;
+  menuClose: string;
+  suggestionsFeedback: string;
+  legalFooterIntro: string;
+  matchWithBefore: string;
+  matchWithAfter: string;
+  openChat: string;
+  legalNavAria: string;
+  /** Nume generic când lipsește (ex. notificare match). */
+  anonymousUser: string;
+}
+
+/** Pagini aplicație — structură în `messages/*.json` sub cheia `pages` (ex. pages.matches.title). */
+export type PagesTranslations = Record<string, unknown>;
+
 export interface Translations {
   cookieConsent: CookieConsentTranslations;
   common: CommonTranslations;
   legal: LegalTranslations;
   home: HomeTranslations;
+  appNav: AppNavTranslations;
+  pages: PagesTranslations;
 }

@@ -1,5 +1,8 @@
-/** Autorul / dezvoltatorul aplicației — afișat în footer și pe pagini. */
+/** Autorul / dezvoltatorul soluției — afișat în footer și pe pagini. */
 export const APP_AUTHOR = "Diebel";
 
-/** Text scurt de credit pentru footer. */
-export const APP_CREDIT = "Aplicația este realizată de Diebel.";
+/** Contact afișat la hover pe numele „Diebel” (tooltip nativ + mailto). */
+export const APP_CONTACT_EMAIL = "contact@diebel.ro";
+
+/** Fragment înainte de linkul cu numele autorului în propoziția de credit. */
+export const APP_CREDIT_LEAD = "Aplicația este realizată de ";

@@ -1,28 +1,41 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import MapView from "@/components/MapView";
 import type { MapData } from "@/components/MapView";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
-import { fetchWithAuthRetry } from "@/lib/authClient";
+import { fetchWithAuthRetry, getAuthHeaders } from "@/lib/authClient";
+import {
+  MAP_LIVE_LOCATION_INTERVAL_MS,
+  MAP_VISIBILITY_MAX_MINUTES,
+  MAP_VISIBILITY_MIN_MINUTES,
+} from "@/lib/mapVisibilityConstants";
+import { useI18n } from "@/lib/i18n/context";
+import { formatTpl } from "@/lib/i18n/formatTpl";
 
 const GEO_OPTIONS: PositionOptions = {
   enableHighAccuracy: true,
-  maximumAge: 0,
+  maximumAge: 60_000,
   timeout: 25_000,
 };
 
-const INITIAL_GEO_CAP_MS = 5000;
+const GEO_LIVE_OPTIONS: PositionOptions = {
+  enableHighAccuracy: true,
+  maximumAge: 45_000,
+  timeout: 25_000,
+};
 
 export default function MapPage() {
+  const { tStr } = useI18n();
   const [data, setData] = useState<MapData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [geoBusy, setGeoBusy] = useState(false);
-  /** După montare — același ID pe server și client la primul paint (evită hydration mismatch). */
+  const [durationMin, setDurationMin] = useState(60);
   const [viewerUserId, setViewerUserId] = useState<string | null>(null);
+  const [nowTick, setNowTick] = useState(() => Date.now());
 
   useEffect(() => {
     try {
@@ -35,24 +48,29 @@ export default function MapPage() {
     }
   }, []);
 
-  const fetchMap = useCallback((options?: { silent?: boolean }) => {
+  const fetchMap = useCallback(async (options?: { silent?: boolean }) => {
     const silent = options?.silent === true;
     return fetchWithAuthRetry("/api/map", { cache: "no-store" })
       .then(async (r) => {
-        type MapJson = { error?: string; me?: MapData["me"]; users?: MapData["users"] };
+        type MapJson = {
+          error?: string;
+          me?: MapData["me"];
+          users?: MapData["users"];
+          sessionExpired?: boolean;
+        };
         let d: MapJson = {};
         try {
           d = (await r.json()) as MapJson;
         } catch {
-          if (!silent) setError("Răspuns invalid de la server.");
+          if (!silent) setError(tStr("pages.map.errInvalidResponse"));
           return;
         }
         if (!r.ok) {
           if (!silent) {
             if (r.status === 401) {
-              setError("Nu ești autentificat pentru hartă. Intră în cont și încearcă din nou.");
+              setError(tStr("pages.map.errNotAuth"));
             } else {
-              setError(d.error?.trim() || "Nu am putut încărca harta.");
+              setError(d.error?.trim() || tStr("pages.map.errLoadMap"));
             }
           }
           return;
@@ -68,165 +86,268 @@ export default function MapPage() {
         });
       })
       .catch(() => {
-        if (!silent) setError("Eroare la încărcare (rețea sau server oprit).");
+        if (!silent) setError(tStr("pages.map.errNetwork"));
+      })
+      .finally(() => {
+        if (!silent) setLoading(false);
       });
-  }, []);
+  }, [tStr]);
 
-  const pushLocationThenRefresh = useCallback(() => {
-    if (typeof navigator === "undefined" || !navigator.geolocation) return Promise.resolve(false);
-    setGeoBusy(true);
-    return new Promise<boolean>((resolve) => {
-      navigator.geolocation.getCurrentPosition(
-        async (pos) => {
-          try {
-            await fetchWithAuthRetry("/api/me", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                latitude: pos.coords.latitude,
-                longitude: pos.coords.longitude,
-              }),
-            });
-            await fetchMap();
-            resolve(true);
-          } catch {
-            resolve(false);
-          } finally {
-            setGeoBusy(false);
-          }
-        },
-        () => {
-          setGeoBusy(false);
-          resolve(false);
-        },
-        GEO_OPTIONS
-      );
-    });
+  useEffect(() => {
+    void fetchMap();
   }, [fetchMap]);
 
   useEffect(() => {
+    const t = setInterval(() => setNowTick(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, []);
+
+  const postCoordsToServer = useCallback(
+    async (
+      latitude: number,
+      longitude: number,
+      syncStore: boolean
+    ): Promise<boolean> => {
+      const r = await fetch("/api/me/location", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify({
+          latitude,
+          longitude,
+          location_enabled: true,
+        }),
+      });
+      try {
+        await r.json();
+      } catch {
+        /* ignore */
+      }
+      if (!r.ok) {
+        return false;
+      }
+      if (syncStore) {
+        const raw = getStoredUserRaw();
+        if (raw) {
+          try {
+            const u = JSON.parse(raw) as User;
+            const next = {
+              ...u,
+              location_enabled: true,
+              latitude,
+              longitude,
+            };
+            if (typeof localStorage !== "undefined") localStorage.setItem("align_user", JSON.stringify(next));
+            if (typeof sessionStorage !== "undefined") sessionStorage.setItem("align_user", JSON.stringify(next));
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+      return true;
+    },
+    []
+  );
+
+  /** Cât timp ești vizibil pe hartă: retrimiteri periodice GPS → același punct ca pentru ceilalți (și stând pe loc). */
+  useEffect(() => {
+    const untilIso = data?.me?.mapVisibleUntil ?? null;
+    if (!untilIso) return;
+    const untilMs = new Date(untilIso).getTime();
+    if (!Number.isFinite(untilMs) || untilMs <= Date.now()) return;
+    if (typeof navigator === "undefined" || !navigator.geolocation) return;
+
     let cancelled = false;
-    let interval: ReturnType<typeof setInterval> | null = null;
 
-    (async () => {
-      setLoading(true);
-      setError(null);
-      if (typeof navigator !== "undefined" && navigator.geolocation) {
-        await Promise.race([
-          new Promise<void>((resolve) => {
-            navigator.geolocation.getCurrentPosition(
-              async (pos) => {
-                try {
-                  await fetchWithAuthRetry("/api/me", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      latitude: pos.coords.latitude,
-                      longitude: pos.coords.longitude,
-                    }),
-                  });
-                } catch {
-                  /* ignore */
-                }
-                resolve();
-              },
-              () => resolve(),
-              GEO_OPTIONS
-            );
-          }),
-          new Promise<void>((resolve) => setTimeout(resolve, INITIAL_GEO_CAP_MS)),
-        ]);
-      }
-      if (!cancelled) {
-        await fetchMap().finally(() => {
-          if (!cancelled) setLoading(false);
-        });
-      }
-      if (!cancelled) {
-        interval = setInterval(() => {
-          void fetchMap({ silent: true });
-        }, 15000);
-      }
-    })();
+    const run = () => {
+      if (cancelled || Date.now() > untilMs) return;
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          if (cancelled || Date.now() > untilMs) return;
+          void (async () => {
+            const ok = await postCoordsToServer(pos.coords.latitude, pos.coords.longitude, true);
+            if (ok && !cancelled) void fetchMap({ silent: true });
+          })();
+        },
+        () => {},
+        GEO_LIVE_OPTIONS
+      );
+    };
 
+    run();
+    const intervalId = window.setInterval(run, MAP_LIVE_LOCATION_INTERVAL_MS);
     return () => {
       cancelled = true;
-      if (interval) clearInterval(interval);
+      window.clearInterval(intervalId);
     };
-  }, [fetchMap]);
+  }, [data?.me?.mapVisibleUntil, fetchMap, postCoordsToServer]);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <span className="text-dark-500">Se încarcă harta…</span>
-      </div>
+  const saveLocationThen = (after: () => void) => {
+    if (!navigator.geolocation) {
+      setError(tStr("pages.map.errBrowserGeo"));
+      return;
+    }
+    setGeoBusy(true);
+    setError(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        void (async () => {
+          const ok = await postCoordsToServer(pos.coords.latitude, pos.coords.longitude, true);
+          if (!ok) {
+            setError(tStr("pages.map.errSaveLocation"));
+          } else {
+            after();
+          }
+          setGeoBusy(false);
+        })();
+      },
+      () => {
+        setGeoBusy(false);
+        setError(tStr("pages.map.errReadGeo"));
+      },
+      GEO_OPTIONS
     );
-  }
+  };
 
-  if (error || !data) {
-    const storedEmail =
-      typeof window !== "undefined"
-        ? (() => {
-            try {
-              const raw = getStoredUserRaw();
-              if (!raw) return "";
-              const u = JSON.parse(raw) as User;
-              return u?.email ? encodeURIComponent(u.email) : "";
-            } catch {
-              return "";
-            }
-          })()
-        : "";
-    const reconnectUrl = storedEmail ? `/signup?email=${storedEmail}` : "/signup";
-    const isAuth = error?.includes("autentificat");
-    return (
-      <div className="py-12 text-center px-3">
-        <p className="text-dark-700 mb-3 font-medium">{error ?? "Date indisponibile."}</p>
-        {isAuth ? (
-          <Link href="/login?redirect=%2Fapp%2Fmap" className="inline-block text-brand-600 hover:underline font-medium">
-            Intră în cont
-          </Link>
-        ) : (
-          <>
-            <p className="text-sm text-dark-500 mb-2 max-w-md mx-auto">
-              Dacă tocmai ai dat din nou drumul la server local sau ți-a expirat sesiunea: ieși din cont și intră din nou,
-              sau folosește reconectarea de mai jos.
-            </p>
-            <Link
-              href={reconnectUrl}
-              className="inline-block mt-2 px-4 py-2 rounded-lg bg-brand-500/20 text-brand-600 hover:bg-brand-500/30 transition"
-            >
-              Reconectare (același email și parolă)
-            </Link>
-          </>
-        )}
-      </div>
-    );
-  }
+  const startVisibility = () => {
+    const ok = window.confirm(formatTpl(tStr("pages.map.confirmStart"), { n: durationMin }));
+    if (!ok) return;
+
+    const run = () => {
+      fetch("/api/me/map-visibility", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify({ durationMinutes: durationMin }),
+      })
+        .then((r) => r.json().then((j) => ({ r, j })))
+        .then(({ r, j }) => {
+          if (!r.ok) {
+            setError(typeof j.error === "string" ? j.error : tStr("pages.map.errActivateVisibility"));
+            return;
+          }
+          void fetchMap({ silent: true });
+        });
+    };
+
+    if (!data?.me) {
+      saveLocationThen(run);
+      return;
+    }
+    run();
+  };
+
+  const stopVisibility = () => {
+    fetch("/api/me/map-visibility", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      body: JSON.stringify({ off: true }),
+    })
+      .then((r) => r.json().then((j) => ({ r, j })))
+      .then(({ r, j }) => {
+        if (!r.ok) {
+          setError(typeof j.error === "string" ? j.error : tStr("pages.map.errGeneric"));
+          return;
+        }
+        void fetchMap({ silent: true });
+      });
+  };
+
+  const remainingLabel = useCallback(
+    (untilIso: string | null): string | null => {
+      if (!untilIso) return null;
+      const end = new Date(untilIso).getTime();
+      if (end <= nowTick) return tStr("pages.map.expired");
+      const sec = Math.floor((end - nowTick) / 1000);
+      const m = Math.floor(sec / 60);
+      const h = Math.floor(m / 60);
+      const mm = m % 60;
+      if (h > 0) return formatTpl(tStr("pages.map.remainingHours"), { h, mm });
+      return formatTpl(tStr("pages.map.remainingMin"), { n: m });
+    },
+    [nowTick, tStr]
+  );
+
+  const mapIntro = useMemo(
+    () =>
+      formatTpl(tStr("pages.map.intro"), {
+        min: MAP_VISIBILITY_MIN_MINUTES,
+        max: MAP_VISIBILITY_MAX_MINUTES,
+      }),
+    [tStr]
+  );
 
   return (
     <div>
-      <h2 className="text-xl font-semibold mb-2">Harta</h2>
-      <p className="text-dark-500 text-sm mb-3">
-        Markerii sunt <strong>medalioane cu poza de profil</strong>. Tu ai contur turcoaz. La alții:{" "}
-        <strong className="text-green-600">contur verde = online</strong>, gri = offline.{" "}
-        <strong>Apasă pe un marker</strong> pentru profil.
-      </p>
-      <div className="mb-4">
-        <button
-          type="button"
-          disabled={geoBusy}
-          onClick={() => void pushLocationThenRefresh()}
-          className="px-4 py-2 rounded-xl bg-brand-500/20 text-brand-400 border border-brand-500/40 hover:bg-brand-500/30 disabled:opacity-50 text-sm font-medium"
-        >
-          {geoBusy ? "Se actualizează…" : "Actualizează GPS (poziție proaspătă)"}
-        </button>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <h1 className="text-xl font-semibold">{tStr("pages.map.title")}</h1>
+        <Link href="/app/profiles" className="text-sm text-brand-600 hover:underline">
+          {tStr("pages.map.backProfiles")}
+        </Link>
       </div>
-      <MapView data={data} viewerUserId={viewerUserId} />
-      <p className="text-dark-500 text-xs mt-3">
-        {data.me ? "Poziția ta este marcată pe hartă. " : "Activează locația în browser ca să apară poziția ta. "}
-        {data.users.length} utilizator(i) cu locație vizibilă pe hartă.
+
+      <p className="text-sm text-dark-500 mb-4">{mapIntro}</p>
+      <p className="text-sm text-amber-600/90 border border-amber-700/40 bg-amber-950/20 rounded-xl px-3 py-2 mb-4">
+        {tStr("pages.map.batteryNote")}
       </p>
+
+      <div className="mb-4 p-4 rounded-xl bg-dark-800 border border-dark-600 space-y-3">
+        <div>
+          <label className="block text-xs text-dark-500 mb-1">
+            {formatTpl(tStr("pages.map.visibilityMinutes"), { n: durationMin })}
+          </label>
+          <input
+            type="range"
+            min={MAP_VISIBILITY_MIN_MINUTES}
+            max={MAP_VISIBILITY_MAX_MINUTES}
+            step={15}
+            value={durationMin}
+            onChange={(e) => setDurationMin(Number(e.target.value))}
+            className="w-full max-w-md h-2 rounded-lg accent-brand-500"
+          />
+          <p className="text-[11px] text-dark-500 mt-1">
+            {formatTpl(tStr("pages.map.visibilityRange"), {
+              min: MAP_VISIBILITY_MIN_MINUTES,
+              max: MAP_VISIBILITY_MAX_MINUTES,
+            })}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2 items-center">
+          <button
+            type="button"
+            disabled={geoBusy || loading}
+            onClick={() => startVisibility()}
+            className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold disabled:opacity-50 transition"
+          >
+            {geoBusy ? tStr("pages.map.savingLocation") : tStr("pages.map.visibleOnMap")}
+          </button>
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() => stopVisibility()}
+            className="px-4 py-2.5 rounded-xl border border-dark-600 text-sm text-dark-300 hover:bg-dark-700 disabled:opacity-50 transition"
+          >
+            {tStr("pages.map.stopVisibility")}
+          </button>
+        </div>
+        {!loading && data?.me?.mapVisibleUntil && (
+          <p className="text-sm text-emerald-600">
+            {tStr("pages.map.visibleRemaining")}{" "}
+            <strong>{remainingLabel(data.me.mapVisibleUntil)}</strong>
+          </p>
+        )}
+      </div>
+
+      {error && (
+        <p className="mb-3 text-amber-600 text-sm" role="alert">
+          {error}
+        </p>
+      )}
+
+      {loading ? (
+        <p className="text-dark-500">{tStr("pages.map.loadingMap")}</p>
+      ) : data ? (
+        <MapView data={data} viewerUserId={viewerUserId} />
+      ) : null}
     </div>
   );
 }

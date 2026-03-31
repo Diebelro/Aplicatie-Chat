@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { findUserById, getUserPosition, getOnlineUsersWithPositions, setUserActive } from "@/lib/store";
+import { findUserById, getMapVisibleUsers, getUserPosition, setUserActive } from "@/lib/store";
 import { getProfileImageUrl } from "@/lib/profileImage";
 import {
   isPrismaAvailable,
   findUserOrPrisma,
-  prismaGetMyLocation,
-  prismaGetVisibleUsersForMap,
+  prismaGetMyMapLocation,
   prismaGetFirstProfilePhotoUrl,
+  prismaGetVisibleUsersForMap,
   prismaUpdateLastActive,
 } from "@/lib/repo-prisma";
 import { resolveRequestUserId } from "@/lib/sessionAuth";
@@ -28,21 +28,30 @@ export async function GET(request: Request) {
         });
       }
       await prismaUpdateLastActive(userId);
-      const [myPos, myPhoto, users] = await Promise.all([
-        prismaGetMyLocation(userId),
+      const [myLoc, myPhoto, users] = await Promise.all([
+        prismaGetMyMapLocation(userId),
         prismaGetFirstProfilePhotoUrl(userId),
         prismaGetVisibleUsersForMap(userId),
       ]);
-      return NextResponse.json({
-        me: myPos ? { lat: myPos.lat, lng: myPos.lng, photoUrl: myPhoto } : null,
-        users,
-      });
+      const now = Date.now();
+      const meOut = myLoc
+        ? {
+            lat: myLoc.lat,
+            lng: myLoc.lng,
+            photoUrl: myPhoto,
+            mapVisibleUntil:
+              myLoc.mapVisibleUntil && new Date(myLoc.mapVisibleUntil).getTime() > now
+                ? myLoc.mapVisibleUntil
+                : null,
+          }
+        : null;
+      return NextResponse.json({ me: meOut, users });
     } catch {
       return NextResponse.json({ error: "Eroare server." }, { status: 500 });
     }
   }
-  const me = findUserById(userId);
-  if (!me) {
+  const meUser = findUserById(userId);
+  if (!meUser) {
     return NextResponse.json({
       me: null,
       users: [],
@@ -51,13 +60,17 @@ export async function GET(request: Request) {
     });
   }
   setUserActive(userId);
-  const meUser = findUserById(userId);
-  const myPos = getUserPosition(userId);
-  const users = getOnlineUsersWithPositions(userId);
-  return NextResponse.json({
-    me: myPos
-      ? { lat: myPos.lat, lng: myPos.lng, photoUrl: getProfileImageUrl(meUser) }
-      : null,
-    users,
-  });
+  const mePos = getUserPosition(userId);
+  const untilMs = meUser.map_visible_until;
+  const me = mePos
+    ? {
+        lat: mePos.lat,
+        lng: mePos.lng,
+        photoUrl: getProfileImageUrl(meUser),
+        mapVisibleUntil:
+          untilMs != null && untilMs > Date.now() ? new Date(untilMs).toISOString() : null,
+      }
+    : null;
+  const users = getMapVisibleUsers(userId);
+  return NextResponse.json({ me, users });
 }

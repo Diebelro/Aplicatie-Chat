@@ -13,12 +13,15 @@ import IncomingCall from "@/components/IncomingCall";
 import { Watermark } from "@/components/Watermark";
 import { displayName } from "@/lib/displayName";
 import { LegalDocLinks } from "@/components/LegalDocLinks";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useI18n } from "@/lib/i18n/context";
 
 export default function AppLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const { tStr } = useI18n();
   const router = useRouter();
   const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
@@ -258,7 +261,7 @@ export default function AppLayout({
         const newPartners = list.filter((u) => !seen.has(u.id));
         if (newPartners.length > 0) {
           const first = newPartners[0];
-          const name = first.username || first.name || "Cineva";
+          const name = first.username || first.name || tStr("appNav.anonymousUser");
           setNewMatchToast({ id: first.id, name: name.charAt(0).toUpperCase() + name.slice(1) });
           setSeenMatchIds(currentIds);
         }
@@ -329,7 +332,7 @@ export default function AppLayout({
       window.removeEventListener("focus", onFocus);
       window.removeEventListener("align:conversation-read", onConversationRead);
     };
-  }, [user?.id]);
+  }, [user?.id, tStr]);
 
   const logout = () => {
     localStorage.removeItem("align_user");
@@ -353,7 +356,7 @@ export default function AppLayout({
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-dark-900">
-        <div className="text-dark-500">Se încarcă...</div>
+        <div className="text-dark-500">{tStr("appNav.loading")}</div>
       </div>
     );
   }
@@ -374,12 +377,16 @@ export default function AppLayout({
           {/* Desktop nav */}
           <nav className="hidden md:flex items-center gap-3 flex-wrap">
             <Link href="/app/profile" className="px-3 py-1.5 rounded-lg bg-brand-500/20 text-brand-400 hover:bg-brand-500/30 font-medium text-sm transition">
-              Completează profilul
+              {tStr("appNav.completeProfile")}
             </Link>
-            <Link href="/app" className="text-dark-400 hover:text-zinc-900 transition">Descoperă</Link>
-            <Link href="/app/profiles" className="text-dark-400 hover:text-zinc-900 transition">Toate profilurile</Link>
+            <Link href="/app" className="text-dark-400 hover:text-zinc-900 transition">
+              {tStr("appNav.discover")}
+            </Link>
+            <Link href="/app/profiles" className="text-dark-400 hover:text-zinc-900 transition">
+              {tStr("appNav.allProfiles")}
+            </Link>
             <Link href="/app/messages" className="text-dark-400 hover:text-zinc-900 transition relative inline-flex items-center">
-              Mesaje
+              {tStr("appNav.messages")}
               {totalUnread > 0 && (
                 <span
                   className={
@@ -395,40 +402,56 @@ export default function AppLayout({
             </Link>
             {missedCallsCount > 0 && (
               <Link href="/app/missed-calls" className="text-amber-400 hover:text-amber-300 transition relative inline-flex items-center text-sm">
-                Apeluri pierdute
+                {tStr("appNav.missedCalls")}
                 <span className="ml-1.5 min-w-[1.25rem] h-5 px-1.5 rounded-full bg-amber-500/30 text-amber-400 text-xs font-semibold flex items-center justify-center">
                   {missedCallsCount > 99 ? "99+" : missedCallsCount}
                 </span>
               </Link>
             )}
-            <Link href="/app/call/start" className="text-dark-400 hover:text-zinc-900 transition text-sm">Conferință</Link>
-            <Link href="/app/matches" className="text-dark-400 hover:text-zinc-900 transition">Matches</Link>
-            <Link href="/app/review-swipes" className="text-amber-400/90 hover:text-amber-300 transition text-sm" title="Recenzează like/pass">
-              Recenzare swipe
+            <Link href="/app/call/start" className="text-dark-400 hover:text-zinc-900 transition text-sm">
+              {tStr("appNav.conference")}
             </Link>
-            <Link href="/app/map" className="text-dark-400 hover:text-zinc-900 transition">Harta</Link>
-            <Link href="/app/premium" className="text-amber-400 hover:text-amber-300 transition text-sm">Premium</Link>
+            <Link href="/app/matches" className="text-dark-400 hover:text-zinc-900 transition">
+              {tStr("appNav.matches")}
+            </Link>
+            <Link
+              href="/app/review-swipes"
+              className="text-amber-400/90 hover:text-amber-300 transition text-sm"
+              title={tStr("appNav.reviewSwipesTitle")}
+            >
+              {tStr("appNav.reviewSwipes")}
+            </Link>
+            <Link href="/app/map" className="text-dark-400 hover:text-zinc-900 transition">
+              {tStr("appNav.map")}
+            </Link>
+            <Link href="/app/premium" className="text-amber-400 hover:text-amber-300 transition text-sm">
+              {tStr("appNav.premium")}
+            </Link>
             {isAdmin && (
               <Link
                 href="/admin"
                 className="text-red-300 hover:text-red-200 transition text-sm inline-flex items-center gap-1"
-                title="Panou administrare"
+                title={tStr("appNav.adminPanelTitle")}
               >
                 <Shield className="w-4 h-4 shrink-0" aria-hidden />
-                Admin
+                {tStr("appNav.admin")}
               </Link>
             )}
             <Link href="/app/settings/feedback" className="text-dark-400 hover:text-zinc-900 transition text-sm">
-              Propuneri
+              {tStr("appNav.suggestions")}
             </Link>
-            <Link href="/app/settings/account" className="text-dark-400 hover:text-zinc-900 transition text-sm">Setări cont</Link>
-            <div className="flex items-center gap-2 border-l border-dark-600 pl-3">
+            <Link href="/app/settings/account" className="text-dark-400 hover:text-zinc-900 transition text-sm">
+              {tStr("appNav.accountSettings")}
+            </Link>
+            <div className="flex items-center gap-2 border-l border-dark-600 pl-3 shrink-0">
               <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 bg-dark-700">
                 <SilhouetteAvatar photoUrl={getProfileImageUrl(user) ?? undefined} gender={user.gender} name={user.name} className="w-full h-full" imgClassName="w-full h-full object-cover object-center" />
               </div>
-              <span className="text-dark-400 text-sm">{displayName(user.username ?? user.name)}</span>
+              <span className="text-dark-400 text-sm truncate max-w-[10rem] lg:max-w-[14rem]">{displayName(user.username ?? user.name)}</span>
             </div>
-            <button onClick={logout} className="text-dark-400 hover:text-red-400 text-sm transition">Ieșire</button>
+            <button onClick={logout} className="text-dark-400 hover:text-red-400 text-sm transition">
+              {tStr("appNav.logout")}
+            </button>
           </nav>
           {/* Mobile: menu toggle + avatar */}
           <div className="flex md:hidden items-center gap-2">
@@ -439,7 +462,7 @@ export default function AppLayout({
               type="button"
               onClick={() => setMobileMenuOpen((o) => !o)}
               className="p-2 rounded-lg text-dark-400 hover:text-zinc-900 hover:bg-dark-700 transition"
-              aria-label={mobileMenuOpen ? "Închide meniu" : "Meniu"}
+              aria-label={mobileMenuOpen ? tStr("appNav.menuClose") : tStr("appNav.menuOpen")}
             >
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
@@ -448,25 +471,43 @@ export default function AppLayout({
         {/* Mobile dropdown menu */}
         {mobileMenuOpen && (
           <div className="md:hidden border-t border-dark-600 bg-dark-900 px-4 py-3 flex flex-col gap-1 max-h-[70vh] overflow-y-auto">
-            <Link href="/app/profile" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-brand-400 hover:bg-dark-700"><Users className="w-5 h-5 shrink-0" /> Completează profilul</Link>
-            <Link href="/app/profiles" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-dark-300 hover:bg-dark-700">Toate profilurile</Link>
+            <Link href="/app/profile" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-brand-400 hover:bg-dark-700">
+              <Users className="w-5 h-5 shrink-0" /> {tStr("appNav.completeProfile")}
+            </Link>
+            <Link href="/app/profiles" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-dark-300 hover:bg-dark-700">
+              {tStr("appNav.allProfiles")}
+            </Link>
             {missedCallsCount > 0 && (
               <Link href="/app/missed-calls" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-amber-400 hover:bg-dark-700">
-                Apeluri pierdute ({missedCallsCount > 99 ? "99+" : missedCallsCount})
+                {tStr("appNav.missedCalls")} ({missedCallsCount > 99 ? "99+" : missedCallsCount})
               </Link>
             )}
-            <Link href="/app/call/start" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-dark-300 hover:bg-dark-700"><Video className="w-5 h-5 shrink-0" /> Conferință</Link>
-            <Link href="/app/review-swipes" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-amber-400 hover:bg-dark-700"><History className="w-5 h-5 shrink-0" /> Recenzare swipe</Link>
-            <Link href="/app/map" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-dark-300 hover:bg-dark-700"><MapPin className="w-5 h-5 shrink-0" /> Harta</Link>
-            <Link href="/app/premium" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-amber-400 hover:bg-dark-700"><CreditCard className="w-5 h-5 shrink-0" /> Premium</Link>
+            <Link href="/app/call/start" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-dark-300 hover:bg-dark-700">
+              <Video className="w-5 h-5 shrink-0" /> {tStr("appNav.conference")}
+            </Link>
+            <Link href="/app/review-swipes" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-amber-400 hover:bg-dark-700">
+              <History className="w-5 h-5 shrink-0" /> {tStr("appNav.reviewSwipes")}
+            </Link>
+            <Link href="/app/map" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-dark-300 hover:bg-dark-700">
+              <MapPin className="w-5 h-5 shrink-0" /> {tStr("appNav.map")}
+            </Link>
+            <Link href="/app/premium" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-amber-400 hover:bg-dark-700">
+              <CreditCard className="w-5 h-5 shrink-0" /> {tStr("appNav.premium")}
+            </Link>
             {isAdmin && (
               <Link href="/admin" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-red-300 hover:bg-dark-700">
-                <Shield className="w-5 h-5 shrink-0" /> Admin
+                <Shield className="w-5 h-5 shrink-0" /> {tStr("appNav.admin")}
               </Link>
             )}
-            <Link href="/app/settings/feedback" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-dark-300 hover:bg-dark-700"><Lightbulb className="w-5 h-5 shrink-0" /> Propuneri și feedback</Link>
-            <Link href="/app/settings/account" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-dark-300 hover:bg-dark-700"><Settings className="w-5 h-5 shrink-0" /> Setări cont</Link>
-            <button type="button" onClick={() => { logout(); setMobileMenuOpen(false); }} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-red-400 hover:bg-dark-700 text-left w-full"><LogOut className="w-5 h-5 shrink-0" /> Ieșire</button>
+            <Link href="/app/settings/feedback" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-dark-300 hover:bg-dark-700">
+              <Lightbulb className="w-5 h-5 shrink-0" /> {tStr("appNav.suggestionsFeedback")}
+            </Link>
+            <Link href="/app/settings/account" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-dark-300 hover:bg-dark-700">
+              <Settings className="w-5 h-5 shrink-0" /> {tStr("appNav.accountSettings")}
+            </Link>
+            <button type="button" onClick={() => { logout(); setMobileMenuOpen(false); }} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-red-400 hover:bg-dark-700 text-left w-full">
+              <LogOut className="w-5 h-5 shrink-0" /> {tStr("appNav.logout")}
+            </button>
           </div>
         )}
       </header>
@@ -477,24 +518,35 @@ export default function AppLayout({
         }
       >
         {children}
-        {!isChatRoute && (
-          <div className="mt-10 pt-4 border-t border-dark-700/80 shrink-0">
-            <p className="text-center text-dark-500 text-[10px] md:text-xs mb-2 px-2">
-              Documente legale — te rugăm să le citești înainte de a folosi serviciul.
-            </p>
+        {isChatRoute ? (
+          <div className="shrink-0 flex justify-center pt-3 pb-1 border-t border-dark-700/70 mt-auto">
+            <LanguageSwitcher compact />
+          </div>
+        ) : (
+          <div className="mt-10 pt-4 border-t border-dark-700/80 shrink-0 flex flex-col items-center gap-4">
+            <p className="text-center text-dark-500 text-[10px] md:text-xs px-2">{tStr("appNav.legalFooterIntro")}</p>
             <LegalDocLinks className="text-dark-500" />
+            <LanguageSwitcher />
           </div>
         )}
       </main>
       {/* Bottom nav: doar pe mobile */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 border-t border-dark-600 bg-dark-900/98 backdrop-blur z-20 flex items-center justify-around safe-area-inset-bottom touch-manipulation" style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))", paddingTop: "0.5rem" }}>
-        <Link href="/app" className="flex flex-col items-center justify-center gap-0.5 min-h-[56px] min-w-[64px] py-2 px-3 rounded-lg transition text-dark-400 hover:text-zinc-900 active:bg-dark-800" title="Descoperă">
+        <Link
+          href="/app"
+          className="flex flex-col items-center justify-center gap-0.5 min-h-[56px] min-w-[64px] py-2 px-3 rounded-lg transition text-dark-400 hover:text-zinc-900 active:bg-dark-800"
+          title={tStr("appNav.discover")}
+        >
           <Compass className="w-6 h-6 shrink-0" />
-          <span className="text-xs">Descoperă</span>
+          <span className="text-xs">{tStr("appNav.discover")}</span>
         </Link>
-        <Link href="/app/messages" className="flex flex-col items-center justify-center gap-0.5 min-h-[56px] min-w-[64px] py-2 px-3 rounded-lg transition text-dark-400 hover:text-zinc-900 active:bg-dark-800 relative" title="Mesaje">
+        <Link
+          href="/app/messages"
+          className="flex flex-col items-center justify-center gap-0.5 min-h-[56px] min-w-[64px] py-2 px-3 rounded-lg transition text-dark-400 hover:text-zinc-900 active:bg-dark-800 relative"
+          title={tStr("appNav.messages")}
+        >
           <MessageCircle className="w-6 h-6 shrink-0" />
-          <span className="text-xs">Mesaje</span>
+          <span className="text-xs">{tStr("appNav.messages")}</span>
           {totalUnread > 0 && (
             <span
               className={
@@ -508,9 +560,13 @@ export default function AppLayout({
             </span>
           )}
         </Link>
-        <Link href="/app/matches" className="flex flex-col items-center justify-center gap-0.5 min-h-[56px] min-w-[64px] py-2 px-3 rounded-lg transition text-dark-400 hover:text-zinc-900 active:bg-dark-800" title="Matches">
+        <Link
+          href="/app/matches"
+          className="flex flex-col items-center justify-center gap-0.5 min-h-[56px] min-w-[64px] py-2 px-3 rounded-lg transition text-dark-400 hover:text-zinc-900 active:bg-dark-800"
+          title={tStr("appNav.matches")}
+        >
           <Heart className="w-6 h-6 shrink-0" />
-          <span className="text-xs">Matches</span>
+          <span className="text-xs">{tStr("appNav.matches")}</span>
         </Link>
       </nav>
       {newMatchToast && (
@@ -518,6 +574,7 @@ export default function AppLayout({
           name={newMatchToast.name}
           matchId={newMatchToast.id}
           onDismiss={() => setNewMatchToast(null)}
+          tStr={tStr}
         />
       )}
       <Watermark />
@@ -530,14 +587,16 @@ function MatchToast({
   name,
   matchId,
   onDismiss,
+  tStr,
 }: {
   name: string;
   matchId: string;
   onDismiss: () => void;
+  tStr: (path: string) => string;
 }) {
   useEffect(() => {
-    const t = setTimeout(onDismiss, 6000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(onDismiss, 6000);
+    return () => clearTimeout(timer);
   }, [onDismiss]);
   return (
     <div
@@ -545,7 +604,9 @@ function MatchToast({
       className="fixed bottom-24 md:bottom-6 left-4 right-4 max-w-md mx-auto z-50 rounded-xl bg-brand-500/95 text-dark-900 shadow-lg border border-brand-400 p-4 flex items-center justify-between gap-3"
     >
       <p className="font-medium">
-        Ai match cu <span className="font-semibold">{name}</span>!
+        {tStr("appNav.matchWithBefore")}
+        <span className="font-semibold">{name}</span>
+        {tStr("appNav.matchWithAfter")}
       </p>
       <div className="flex items-center gap-2 shrink-0">
         <Link
@@ -553,13 +614,13 @@ function MatchToast({
           onClick={() => onDismiss()}
           className="px-3 py-1.5 rounded-lg bg-dark-900/20 hover:bg-dark-900/30 font-medium text-sm"
         >
-          Deschide chat
+          {tStr("appNav.openChat")}
         </Link>
         <button
           type="button"
           onClick={onDismiss}
           className="p-1.5 rounded-lg hover:bg-dark-900/20 text-dark-900"
-          aria-label="Închide"
+          aria-label={tStr("common.buttons.close")}
         >
           ×
         </button>

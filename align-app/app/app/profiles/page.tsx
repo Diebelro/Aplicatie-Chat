@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { Trash2, MessageCircle, Users, Clock, UserPlus, Eye, MessageSquare, CheckCheck, Heart, ShieldOff, Flag, Circle, Sparkles, EyeOff } from "lucide-react";
 import { useSearchParams } from "next/navigation";
@@ -11,7 +11,12 @@ import { useSearchFilters, type SearchFilters } from "@/lib/useSearchFilters";
 import { DiebelAppPromoCarousel } from "@/components/diebel/DiebelAppPromoCarousel";
 import { SilhouetteAvatar } from "@/components/SilhouetteAvatar";
 import { AddFriendButton } from "@/components/AddFriendButton";
-import { getSmallCardState, SMALL_CARD_STATUS_LABELS, FRIEND_CARD_COLORS } from "@/lib/friendCardStates";
+import { getSmallCardState, FRIEND_CARD_COLORS } from "@/lib/friendCardStates";
+import { displayName } from "@/lib/displayName";
+import { getAuthHeaders } from "@/lib/authClient";
+import { MAX_PROFILE_SEARCH_RADIUS_KM } from "@/lib/profileSearchConstants";
+import { useI18n } from "@/lib/i18n/context";
+import { formatTpl } from "@/lib/i18n/formatTpl";
 
 /** Culori pentru cele 3 stări pe profil – fără suprapuneri, un singur state per card. */
 const PROFILE_STATE_COLORS = {
@@ -19,8 +24,20 @@ const PROFILE_STATE_COLORS = {
   isNew: FRIEND_CARD_COLORS.isNew,        // #339AF0
   notVisited: FRIEND_CARD_COLORS.notVisited, // #868E96
 } as const;
-import { displayName } from "@/lib/displayName";
-import { getAuthHeaders } from "@/lib/authClient";
+
+const LEGEND_KEYS = [
+  "friends",
+  "pendingSent",
+  "pendingReceived",
+  "match",
+  "messageSeen",
+  "messageReceived",
+  "visitedYou",
+  "visitedByYou",
+  "online",
+  "isNew",
+  "notVisited",
+] as const;
 
 type FriendStatusApi = "pending_sent" | "pending_received" | "accepted" | "rejected" | null;
 
@@ -59,19 +76,18 @@ function formatDistance(km: number | undefined): string {
   return `${(Math.round(km * 10) / 10).toFixed(1).replace(".", ",")} km`;
 }
 
-function getDistanceDisplay(u: ProfileWithOnline): string {
-  if (u.distanceHidden || u.distanceKm == null) return "Distanță ascunsă";
-  const isFriend = u.friendStatus === "accepted";
-  if (isFriend && u.distanceKm < 1) return "În apropiere";
-  return formatDistance(u.distanceKm);
-}
-
 function buildQuery(f: SearchFilters): string {
   const p = new URLSearchParams();
   if (f.gender) p.set("gender", f.gender);
   if (f.minAge) p.set("minAge", f.minAge);
   if (f.maxAge) p.set("maxAge", f.maxAge);
-  if (f.maxDistanceKm) p.set("maxDistanceKm", f.maxDistanceKm);
+  const md = f.maxDistanceKm.trim();
+  if (md !== "" && md !== "0") {
+    const n = Number(md);
+    if (!Number.isNaN(n) && n > 0) {
+      p.set("maxDistanceKm", String(Math.min(MAX_PROFILE_SEARCH_RADIUS_KM, n)));
+    }
+  }
   if (f.country.trim()) p.set("country", f.country.trim());
   if (f.city.trim()) p.set("city", f.city.trim());
   if (f.onlineOnly) p.set("onlineOnly", "true");
@@ -82,6 +98,16 @@ function buildQuery(f: SearchFilters): string {
 }
 
 export default function ProfilesPage() {
+  const { tStr } = useI18n();
+  const getDistanceDisplay = useCallback(
+    (u: ProfileWithOnline): string => {
+      if (u.distanceHidden || u.distanceKm == null) return tStr("pages.matches.distanceHidden");
+      const isFriend = u.friendStatus === "accepted";
+      if (isFriend && u.distanceKm < 1) return tStr("pages.matches.nearby");
+      return formatDistance(u.distanceKm);
+    },
+    [tStr]
+  );
   const searchParams = useSearchParams();
   const previewMe = searchParams.get("preview") === "me";
   const [profiles, setProfiles] = useState<ProfileWithOnline[]>([]);
@@ -177,7 +203,7 @@ export default function ProfilesPage() {
   };
 
   const handleBlock = async (userId: string) => {
-    if (!confirm("Blochezi acest utilizator? Nu veți mai putea trimite mesaje.")) return;
+    if (!confirm(tStr("pages.profiles.blockConfirm"))) return;
     const res = await fetch("/api/block", {
       method: "POST",
       headers: { "Content-Type": "application/json", ...getAuthHeaders() },
@@ -187,40 +213,43 @@ export default function ProfilesPage() {
   };
 
   const handleReport = async (userId: string) => {
-    const reason = window.prompt("Motivul raportului (opțional):");
+    const reason = window.prompt(tStr("pages.profiles.reportPrompt"));
     if (reason === null) return;
     await fetch("/api/report", {
       method: "POST",
       headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-      body: JSON.stringify({ targetUserId: userId, reason: reason || "Raport din listă profiluri" }),
+      body: JSON.stringify({
+        targetUserId: userId,
+        reason: reason || tStr("pages.profiles.reportReasonDefault"),
+      }),
     });
   };
 
   return (
     <div>
-      <h2 className="text-xl font-semibold mb-4">Toate profilurile</h2>
+      <h2 className="text-xl font-semibold mb-4">{tStr("pages.profiles.title")}</h2>
 
       {!myLocationEnabled && (
         <div className="mb-4 p-4 rounded-xl bg-dark-800 border border-amber-500/50 flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-dark-200">Activează locația pentru rezultate mai bune.</p>
+          <p className="text-sm text-dark-200">{tStr("pages.profiles.enableLocationHint")}</p>
           <button
             type="button"
             onClick={enableLocation}
             className="px-4 py-2 rounded-lg bg-brand-500 text-white text-sm font-medium hover:bg-brand-600 transition"
           >
-            Activează locația
+            {tStr("pages.profiles.enableLocationBtn")}
           </button>
         </div>
       )}
 
       <div className="mb-6 p-4 rounded-xl bg-dark-800 border border-dark-600">
-        <p className="text-sm text-dark-400 mb-3">Filtrează după gen, vârstă, distanță, locație, online, nume</p>
+        <p className="text-sm text-dark-400 mb-3">{tStr("pages.profiles.filterHint")}</p>
         <div className="flex flex-wrap gap-3 items-end">
           <div>
-            <label className="block text-xs text-dark-500 mb-1">Nume</label>
+            <label className="block text-xs text-dark-500 mb-1">{tStr("pages.discover.nameLabel")}</label>
             <input
               type="text"
-              placeholder="Caută după nume..."
+              placeholder={tStr("pages.discover.searchPlaceholder")}
               value={filters.name}
               onChange={(e) => setFilters((f) => ({ ...f, name: e.target.value }))}
               className="w-40 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 text-sm placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
@@ -233,23 +262,23 @@ export default function ProfilesPage() {
               onChange={(e) => setFilters((f) => ({ ...f, onlineOnly: e.target.checked }))}
               className="rounded border-dark-600 bg-dark-700 text-brand-500 focus:ring-brand-500"
             />
-            <span className="text-sm text-dark-400">Doar online</span>
+            <span className="text-sm text-dark-400">{tStr("pages.discover.onlineOnly")}</span>
           </label>
           <div>
-            <label className="block text-xs text-dark-500 mb-1">Gen</label>
+            <label className="block text-xs text-dark-500 mb-1">{tStr("pages.discover.genderLabel")}</label>
             <select
               value={filters.gender}
               onChange={(e) => setFilters((f) => ({ ...f, gender: e.target.value }))}
               className="bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             >
-              <option value="">Toate</option>
-              <option value="male">Bărbat</option>
-              <option value="female">Femeie</option>
-              <option value="other">Altul</option>
+              <option value="">{tStr("pages.discover.genderAll")}</option>
+              <option value="male">{tStr("pages.discover.genderMale")}</option>
+              <option value="female">{tStr("pages.discover.genderFemale")}</option>
+              <option value="other">{tStr("pages.discover.genderOther")}</option>
             </select>
           </div>
           <div>
-            <label className="block text-xs text-dark-500 mb-1">Vârstă min</label>
+            <label className="block text-xs text-dark-500 mb-1">{tStr("pages.discover.minAge")}</label>
             <input
               type="number"
               min={18}
@@ -270,7 +299,7 @@ export default function ProfilesPage() {
             />
           </div>
           <div>
-            <label className="block text-xs text-dark-500 mb-1">Vârstă max</label>
+            <label className="block text-xs text-dark-500 mb-1">{tStr("pages.discover.maxAge")}</label>
             <input
               type="number"
               min={filters.minAge ? Math.max(18, Number(filters.minAge)) : 18}
@@ -291,43 +320,52 @@ export default function ProfilesPage() {
             />
           </div>
           <div className="w-full max-w-xs">
-            <label className="block text-xs text-dark-500 mb-1">Distanță max: {filters.maxDistanceKm || "100"} km</label>
+            <label className="block text-xs text-dark-500 mb-1">
+              {tStr("pages.profiles.maxDistLabel")}{" "}
+              {(Number(filters.maxDistanceKm) || 0) <= 0
+                ? "—"
+                : `${Math.min(MAX_PROFILE_SEARCH_RADIUS_KM, Number(filters.maxDistanceKm) || 0)} km`}
+            </label>
             <input
               type="range"
               min={0}
-              max={100}
-              value={filters.maxDistanceKm === "" ? 100 : Math.min(100, Math.max(0, Number(filters.maxDistanceKm) || 0))}
+              max={MAX_PROFILE_SEARCH_RADIUS_KM}
+              step={MAX_PROFILE_SEARCH_RADIUS_KM > 250 ? 5 : 1}
+              value={Math.min(
+                MAX_PROFILE_SEARCH_RADIUS_KM,
+                Math.max(0, Number(filters.maxDistanceKm) || 0)
+              )}
               onChange={(e) => setFilters((f) => ({ ...f, maxDistanceKm: e.target.value }))}
               className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-dark-600 accent-brand-500"
             />
           </div>
           <div>
-            <label className="block text-xs text-dark-500 mb-1">Sortare</label>
+            <label className="block text-xs text-dark-500 mb-1">{tStr("pages.profiles.sortLabel")}</label>
             <select
               value={filters.sortBy}
               onChange={(e) => setFilters((f) => ({ ...f, sortBy: e.target.value }))}
               className="bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             >
-              <option value="">Implicit</option>
-              <option value="distance">Distanță</option>
-              <option value="trust">Trust</option>
+              <option value="">{tStr("pages.profiles.sortDefault")}</option>
+              <option value="distance">{tStr("pages.profiles.sortDistance")}</option>
+              <option value="trust">{tStr("pages.profiles.sortTrust")}</option>
             </select>
           </div>
           <div>
-            <label className="block text-xs text-dark-500 mb-1">Țară</label>
+            <label className="block text-xs text-dark-500 mb-1">{tStr("pages.discover.countryLabel")}</label>
             <input
               type="text"
-              placeholder="ex. România"
+              placeholder={tStr("pages.discover.countryPlaceholder")}
               value={filters.country}
               onChange={(e) => setFilters((f) => ({ ...f, country: e.target.value }))}
               className="w-28 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 text-sm placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
           <div>
-            <label className="block text-xs text-dark-500 mb-1">Oraș</label>
+            <label className="block text-xs text-dark-500 mb-1">{tStr("pages.discover.cityLabel")}</label>
             <input
               type="text"
-              placeholder="ex. București"
+              placeholder={tStr("pages.discover.cityPlaceholder")}
               value={filters.city}
               onChange={(e) => setFilters((f) => ({ ...f, city: e.target.value }))}
               className="w-36 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 text-sm placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
@@ -338,40 +376,29 @@ export default function ProfilesPage() {
 
       <DiebelAppPromoCarousel />
       <div className="flex flex-wrap gap-4 mb-6 text-xs text-dark-500">
-        {(
-          [
-            { key: "friends", label: "Prieteni", color: FRIEND_CARD_COLORS.friends },
-            { key: "pendingSent", label: "Cerere trimisă", color: FRIEND_CARD_COLORS.pendingSent },
-            { key: "pendingReceived", label: "Cerere primită", color: FRIEND_CARD_COLORS.pendingReceived },
-            { key: "match", label: "Match", color: FRIEND_CARD_COLORS.match },
-            { key: "messageSeen", label: "Mesaj văzut", color: FRIEND_CARD_COLORS.messageSeen },
-            { key: "messageReceived", label: "Mesaj primit", color: FRIEND_CARD_COLORS.messageReceived },
-            { key: "visitedYou", label: "A vizitat profilul tău", color: FRIEND_CARD_COLORS.visitedYou },
-            { key: "visitedByYou", label: "Vizitat de tine", color: FRIEND_CARD_COLORS.visitedByYou },
-            { key: "online", label: "Online", color: FRIEND_CARD_COLORS.online },
-            { key: "isNew", label: "Cont nou", color: FRIEND_CARD_COLORS.isNew },
-            { key: "notVisited", label: "Profil nedeschis", color: FRIEND_CARD_COLORS.notVisited },
-          ] as const
-        ).map(({ key, label, color }) => (
-          <span key={key} className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded border shrink-0" style={{ borderColor: `${color}80`, backgroundColor: `${color}1A` }} />
-            {label}
-          </span>
-        ))}
-        <span>Distanța (m/km) apare dacă ai permis locația.</span>
+        {LEGEND_KEYS.map((key) => {
+          const color = FRIEND_CARD_COLORS[key as keyof typeof FRIEND_CARD_COLORS];
+          return (
+            <span key={key} className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded border shrink-0" style={{ borderColor: `${color}80`, backgroundColor: `${color}1A` }} />
+              {tStr(`pages.discover.legend.${key}`)}
+            </span>
+          );
+        })}
+        <span>{tStr("pages.discover.distanceNote")}</span>
       </div>
 
       {loading ? (
         <div className="flex flex-col items-center justify-center gap-2 py-16">
-          <span className="text-dark-500">Se încarcă profilurile...</span>
+          <span className="text-dark-500">{tStr("pages.profiles.loading")}</span>
         </div>
       ) : profiles.length === 0 ? (
-        <p className="text-center py-10 text-dark-500">Nu există alte profiluri.</p>
+        <p className="text-center py-10 text-dark-500">{tStr("pages.profiles.empty")}</p>
       ) : (
         <>
       {previewMe && me && (
         <section className="mb-6">
-          <h3 className="text-sm font-semibold text-dark-300 mb-3">Profilul tău (așa te văd alții)</h3>
+          <h3 className="text-sm font-semibold text-dark-300 mb-3">{tStr("pages.profiles.previewTitle")}</h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 max-w-md">
             <div className="border rounded-2xl overflow-hidden flex flex-col bg-dark-800 border-dark-600">
               <div className="w-full h-32 bg-dark-700 overflow-hidden">
@@ -385,16 +412,30 @@ export default function ProfilesPage() {
               </div>
               <div className="flex-1 min-w-0 p-4">
                 <p className="font-semibold text-zinc-900 truncate">{displayName(me.username ?? me.name)}</p>
-                <p className="text-xs mt-0.5 text-brand-400">Tu</p>
+                <p className="text-xs mt-0.5 text-brand-400">{tStr("pages.profiles.youLabel")}</p>
                 {me.bio?.trim() && (
                   <p className="text-sm text-dark-500 mt-1 line-clamp-2">{me.bio.trim()}</p>
                 )}
                 <p className="text-xs text-dark-400 mt-1 flex flex-wrap gap-x-2 gap-y-0">
-                  {me.age != null && <span>{me.age} ani</span>}
-                  {me.gender && <span>{me.gender === "male" ? "Bărbat" : me.gender === "female" ? "Femeie" : "Altul"}</span>}
+                  {me.age != null && (
+                    <span>{formatTpl(tStr("pages.profiles.ageYears"), { n: me.age })}</span>
+                  )}
+                  {me.gender && (
+                    <span>
+                      {me.gender === "male"
+                        ? tStr("pages.discover.genderMale")
+                        : me.gender === "female"
+                          ? tStr("pages.discover.genderFemale")
+                          : tStr("pages.discover.genderOther")}
+                    </span>
+                  )}
                   {me.height != null && <span>{me.height} cm</span>}
-                  {me.eyeColor && <span>ochi {me.eyeColor}</span>}
-                  {me.hairColor && <span>păr {me.hairColor}</span>}
+                  {me.eyeColor && (
+                    <span>{formatTpl(tStr("pages.discover.eyePrefix"), { v: me.eyeColor })}</span>
+                  )}
+                  {me.hairColor && (
+                    <span>{formatTpl(tStr("pages.discover.hairPrefix"), { v: me.hairColor })}</span>
+                  )}
                   {me.city && <span>{me.city}</span>}
                   <span>—</span>
                 </p>
@@ -420,7 +461,8 @@ export default function ProfilesPage() {
             : border;
           const borderStyle = border ? { borderColor: border, borderWidth: 2, backgroundColor: `${border}12` } : {};
           const IconComp = STATUS_ICONS[statusKey];
-          const statusLabel = SMALL_CARD_STATUS_LABELS[statusKey];
+          const statusLabel =
+            statusKey !== "none" ? tStr(`pages.discover.legend.${statusKey}`) : "";
           return (
           <div
             key={u.id}
@@ -430,7 +472,9 @@ export default function ProfilesPage() {
             <Link
               href={`/app/user/${u.id}`}
               className="block flex-1 min-w-0 cursor-pointer text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-dark-900 rounded-t-2xl group"
-              aria-label={`Vezi profilul: ${displayName(u.username ?? u.name)}`}
+              aria-label={formatTpl(tStr("pages.profiles.viewProfileAria"), {
+                name: displayName(u.username ?? u.name),
+              })}
             >
               <div
                 className={`w-full h-32 bg-dark-700 overflow-hidden transition-[filter] group-hover:brightness-110 ${
@@ -463,13 +507,27 @@ export default function ProfilesPage() {
                   </p>
                 )}
                 <p className="text-xs text-dark-400 mt-1 flex flex-wrap gap-x-2 gap-y-0">
-                  {u.age != null && <span>{u.age} ani</span>}
-                  {u.gender && <span>{u.gender === "male" ? "Bărbat" : u.gender === "female" ? "Femeie" : "Altul"}</span>}
+                  {u.age != null && (
+                    <span>{formatTpl(tStr("pages.profiles.ageYears"), { n: u.age })}</span>
+                  )}
+                  {u.gender && (
+                    <span>
+                      {u.gender === "male"
+                        ? tStr("pages.discover.genderMale")
+                        : u.gender === "female"
+                          ? tStr("pages.discover.genderFemale")
+                          : tStr("pages.discover.genderOther")}
+                    </span>
+                  )}
                   {u.height != null && <span>{u.height} cm</span>}
-                  {u.eyeColor && <span>ochi {u.eyeColor}</span>}
-                  {u.hairColor && <span>păr {u.hairColor}</span>}
+                  {u.eyeColor && (
+                    <span>{formatTpl(tStr("pages.discover.eyePrefix"), { v: u.eyeColor })}</span>
+                  )}
+                  {u.hairColor && (
+                    <span>{formatTpl(tStr("pages.discover.hairPrefix"), { v: u.hairColor })}</span>
+                  )}
                   {u.city && <span>{u.city}</span>}
-                  <span title="Distanță față de tine">{getDistanceDisplay(u)}</span>
+                  <span title={tStr("pages.profiles.distanceTitle")}>{getDistanceDisplay(u)}</span>
                 </p>
               </div>
             </Link>
@@ -488,13 +546,13 @@ export default function ProfilesPage() {
                 <span
                   className="text-xs"
                   style={{ color: u.online ? PROFILE_STATE_COLORS.online : PROFILE_STATE_COLORS.notVisited }}
-                  title={u.online ? "Online" : "Offline"}
+                  title={u.online ? tStr("pages.messages.online") : tStr("pages.messages.offline")}
                 >
                   <span
                     className="inline-block w-2 h-2 rounded-full mr-1 align-middle"
                     style={{ backgroundColor: u.online ? PROFILE_STATE_COLORS.online : PROFILE_STATE_COLORS.notVisited }}
                   />
-                  {u.online ? "Online" : "Offline"}
+                  {u.online ? tStr("pages.messages.online") : tStr("pages.messages.offline")}
                 </span>
               </div>
               <div className="flex items-center gap-1">
@@ -502,14 +560,14 @@ export default function ProfilesPage() {
                 <button
                   onClick={() => handleDelete(u.id)}
                   className="p-2 rounded-lg text-red-400 hover:bg-red-500/20 transition"
-                  title="Șterge din listă"
+                  title={tStr("pages.profiles.deleteFromList")}
                 >
                   <Trash2 className="w-5 h-5" />
                 </button>
                 <Link
                   href={`/app/chat/${u.id}`}
                   className="p-2 rounded-lg text-brand-400 hover:bg-brand-500/20 transition"
-                  title="Trimite mesaj"
+                  title={tStr("pages.profiles.sendMessageTitle")}
                 >
                   <MessageCircle className="w-5 h-5" />
                 </Link>
@@ -517,7 +575,7 @@ export default function ProfilesPage() {
                   type="button"
                   onClick={() => handleBlock(u.id)}
                   className="p-2 rounded-lg text-amber-400 hover:bg-amber-500/20 transition"
-                  title="Blochează utilizatorul"
+                  title={tStr("pages.profiles.blockUserTitle")}
                 >
                   <ShieldOff className="w-5 h-5" />
                 </button>
@@ -525,7 +583,7 @@ export default function ProfilesPage() {
                   type="button"
                   onClick={() => handleReport(u.id)}
                   className="p-2 rounded-lg text-dark-400 hover:bg-dark-600 transition"
-                  title="Raportează"
+                  title={tStr("pages.profiles.reportTitle")}
                 >
                   <Flag className="w-5 h-5" />
                 </button>

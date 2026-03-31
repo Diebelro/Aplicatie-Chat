@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { PhoneOff } from "lucide-react";
-import type { User } from "@/lib/store";
-import { getStoredUserRaw } from "@/lib/store";
 import { getAuthHeaders } from "@/lib/authClient";
+import { useI18n } from "@/lib/i18n/context";
+import { formatTpl } from "@/lib/i18n/formatTpl";
+import { intlLocaleTag } from "@/lib/i18n/intlLocale";
 
 interface MissedItem {
   fromId: string;
@@ -14,17 +15,28 @@ interface MissedItem {
   audioOnly: boolean;
 }
 
-function formatWhen(iso: string): string {
-  const d = new Date(iso);
-  const now = new Date();
-  const diff = now.getTime() - d.getTime();
-  if (diff < 60_000) return "acum puțin";
-  if (diff < 3600_000) return `acum ${Math.floor(diff / 60_000)} min`;
-  if (diff < 86400_000) return `acum ${Math.floor(diff / 3600_000)} h`;
-  return d.toLocaleDateString("ro-RO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
-}
-
 export default function MissedCallsPage() {
+  const { locale, tStr } = useI18n();
+  const formatWhen = useCallback(
+    (iso: string): string => {
+      const d = new Date(iso);
+      const now = new Date();
+      const diff = now.getTime() - d.getTime();
+      if (diff < 60_000) return tStr("pages.missedCalls.timeJustNow");
+      if (diff < 3600_000)
+        return formatTpl(tStr("pages.missedCalls.timeMinAgo"), { n: Math.floor(diff / 60_000) });
+      if (diff < 86400_000)
+        return formatTpl(tStr("pages.missedCalls.timeHourAgo"), { n: Math.floor(diff / 3600_000) });
+      return d.toLocaleDateString(intlLocaleTag(locale), {
+        day: "numeric",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    },
+    [locale, tStr]
+  );
+
   const [missed, setMissed] = useState<MissedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [clearing, setClearing] = useState(false);
@@ -52,20 +64,18 @@ export default function MissedCallsPage() {
   if (loading) {
     return (
       <div className="py-12 text-center text-dark-500">
-        Se încarcă...
+        {tStr("pages.missedCalls.loading")}
       </div>
     );
   }
 
   return (
     <div className="max-w-md mx-auto">
-      <h1 className="text-xl font-bold mb-2">Apeluri pierdute</h1>
-      <p className="text-dark-500 text-sm mb-6">
-        Apeluri la care nu ai răspuns. Poți suna înapoi din chat.
-      </p>
+      <h1 className="text-xl font-bold mb-2">{tStr("pages.missedCalls.title")}</h1>
+      <p className="text-dark-500 text-sm mb-6">{tStr("pages.missedCalls.subtitle")}</p>
 
       {missed.length === 0 ? (
-        <p className="text-dark-500 text-center py-8">Niciun apel pierdut.</p>
+        <p className="text-dark-500 text-center py-8">{tStr("pages.missedCalls.empty")}</p>
       ) : (
         <>
           <ul className="space-y-3 mb-6">
@@ -79,7 +89,12 @@ export default function MissedCallsPage() {
                 </span>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-zinc-900 truncate">
-                    Apel {m.audioOnly ? "audio" : "video"} de la {m.fromName}
+                    {formatTpl(
+                      m.audioOnly
+                        ? tStr("pages.missedCalls.callAudioFrom")
+                        : tStr("pages.missedCalls.callVideoFrom"),
+                      { name: m.fromName }
+                    )}
                   </p>
                   <p className="text-dark-500 text-sm">{formatWhen(m.at)}</p>
                 </div>
@@ -87,7 +102,7 @@ export default function MissedCallsPage() {
                   href={`/app/chat/${m.fromId}`}
                   className="text-sm px-3 py-1.5 rounded-lg bg-brand-500/20 text-brand-400 hover:bg-brand-500/30 shrink-0"
                 >
-                  Mesaje
+                  {tStr("pages.missedCalls.messages")}
                 </Link>
               </li>
             ))}
@@ -98,7 +113,7 @@ export default function MissedCallsPage() {
             disabled={clearing}
             className="w-full py-2.5 rounded-xl border border-dark-600 text-dark-400 hover:bg-dark-800 hover:text-zinc-900 transition disabled:opacity-50 text-sm"
           >
-            {clearing ? "Se șterge..." : "Șterge lista"}
+            {clearing ? tStr("pages.missedCalls.clearing") : tStr("pages.missedCalls.clearList")}
           </button>
         </>
       )}
@@ -107,7 +122,7 @@ export default function MissedCallsPage() {
         href="/app/messages"
         className="inline-block mt-6 text-brand-400 hover:underline text-sm"
       >
-        ← Înapoi la mesaje
+        {tStr("pages.missedCalls.backMessages")}
       </Link>
     </div>
   );

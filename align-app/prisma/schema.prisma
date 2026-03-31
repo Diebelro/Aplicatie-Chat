@@ -150,6 +150,8 @@ model Location {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   latitude  Float
   longitude Float
+  /// Vizibil pe hartă doar până la acest moment (setat explicit de user, durată 15 min–3 h).
+  mapVisibleUntil DateTime?
   updatedAt DateTime @updatedAt
 }
 

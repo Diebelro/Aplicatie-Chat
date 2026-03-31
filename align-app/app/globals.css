@@ -72,15 +72,46 @@ body {
   @apply bg-gradient-to-r from-brand-400 via-teal-300 to-emerald-400 bg-clip-text text-transparent;
 }
 
-/* Leaflet: markeri cu avatar (fără fundal alb implicit) */
+/* Leaflet: markeri medalion — clic → profil */
 .leaflet-container .map-avatar-divicon {
   background: transparent !important;
   border: none !important;
   cursor: pointer !important;
 }
-/* Img în medalion capta clicul și nu ajungea la handlerul markerului → profilul nu se deschidea */
 .leaflet-container .map-avatar-divicon img {
   pointer-events: none !important;
   user-select: none;
   -webkit-user-drag: none;
 }
+.leaflet-container .map-avatar-marker {
+  width: 40px;
+  height: 40px;
+  border-radius: 9999px;
+  overflow: hidden;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+.leaflet-container .map-avatar-marker.map-avatar-me {
+  border-color: #2dd4bf;
+}
+/* Mai specific decât Leaflet `.leaflet-marker-pane img { width: auto }` — altfel poza iese din cerc și pare tăiată pe jumătate. */
+.leaflet-container .leaflet-marker-pane .map-avatar-marker img {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  object-fit: cover;
+  display: block;
+}
+.leaflet-container .map-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background: #52525b;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+}
+

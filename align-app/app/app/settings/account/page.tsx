@@ -6,8 +6,12 @@ import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
 import { getAuthHeaders } from "@/lib/authClient";
 import { LegalDocLinks } from "@/components/LegalDocLinks";
+import { useI18n } from "@/lib/i18n/context";
+import { formatTpl } from "@/lib/i18n/formatTpl";
+import { translateApiErrorMessage } from "@/lib/i18n/translateApiError";
 
 export default function AccountSettingsPage() {
+  const { tStr } = useI18n();
   const [user, setUser] = useState<User | null>(null);
   const [realName, setRealName] = useState("");
   const [username, setUsername] = useState("");
@@ -109,7 +113,8 @@ export default function AccountSettingsPage() {
       .then((d) => {
         setPersonalSave(false);
         if (d.error) {
-          setPersonalError(d.error);
+          const raw = String(d.error).trim();
+          setPersonalError(raw ? translateApiErrorMessage(raw, tStr) || raw : "");
           return;
         }
         if (d.user) {
@@ -134,11 +139,11 @@ export default function AccountSettingsPage() {
     setPasswordError("");
     setPasswordSuccess(false);
     if (newPassword.length < 8) {
-      setPasswordError("Parola nouă trebuie să aibă cel puțin 8 caractere.");
+      setPasswordError(tStr("pages.account.passwordMinLength"));
       return;
     }
     if (newPassword !== confirmPassword) {
-      setPasswordError("Parola nouă și confirmarea nu coincid.");
+      setPasswordError(tStr("pages.account.passwordMismatch"));
       return;
     }
     fetch("/api/me/password", {
@@ -149,7 +154,8 @@ export default function AccountSettingsPage() {
       .then((r) => r.json())
       .then((d) => {
         if (d.error) {
-          setPasswordError(d.error);
+          const raw = String(d.error).trim();
+          setPasswordError(raw ? translateApiErrorMessage(raw, tStr) || raw : "");
           return;
         }
         setPasswordSuccess(true);
@@ -179,7 +185,7 @@ export default function AccountSettingsPage() {
 
   const deleteAccount = () => {
     if (!deletePassword.trim()) {
-      setDeleteError("Introdu parola pentru a confirma.");
+      setDeleteError(tStr("pages.account.deletePasswordRequired"));
       return;
     }
     setDeleting(true);
@@ -206,10 +212,17 @@ export default function AccountSettingsPage() {
   const inputClass = "w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-zinc-900 placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500";
   const labelClass = "block text-dark-500 text-sm mb-1";
 
+  const subscriptionPlanLabel =
+    subscriptionPlan === "lifetime"
+      ? tStr("pages.account.planLifetime")
+      : subscriptionPlan === "monthly" || subscriptionPlan === "six_month" || subscriptionPlan === "yearly"
+        ? tStr(`pages.subscriptionPlans.${subscriptionPlan}.name`)
+        : subscriptionPlan ?? "";
+
   if (!user) {
     return (
       <div className="py-12 text-center">
-        <p className="text-dark-500">Se încarcă...</p>
+        <p className="text-dark-500">{tStr("pages.account.loading")}</p>
       </div>
     );
   }
@@ -218,42 +231,39 @@ export default function AccountSettingsPage() {
     <div className="max-w-xl mx-auto space-y-10">
       <div className="flex items-center gap-4">
         <Link href="/app/profile" className="text-dark-400 hover:text-zinc-900 transition text-sm">
-          ← Înapoi la profil
+          {tStr("pages.account.backToProfile")}
         </Link>
-        <h1 className="text-xl font-semibold text-zinc-900">Setări cont</h1>
+        <h1 className="text-xl font-semibold text-zinc-900">{tStr("pages.account.title")}</h1>
       </div>
 
       <section className="p-6 rounded-2xl bg-dark-800 border border-dark-600 border-brand-500/20">
-        <h2 className="text-lg font-medium text-zinc-900 mb-2">Propuneri și feedback</h2>
-        <p className="text-dark-500 text-sm mb-4">
-          Ai o idee ca să îmbunătățim aplicația sau ai întâlnit ceva care nu merge? Scrie-ne — citim tot și ne ajută să
-          reparăm rapid.
-        </p>
+        <h2 className="text-lg font-medium text-zinc-900 mb-2">{tStr("pages.account.feedbackTitle")}</h2>
+        <p className="text-dark-500 text-sm mb-4">{tStr("pages.account.feedbackIntro")}</p>
         <Link
           href="/app/settings/feedback"
           className="inline-block px-4 py-2 rounded-lg bg-brand-500/20 text-brand-400 border border-brand-500/40 hover:bg-brand-500/30 font-medium text-sm transition"
         >
-          Trimite un mesaj
+          {tStr("pages.account.feedbackCta")}
         </Link>
       </section>
 
       {/* A) Personal info */}
       <section className="p-6 rounded-2xl bg-dark-800 border border-dark-600">
-        <h2 className="text-lg font-medium text-zinc-900 mb-4">Informații personale</h2>
-        <p className="text-dark-500 text-sm mb-4">Numele real este privat și se afișează doar aici. În aplicație alții te văd username-ul tău.</p>
+        <h2 className="text-lg font-medium text-zinc-900 mb-4">{tStr("pages.account.personalTitle")}</h2>
+        <p className="text-dark-500 text-sm mb-4">{tStr("pages.account.personalHint")}</p>
         <div className="space-y-4">
           <div>
-            <label className={labelClass}>Nume real (privat)</label>
+            <label className={labelClass}>{tStr("pages.account.realNameLabel")}</label>
             <input
               type="text"
               value={realName}
               onChange={(e) => setRealName(e.target.value)}
-              placeholder="Opțional"
+              placeholder={tStr("pages.account.optionalPlaceholder")}
               className={inputClass}
             />
           </div>
           <div>
-            <label className={labelClass}>Username (public)</label>
+            <label className={labelClass}>{tStr("pages.account.usernameLabel")}</label>
             <input
               type="text"
               value={username}
@@ -262,21 +272,25 @@ export default function AccountSettingsPage() {
                 setUsernameCheck("idle");
               }}
               onBlur={() => checkUsername(username)}
-              placeholder="ex. maria_popescu"
+              placeholder={tStr("pages.account.usernamePlaceholder")}
               className={inputClass}
             />
-            {usernameCheck === "available" && <p className="text-green-400 text-xs mt-1">Disponibil</p>}
-            {usernameCheck === "taken" && <p className="text-amber-400 text-xs mt-1">Deja folosit</p>}
+            {usernameCheck === "available" && (
+              <p className="text-green-400 text-xs mt-1">{tStr("pages.account.usernameAvailable")}</p>
+            )}
+            {usernameCheck === "taken" && (
+              <p className="text-amber-400 text-xs mt-1">{tStr("pages.account.usernameTaken")}</p>
+            )}
           </div>
           <div>
-            <label className={labelClass}>Email</label>
+            <label className={labelClass}>{tStr("pages.account.emailLabel")}</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className={inputClass}
             />
-            <p className="text-dark-500 text-xs mt-1">Schimbarea emailului poate necesita verificare (în dezvoltare).</p>
+            <p className="text-dark-500 text-xs mt-1">{tStr("pages.account.emailChangeHint")}</p>
           </div>
           {personalError && <p className="text-red-400 text-sm">{personalError}</p>}
           <button
@@ -285,41 +299,33 @@ export default function AccountSettingsPage() {
             disabled={personalSave}
             className="px-4 py-2 rounded-lg bg-brand-500 text-zinc-900 font-medium hover:bg-brand-600 disabled:opacity-50 transition"
           >
-            {personalSave ? "Se salvează..." : "Salvează"}
+            {personalSave ? tStr("pages.account.saveSaving") : tStr("pages.account.save")}
           </button>
         </div>
       </section>
 
       {/* Abonament / Premium */}
       <section className="p-6 rounded-2xl bg-dark-800 border border-dark-600">
-        <h2 className="text-lg font-medium text-zinc-900 mb-4">Abonament Premium</h2>
+        <h2 className="text-lg font-medium text-zinc-900 mb-4">{tStr("pages.account.subscriptionTitle")}</h2>
         <p className="text-dark-500 text-sm mb-3">
           {subscriptionPlan
-            ? `Plan activ: ${
-                subscriptionPlan === "lifetime"
-                  ? "Premium permanent"
-                  : subscriptionPlan === "yearly"
-                    ? "Premium anual"
-                    : subscriptionPlan === "six_month"
-                      ? "Premium 6 luni"
-                      : "Premium lunar"
-              }.`
-            : "Nu ai abonament activ. Poti activa Premium rewarded (1h) sau abonament lunar / 6 luni / anual."}
+            ? formatTpl(tStr("pages.account.subscriptionActive"), { plan: subscriptionPlanLabel })
+            : tStr("pages.account.subscriptionNone")}
         </p>
         <Link
           href="/app/premium"
           className="inline-block px-4 py-2 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/50 hover:bg-amber-500/30 font-medium text-sm transition"
         >
-          Gestioneaza Premium
+          {tStr("pages.account.managePremium")}
         </Link>
       </section>
 
       {/* B) Password */}
       <section className="p-6 rounded-2xl bg-dark-800 border border-dark-600">
-        <h2 className="text-lg font-medium text-zinc-900 mb-4">Parolă</h2>
+        <h2 className="text-lg font-medium text-zinc-900 mb-4">{tStr("pages.account.passwordTitle")}</h2>
         <div className="space-y-4">
           <div>
-            <label className={labelClass}>Parola curentă</label>
+            <label className={labelClass}>{tStr("pages.account.currentPassword")}</label>
             <input
               type="password"
               value={oldPassword}
@@ -329,7 +335,7 @@ export default function AccountSettingsPage() {
             />
           </div>
           <div>
-            <label className={labelClass}>Parolă nouă</label>
+            <label className={labelClass}>{tStr("pages.account.newPassword")}</label>
             <input
               type="password"
               value={newPassword}
@@ -339,7 +345,7 @@ export default function AccountSettingsPage() {
             />
           </div>
           <div>
-            <label className={labelClass}>Confirmă parola nouă</label>
+            <label className={labelClass}>{tStr("pages.account.confirmNewPassword")}</label>
             <input
               type="password"
               value={confirmPassword}
@@ -349,22 +355,22 @@ export default function AccountSettingsPage() {
             />
           </div>
           {passwordError && <p className="text-red-400 text-sm">{passwordError}</p>}
-          {passwordSuccess && <p className="text-green-400 text-sm">Parola a fost actualizată.</p>}
+          {passwordSuccess && <p className="text-green-400 text-sm">{tStr("pages.account.passwordUpdated")}</p>}
           <button
             type="button"
             onClick={updatePassword}
             className="px-4 py-2 rounded-lg bg-brand-500 text-zinc-900 font-medium hover:bg-brand-600 transition"
           >
-            Actualizează parola
+            {tStr("pages.account.updatePasswordBtn")}
           </button>
         </div>
       </section>
 
       {/* C) Privacy */}
       <section className="p-6 rounded-2xl bg-dark-800 border border-dark-600">
-        <h2 className="text-lg font-medium text-zinc-900 mb-4">Confidențialitate</h2>
+        <h2 className="text-lg font-medium text-zinc-900 mb-4">{tStr("pages.account.privacyTitle")}</h2>
         {privacyLoading ? (
-          <p className="text-dark-500 text-sm">Se încarcă...</p>
+          <p className="text-dark-500 text-sm">{tStr("pages.account.privacyLoading")}</p>
         ) : (
           <div className="space-y-3">
             <label className="flex items-center gap-3 cursor-pointer">
@@ -374,7 +380,7 @@ export default function AccountSettingsPage() {
                 onChange={(e) => updatePrivacy("show_distance", e.target.checked)}
                 className="rounded border-dark-600 bg-dark-800 text-brand-500 focus:ring-brand-500"
               />
-              <span className="text-sm text-gray-300">Afișează distanța mea altor utilizatori</span>
+              <span className="text-sm text-gray-300">{tStr("pages.account.privacyShowDistance")}</span>
             </label>
             <label className="flex items-center gap-3 cursor-pointer">
               <input
@@ -383,7 +389,7 @@ export default function AccountSettingsPage() {
                 onChange={(e) => updatePrivacy("show_online", e.target.checked)}
                 className="rounded border-dark-600 bg-dark-800 text-brand-500 focus:ring-brand-500"
               />
-              <span className="text-sm text-gray-300">Afișează că sunt online</span>
+              <span className="text-sm text-gray-300">{tStr("pages.account.privacyShowOnline")}</span>
             </label>
             <label className="flex items-center gap-3 cursor-pointer">
               <input
@@ -392,7 +398,7 @@ export default function AccountSettingsPage() {
                 onChange={(e) => updatePrivacy("allowVisitVisibility", e.target.checked)}
                 className="rounded border-dark-600 bg-dark-800 text-brand-500 focus:ring-brand-500"
               />
-              <span className="text-sm text-gray-300">Alții pot vedea când le vizitez profilul</span>
+              <span className="text-sm text-gray-300">{tStr("pages.account.privacyVisitVisibility")}</span>
             </label>
             <label className="flex items-center gap-3 cursor-pointer">
               <input
@@ -401,7 +407,7 @@ export default function AccountSettingsPage() {
                 onChange={(e) => updatePrivacy("allowReadReceipts", e.target.checked)}
                 className="rounded border-dark-600 bg-dark-800 text-brand-500 focus:ring-brand-500"
               />
-              <span className="text-sm text-gray-300">Arată „citit” la mesaje (read receipts)</span>
+              <span className="text-sm text-gray-300">{tStr("pages.account.privacyReadReceipts")}</span>
             </label>
             <label className="flex items-center gap-3 cursor-pointer">
               <input
@@ -410,7 +416,7 @@ export default function AccountSettingsPage() {
                 onChange={(e) => updatePrivacy("allowFriendRequests", e.target.checked)}
                 className="rounded border-dark-600 bg-dark-800 text-brand-500 focus:ring-brand-500"
               />
-              <span className="text-sm text-gray-300">Permite cereri de prietenie</span>
+              <span className="text-sm text-gray-300">{tStr("pages.account.privacyFriendRequests")}</span>
             </label>
           </div>
         )}
@@ -418,16 +424,16 @@ export default function AccountSettingsPage() {
 
       {/* D) GDPR */}
       <section className="p-6 rounded-2xl bg-dark-800 border border-dark-600">
-        <h2 className="text-lg font-medium text-zinc-900 mb-4">Date personale (GDPR)</h2>
+        <h2 className="text-lg font-medium text-zinc-900 mb-4">{tStr("pages.account.gdprTitle")}</h2>
         <div className="space-y-4">
           <div>
             <button
               type="button"
               className="px-4 py-2 rounded-lg bg-dark-700 text-dark-300 border border-dark-600 hover:bg-dark-600 transition text-sm"
             >
-              Descarcă datele mele (în dezvoltare)
+              {tStr("pages.account.exportData")}
             </button>
-            <p className="text-dark-500 text-xs mt-1">Vei primi un arhivă cu datele tale.</p>
+            <p className="text-dark-500 text-xs mt-1">{tStr("pages.account.exportHint")}</p>
           </div>
           <div>
             <button
@@ -435,28 +441,28 @@ export default function AccountSettingsPage() {
               onClick={() => setDeleteConfirmOpen(true)}
               className="px-4 py-2 rounded-lg bg-red-500/20 text-red-400 border border-red-500/50 hover:bg-red-500/30 transition text-sm"
             >
-              Șterge contul
+              {tStr("pages.account.deleteAccount")}
             </button>
-            <p className="text-dark-500 text-xs mt-1">Ștergerea este permanentă. Va fi cerută parola.</p>
+            <p className="text-dark-500 text-xs mt-1">{tStr("pages.account.deleteAccountHint")}</p>
           </div>
         </div>
       </section>
 
       <section className="mt-10 pt-6 border-t border-dark-600">
-        <h3 className="text-sm font-medium text-dark-400 mb-3">Documente legale</h3>
+        <h3 className="text-sm font-medium text-dark-400 mb-3">{tStr("pages.account.legalDocs")}</h3>
         <LegalDocLinks />
       </section>
 
       {deleteConfirmOpen && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-dark-800 border border-dark-600 rounded-2xl p-6 max-w-md w-full">
-            <h3 className="text-lg font-medium text-zinc-900 mb-2">Ștergere cont</h3>
-            <p className="text-dark-400 text-sm mb-4">Această acțiune este permanentă. Toate datele tale vor fi șterse. Introdu parola pentru a confirma.</p>
+            <h3 className="text-lg font-medium text-zinc-900 mb-2">{tStr("pages.account.deleteModalTitle")}</h3>
+            <p className="text-dark-400 text-sm mb-4">{tStr("pages.account.deleteModalBody")}</p>
             <input
               type="password"
               value={deletePassword}
               onChange={(e) => setDeletePassword(e.target.value)}
-              placeholder="Parola ta"
+              placeholder={tStr("pages.account.deletePasswordPlaceholder")}
               className={inputClass + " mb-4"}
               autoComplete="current-password"
             />
@@ -464,10 +470,14 @@ export default function AccountSettingsPage() {
             <div className="flex gap-2">
               <button
                 type="button"
-                onClick={() => { setDeleteConfirmOpen(false); setDeletePassword(""); setDeleteError(""); }}
+                onClick={() => {
+                  setDeleteConfirmOpen(false);
+                  setDeletePassword("");
+                  setDeleteError("");
+                }}
                 className="flex-1 px-4 py-2 rounded-lg bg-dark-600 text-zinc-900 hover:bg-dark-500 transition"
               >
-                Anulează
+                {tStr("pages.account.cancel")}
               </button>
               <button
                 type="button"
@@ -475,7 +485,7 @@ export default function AccountSettingsPage() {
                 disabled={deleting}
                 className="flex-1 px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 transition"
               >
-                {deleting ? "Se șterge..." : "Șterge contul"}
+                {deleting ? tStr("pages.account.deleteInProgress") : tStr("pages.account.deleteConfirmBtn")}
               </button>
             </div>
           </div>

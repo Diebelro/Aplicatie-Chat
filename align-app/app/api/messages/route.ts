@@ -22,7 +22,13 @@ import {
 import { canSendMessage, PAYWALL_MESSAGE } from "@/lib/monetization";
 import { resolveRequestUserId } from "@/lib/sessionAuth";
 import { toClientMessageAttachmentFields } from "@/lib/chatAttachmentProxy";
+import {
+  ALIGN_LOCATION_CONTENT_TYPE,
+  coerceLatLngFromRequest,
+  serializeAlignLocation,
+} from "@/lib/chatLocation";
 import { recordApiRouteError } from "@/lib/serverErrorRing";
+import { reverseGeocodeWgs84 } from "@/lib/reverseGeocode";
 
 export async function GET(request: NextRequest) {
   const userId = await resolveRequestUserId(request);
@@ -138,25 +144,54 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: PAYWALL_MESSAGE }, { status: 402 });
   }
   if (isPrismaAvailable()) {
-    let body: { toId?: string; text?: string; attachmentUrl?: string; attachmentContentType?: string };
+    let body: {
+      toId?: string;
+      text?: string;
+      attachmentUrl?: string;
+      attachmentContentType?: string;
+      latitude?: number;
+      longitude?: number;
+    };
     try {
       body = await request.json();
     } catch {
       return NextResponse.json({ error: "Corp invalid (JSON)." }, { status: 400 });
     }
     try {
-      const { toId, text, attachmentUrl, attachmentContentType } = body;
+      const { toId, text, attachmentUrl, attachmentContentType, latitude: latIn, longitude: lngIn } = body;
       const textStr = typeof text === "string" ? text : "";
-      const hasAttachment = attachmentUrl && attachmentContentType;
+      const hasBlobAttachment = !!(attachmentUrl && attachmentContentType);
+      const coords = coerceLatLngFromRequest(latIn, lngIn);
+      const locationParamsPresent = latIn !== undefined || lngIn !== undefined;
+      if (locationParamsPresent && !coords) {
+        return NextResponse.json({ error: "Coordonate locație invalide." }, { status: 400 });
+      }
+      const hasLocation = coords != null;
+      if (hasBlobAttachment && hasLocation) {
+        return NextResponse.json(
+          { error: "Trimite fie locație, fie fișier atașat, nu ambele în același mesaj." },
+          { status: 400 }
+        );
+      }
+      let sendAttachmentUrl: string | undefined;
+      let sendAttachmentType: string | undefined;
+      if (hasLocation && coords) {
+        const label = await reverseGeocodeWgs84(coords.lat, coords.lng);
+        sendAttachmentUrl = serializeAlignLocation(coords.lat, coords.lng, label);
+        sendAttachmentType = ALIGN_LOCATION_CONTENT_TYPE;
+      } else if (hasBlobAttachment) {
+        sendAttachmentUrl = String(attachmentUrl);
+        sendAttachmentType = String(attachmentContentType);
+      }
       if (!toId) {
         return NextResponse.json(
           { error: "Lipsește toId." },
           { status: 400 }
         );
       }
-      if (!textStr.trim() && !hasAttachment) {
+      if (!textStr.trim() && !sendAttachmentUrl) {
         return NextResponse.json(
-          { error: "Adaugă text sau un atașament (poză/PDF)." },
+          { error: "Adaugă text, locație sau un atașament (poză/PDF)." },
           { status: 400 }
         );
       }
@@ -183,8 +218,8 @@ export async function POST(request: NextRequest) {
         userId,
         toId,
         textStr,
-        hasAttachment ? String(attachmentUrl) : undefined,
-        hasAttachment ? String(attachmentContentType) : undefined
+        sendAttachmentUrl,
+        sendAttachmentType
       );
       const att = toClientMessageAttachmentFields({
         id: msg.id,
@@ -219,30 +254,46 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Utilizator negăsit." }, { status: 404 });
   }
   const body = await request.json();
-  const { toId, text, attachmentUrl, attachmentContentType } = body;
+  const { toId, text, attachmentUrl, attachmentContentType, latitude: latIn, longitude: lngIn } = body;
   const textStr = typeof text === "string" ? text : "";
-  const hasAttachment = attachmentUrl && attachmentContentType;
+  const hasBlobAttachment = !!(attachmentUrl && attachmentContentType);
+  const coords = coerceLatLngFromRequest(latIn, lngIn);
+  const locationParamsPresent = latIn !== undefined || lngIn !== undefined;
+  if (locationParamsPresent && !coords) {
+    return NextResponse.json({ error: "Coordonate locație invalide." }, { status: 400 });
+  }
+  const hasLocation = coords != null;
+  if (hasBlobAttachment && hasLocation) {
+    return NextResponse.json(
+      { error: "Trimite fie locație, fie fișier atașat, nu ambele în același mesaj." },
+      { status: 400 }
+    );
+  }
+  let sendAttachmentUrl: string | undefined;
+  let sendAttachmentType: string | undefined;
+  if (hasLocation && coords) {
+    const label = await reverseGeocodeWgs84(coords.lat, coords.lng);
+    sendAttachmentUrl = serializeAlignLocation(coords.lat, coords.lng, label);
+    sendAttachmentType = ALIGN_LOCATION_CONTENT_TYPE;
+  } else if (hasBlobAttachment) {
+    sendAttachmentUrl = String(attachmentUrl);
+    sendAttachmentType = String(attachmentContentType);
+  }
   if (!toId) {
     return NextResponse.json(
       { error: "Lipsește toId." },
       { status: 400 }
     );
   }
-  if (!textStr.trim() && !hasAttachment) {
+  if (!textStr.trim() && !sendAttachmentUrl) {
     return NextResponse.json(
-      { error: "Adaugă text sau un atașament (poză/PDF)." },
+      { error: "Adaugă text, locație sau un atașament (poză/PDF)." },
       { status: 400 }
     );
   }
   if (!findUserById(toId)) {
     return NextResponse.json({ error: "Destinatar negăsit." }, { status: 404 });
   }
-  const msg = addMessage(
-    userId,
-    toId,
-    textStr,
-    hasAttachment ? String(attachmentUrl) : undefined,
-    hasAttachment ? String(attachmentContentType) : undefined
-  );
+  const msg = addMessage(userId, toId, textStr, sendAttachmentUrl, sendAttachmentType);
   return NextResponse.json({ message: msg });
 }

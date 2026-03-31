@@ -3,6 +3,9 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { OptimizedImage } from "@/components/OptimizedImage";
+import { useI18n } from "@/lib/i18n/context";
+import { formatTpl } from "@/lib/i18n/formatTpl";
+import { translateApiErrorMessage } from "@/lib/i18n/translateApiError";
 
 type Mode = "choose" | "email" | "email_sent" | "scan" | "scan_confirmed";
 
@@ -34,13 +37,17 @@ function mobileRecoverOrigin(): string {
   return raw;
 }
 
+function authErr(msg: string, tStr: (path: string) => string, genericPath: string): string {
+  return translateApiErrorMessage(msg, tStr) || msg || tStr(genericPath);
+}
+
 export default function ForgotPasswordPage() {
+  const { tStr } = useI18n();
   const [mode, setMode] = useState<Mode>("choose");
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [sessionId, setSessionId] = useState("");
-  const [qrToken, setQrToken] = useState("");
   const [qrUrl, setQrUrl] = useState("");
   /** Doar în `NODE_ENV=development`: link direct la /reset-password pe același host ca dev serverul. */
   const [devResetLink, setDevResetLink] = useState<string | null>(null);
@@ -60,7 +67,8 @@ export default function ForgotPasswordPage() {
       setDevResetLink(typeof data.devResetLink === "string" ? data.devResetLink : null);
       setMode("email_sent");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Eroare");
+      const msg = err instanceof Error ? err.message : "";
+      setError(authErr(msg, tStr, "pages.forgotPassword.errGeneric"));
     } finally {
       setLoading(false);
     }
@@ -74,7 +82,6 @@ export default function ForgotPasswordPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Eroare");
       setSessionId(data.sessionId);
-      setQrToken(data.qrToken);
       if (typeof window !== "undefined") {
         const base = mobileRecoverOrigin();
         setQrUrl(
@@ -83,11 +90,16 @@ export default function ForgotPasswordPage() {
       }
       setMode("scan");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Eroare");
+      const msg = err instanceof Error ? err.message : "";
+      const shown =
+        translateApiErrorMessage(msg, tStr) ||
+        (msg === "Eroare" ? tStr("pages.forgotPassword.errRecovery") : msg) ||
+        tStr("pages.forgotPassword.errGeneric");
+      setError(shown);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [tStr]);
 
   useEffect(() => {
     if (mode !== "scan" || !sessionId) return;
@@ -99,47 +111,43 @@ export default function ForgotPasswordPage() {
           setMode("scan_confirmed");
           window.location.href = `/reset-password-via-scan?sessionId=${encodeURIComponent(sessionId)}`;
         } else if (data.status === "expired") {
-          setError("Sesiunea a expirat. Încearcă din nou.");
+          setError(tStr("pages.forgotPassword.sessionExpired"));
         }
       } catch {
         // ignore polling errors
       }
     }, 2000);
     return () => clearInterval(t);
-  }, [mode, sessionId]);
+  }, [mode, sessionId, tStr]);
 
   if (mode === "email_sent") {
     return (
       <div className="min-h-screen flex items-center justify-center px-4 py-8 bg-dark-900">
         <div className="max-w-sm mx-auto px-4 flex flex-col w-full">
           <Link href="/login" className="inline-block text-brand-400 font-bold">
-            ← Align
+            {tStr("pages.forgotPassword.backBrand")}
           </Link>
-          <h1 className="text-2xl font-semibold text-zinc-900 mt-4">Verifică emailul</h1>
+          <h1 className="text-2xl font-semibold text-zinc-900 mt-4">{tStr("pages.forgotPassword.emailSentTitle")}</h1>
           <p className="text-sm text-dark-300 mt-2">
-            Am trimis un link la {email}.
+            {formatTpl(tStr("pages.forgotPassword.emailSentLine1"), { email })}
           </p>
           <p className="text-sm text-dark-300 mt-2">
-            Deschide linkul din email pentru a reseta parola. Verifică și dosarul de spam.
+            {tStr("pages.forgotPassword.emailSentLine2")}
           </p>
           {devResetLink && (
             <div className="mt-4 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-3 text-left text-xs text-emerald-100/95 space-y-2">
               <p className="font-medium text-emerald-200">
-                Mod local (development)
+                {tStr("pages.forgotPassword.devTitle")}
               </p>
               <p>
-                Linkul din email duce la <strong>domeniul public al aplicației</strong> (ex.{" "}
-                <strong>chat.diebel.ro</strong> — nu la <code className="text-emerald-300">localhost</code>). Pe
-                producție e corect. Cutia asta apare doar la <code className="text-emerald-300">npm run dev</code>: ca
-                să resetezi parola <strong>pe același PC</strong> fără să deschizi mailul pe chat live, folosește
-                linkul de mai jos (expiră în ~15 minute).
+                {tStr("pages.forgotPassword.devP1")}
               </p>
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <a
                   href={devResetLink}
                   className="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-500"
                 >
-                  Deschide resetarea aici
+                  {tStr("pages.forgotPassword.devOpenReset")}
                 </a>
                 <button
                   type="button"
@@ -148,12 +156,12 @@ export default function ForgotPasswordPage() {
                     void navigator.clipboard.writeText(devResetLink).then(
                       () => {},
                       () => {
-                        window.prompt("Copiază manual linkul:", devResetLink);
+                        window.prompt(tStr("pages.forgotPassword.devCopyPrompt"), devResetLink);
                       }
                     );
                   }}
                 >
-                  Copiază linkul
+                  {tStr("pages.forgotPassword.devCopy")}
                 </button>
               </div>
             </div>
@@ -163,12 +171,12 @@ export default function ForgotPasswordPage() {
               href="/login"
               className="inline-flex items-center justify-center w-full !h-11 !min-h-[44px] !max-h-[44px] !py-0 px-4 rounded-xl bg-brand-500 hover:bg-brand-400 text-dark-900 font-medium text-sm transition"
             >
-              Înapoi la Log in
+              {tStr("pages.forgotPassword.backLoginCta")}
             </Link>
           </div>
           <p className="mt-6 text-center text-dark-500 text-sm">
             <Link href="/login" className="text-brand-400 hover:underline">
-              Log in
+              {tStr("pages.forgotPassword.login")}
             </Link>
           </p>
         </div>
@@ -181,16 +189,16 @@ export default function ForgotPasswordPage() {
       <div className="min-h-screen flex items-center justify-center px-4 py-8 bg-dark-900">
         <div className="max-w-sm mx-auto px-4 flex flex-col w-full">
           <Link href="/login" className="inline-block text-brand-400 font-bold">
-            ← Align
+            {tStr("pages.forgotPassword.backBrand")}
           </Link>
-          <h1 className="text-2xl font-semibold text-zinc-900 mt-4">Recuperează prin scan</h1>
+          <h1 className="text-2xl font-semibold text-zinc-900 mt-4">{tStr("pages.forgotPassword.scanTitle")}</h1>
           <p className="text-sm text-dark-300 mt-2">
-            Deschide aplicația Align pe telefon (sau acest site în browser pe telefon), fii logat, apoi scanează codul de mai jos sau deschide linkul.
+            {tStr("pages.forgotPassword.scanIntro")}
           </p>
           <div className="mt-6 flex justify-center">
             <OptimizedImage
               src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrUrl)}`}
-              alt="QR recuperare"
+              alt={tStr("pages.forgotPassword.qrAlt")}
               width={200}
               height={200}
               priority
@@ -198,29 +206,21 @@ export default function ForgotPasswordPage() {
             />
           </div>
           <p className="text-sm text-dark-400 mt-4 text-center break-all">
-            Sau deschide pe telefon: {qrUrl}
+            {tStr("pages.forgotPassword.scanOpenPrefix")} {qrUrl}
           </p>
           <div className="mt-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-3 text-left text-xs text-amber-100/95 space-y-2">
             <p className="font-medium text-amber-200">
-              Chrome pe telefon poate schimba singur <strong>http://</strong> în <strong>https://</strong> la adrese IP
-              → aceeași eroare „conexiunea nu e privată”, chiar dacă aici linkul e corect.
+              {tStr("pages.forgotPassword.scanWarnTitle")}
             </p>
             <p>
-              <strong>Recomandat:</strong> lasă <code className="text-amber-300">npm run dev:lan</code> pornit, deschide
-              un <strong>al doilea</strong> terminal în <code className="text-amber-300">align-app</code> și rulează{" "}
-              <code className="text-amber-300">npm run tunnel:lt</code>. Copiază URL-ul <strong>https://…</strong> afișat
-              și pune-l în <code className="text-amber-300">.env</code> la{" "}
-              <code className="text-amber-300">NEXT_PUBLIC_MOBILE_RECOVER_ORIGIN=</code> (fără slash la final),
-              repornește dev și generează din nou QR-ul. Prima deschidire pe telefon poate cere un click „Continue”
-              pe pagina localtunnel — e normal.
+              {tStr("pages.forgotPassword.scanWarnP1")}
             </p>
             <p className="text-dark-200">
-              Alternativ: Chrome telefon → Setări → Confidențialitate → dezactivează „Folosește mereu conexiuni sigure” /
-              HTTPS-First; sau încearcă <strong>Firefox</strong> pe telefon cu același link <strong>http://</strong>.
+              {tStr("pages.forgotPassword.scanWarnP2")}
             </p>
           </div>
           <p className="text-sm text-dark-300 mt-4 text-center">
-            Așteptăm confirmarea pe telefon…
+            {tStr("pages.forgotPassword.scanWaiting")}
           </p>
           {error && (
             <p className="text-red-400 text-sm mt-2 text-center">{error}</p>
@@ -229,7 +229,7 @@ export default function ForgotPasswordPage() {
             href="/forgot-password"
             className="mt-6 text-center text-dark-500 text-sm hover:text-zinc-900"
           >
-            Înapoi la opțiuni
+            {tStr("pages.forgotPassword.scanBackOptions")}
           </Link>
         </div>
       </div>
@@ -241,27 +241,27 @@ export default function ForgotPasswordPage() {
       <div className="min-h-screen flex items-center justify-center px-4 py-8 bg-dark-900">
         <div className="max-w-sm mx-auto px-4 flex flex-col w-full">
           <Link href="/login" className="inline-block text-brand-400 font-bold">
-            ← Align
+            {tStr("pages.forgotPassword.backBrand")}
           </Link>
           <button
             type="button"
             onClick={() => { setMode("choose"); setError(""); setDevResetLink(null); }}
             className="text-dark-400 text-sm mt-2"
           >
-            ← Înapoi la opțiuni
+            {tStr("pages.forgotPassword.emailBackOptions")}
           </button>
-          <h1 className="text-2xl font-semibold text-zinc-900 mt-4">Trimite link pe email</h1>
+          <h1 className="text-2xl font-semibold text-zinc-900 mt-4">{tStr("pages.forgotPassword.emailTitle")}</h1>
           <p className="text-sm text-dark-300 mt-2">
-            Introdu email-ul contului și îți trimitem un link pentru resetarea parolei.
+            {tStr("pages.forgotPassword.emailIntro1")}
           </p>
           <p className="text-sm text-dark-300 mt-2">
-            Verifică și dosarul de spam dacă nu primești emailul.
+            {tStr("pages.forgotPassword.emailIntro2")}
           </p>
 
           <form onSubmit={handleEmailSubmit} className="space-y-4 mt-6">
             <input
               type="email"
-              placeholder="Email"
+              placeholder={tStr("pages.forgotPassword.emailPlaceholder")}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -275,14 +275,14 @@ export default function ForgotPasswordPage() {
               disabled={loading}
               className="w-full !h-11 !min-h-[44px] !max-h-[44px] !py-0 px-4 rounded-xl bg-brand-500 hover:bg-brand-400 text-dark-900 font-medium text-sm transition disabled:opacity-50"
             >
-              {loading ? "Se trimite..." : "Trimite link de resetare"}
+              {loading ? tStr("pages.forgotPassword.emailSending") : tStr("pages.forgotPassword.emailSubmit")}
             </button>
           </form>
 
           <p className="mt-6 text-center text-dark-500 text-sm">
-            Înapoi la{" "}
+            {tStr("pages.forgotPassword.backToLoginLead")}{" "}
             <Link href="/login" className="text-brand-400 hover:underline">
-              Log in
+              {tStr("pages.forgotPassword.login")}
             </Link>
           </p>
         </div>
@@ -294,11 +294,11 @@ export default function ForgotPasswordPage() {
     <div className="min-h-screen flex items-center justify-center px-4 py-8 bg-dark-900">
       <div className="max-w-sm mx-auto px-4 flex flex-col w-full">
         <Link href="/login" className="inline-block text-brand-400 font-bold">
-          ← Align
+          {tStr("pages.forgotPassword.backBrand")}
         </Link>
-        <h1 className="text-2xl font-semibold text-zinc-900 mt-4">Ai uitat parola?</h1>
+        <h1 className="text-2xl font-semibold text-zinc-900 mt-4">{tStr("pages.forgotPassword.title")}</h1>
         <p className="text-sm text-dark-300 mt-2">
-          Alege cum vrei să recuperezi contul:
+          {tStr("pages.forgotPassword.chooseIntro")}
         </p>
 
         <div className="mt-6 flex flex-col gap-2">
@@ -307,7 +307,7 @@ export default function ForgotPasswordPage() {
             onClick={() => { setMode("email"); setDevResetLink(null); }}
             className="w-full !h-11 !min-h-[44px] !max-h-[44px] !py-0 px-4 rounded-xl border border-dark-600 bg-dark-800 hover:bg-dark-700 text-zinc-900 font-medium text-sm transition flex items-center justify-center"
           >
-            Trimite link pe email
+            {tStr("pages.forgotPassword.btnEmail")}
           </button>
           <button
             type="button"
@@ -315,7 +315,7 @@ export default function ForgotPasswordPage() {
             disabled={loading}
             className="w-full !h-11 !min-h-[44px] !max-h-[44px] !py-0 px-4 rounded-xl border border-brand-500/50 bg-brand-500/10 hover:bg-brand-500/20 text-brand-400 font-medium text-sm transition flex items-center justify-center disabled:opacity-50"
           >
-            {loading ? "Se pregătește..." : "Recuperează prin scan cu telefonul"}
+            {loading ? tStr("pages.forgotPassword.btnScanPrep") : tStr("pages.forgotPassword.btnScan")}
           </button>
         </div>
 
@@ -324,9 +324,9 @@ export default function ForgotPasswordPage() {
         )}
 
         <p className="mt-6 text-center text-dark-500 text-sm">
-          Înapoi la{" "}
+          {tStr("pages.forgotPassword.backToLoginLead")}{" "}
           <Link href="/login" className="text-brand-400 hover:underline">
-            Log in
+            {tStr("pages.forgotPassword.login")}
           </Link>
         </p>
       </div>

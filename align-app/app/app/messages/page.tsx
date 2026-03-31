@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Users, PhoneMissed } from "lucide-react";
 import type { User } from "@/lib/store";
@@ -10,6 +10,9 @@ import { SilhouetteAvatar } from "@/components/SilhouetteAvatar";
 import { QuickCallButtons } from "@/components/QuickCallButtons";
 import { displayName } from "@/lib/displayName";
 import { getAuthHeaders } from "@/lib/authClient";
+import { useI18n } from "@/lib/i18n/context";
+import { formatTpl } from "@/lib/i18n/formatTpl";
+import { intlLocaleTag } from "@/lib/i18n/intlLocale";
 
 type OtherWithMeta = User & { online?: boolean; distanceKm?: number; lastActivityAt?: number };
 
@@ -29,33 +32,42 @@ function formatDistance(km: number | undefined): string {
   return `${(Math.round(km * 10) / 10).toFixed(1).replace(".", ",")} km`;
 }
 
-function formatTime(iso: string): string {
-  const d = new Date(iso);
-  const now = new Date();
-  const sameDay = d.toDateString() === now.toDateString();
-  if (sameDay) {
-    return d.toLocaleTimeString("ro-RO", { hour: "2-digit", minute: "2-digit" });
-  }
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
-  if (d.toDateString() === yesterday.toDateString()) {
-    return "Ieri";
-  }
-  return d.toLocaleDateString("ro-RO", { day: "numeric", month: "short" });
-}
-
-function formatLastActive(ts: number | undefined): string {
-  if (!ts) return "";
-  const min = Math.floor((Date.now() - ts) / 60000);
-  if (min < 1) return "online";
-  if (min === 1) return "acum 1 min";
-  if (min < 60) return `acum ${min} min`;
-  const h = Math.floor(min / 60);
-  if (h === 1) return "acum 1 oră";
-  return `acum ${h} ore`;
-}
-
 export default function MessagesPage() {
+  const { locale, tStr } = useI18n();
+
+  const formatTime = useCallback(
+    (iso: string): string => {
+      const d = new Date(iso);
+      const now = new Date();
+      const sameDay = d.toDateString() === now.toDateString();
+      const tag = intlLocaleTag(locale);
+      if (sameDay) {
+        return d.toLocaleTimeString(tag, { hour: "2-digit", minute: "2-digit" });
+      }
+      const yesterday = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
+      if (d.toDateString() === yesterday.toDateString()) {
+        return tStr("pages.messages.yesterday");
+      }
+      return d.toLocaleDateString(tag, { day: "numeric", month: "short" });
+    },
+    [locale, tStr]
+  );
+
+  const formatLastActive = useCallback(
+    (ts: number | undefined): string => {
+      if (!ts) return "";
+      const min = Math.floor((Date.now() - ts) / 60000);
+      if (min < 1) return tStr("pages.messages.lastOnline");
+      if (min === 1) return tStr("pages.messages.lastMinOne");
+      if (min < 60) return formatTpl(tStr("pages.messages.lastMinMany"), { n: min });
+      const h = Math.floor(min / 60);
+      if (h === 1) return tStr("pages.messages.lastHourOne");
+      return formatTpl(tStr("pages.messages.lastHourMany"), { n: h });
+    },
+    [tStr]
+  );
+
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
   const [friends, setFriends] = useState<FriendWithMeta[]>([]);
   const [loading, setLoading] = useState(true);
@@ -158,7 +170,7 @@ export default function MessagesPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <span className="text-dark-500">Se încarcă mesajele...</span>
+        <span className="text-dark-500">{tStr("pages.messages.loading")}</span>
       </div>
     );
   }
@@ -166,25 +178,27 @@ export default function MessagesPage() {
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-        <h2 className="text-xl font-semibold">Mesaje</h2>
+        <h2 className="text-xl font-semibold">{tStr("pages.messages.title")}</h2>
         <Link
           href="/app/missed-calls"
           className="inline-flex items-center gap-1.5 text-sm text-brand-400 hover:text-brand-300 hover:underline touch-manipulation"
         >
           <PhoneMissed className="w-4 h-4 shrink-0" />
-          Apeluri pierdute
+          {tStr("pages.messages.missedLink")}
         </Link>
       </div>
       <p className="text-dark-500 text-sm mb-4">
-        Toate conversațiile tale – apasă pe rând pentru chat. Lângă fiecare conversație:{" "}
-        <span className="text-dark-400">Video</span> și <span className="text-dark-400">Audio</span> pentru apel direct.
+        {formatTpl(tStr("pages.messages.hint"), {
+          video: tStr("pages.messages.video"),
+          audio: tStr("pages.messages.audio"),
+        })}
       </p>
 
       {friends.length > 0 && (
         <div className="mb-6">
           <h3 className="text-sm font-medium text-dark-400 mb-2 flex items-center gap-2">
             <Users className="w-4 h-4 text-[#4DA6FF]" />
-            Prieteni
+            {tStr("pages.messages.friends")}
           </h3>
           <ul className="flex flex-wrap gap-2">
             {friends.map((f) => (
@@ -207,7 +221,7 @@ export default function MessagesPage() {
                   </div>
                   <span className="font-medium text-zinc-900 text-sm truncate max-w-[100px]">{f.username ?? f.name}</span>
                   <span className="text-xs text-dark-500 shrink-0 max-sm:hidden">
-                    {f.online ? "Online" : formatLastActive(f.lastActivityAt)}
+                    {f.online ? tStr("pages.messages.online") : formatLastActive(f.lastActivityAt)}
                   </span>
                 </Link>
                 <div className="flex items-center pr-1.5 border-l border-dark-600 bg-dark-800">
@@ -221,10 +235,17 @@ export default function MessagesPage() {
 
       {conversations.length === 0 ? (
         <div className="bg-dark-800 border border-dark-600 rounded-xl p-8 text-center">
-          <p className="text-dark-500">Nu ai încă conversații.</p>
+          <p className="text-dark-500">{tStr("pages.messages.noConversations")}</p>
           <p className="text-dark-500 text-sm mt-2">
-            Mergi la <Link href="/app/profiles" className="text-brand-400 hover:underline">Toate profilurile</Link> sau la{" "}
-            <Link href="/app/matches" className="text-brand-400 hover:underline">Matches</Link> și trimite un mesaj.
+            {tStr("pages.messages.noConversationsHintBefore")}{" "}
+            <Link href="/app/profiles" className="text-brand-400 hover:underline">
+              {tStr("pages.messages.profilesLink")}
+            </Link>{" "}
+            {tStr("pages.messages.noConversationsHintOr")}{" "}
+            <Link href="/app/matches" className="text-brand-400 hover:underline">
+              {tStr("pages.messages.matchesLink")}
+            </Link>{" "}
+            {tStr("pages.messages.noConversationsHintAfter")}
           </p>
         </div>
       ) : (
@@ -234,10 +255,10 @@ export default function MessagesPage() {
               me?.id != null && String(lastMessage.fromId) === String(me.id);
             const isPlatformNotice = !!(lastMessage as Message & { isPlatformNotice?: boolean }).isPlatformNotice;
             const preview = noMessagesYet
-              ? "Trimite un mesaj"
+              ? tStr("pages.messages.sendMessage")
               : isPlatformNotice
-                ? "Notificare platformă"
-                : (isFromMe ? "Tu: " : "") +
+                ? tStr("pages.messages.platformNotice")
+                : (isFromMe ? tStr("pages.messages.youPrefix") : "") +
                   (lastMessage.text.length > 50 ? lastMessage.text.slice(0, 50) + "…" : lastMessage.text);
             const otherLabel = displayName(otherUser.username ?? otherUser.name);
             return (
@@ -247,8 +268,8 @@ export default function MessagesPage() {
               >
                 <Link
                   href={`/app/user/${otherUser.id}`}
-                  title="Vezi profilul"
-                  aria-label={`Vezi profilul: ${otherLabel}`}
+                  title={tStr("pages.messages.viewProfileTitle")}
+                  aria-label={formatTpl(tStr("pages.messages.viewProfileAria"), { name: otherLabel })}
                   className="flex shrink-0 items-center justify-center py-3 pl-3 pr-2 sm:py-4 sm:pl-4 sm:pr-2 hover:bg-dark-700/50 active:bg-dark-700/70 transition"
                 >
                   <div className="relative w-12 h-12 shrink-0 rounded-full overflow-hidden bg-brand-500/20">
@@ -262,7 +283,7 @@ export default function MessagesPage() {
                     {unreadCount > 0 && (
                       <span
                         className="absolute -top-1 -right-1 min-w-[1.25rem] h-5 px-1.5 rounded-full bg-brand-500 text-dark-900 text-xs font-semibold flex items-center justify-center pointer-events-none"
-                        title={`${unreadCount} necitite`}
+                        title={formatTpl(tStr("pages.messages.unreadTitle"), { n: unreadCount })}
                       >
                         {unreadCount > 99 ? "99+" : unreadCount}
                       </span>
@@ -271,34 +292,45 @@ export default function MessagesPage() {
                 </Link>
                 <Link
                   href={`/app/chat/${otherUser.id}`}
-                  aria-label={`Deschide chat cu ${otherLabel}`}
+                  aria-label={formatTpl(tStr("pages.messages.openChatAria"), { name: otherLabel })}
                   className="flex flex-1 items-center gap-3 sm:gap-4 min-h-[56px] min-w-0 py-3 pr-2 sm:py-4 sm:pr-3 hover:bg-dark-700/50 active:bg-dark-700/70 transition"
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-zinc-900 truncate">{otherLabel}</span>
                       {otherUser.online && (
-                        <span className="shrink-0 w-2 h-2 rounded-full bg-green-400" title="Online" />
+                        <span
+                          className="shrink-0 w-2 h-2 rounded-full bg-green-400"
+                          title={tStr("pages.messages.online")}
+                        />
                       )}
                     </div>
                     <p className="text-sm text-dark-500 truncate mt-0.5">{preview}</p>
                     <p className="text-xs text-dark-400 mt-1 flex flex-wrap gap-x-1 gap-y-0 items-center">
                       {unreadCount > 0 && (
                         <span className="text-brand-400">
-                          {unreadCount} {unreadCount === 1 ? "necitit" : "necitite"}
+                          {unreadCount}{" "}
+                          {unreadCount === 1
+                            ? tStr("pages.messages.unreadOne")
+                            : tStr("pages.messages.unreadMany")}
                         </span>
                       )}
                       {unreadCount > 0 && (receivedCount > 0 || otherUser.distanceKm != null || otherUser.online != null) && <span>·</span>}
                       {receivedCount > 0 && (
                         <span>
-                          {receivedCount} {receivedCount === 1 ? "mesaj primit" : "mesaje primite"}
+                          {receivedCount}{" "}
+                          {receivedCount === 1
+                            ? tStr("pages.messages.receivedOne")
+                            : tStr("pages.messages.receivedMany")}
                         </span>
                       )}
                       {(receivedCount > 0 || unreadCount > 0) && (otherUser.distanceKm != null || otherUser.online != null) && <span>·</span>}
                       {otherUser.distanceKm != null && <span>{formatDistance(otherUser.distanceKm)}</span>}
                       {otherUser.distanceKm != null && otherUser.online != null && <span>·</span>}
                       {otherUser.online != null && (
-                        <span>{otherUser.online ? "Online" : "Offline"}</span>
+                        <span>
+                          {otherUser.online ? tStr("pages.messages.online") : tStr("pages.messages.offline")}
+                        </span>
                       )}
                     </p>
                   </div>

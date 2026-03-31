@@ -8,6 +8,9 @@ import { Eye, EyeOff } from "lucide-react";
 import AuthProviders from "@/components/AuthProviders";
 import { getDeviceFingerprint } from "@/lib/deviceFingerprint";
 import { clearLoginEmailDraft, readLoginEmailDraft, writeLoginEmailDraft } from "@/lib/formDrafts";
+import { useI18n } from "@/lib/i18n/context";
+import { formatTpl } from "@/lib/i18n/formatTpl";
+import { translateApiErrorMessage } from "@/lib/i18n/translateApiError";
 
 const RECAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY ?? "";
 
@@ -37,27 +40,39 @@ function getRecaptchaToken(): Promise<string> {
 const LAST_EMAIL_KEY = "align_last_email";
 const PREFILL_KEYS_TO_CLEAN = ["username", "identifier", "align_username", "align_identifier"];
 
-function getDisplayError(res: Response, data: { error?: string }): string {
-  const msg = data.error ?? "Eroare la logare";
-  if (res.status === 429) return "Prea multe încercări, încearcă mai târziu.";
-  if (msg.includes("Introdu emailul") || msg.includes("username-ul")) return "Introdu emailul, nu username-ul.";
-  if (res.status === 404 || msg.includes("Nu există cont")) return "Nu există cont cu acest email. Înregistrează-te mai întâi sau verifică adresa.";
-  if (res.status === 401 || msg.includes("Parolă") || msg.includes("incorectă")) return "Email sau parolă incorecte.";
-  if (msg.includes("reCAPTCHA") || msg.includes("Verificarea")) return "Verificarea reCAPTCHA a eșuat.";
-  if (msg.includes("suspect") || msg.includes("Activitate")) return "Activitate suspectă detectată.";
-  return msg;
-}
-
-const AUTH_PROVIDER_NAMES: Record<string, string> = {
-  google: "Google",
-  apple: "Apple",
-  microsoft: "Microsoft",
-  facebook: "Facebook",
-  phone: "Telefon (SMS)",
-  yahoo: "Yahoo Mail",
+const LOGIN_PROVIDER_KEYS: Record<string, string> = {
+  google: "pages.login.providerGoogle",
+  apple: "pages.login.providerApple",
+  microsoft: "pages.login.providerMicrosoft",
+  facebook: "pages.login.providerFacebook",
+  phone: "pages.login.providerPhone",
+  yahoo: "pages.login.providerYahoo",
 };
 
+function loginProviderLabel(p: string, tStr: (path: string) => string): string {
+  const path = LOGIN_PROVIDER_KEYS[p];
+  return path ? tStr(path) : p;
+}
+
+function getLoginDisplayError(res: Response, data: { error?: string }, tStr: (path: string) => string): string {
+  const msg = String(data.error ?? "");
+  if (res.status === 429) return tStr("pages.login.errRateLimit");
+  if (msg.includes("Introdu emailul") || msg.includes("username-ul")) return tStr("pages.login.errUseEmailNotUsername");
+  if (res.status === 404 || msg.includes("Nu există cont")) return tStr("pages.login.errNoAccount");
+  if (res.status === 401 || msg.includes("Parolă") || msg.includes("incorectă")) return tStr("pages.login.errBadCredentials");
+  if (msg.includes("reCAPTCHA") || msg.includes("Verificarea")) return tStr("pages.login.errRecaptcha");
+  if (msg.includes("suspect") || msg.includes("Activitate")) return tStr("pages.login.errSuspicious");
+  const trimmed = msg.trim();
+  if (trimmed) {
+    const tr = translateApiErrorMessage(trimmed, tStr);
+    if (tr && tr !== trimmed) return tr;
+    return trimmed;
+  }
+  return tStr("pages.login.errLoginGeneric");
+}
+
 function LoginContent() {
+  const { tStr } = useI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
@@ -107,21 +122,17 @@ function LoginContent() {
     const reason = searchParams.get("reason");
     const p = searchParams.get("p");
     if (reason === "session_expired") {
-      setSoonMessage("Sesiunea a expirat. Introdu același email și parola ca la înregistrare.");
+      setSoonMessage(tStr("pages.login.sessionExpired"));
     } else if (reason === "oauth_failed") {
-      setSoonMessage(
-        "Autentificarea socială nu s-a putut finaliza. Încearcă din nou sau folosește email și parolă."
-      );
+      setSoonMessage(tStr("pages.login.oauthFailed"));
     } else if (reason === "oauth_no_db") {
-      setSoonMessage("OAuth pe server necesită DATABASE_URL / Prisma activ.");
-    } else if (reason === "oauth_not_configured" && p && AUTH_PROVIDER_NAMES[p]) {
-      setSoonMessage(
-        `${AUTH_PROVIDER_NAMES[p]} nu e încă configurat pe server (variabile de mediu — vezi .env.example).`
-      );
-    } else if (soon === "1" && auth && AUTH_PROVIDER_NAMES[auth]) {
-      setSoonMessage(`Autentificarea cu ${AUTH_PROVIDER_NAMES[auth]} va fi disponibilă în curând.`);
+      setSoonMessage(tStr("pages.login.oauthNoDb"));
+    } else if (reason === "oauth_not_configured" && p && LOGIN_PROVIDER_KEYS[p]) {
+      setSoonMessage(formatTpl(tStr("pages.login.oauthNotConfigured"), { provider: loginProviderLabel(p, tStr) }));
+    } else if (soon === "1" && auth && LOGIN_PROVIDER_KEYS[auth]) {
+      setSoonMessage(formatTpl(tStr("pages.login.oauthSoon"), { provider: loginProviderLabel(auth, tStr) }));
     }
-  }, [searchParams]);
+  }, [searchParams, tStr]);
 
   useEffect(() => {
     if (retryAfterSeconds <= 0) return;
@@ -137,11 +148,11 @@ function LoginContent() {
     setRetryAfterSeconds(0);
     const trimmedEmail = email.trim();
     if (!trimmedEmail.includes("@")) {
-      setError("Introdu emailul, nu username-ul.");
+      setError(tStr("pages.login.errEmailNotUsername"));
       return;
     }
     if (!acceptTerms) {
-      setError("Trebuie să accepți Termenii și Politica de Confidențialitate.");
+      setError(tStr("pages.login.errMustAcceptTerms"));
       return;
     }
     setLoading(true);
@@ -170,7 +181,7 @@ function LoginContent() {
       } catch (fetchErr) {
         clearTimeout(timeoutId);
         if (fetchErr instanceof Error && fetchErr.name === "AbortError") {
-          setError("Conectarea durează prea mult. Verifică internetul și încearcă din nou.");
+          setError(tStr("pages.login.errTimeout"));
           return;
         }
         throw fetchErr;
@@ -184,26 +195,26 @@ function LoginContent() {
         const text = await res.text();
         if (text.trim().startsWith("<")) {
           setError(
-            process.env.NODE_ENV === "development"
-              ? "Răspuns neașteptat de la server. Verifică că rulează dev serverul și încearcă din nou."
-              : "Serverul nu a răspuns corect. Încearcă din nou."
+            process.env.NODE_ENV === "development" ? tStr("pages.login.errUnexpectedDev") : tStr("pages.login.errUnexpected")
           );
           return;
         }
         try {
           data = JSON.parse(text);
         } catch {
-          setError("Serverul nu a răspuns corect. Încearcă din nou.");
+          setError(tStr("pages.login.errUnexpected"));
           return;
         }
       }
       if (!res.ok) {
-        const displayMsg = getDisplayError(res, data);
+        const rawErr = String(data.error ?? "");
+        const displayMsg = getLoginDisplayError(res, data, tStr);
         setError(displayMsg);
         const retryAfter = res.headers.get("Retry-After");
         if (retryAfter) {
           const sec = parseInt(retryAfter, 10);
-          const isSuspect = displayMsg.includes("suspect") || displayMsg.includes("Activitate");
+          const isSuspect =
+            rawErr.toLowerCase().includes("suspect") || rawErr.includes("Activitate");
           if (!Number.isNaN(sec) && sec > 0 && !isSuspect) setRetryAfterSeconds(sec);
         }
         return;
@@ -244,7 +255,7 @@ function LoginContent() {
       await new Promise((r) => setTimeout(r, 500));
       window.location.href = target;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Eroare");
+      setError(err instanceof Error ? err.message : tStr("pages.login.errGeneric"));
     } finally {
       setLoading(false);
     }
@@ -254,12 +265,15 @@ function LoginContent() {
     <div className="min-h-screen flex items-center justify-center px-4 py-8 bg-dark-900">
       <div className="max-w-sm mx-auto px-4 flex flex-col w-full">
         <Link href="/" className="inline-block text-brand-400 font-bold mt-4">
-          ← Align
+          {tStr("pages.login.backBrand")}
         </Link>
-        <h1 className="text-2xl font-semibold text-zinc-900 mt-4">Log in</h1>
+        <h1 className="text-2xl font-semibold text-zinc-900 mt-4">{tStr("pages.login.title")}</h1>
         <p className="text-sm text-dark-300 mt-2">
-          Email și parola contului. Fără cont?{" "}
-          <Link href="/signup" className="text-brand-400 hover:underline">Înregistrare</Link>.
+          {tStr("pages.login.intro")}{" "}
+          <Link href="/signup" className="text-brand-400 hover:underline">
+            {tStr("home.signup")}
+          </Link>
+          .
         </p>
 
         {soonMessage && (
@@ -271,20 +285,18 @@ function LoginContent() {
         <div className="mt-6">
           <AuthProviders compact />
         </div>
-        <p className="text-xs text-dark-400 text-center mt-2">
-          Rețele sociale în curând — conectare cu formularul de mai jos.
-        </p>
+        <p className="text-xs text-dark-400 text-center mt-2">{tStr("pages.login.socialSoon")}</p>
 
         <form onSubmit={handleSubmit} className="space-y-4 mt-3">
           <label htmlFor="login-email" className="block text-sm font-medium text-dark-300">
-            Email
+            {tStr("pages.login.emailLabel")}
           </label>
           <input
             id="login-email"
             type="email"
             name="email"
             autoComplete="email"
-            placeholder="email@domain.com"
+            placeholder={tStr("pages.login.emailPlaceholder")}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -293,7 +305,7 @@ function LoginContent() {
           <div className="relative">
             <input
               type={showPassword ? "text" : "password"}
-              placeholder="Parolă"
+              placeholder={tStr("pages.login.passwordPlaceholder")}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -304,7 +316,7 @@ function LoginContent() {
               type="button"
               onClick={() => setShowPassword((v) => !v)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-500 hover:text-zinc-900 transition p-1 rounded"
-              aria-label={showPassword ? "Ascunde parola" : "Arată parola"}
+              aria-label={showPassword ? tStr("pages.login.hidePassword") : tStr("pages.login.showPassword")}
             >
               {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </button>
@@ -313,7 +325,7 @@ function LoginContent() {
             <p className="text-red-400 text-sm">{error}</p>
           )}
           {retryAfterSeconds > 0 && (
-            <p className="text-dark-500 text-sm">Încearcă din nou în {retryAfterSeconds} secunde.</p>
+            <p className="text-dark-500 text-sm">{formatTpl(tStr("pages.login.retryIn"), { n: retryAfterSeconds })}</p>
           )}
           <label className="flex items-center gap-2 cursor-pointer">
             <input
@@ -322,7 +334,7 @@ function LoginContent() {
               onChange={(e) => setRememberDevice(e.target.checked)}
               className="w-4 h-4 rounded border-dark-600 bg-dark-800 text-brand-500 focus:ring-brand-500 shrink-0"
             />
-            <span className="text-dark-500 text-sm">Ține-mă minte pe acest dispozitiv</span>
+            <span className="text-dark-500 text-sm">{tStr("pages.login.rememberDevice")}</span>
           </label>
           <label className="flex items-start gap-2 cursor-pointer">
             <input
@@ -332,12 +344,19 @@ function LoginContent() {
               className="w-4 h-4 mt-0.5 rounded border-dark-600 bg-dark-800 text-brand-500 focus:ring-brand-500 shrink-0"
             />
             <span className="text-dark-500 text-xs">
-              Prin continuare, ești de acord cu{" "}
-              <Link href="/terms" className="text-brand-400 hover:underline">Termenii</Link>
-              {", "}
-              <Link href="/privacy" className="text-brand-400 hover:underline">Politica de Confidențialitate</Link>
-              {" și "}
-              <Link href="/cookies" className="text-brand-400 hover:underline">Politica cookie</Link>.
+              {tStr("pages.login.termsLead")}
+              <Link href="/terms" className="text-brand-400 hover:underline">
+                {tStr("pages.login.termsLink")}
+              </Link>
+              {tStr("pages.login.termsBetween")}
+              <Link href="/privacy" className="text-brand-400 hover:underline">
+                {tStr("pages.login.privacyLink")}
+              </Link>
+              {tStr("pages.login.termsAnd")}
+              <Link href="/cookies" className="text-brand-400 hover:underline">
+                {tStr("pages.login.cookiesLink")}
+              </Link>
+              {tStr("pages.login.termsEnd")}
             </span>
           </label>
           <button
@@ -345,36 +364,55 @@ function LoginContent() {
             disabled={loading || retryAfterSeconds > 0}
             className="w-full !h-11 !min-h-[44px] !max-h-[44px] !py-0 px-4 rounded-xl bg-brand-500 hover:bg-brand-400 text-dark-900 font-medium text-sm transition disabled:opacity-50"
           >
-            {loading ? "Se conectează..." : retryAfterSeconds > 0 ? `Conectare (${retryAfterSeconds}s)` : "Conectare"}
+            {loading
+              ? tStr("pages.login.btnConnecting")
+              : retryAfterSeconds > 0
+                ? formatTpl(tStr("pages.login.btnConnectWait"), { n: retryAfterSeconds })
+                : tStr("pages.login.btnConnect")}
           </button>
         </form>
 
         <p className="mt-6 text-center text-dark-500 text-sm">
-          Nu ai cont?{" "}
+          {tStr("pages.login.noAccount")}{" "}
           <Link href="/signup" className="text-brand-400 hover:underline">
-            Înregistrare
+            {tStr("home.signup")}
           </Link>
         </p>
         <p className="mt-2 text-center text-dark-500 text-sm">
           <Link href="/forgot-password" className="text-brand-400 hover:underline">
-            Ai uitat parola?
+            {tStr("pages.login.forgotPassword")}
           </Link>
         </p>
         <p className="mt-6 text-center text-dark-600 text-[11px] leading-relaxed px-2">
-          <Link href="/terms" className="text-brand-400/80 hover:underline">Termeni</Link>
+          <Link href="/terms" className="text-brand-400/80 hover:underline">
+            {tStr("pages.login.footerTerms")}
+          </Link>
           {" · "}
-          <Link href="/privacy" className="text-brand-400/80 hover:underline">Confidențialitate</Link>
+          <Link href="/privacy" className="text-brand-400/80 hover:underline">
+            {tStr("pages.login.footerPrivacy")}
+          </Link>
           {" · "}
-          <Link href="/cookies" className="text-brand-400/80 hover:underline">Cookie</Link>
+          <Link href="/cookies" className="text-brand-400/80 hover:underline">
+            {tStr("pages.login.footerCookies")}
+          </Link>
         </p>
       </div>
     </div>
   );
 }
 
+function LoginSuspenseFallback() {
+  const { tStr } = useI18n();
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-dark-900 text-dark-400">
+      {tStr("pages.login.loading")}
+    </div>
+  );
+}
+
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-dark-900 text-dark-400">Se încarcă...</div>}>
+    <Suspense fallback={<LoginSuspenseFallback />}>
       <LoginContent />
     </Suspense>
   );

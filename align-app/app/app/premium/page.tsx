@@ -8,6 +8,8 @@ import { getStoredUserRaw } from "@/lib/store";
 import type { User } from "@/lib/store";
 import { track } from "@/lib/tracking";
 import { getAuthHeaders } from "@/lib/authClient";
+import { useI18n } from "@/lib/i18n/context";
+import { formatTpl } from "@/lib/i18n/formatTpl";
 
 interface Plan {
   id: string;
@@ -19,6 +21,7 @@ interface Plan {
 }
 
 export default function PremiumPage() {
+  const { tStr, tArray } = useI18n();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [subscribing, setSubscribing] = useState<string | null>(null);
   const [subscription, setSubscription] = useState<{ planId: string | null; premiumPermanent: boolean } | null>(null);
@@ -75,71 +78,80 @@ export default function PremiumPage() {
       <div className="flex items-center gap-3">
         <Crown className="w-8 h-8 text-amber-400" />
         <div>
-          <h1 className="text-2xl font-bold text-zinc-900">Premium</h1>
-          <p className="text-dark-400 text-sm">
-            Beneficii extra, opționale. Funcțiile de bază sunt gratuite în perioada de lansare.
-          </p>
+          <h1 className="text-2xl font-bold text-zinc-900">{tStr("pages.premium.title")}</h1>
+          <p className="text-dark-400 text-sm">{tStr("pages.premium.subtitle")}</p>
         </div>
       </div>
 
       <RewardedPremiumCTA />
 
       <section>
-        <h2 className="text-lg font-semibold text-zinc-900 mb-4">Abonamente</h2>
-        <p className="text-dark-400 text-sm mb-4">
-          Mesajele și profilul sunt gratuite în perioada de lansare. Abonamentele Premium adaugă beneficii extra
-          (ex. fără reclame) — nu sunt obligatorii.
-        </p>
+        <h2 className="text-lg font-semibold text-zinc-900 mb-4">{tStr("pages.premium.sectionPlans")}</h2>
+        <p className="text-dark-400 text-sm mb-4">{tStr("pages.premium.plansIntro")}</p>
         <div className="grid gap-4 sm:grid-cols-3">
           {plans.map((plan) => {
             const isCurrent = subscription?.planId === plan.id;
+            const locKey = plan.id as "monthly" | "six_month" | "yearly";
+            const localizedName = tStr(`pages.subscriptionPlans.${locKey}.name`);
+            const localizedDesc = tStr(`pages.subscriptionPlans.${locKey}.description`);
+            const localizedFeatures = tArray(`pages.subscriptionPlans.${locKey}.features`);
+            const displayName = localizedName || plan.name;
+            const displayDescription = localizedDesc || plan.description;
+            const displayFeatures =
+              localizedFeatures.length > 0 ? localizedFeatures : plan.features;
             const priceLabel =
               plan.interval === "year"
-                ? `${(plan.priceMonthly * 12).toFixed(0)} RON / an`
+                ? formatTpl(tStr("pages.premium.priceYear"), {
+                    amount: (plan.priceMonthly * 12).toFixed(0),
+                  })
                 : plan.interval === "six_month"
-                  ? `${(plan.priceMonthly * 6).toFixed(0)} RON / 6 luni`
-                  : `${plan.priceMonthly} RON / luna`;
+                  ? formatTpl(tStr("pages.premium.priceSixMonth"), {
+                      amount: (plan.priceMonthly * 6).toFixed(0),
+                    })
+                  : formatTpl(tStr("pages.premium.priceMonth"), {
+                      amount: String(plan.priceMonthly),
+                    });
             return (
               <div
                 key={plan.id}
                 className="rounded-2xl border p-5 flex flex-col border-dark-600 bg-dark-800"
               >
-                <h3 className="font-semibold text-zinc-900 mb-1">{plan.name}</h3>
-                <p className="text-dark-500 text-sm mb-3">{plan.description}</p>
+                <h3 className="font-semibold text-zinc-900 mb-1">{displayName}</h3>
+                <p className="text-dark-500 text-sm mb-3">{displayDescription}</p>
                 <p className="text-xl font-bold text-zinc-900 mb-4">{priceLabel}</p>
                 <ul className="space-y-2 mb-3 flex-1">
-                  {plan.features.map((f, i) => (
+                  {displayFeatures.map((f, i) => (
                     <li key={i} className="flex items-center gap-2 text-dark-300 text-sm">
                       <Check className="w-4 h-4 text-green-400 shrink-0" />
                       {f}
                     </li>
                   ))}
                 </ul>
-                <p className="text-dark-500 text-xs mb-6">
-                  Free (deocamdată): mesaje & profil. Gratis în perioada de lansare — utilizare de bază.
-                </p>
+                <p className="text-dark-500 text-xs mb-6">{tStr("pages.premium.freeNote")}</p>
                 <button
                   type="button"
                   onClick={() => subscribe(plan.id)}
                   disabled={isCurrent || subscribing !== null}
                   className="w-full py-2.5 rounded-xl font-medium text-sm transition disabled:opacity-50 bg-brand-500 text-dark-900 hover:bg-brand-400"
                 >
-                  {isCurrent ? "Activ" : subscribing === plan.id ? "Se proceseaza..." : "Alege"}
+                  {isCurrent
+                    ? tStr("pages.premium.active")
+                    : subscribing === plan.id
+                      ? tStr("pages.premium.processing")
+                      : tStr("pages.premium.choose")}
                 </button>
               </div>
             );
           })}
         </div>
-        <p className="text-dark-500 text-xs mt-4">
-          Platile sunt procesate in siguranta. Poti anula abonamentul oricand din Setari cont.
-        </p>
+        <p className="text-dark-500 text-xs mt-4">{tStr("pages.premium.paymentsNote")}</p>
       </section>
 
       <p className="text-dark-500 text-sm">
         <Link href="/app/settings/account" className="text-brand-400 hover:underline">
-          Setari cont
-        </Link>{" "}
-        – gestioneaza abonamentul si datele.
+          {tStr("pages.premium.accountLink")}
+        </Link>
+        {tStr("pages.premium.accountAfter")}
       </p>
     </div>
   );

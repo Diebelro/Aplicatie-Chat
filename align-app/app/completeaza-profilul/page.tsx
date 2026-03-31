@@ -3,12 +3,14 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useI18n } from "@/lib/i18n/context";
 
 /**
  * Redirect: profil incomplet → /app/profile (completează profilul), altfel → /app (descoperă).
  * Nu modifică UI-ul; doar redirecționează.
  */
 export default function CompleteazaProfilulPage() {
+  const { tStr } = useI18n();
   const router = useRouter();
 
   useEffect(() => {
@@ -52,9 +54,9 @@ export default function CompleteazaProfilulPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-8 bg-dark-900">
       <Link href="/" className="text-brand-400 font-bold">
-        ← Align
+        {tStr("pages.completeProfileRedirect.backBrand")}
       </Link>
-      <p className="text-dark-400 mt-6">Se încarcă...</p>
+      <p className="text-dark-400 mt-6">{tStr("pages.completeProfileRedirect.loading")}</p>
     </div>
   );
 }

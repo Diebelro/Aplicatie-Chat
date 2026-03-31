@@ -88,17 +88,4 @@ export function getProfileCardChrome(flags: {
   };
 }
 
-export const SMALL_CARD_STATUS_LABELS: Record<string, string> = {
-  friends: "Prieteni",
-  pendingSent: "Cerere trimisă",
-  pendingReceived: "Cerere primită",
-  messageSeen: "A văzut mesajul tău",
-  messageReceived: "Mesaj primit",
-  visitedYou: "A vizitat profilul tău",
-  visitedByYou: "Vizitat de tine",
-  match: "Match",
-  online: "Online",
-  isNew: "Cont nou",
-  notVisited: "Profil nedeschis",
-  none: "",
-};
+/** Etichete traduse: `tStr(\`pages.discover.legend.${statusKey}\`)` în Discover / Profiluri. */

@@ -19,7 +19,7 @@ export default function TermsPage() {
           <Link href="/" className="text-lg font-bold text-brand-400 hover:text-brand-300">
             Align
           </Link>
-          <LanguageSwitcher />
+          <LanguageSwitcher openMenuBelow />
         </div>
       </header>
       <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-8">

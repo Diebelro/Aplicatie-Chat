@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { fetchWithAuthRetry } from "@/lib/authClient";
-import { APP_CREDIT } from "@/lib/site";
+import { AppCreditLine } from "@/components/DiebelAuthorCredit";
 import { AdminModerationNavBadge } from "@/components/AdminModerationNavBadge";
 import { AdminSecurityThreatBanner } from "@/components/AdminSecurityThreatBanner";
 import { AdminSystemStrip } from "@/components/AdminSystemStrip";
@@ -120,7 +120,7 @@ export default function AdminLayout({
       <AdminSystemStrip />
       <main className="p-4">{children}</main>
       <footer className="border-t border-dark-600 py-3 px-4 text-center text-dark-500 text-xs">
-        {APP_CREDIT}
+        <AppCreditLine className="inline" />
       </footer>
     </div>
   );

@@ -4,8 +4,11 @@ import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
+import { useI18n } from "@/lib/i18n/context";
+import { translateApiErrorMessage } from "@/lib/i18n/translateApiError";
 
 function ResetPasswordViaScanContent() {
+  const { tStr } = useI18n();
   const searchParams = useSearchParams();
   const router = useRouter();
   const sessionId = searchParams.get("sessionId") ?? "";
@@ -16,15 +19,18 @@ function ResetPasswordViaScanContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const showErr = (msg: string) =>
+    translateApiErrorMessage(msg, tStr) || msg || tStr("pages.resetPassword.errGeneric");
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     if (newPassword.length < 6) {
-      setError("Parola trebuie să aibă cel puțin 6 caractere.");
+      setError(tStr("pages.resetPasswordViaScan.errShort"));
       return;
     }
     if (newPassword !== confirmPassword) {
-      setError("Parolele nu coincid.");
+      setError(tStr("pages.resetPasswordViaScan.errMismatch"));
       return;
     }
     setLoading(true);
@@ -47,7 +53,8 @@ function ResetPasswordViaScanContent() {
       router.push("/app");
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Eroare");
+      const msg = err instanceof Error ? err.message : "";
+      setError(showErr(msg));
     } finally {
       setLoading(false);
     }
@@ -58,14 +65,14 @@ function ResetPasswordViaScanContent() {
       <div className="min-h-screen flex items-center justify-center px-4 py-8 bg-dark-900">
         <div className="max-w-sm mx-auto px-4 flex flex-col w-full">
           <Link href="/login" className="inline-block text-brand-400 font-bold">
-            ← Align
+            {tStr("pages.resetPasswordViaScan.backBrand")}
           </Link>
-          <h1 className="text-2xl font-semibold text-zinc-900 mt-4">Sesiune invalidă</h1>
+          <h1 className="text-2xl font-semibold text-zinc-900 mt-4">{tStr("pages.resetPasswordViaScan.invalidTitle")}</h1>
           <p className="text-sm text-dark-300 mt-2">
-            Lipsește sesiunea de recuperare. Încearcă din nou fluxul „Recuperează prin scan”.
+            {tStr("pages.resetPasswordViaScan.invalidBody")}
           </p>
           <Link href="/forgot-password" className="mt-6 text-brand-400 hover:underline">
-            Mergi la Ai uitat parola?
+            {tStr("pages.resetPasswordViaScan.goForgot")}
           </Link>
         </div>
       </div>
@@ -76,18 +83,18 @@ function ResetPasswordViaScanContent() {
     <div className="min-h-screen flex items-center justify-center px-4 py-8 bg-dark-900">
       <div className="max-w-sm mx-auto px-4 flex flex-col w-full">
         <Link href="/login" className="inline-block text-brand-400 font-bold">
-          ← Align
+          {tStr("pages.resetPasswordViaScan.backBrand")}
         </Link>
-        <h1 className="text-2xl font-semibold text-zinc-900 mt-4">Setare parolă nouă</h1>
+        <h1 className="text-2xl font-semibold text-zinc-900 mt-4">{tStr("pages.resetPasswordViaScan.title")}</h1>
         <p className="text-sm text-dark-300 mt-2">
-          Ai confirmat recuperarea pe telefon. Introdu parola nouă (min. 6 caractere) și confirm-o.
+          {tStr("pages.resetPasswordViaScan.intro")}
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4 mt-6">
           <div className="relative">
             <input
               type={showPassword ? "text" : "password"}
-              placeholder="Parola noua (min. 6 caractere)"
+              placeholder={tStr("pages.resetPasswordViaScan.newPlaceholder")}
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               required
@@ -98,7 +105,7 @@ function ResetPasswordViaScanContent() {
               type="button"
               onClick={() => setShowPassword((v) => !v)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-500 hover:text-zinc-900 transition p-1 rounded"
-              aria-label={showPassword ? "Ascunde parola" : "Arată parola"}
+              aria-label={showPassword ? tStr("pages.resetPasswordViaScan.hidePassword") : tStr("pages.resetPasswordViaScan.showPassword")}
             >
               {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </button>
@@ -106,7 +113,7 @@ function ResetPasswordViaScanContent() {
           <div className="relative">
             <input
               type={showConfirm ? "text" : "password"}
-              placeholder="Confirmă parola"
+              placeholder={tStr("pages.resetPasswordViaScan.confirmPlaceholder")}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
@@ -117,7 +124,7 @@ function ResetPasswordViaScanContent() {
               type="button"
               onClick={() => setShowConfirm((v) => !v)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-500 hover:text-zinc-900 transition p-1 rounded"
-              aria-label={showConfirm ? "Ascunde parola" : "Arată parola"}
+              aria-label={showConfirm ? tStr("pages.resetPasswordViaScan.hidePassword") : tStr("pages.resetPasswordViaScan.showPassword")}
             >
               {showConfirm ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </button>
@@ -130,13 +137,13 @@ function ResetPasswordViaScanContent() {
             disabled={loading}
             className="w-full !h-11 !min-h-[44px] !max-h-[44px] !py-0 px-4 rounded-xl bg-brand-500 hover:bg-brand-400 text-dark-900 font-medium text-sm transition disabled:opacity-50"
           >
-            {loading ? "Se actualizează..." : "Resetează parola"}
+            {loading ? tStr("pages.resetPasswordViaScan.updating") : tStr("pages.resetPasswordViaScan.submit")}
           </button>
         </form>
 
         <p className="mt-6 text-center text-dark-500 text-sm">
           <Link href="/login" className="text-brand-400 hover:underline">
-            Log in
+            {tStr("pages.resetPasswordViaScan.login")}
           </Link>
         </p>
       </div>
@@ -144,9 +151,18 @@ function ResetPasswordViaScanContent() {
   );
 }
 
+function ResetPasswordViaScanFallback() {
+  const { tStr } = useI18n();
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-dark-900 text-dark-400">
+      {tStr("pages.signup.loading")}
+    </div>
+  );
+}
+
 export default function ResetPasswordViaScanPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-dark-900 text-dark-400">Se încarcă...</div>}>
+    <Suspense fallback={<ResetPasswordViaScanFallback />}>
       <ResetPasswordViaScanContent />
     </Suspense>
   );

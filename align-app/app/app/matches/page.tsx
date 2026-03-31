@@ -8,6 +8,8 @@ import { SilhouetteAvatar } from "@/components/SilhouetteAvatar";
 import { QuickCallButtons } from "@/components/QuickCallButtons";
 import { displayName } from "@/lib/displayName";
 import { getAuthHeaders } from "@/lib/authClient";
+import { useI18n } from "@/lib/i18n/context";
+import { formatTpl } from "@/lib/i18n/formatTpl";
 
 type MatchWithMeta = User & { online?: boolean; distanceKm?: number; distanceHidden?: boolean };
 
@@ -18,6 +20,7 @@ function formatDistance(km: number | undefined): string {
 }
 
 export default function MatchesPage() {
+  const { tStr } = useI18n();
   const [matches, setMatches] = useState<MatchWithMeta[]>([]);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
@@ -34,19 +37,16 @@ export default function MatchesPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <span className="text-dark-500">Se încarcă...</span>
+        <span className="text-dark-500">{tStr("appNav.loading")}</span>
       </div>
     );
   }
 
   return (
     <div>
-      <h2 className="text-xl font-semibold mb-6">Matches</h2>
+      <h2 className="text-xl font-semibold mb-6">{tStr("pages.matches.title")}</h2>
       {matches.length === 0 ? (
-        <p className="text-dark-500">
-          Încă nu ai matches. Like-uiește profiluri din Descoperă; când și ei te
-          vor like, apăreți aici.
-        </p>
+        <p className="text-dark-500">{tStr("pages.matches.empty")}</p>
       ) : (
         <ul className="space-y-4">
           {matches.map((u) => {
@@ -59,7 +59,7 @@ export default function MatchesPage() {
               <Link
                 href={`/app/user/${u.id}`}
                 className="flex flex-1 min-w-0 items-center gap-4 p-4 min-h-[56px] hover:bg-dark-700/50 active:bg-dark-700/70 transition"
-                aria-label={`Vezi profilul: ${matchLabel}`}
+                aria-label={formatTpl(tStr("pages.matches.viewProfileAria"), { name: matchLabel })}
               >
                 <div className="w-12 h-12 rounded-full overflow-hidden bg-brand-500/20 flex items-center justify-center shrink-0">
                   <SilhouetteAvatar
@@ -75,13 +75,13 @@ export default function MatchesPage() {
                   <p className="text-sm text-dark-500 line-clamp-1">{u.bio || "—"}</p>
                   <p className="text-xs text-dark-400 mt-1">
                     {u.distanceHidden || u.distanceKm == null
-                      ? "Distanță ascunsă"
+                      ? tStr("pages.matches.distanceHidden")
                       : u.distanceKm < 1
-                        ? "În apropiere"
+                        ? tStr("pages.matches.nearby")
                         : formatDistance(u.distanceKm)}
                     <span className="mx-2">·</span>
                     <span className={u.online ? "text-green-400" : "text-dark-500"}>
-                      {u.online ? "Online" : "Offline"}
+                      {u.online ? tStr("pages.matches.online") : tStr("pages.matches.offline")}
                     </span>
                   </p>
                 </div>
@@ -91,14 +91,14 @@ export default function MatchesPage() {
                 <Link
                   href={`/app/review-swipes?focus=${encodeURIComponent(u.id)}`}
                   className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-amber-400/90 hover:bg-amber-500/15 active:bg-amber-500/25 transition touch-manipulation"
-                  title="Recenzează swipe (like/pass) — se salvează doar dacă alegi din nou"
+                  title={tStr("pages.matches.reviewSwipeHint")}
                 >
                   <History className="w-5 h-5" />
                 </Link>
                 <Link
                   href={`/app/chat/${u.id}`}
                   className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-brand-400 hover:bg-brand-500/20 active:bg-brand-500/30 transition touch-manipulation"
-                  title="Mesaj"
+                  title={tStr("pages.matches.messageTitle")}
                 >
                   <MessageCircle className="w-5 h-5" />
                 </Link>

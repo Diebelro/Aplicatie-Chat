@@ -20,7 +20,7 @@ const defaultFilters: SearchFilters = {
   gender: "",
   minAge: "18",
   maxAge: "100",
-  maxDistanceKm: "",
+  maxDistanceKm: "0",
   country: "",
   city: "",
   onlineOnly: false,
@@ -47,7 +47,10 @@ function loadFilters(): SearchFilters {
       gender: typeof parsed.gender === "string" ? parsed.gender : defaultFilters.gender,
       minAge,
       maxAge,
-      maxDistanceKm: parsed.maxDistanceKm != null ? String(parsed.maxDistanceKm) : defaultFilters.maxDistanceKm,
+      maxDistanceKm:
+        parsed.maxDistanceKm != null && String(parsed.maxDistanceKm) !== ""
+          ? String(parsed.maxDistanceKm)
+          : defaultFilters.maxDistanceKm,
       country: typeof parsed.country === "string" ? parsed.country : defaultFilters.country,
       city: typeof parsed.city === "string" ? parsed.city : defaultFilters.city,
       onlineOnly: typeof parsed.onlineOnly === "boolean" ? parsed.onlineOnly : defaultFilters.onlineOnly,

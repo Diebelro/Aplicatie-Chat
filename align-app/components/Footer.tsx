@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n/context";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-import { APP_AUTHOR, APP_CREDIT } from "@/lib/site";
+import { AppCreditLine, DiebelAuthorLink } from "@/components/DiebelAuthorCredit";
 
 export function Footer() {
   const { t } = useI18n();
@@ -27,7 +27,7 @@ export function Footer() {
         </div>
         <LanguageSwitcher />
         <p className="text-dark-500 text-xs text-center">
-          © {new Date().getFullYear()} {APP_AUTHOR}. {APP_CREDIT}
+          © {new Date().getFullYear()} <DiebelAuthorLink />. <AppCreditLine />
         </p>
       </div>
     </footer>

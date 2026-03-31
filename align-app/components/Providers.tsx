@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { usePathname } from "next/navigation";
 import { I18nProvider } from "@/lib/i18n/context";
 import { CookieConsentProvider } from "@/contexts/CookieConsentContext";
 import { CookieConsentBanner } from "@/components/CookieConsent/CookieConsentBanner";
@@ -9,6 +10,12 @@ import { TrackingScripts } from "@/components/TrackingScripts";
 import { Footer } from "@/components/Footer";
 import { AppWebVitalsBeacon } from "@/components/AppWebVitalsBeacon";
 import { InLucruBanner } from "@/components/InLucruBanner";
+
+function SiteFooter() {
+  const pathname = usePathname();
+  if (pathname?.startsWith("/admin")) return null;
+  return <Footer />;
+}
 
 /**
  * Fără SessionProvider aici: NextAuth face fetch la /api/auth/session pe tot site-ul și în dev apare
@@ -25,7 +32,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <CookieConsentBanner />
         <CookieConsentFloatingButton />
         <TrackingScripts />
-        <Footer />
+        <SiteFooter />
       </CookieConsentProvider>
     </I18nProvider>
   );

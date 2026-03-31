@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Heart, X, ChevronRight, MessageCircle } from "lucide-react";
 import type { User } from "@/lib/store";
@@ -19,13 +19,15 @@ import {
   type FeedItem,
 } from "@/lib/feedBuilder";
 import { getAuthHeaders } from "@/lib/authClient";
+import { MAX_PROFILE_SEARCH_RADIUS_KM } from "@/lib/profileSearchConstants";
 import {
   getSmallCardState,
   getProfileCardChrome,
   FRIEND_CARD_COLORS,
-  SMALL_CARD_STATUS_LABELS,
 } from "@/lib/friendCardStates";
 import { QuickCallButtons } from "@/components/QuickCallButtons";
+import { useI18n } from "@/lib/i18n/context";
+import { formatTpl } from "@/lib/i18n/formatTpl";
 
 type UserWithMeta = User & {
   online?: boolean;
@@ -47,19 +49,18 @@ type UserWithMeta = User & {
   hasMessages?: boolean;
 };
 
-function getDistanceDisplay(u: UserWithMeta): string {
-  if (u.distanceHidden || u.distanceKm == null) return "Distanță ascunsă";
-  if (u.friendStatus === "accepted" && u.distanceKm < 1) return "În apropiere";
-  if (u.distanceKm! < 1) return `${Math.round(u.distanceKm! * 1000)} m`;
-  return `${(Math.round(u.distanceKm! * 10) / 10).toFixed(1).replace(".", ",")} km`;
-}
-
 function buildQuery(f: SearchFilters): string {
   const p = new URLSearchParams();
   if (f.gender) p.set("gender", f.gender);
   if (f.minAge) p.set("minAge", f.minAge);
   if (f.maxAge) p.set("maxAge", f.maxAge);
-  if (f.maxDistanceKm) p.set("maxDistanceKm", f.maxDistanceKm);
+  const md = f.maxDistanceKm.trim();
+  if (md !== "" && md !== "0") {
+    const n = Number(md);
+    if (!Number.isNaN(n) && n > 0) {
+      p.set("maxDistanceKm", String(Math.min(MAX_PROFILE_SEARCH_RADIUS_KM, n)));
+    }
+  }
   if (f.country?.trim()) p.set("country", f.country.trim());
   if (f.city.trim()) p.set("city", f.city.trim());
   if (f.onlineOnly) p.set("onlineOnly", "true");
@@ -69,20 +70,47 @@ function buildQuery(f: SearchFilters): string {
   return q ? `?${q}` : "";
 }
 
-function formatLastActive(ts: number | undefined): string {
-  if (!ts) return "";
-  const min = Math.floor((Date.now() - ts) / 60000);
-  if (min < 1) return "Acum";
-  if (min === 1) return "Acum 1 minut";
-  if (min < 60) return `Acum ${min} minute`;
-  const h = Math.floor(min / 60);
-  if (h === 1) return "Acum 1 oră";
-  return `Acum ${h} ore`;
-}
-
 const FAST_SWIPE_MS = 2500;
 
+const LEGEND_KEYS = [
+  "friends",
+  "pendingSent",
+  "pendingReceived",
+  "match",
+  "messageSeen",
+  "messageReceived",
+  "visitedYou",
+  "visitedByYou",
+  "online",
+  "isNew",
+  "notVisited",
+] as const;
+
 export default function AppDiscoverPage() {
+  const { tStr } = useI18n();
+  const getDistanceDisplay = useCallback(
+    (u: UserWithMeta): string => {
+      if (u.distanceHidden || u.distanceKm == null) return tStr("pages.matches.distanceHidden");
+      if (u.friendStatus === "accepted" && u.distanceKm < 1) return tStr("pages.matches.nearby");
+      if (u.distanceKm! < 1) return `${Math.round(u.distanceKm! * 1000)} m`;
+      return `${(Math.round(u.distanceKm! * 10) / 10).toFixed(1).replace(".", ",")} km`;
+    },
+    [tStr]
+  );
+  const formatLastActive = useCallback(
+    (ts: number | undefined): string => {
+      if (!ts) return "";
+      const min = Math.floor((Date.now() - ts) / 60000);
+      if (min < 1) return tStr("pages.discover.lastNow");
+      if (min === 1) return tStr("pages.discover.last1min");
+      if (min < 60) return formatTpl(tStr("pages.discover.lastNmin"), { n: min });
+      const h = Math.floor(min / 60);
+      if (h === 1) return tStr("pages.discover.last1h");
+      return formatTpl(tStr("pages.discover.lastNh"), { n: h });
+    },
+    [tStr]
+  );
+
   const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [retriedAfterEmpty, setRetriedAfterEmpty] = useState(false);
@@ -355,7 +383,10 @@ export default function AppDiscoverPage() {
       if (liked) track.like_sent(toId);
       if (data.matchCreated) {
         track.match_created(toId);
-        const name = current ? displayName(current.name ?? current.username ?? "") || "cineva" : "cineva";
+        const name =
+          current
+            ? displayName(current.name ?? current.username ?? "") || tStr("pages.reviewSwipes.someone")
+            : tStr("pages.reviewSwipes.someone");
         setMatchModal({ toId, name });
       }
       if (typeof data.internalInterval === "number" && typeof data.externalInterval === "number") {
@@ -371,7 +402,7 @@ export default function AppDiscoverPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <span className="text-dark-500">Se încarcă feed...</span>
+        <span className="text-dark-500">{tStr("pages.discover.loadingFeed")}</span>
       </div>
     );
   }
@@ -384,8 +415,10 @@ export default function AppDiscoverPage() {
       {matchModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setMatchModal(null)}>
           <div className="bg-dark-800 border border-dark-600 rounded-2xl p-6 max-w-sm w-full shadow-xl text-center" onClick={(e) => e.stopPropagation()}>
-            <p className="text-lg font-semibold text-zinc-900 mb-1">Ești match!</p>
-            <p className="text-dark-300 mb-6">Poți trimite mesaje lui {matchModal.name}.</p>
+            <p className="text-lg font-semibold text-zinc-900 mb-1">{tStr("pages.reviewSwipes.matchTitle")}</p>
+            <p className="text-dark-300 mb-6">
+              {formatTpl(tStr("pages.reviewSwipes.matchBody"), { name: matchModal.name })}
+            </p>
             <div className="flex flex-col gap-2">
               <div className="flex gap-3">
                 <button
@@ -393,14 +426,14 @@ export default function AppDiscoverPage() {
                   onClick={() => setMatchModal(null)}
                   className="flex-1 py-2.5 rounded-xl border border-dark-600 text-dark-300 hover:bg-dark-700"
                 >
-                  Rămân aici
+                  {tStr("pages.discover.matchStay")}
                 </button>
                 <button
                   type="button"
                   onClick={() => { router.push(`/app/chat/${matchModal.toId}`); setMatchModal(null); }}
                   className="flex-1 py-2.5 rounded-xl bg-brand-500 text-zinc-900 font-medium hover:bg-brand-600"
                 >
-                  Trimite mesaj
+                  {tStr("pages.discover.sendMessage")}
                 </button>
               </div>
               <button
@@ -408,29 +441,29 @@ export default function AppDiscoverPage() {
                 onClick={() => { router.push(`/app/review-swipes?focus=${encodeURIComponent(matchModal.toId)}`); setMatchModal(null); }}
                 className="w-full py-2.5 rounded-xl border border-amber-500/40 text-amber-400/95 text-sm hover:bg-amber-500/10"
               >
-                Recenzează swipe-urile (inclusiv acest profil)
+                {tStr("pages.discover.reviewSwipesCta")}
               </button>
             </div>
           </div>
         </div>
       )}
-      <h2 className="text-xl font-semibold mb-4 w-full">Descoperă</h2>
+      <h2 className="text-xl font-semibold mb-4 w-full">{tStr("pages.discover.title")}</h2>
 
       <div className="w-full mb-6 p-4 rounded-xl bg-dark-800 border border-dark-600">
-        <p className="text-sm text-dark-400 mb-3">Filtrează după gen, vârstă, distanță, țară, oraș, online, nume</p>
+        <p className="text-sm text-dark-400 mb-3">{tStr("pages.discover.filterHint")}</p>
         <div className="flex flex-wrap gap-3 items-end">
           <div>
-            <label className="block text-xs text-dark-500 mb-1">Nume</label>
+            <label className="block text-xs text-dark-500 mb-1">{tStr("pages.discover.nameLabel")}</label>
             <div className="flex items-center gap-2">
               <input
                 type="text"
-                placeholder="Caută după nume..."
+                placeholder={tStr("pages.discover.searchPlaceholder")}
                 value={filters.name}
                 onChange={(e) => setFilters((f) => ({ ...f, name: e.target.value }))}
                 className="w-40 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 text-sm placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
               />
               {filters.name !== debouncedName && filters.name.trim() !== "" && (
-                <span className="text-xs text-dark-500">Se caută...</span>
+                <span className="text-xs text-dark-500">{tStr("pages.discover.searching")}</span>
               )}
             </div>
           </div>
@@ -441,23 +474,23 @@ export default function AppDiscoverPage() {
               onChange={(e) => setFilters((f) => ({ ...f, onlineOnly: e.target.checked }))}
               className="rounded border-dark-600 bg-dark-700 text-brand-500 focus:ring-brand-500"
             />
-            <span className="text-sm text-dark-400">Doar online</span>
+            <span className="text-sm text-dark-400">{tStr("pages.discover.onlineOnly")}</span>
           </label>
           <div>
-            <label className="block text-xs text-dark-500 mb-1">Gen</label>
+            <label className="block text-xs text-dark-500 mb-1">{tStr("pages.discover.genderLabel")}</label>
             <select
               value={filters.gender}
               onChange={(e) => setFilters((f) => ({ ...f, gender: e.target.value }))}
               className="bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             >
-              <option value="">Toate</option>
-              <option value="male">Bărbat</option>
-              <option value="female">Femeie</option>
-              <option value="other">Altul</option>
+              <option value="">{tStr("pages.discover.genderAll")}</option>
+              <option value="male">{tStr("pages.discover.genderMale")}</option>
+              <option value="female">{tStr("pages.discover.genderFemale")}</option>
+              <option value="other">{tStr("pages.discover.genderOther")}</option>
             </select>
           </div>
           <div>
-            <label className="block text-xs text-dark-500 mb-1">Vârstă min</label>
+            <label className="block text-xs text-dark-500 mb-1">{tStr("pages.discover.minAge")}</label>
             <input
               type="number"
               min={18}
@@ -478,7 +511,7 @@ export default function AppDiscoverPage() {
             />
           </div>
           <div>
-            <label className="block text-xs text-dark-500 mb-1">Vârstă max</label>
+            <label className="block text-xs text-dark-500 mb-1">{tStr("pages.discover.maxAge")}</label>
             <input
               type="number"
               min={filters.minAge ? Math.max(18, Number(filters.minAge)) : 18}
@@ -499,31 +532,32 @@ export default function AppDiscoverPage() {
             />
           </div>
           <div>
-            <label className="block text-xs text-dark-500 mb-1">Distanță max (km)</label>
+            <label className="block text-xs text-dark-500 mb-1">{tStr("pages.discover.maxDistKm")}</label>
             <input
               type="number"
               min={0}
-              placeholder="100"
+              max={MAX_PROFILE_SEARCH_RADIUS_KM}
+              placeholder="0"
               value={filters.maxDistanceKm}
               onChange={(e) => setFilters((f) => ({ ...f, maxDistanceKm: e.target.value }))}
               className="w-24 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
           <div>
-            <label className="block text-xs text-dark-500 mb-1">Țară</label>
+            <label className="block text-xs text-dark-500 mb-1">{tStr("pages.discover.countryLabel")}</label>
             <input
               type="text"
-              placeholder="ex. România"
+              placeholder={tStr("pages.discover.countryPlaceholder")}
               value={filters.country}
               onChange={(e) => setFilters((f) => ({ ...f, country: e.target.value }))}
               className="w-36 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 text-sm placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
           <div>
-            <label className="block text-xs text-dark-500 mb-1">Oraș</label>
+            <label className="block text-xs text-dark-500 mb-1">{tStr("pages.discover.cityLabel")}</label>
             <input
               type="text"
-              placeholder="ex. București"
+              placeholder={tStr("pages.discover.cityPlaceholder")}
               value={filters.city}
               onChange={(e) => setFilters((f) => ({ ...f, city: e.target.value }))}
               className="w-36 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 text-sm placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
@@ -533,31 +567,20 @@ export default function AppDiscoverPage() {
       </div>
 
       <div className="flex flex-wrap gap-3 gap-x-4 mb-4 w-full text-xs text-dark-500 justify-center">
-        {(
-          [
-            { key: "friends", label: "Prieteni", color: FRIEND_CARD_COLORS.friends },
-            { key: "pendingSent", label: "Cerere trimisă", color: FRIEND_CARD_COLORS.pendingSent },
-            { key: "pendingReceived", label: "Cerere primită", color: FRIEND_CARD_COLORS.pendingReceived },
-            { key: "match", label: "Match", color: FRIEND_CARD_COLORS.match },
-            { key: "messageSeen", label: "Mesaj văzut", color: FRIEND_CARD_COLORS.messageSeen },
-            { key: "messageReceived", label: "Mesaj primit", color: FRIEND_CARD_COLORS.messageReceived },
-            { key: "visitedYou", label: "A vizitat profilul tău", color: FRIEND_CARD_COLORS.visitedYou },
-            { key: "visitedByYou", label: "Vizitat de tine", color: FRIEND_CARD_COLORS.visitedByYou },
-            { key: "online", label: "Online", color: FRIEND_CARD_COLORS.online },
-            { key: "isNew", label: "Cont nou", color: FRIEND_CARD_COLORS.isNew },
-            { key: "notVisited", label: "Profil nedeschis", color: FRIEND_CARD_COLORS.notVisited },
-          ] as const
-        ).map(({ key, label, color }) => (
-          <span key={key} className="flex items-center gap-1.5">
-            <span
-              className="w-3 h-3 rounded border shrink-0"
-              style={{ borderColor: `${color}80`, backgroundColor: `${color}1A` }}
-            />
-            {label}
-          </span>
-        ))}
+        {LEGEND_KEYS.map((key) => {
+          const color = FRIEND_CARD_COLORS[key as keyof typeof FRIEND_CARD_COLORS];
+          return (
+            <span key={key} className="flex items-center gap-1.5">
+              <span
+                className="w-3 h-3 rounded border shrink-0"
+                style={{ borderColor: `${color}80`, backgroundColor: `${color}1A` }}
+              />
+              {tStr(`pages.discover.legend.${key}`)}
+            </span>
+          );
+        })}
         <span className="w-full text-center sm:w-auto basis-full sm:basis-auto">
-          Distanța (m/km) apare dacă ai permis locația.
+          {tStr("pages.discover.distanceNote")}
         </span>
       </div>
 
@@ -580,7 +603,7 @@ export default function AppDiscoverPage() {
                 ref={cardRef}
                 className="w-full max-w-sm touch-none select-none"
                 style={{ touchAction: "none" }}
-                title="Atinge pentru profil (oraș, detalii). Trage stânga/dreapta pentru Nu / Like."
+                title={tStr("pages.discover.cardSwipeTitle")}
                 onMouseDown={onSwipeStart}
                 onMouseMove={onSwipeMove}
                 onMouseUp={onSwipeEnd}
@@ -611,7 +634,7 @@ export default function AppDiscoverPage() {
                           : "text-red-400 border-red-400/80"
                       }`}
                     >
-                      {dragOffset > 0 ? "Like" : "Nope"}
+                      {dragOffset > 0 ? tStr("pages.discover.swipeLike") : tStr("pages.discover.swipeNope")}
                     </span>
                   </div>
                 )}
@@ -643,37 +666,37 @@ export default function AppDiscoverPage() {
                   <div className="flex flex-wrap items-center gap-2 mb-2">
                     {current.friendStatus === "accepted" && (
                       <span className="text-xs px-2 py-0.5 rounded-full bg-[#4DA6FF]/30 text-[#4DA6FF] border border-[#4DA6FF]/50">
-                        Prieteni
+                        {tStr("pages.discover.badgeFriends")}
                       </span>
                     )}
                     {current.friendStatus === "pending_sent" && (
                       <span className="text-xs px-2 py-0.5 rounded-full bg-[#A0A0A0]/30 text-[#A0A0A0] border border-[#A0A0A0]/50">
-                        Cerere trimisă
+                        {tStr("pages.discover.badgePendingSent")}
                       </span>
                     )}
                     {current.friendStatus === "pending_received" && (
                       <span className="text-xs px-2 py-0.5 rounded-full bg-[#C77DFF]/30 text-[#C77DFF] border border-[#C77DFF]/50">
-                        Vrea să fie prieten
+                        {tStr("pages.discover.badgeWantsFriend")}
                       </span>
                     )}
                     {current.hasLiked && (
                       <span className="text-xs px-2 py-0.5 rounded-full bg-brand-500/30 text-brand-400 border border-brand-400/50">
-                        LIKED
+                        {tStr("pages.discover.badgeLiked")}
                       </span>
                     )}
                     {current.hasDisliked && (
                       <span className="text-xs px-2 py-0.5 rounded-full bg-dark-600 text-dark-400 border border-dark-500">
-                        DISLIKED
+                        {tStr("pages.discover.badgeDisliked")}
                       </span>
                     )}
                     {(current.match || current.isMatched) && (
                       <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/30 text-green-400 border border-green-400/50">
-                        MATCH
+                        {tStr("pages.discover.badgeMatch")}
                       </span>
                     )}
                     {current.hasMessages && (
                       <span className="text-xs px-2 py-0.5 rounded-full bg-[#22B8CF]/30 text-[#22B8CF] border border-[#22B8CF]/50">
-                        CHAT
+                        {tStr("pages.discover.badgeChat")}
                       </span>
                     )}
                     {(() => {
@@ -689,7 +712,7 @@ export default function AppDiscoverPage() {
                       });
                       if (statusKey !== "online" && statusKey !== "isNew" && statusKey !== "notVisited") return null;
                       const color = statusKey === "online" ? FRIEND_CARD_COLORS.online : statusKey === "isNew" ? FRIEND_CARD_COLORS.isNew : FRIEND_CARD_COLORS.notVisited;
-                      const label = SMALL_CARD_STATUS_LABELS[statusKey];
+                      const label = tStr(`pages.discover.legend.${statusKey}`);
                       return (
                         <span
                           key={statusKey}
@@ -702,18 +725,20 @@ export default function AppDiscoverPage() {
                     })()}
                   </div>
                   <p className="text-gray-400 text-xs mb-1">
-                    {current.age != null && <span>{current.age} ani</span>}
+                    {current.age != null && (
+                      <span>{formatTpl(tStr("pages.discover.ageYears"), { n: current.age })}</span>
+                    )}
                     {current.age != null && (current.gender || current.height || current.weight || current.bodyType || current.eyeColor || current.hairColor || current.city) && " · "}
-                    {current.gender === "male" && "Bărbat"}
-                    {current.gender === "female" && "Femeie"}
-                    {current.gender === "other" && "Altul"}
+                    {current.gender === "male" && tStr("pages.discover.genderMale")}
+                    {current.gender === "female" && tStr("pages.discover.genderFemale")}
+                    {current.gender === "other" && tStr("pages.discover.genderOther")}
                     {current.height != null && ` · ${current.height} cm`}
                     {current.weight != null && ` · ${current.weight} kg`}
                     {current.bodyType && ` · ${current.bodyType}`}
-                    {current.eyeColor && ` · ochi ${current.eyeColor}`}
-                    {current.hairColor && ` · păr ${current.hairColor}`}
+                    {current.eyeColor && ` · ${formatTpl(tStr("pages.discover.eyePrefix"), { v: current.eyeColor })}`}
+                    {current.hairColor && ` · ${formatTpl(tStr("pages.discover.hairPrefix"), { v: current.hairColor })}`}
                     {current.city && ` · ${current.city}`}
-                    {current.distanceHidden && " · Distanță ascunsă"}
+                    {current.distanceHidden && ` · ${tStr("pages.matches.distanceHidden")}`}
                     {!current.distanceHidden && current.distanceKm != null && ` · ${getDistanceDisplay(current)}`}
                   </p>
                   <div className="mb-2 z-[1]">
@@ -724,11 +749,19 @@ export default function AppDiscoverPage() {
                       variant="big"
                     />
                   </div>
-                  <p className="text-gray-300 text-sm line-clamp-2 sm:line-clamp-3 mb-2">{current.bio || "Fără descriere."}</p>
+                  <p className="text-gray-300 text-sm line-clamp-2 sm:line-clamp-3 mb-2">
+                    {current.bio || tStr("pages.discover.bioNone")}
+                  </p>
                   <div className="flex flex-wrap gap-2 text-xs text-gray-400 mb-0">
-                    {current.visitedByThem && <span className="text-[#9D4EDD]">A vizitat profilul tău</span>}
-                    {current.messageSeen && <span className="text-[#22B8CF]">A văzut mesajul tău</span>}
-                    {current.online && <span style={{ color: FRIEND_CARD_COLORS.online }}>Online</span>}
+                    {current.visitedByThem && (
+                      <span className="text-[#9D4EDD]">{tStr("pages.discover.visitedYou")}</span>
+                    )}
+                    {current.messageSeen && (
+                      <span className="text-[#22B8CF]">{tStr("pages.discover.sawYourMessage")}</span>
+                    )}
+                    {current.online && (
+                      <span style={{ color: FRIEND_CARD_COLORS.online }}>{tStr("pages.messages.online")}</span>
+                    )}
                     {!current.online && current.lastActivityAt != null && (
                       <span>{formatLastActive(current.lastActivityAt)}</span>
                     )}
@@ -740,7 +773,7 @@ export default function AppDiscoverPage() {
                     type="button"
                     onClick={() => onButtonSwipe(false)}
                     className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-dark-600 hover:bg-red-500/25 active:scale-90 flex items-center justify-center text-red-400 border-2 border-red-500/50 transition-[transform,background-color] duration-75 touch-none shrink-0"
-                    title="Nu"
+                    title={tStr("pages.discover.passTitle")}
                   >
                     <X className="w-6 h-6 sm:w-7 sm:h-7" />
                   </button>
@@ -748,7 +781,7 @@ export default function AppDiscoverPage() {
                     type="button"
                     onClick={() => router.push(`/app/chat/${current.id}`)}
                     className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-dark-600 hover:bg-brand-500/25 active:scale-90 flex items-center justify-center text-brand-400 border-2 border-brand-500/50 transition-[transform,background-color] duration-75 touch-none shrink-0"
-                    title="Mesaje"
+                    title={tStr("pages.discover.messagesTitle")}
                   >
                     <MessageCircle className="w-6 h-6 sm:w-7 sm:h-7" />
                   </button>
@@ -757,7 +790,7 @@ export default function AppDiscoverPage() {
                     type="button"
                     onClick={() => onButtonSwipe(true)}
                     className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-brand-500 hover:bg-brand-400 active:scale-90 flex items-center justify-center text-dark-900 border-2 border-brand-400/50 transition-[transform,background-color] duration-75 touch-none shrink-0"
-                    title="Like"
+                    title={tStr("pages.discover.likeTitle")}
                   >
                     <Heart className="w-6 h-6 sm:w-7 sm:h-7" />
                   </button>
@@ -779,14 +812,14 @@ export default function AppDiscoverPage() {
                   >
                     <OptimizedImage
                       src={currentItem.data.imageUrl}
-                      alt={currentItem.data.alt || "Reclamă"}
+                      alt={currentItem.data.alt || tStr("pages.discover.adAlt")}
                       fill
                       sizes="384px"
                       className="w-full h-full object-contain"
                     />
                   </a>
                 ) : (
-                  <span className="text-dark-500 text-sm">Reclamă</span>
+                  <span className="text-dark-500 text-sm">{tStr("pages.discover.adLabel")}</span>
                 )}
               </div>
               <div className="p-3 border-t border-dark-600 flex justify-end">
@@ -794,7 +827,7 @@ export default function AppDiscoverPage() {
                   onClick={advanceToNext}
                   className="flex items-center gap-1 px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white text-sm transition"
                 >
-                  Mai departe <ChevronRight className="w-4 h-4" />
+                  {tStr("pages.discover.adNext")} <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -810,40 +843,36 @@ export default function AppDiscoverPage() {
                   onClick={advanceToNext}
                   className="flex items-center gap-1 px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white text-sm transition"
                 >
-                  Mai departe <ChevronRight className="w-4 h-4" />
+                  {tStr("pages.discover.adNext")} <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
             </div>
           )}
 
           <p className="text-dark-500 text-sm mt-4">
-            {profilesRemaining} profiluri rămase
+            {formatTpl(tStr("pages.discover.profilesLeft"), { n: profilesRemaining })}
           </p>
         </>
       ) : (
         <div className="flex flex-col items-center justify-center py-12 text-center w-full">
           {!retriedAfterEmpty ? (
             <>
-              <p className="text-dark-500 max-w-sm mb-4">
-                Nu s-au găsit profiluri. Schimbă filtrele mai sus sau apasă «Caută din nou».
-              </p>
+              <p className="text-dark-500 max-w-sm mb-4">{tStr("pages.discover.emptyRetry")}</p>
               <button
                 onClick={searchAgain}
                 className="px-4 py-2 rounded-lg bg-brand-500 text-white hover:bg-brand-600 transition-colors"
               >
-                Caută din nou
+                {tStr("pages.discover.searchAgain")}
               </button>
             </>
           ) : (
             <>
-              <p className="text-dark-500 max-w-sm mb-4">
-                Nu mai sunt profiluri care să corespundă filtrelor. Schimbă filtrele (vârstă, gen, oraș) sau revino mai târziu.
-              </p>
+              <p className="text-dark-500 max-w-sm mb-4">{tStr("pages.discover.emptyDone")}</p>
               <button
                 onClick={searchAgain}
                 className="px-4 py-2 rounded-lg bg-brand-500 text-white hover:bg-brand-600 transition-colors"
               >
-                Caută din nou
+                {tStr("pages.discover.searchAgain")}
               </button>
             </>
           )}

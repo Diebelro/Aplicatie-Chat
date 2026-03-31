@@ -10,10 +10,13 @@ import { OptimizedImage } from "@/components/OptimizedImage";
 import { displayName } from "@/lib/displayName";
 import { getAuthHeaders } from "@/lib/authClient";
 import { track } from "@/lib/tracking";
+import { useI18n } from "@/lib/i18n/context";
+import { formatTpl } from "@/lib/i18n/formatTpl";
 
 type Profile = User & { mySwipeLiked: boolean };
 
 export default function ReviewSwipesPage() {
+  const { tStr } = useI18n();
   const searchParams = useSearchParams();
   const router = useRouter();
   const focusId = searchParams.get("focus")?.trim() || null;
@@ -32,7 +35,7 @@ export default function ReviewSwipesPage() {
       const res = await fetch("/api/swipes/review-queue", { headers: getAuthHeaders(), credentials: "same-origin" });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "Eroare");
+        setError(data.error || tStr("pages.reviewSwipes.errGeneric"));
         setProfiles([]);
         return;
       }
@@ -47,12 +50,12 @@ export default function ReviewSwipesPage() {
       setProfiles(list);
       setIndex(0);
     } catch {
-      setError("Eroare de rețea");
+      setError(tStr("pages.reviewSwipes.errNetwork"));
       setProfiles([]);
     } finally {
       setLoading(false);
     }
-  }, [focusId]);
+  }, [focusId, tStr]);
 
   useEffect(() => {
     void load();
@@ -84,7 +87,7 @@ export default function ReviewSwipesPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(data.error || "Eroare la salvare");
+        setError(data.error || tStr("pages.reviewSwipes.errSave"));
         setBusy(false);
         return;
       }
@@ -98,7 +101,7 @@ export default function ReviewSwipesPage() {
         track.match_created(current.id);
         setMatchModal({
           toId: current.id,
-          name: displayName(current.username ?? current.name) || "cineva",
+          name: displayName(current.username ?? current.name) || tStr("pages.reviewSwipes.someone"),
         });
       }
       setProfiles((prev) =>
@@ -120,7 +123,7 @@ export default function ReviewSwipesPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <span className="text-dark-500">Se încarcă istoricul…</span>
+        <span className="text-dark-500">{tStr("pages.reviewSwipes.loading")}</span>
       </div>
     );
   }
@@ -136,15 +139,17 @@ export default function ReviewSwipesPage() {
             className="bg-dark-800 border border-dark-600 rounded-2xl p-6 max-w-sm w-full shadow-xl text-center"
             onClick={(e) => e.stopPropagation()}
           >
-            <p className="text-lg font-semibold text-zinc-900 mb-1">Ești match!</p>
-            <p className="text-dark-300 mb-6">Poți trimite mesaje lui {matchModal.name}.</p>
+            <p className="text-lg font-semibold text-zinc-900 mb-1">{tStr("pages.reviewSwipes.matchTitle")}</p>
+            <p className="text-dark-300 mb-6">
+              {formatTpl(tStr("pages.reviewSwipes.matchBody"), { name: matchModal.name })}
+            </p>
             <div className="flex gap-3">
               <button
                 type="button"
                 onClick={() => setMatchModal(null)}
                 className="flex-1 py-2.5 rounded-xl border border-dark-600 text-dark-300 hover:bg-dark-700"
               >
-                Închide
+                {tStr("pages.reviewSwipes.close")}
               </button>
               <button
                 type="button"
@@ -154,7 +159,7 @@ export default function ReviewSwipesPage() {
                 }}
                 className="flex-1 py-2.5 rounded-xl bg-brand-500 text-zinc-900 font-medium hover:bg-brand-600"
               >
-                Mesaj
+                {tStr("pages.reviewSwipes.message")}
               </button>
             </div>
           </div>
@@ -162,17 +167,13 @@ export default function ReviewSwipesPage() {
       )}
 
       <div className="w-full flex items-center justify-between gap-2 mb-4">
-        <h2 className="text-xl font-semibold">Recenzare swipe</h2>
+        <h2 className="text-xl font-semibold">{tStr("pages.reviewSwipes.title")}</h2>
         <Link href="/app/matches" className="text-sm text-brand-400 hover:underline shrink-0">
-          Înapoi la matches
+          {tStr("pages.reviewSwipes.backMatches")}
         </Link>
       </div>
 
-      <p className="text-dark-500 text-sm mb-4 w-full">
-        Vezi din nou profilele la care ai dat like sau pass.{" "}
-        <strong className="text-dark-400">Doar dacă apeși Like sau Nu se salvează</strong> o nouă decizie. „Mai departe”
-        doar te duce la următorul profil, fără să schimbe nimic.
-      </p>
+      <p className="text-dark-500 text-sm mb-4 w-full">{tStr("pages.reviewSwipes.explainer")}</p>
 
       {error && (
         <p className="text-amber-400 text-sm mb-3 w-full" role="alert">
@@ -181,7 +182,7 @@ export default function ReviewSwipesPage() {
       )}
 
       {emptyAfterLoad ? (
-        <p className="text-dark-500 text-center py-12">Încă nu ai swipe-uri în istoric. Folosește Descoperă.</p>
+        <p className="text-dark-500 text-center py-12">{tStr("pages.reviewSwipes.empty")}</p>
       ) : current ? (
         <>
           <p className="text-xs text-dark-500 mb-2 w-full">{progress}</p>
@@ -214,10 +215,13 @@ export default function ReviewSwipesPage() {
                       : "text-dark-400"
                   }
                 >
-                  Decizia ta acum: {current.mySwipeLiked ? "Like" : "Nu"}
+                  {tStr("pages.reviewSwipes.decision")}{" "}
+                  {current.mySwipeLiked ? tStr("pages.reviewSwipes.like") : tStr("pages.reviewSwipes.pass")}
                 </span>
               </p>
-              <p className="text-gray-300 text-sm line-clamp-4">{current.bio || "Fără descriere."}</p>
+              <p className="text-gray-300 text-sm line-clamp-4">
+                {current.bio || tStr("pages.reviewSwipes.noBio")}
+              </p>
             </div>
           </div>
 
@@ -228,7 +232,7 @@ export default function ReviewSwipesPage() {
                 disabled={busy}
                 onClick={() => void submitSwipe(false)}
                 className="w-14 h-14 rounded-full bg-dark-600 hover:bg-red-500/25 flex items-center justify-center text-red-400 border-2 border-red-500/50 disabled:opacity-50"
-                title="Salvează: Nu"
+                title={tStr("pages.reviewSwipes.saveNoTitle")}
               >
                 <X className="w-7 h-7" />
               </button>
@@ -237,7 +241,7 @@ export default function ReviewSwipesPage() {
                 disabled={busy}
                 onClick={() => void submitSwipe(true)}
                 className="w-14 h-14 rounded-full bg-brand-500 hover:bg-brand-400 flex items-center justify-center text-dark-900 border-2 border-brand-400/50 disabled:opacity-50"
-                title="Salvează: Like"
+                title={tStr("pages.reviewSwipes.saveLikeTitle")}
               >
                 <Heart className="w-7 h-7" />
               </button>
@@ -248,7 +252,7 @@ export default function ReviewSwipesPage() {
               onClick={skipWithoutSave}
               className="w-full py-3 rounded-xl border border-dark-600 text-dark-300 hover:bg-dark-800 flex items-center justify-center gap-2 text-sm disabled:opacity-50"
             >
-              Mai departe (fără schimbare) <ChevronRight className="w-4 h-4" />
+              {tStr("pages.reviewSwipes.skip")} <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         </>

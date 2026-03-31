@@ -1086,7 +1086,29 @@ export async function prismaGetMyLocation(userId: string): Promise<{ lat: number
   return { lat: loc.latitude, lng: loc.longitude };
 }
 
-/** Prima poză de profil pentru hartă (avatar). */
+export async function prismaGetMyMapLocation(userId: string): Promise<{
+  lat: number;
+  lng: number;
+  mapVisibleUntil: string | null;
+} | null> {
+  const loc = await prisma.location.findUnique({ where: { userId } });
+  if (!loc) return null;
+  return {
+    lat: loc.latitude,
+    lng: loc.longitude,
+    mapVisibleUntil: loc.mapVisibleUntil?.toISOString() ?? null,
+  };
+}
+
+export async function prismaSetLocationMapVisibility(userId: string, until: Date | null): Promise<{ updated: boolean }> {
+  const r = await prisma.location.updateMany({
+    where: { userId },
+    data: { mapVisibleUntil: until },
+  });
+  return { updated: r.count > 0 };
+}
+
+/** Prima poză profil (medalion pe hartă). */
 export async function prismaGetFirstProfilePhotoUrl(userId: string): Promise<string | null> {
   const profile = await prisma.profile.findUnique({
     where: { userId },
@@ -1097,15 +1119,20 @@ export async function prismaGetFirstProfilePhotoUrl(userId: string): Promise<str
   return profile?.photos[0]?.url ?? null;
 }
 
-const MAP_ONLINE_MS = 60 * 1000; // ca în restul app-ului (aproape „live”)
+const MAP_USER_ONLINE_MS = 60 * 1000;
 
 export async function prismaGetVisibleUsersForMap(
   meId: string
 ): Promise<
   { id: string; name: string; username: string; lat: number; lng: number; photoUrl: string | null; online: boolean }[]
 > {
+  const now = new Date();
   const profiles = await prisma.profile.findMany({
-    where: { userId: { not: meId }, showDistance: true },
+    where: {
+      userId: { not: meId },
+      showDistance: true,
+      completedAt: { not: null },
+    },
     select: {
       userId: true,
       name: true,
@@ -1116,28 +1143,21 @@ export async function prismaGetVisibleUsersForMap(
     },
   });
   const userIds = profiles.map((p) => p.userId);
+  if (userIds.length === 0) return [];
   const locations = await prisma.location.findMany({
-    where: { userId: { in: userIds } },
+    where: {
+      userId: { in: userIds },
+      mapVisibleUntil: { gt: now },
+    },
   });
   const locByUser = new Map(locations.map((l) => [l.userId, l]));
-  /** Pe hartă: activ recent în app SAU locație actualizată recent (ex. doar deschis „Harta”). */
-  const MAP_VISIBLE_MS = 3 * 60 * 1000;
-  const cutoff = new Date(Date.now() - MAP_VISIBLE_MS);
-  const withProfileActivity = await prisma.profile.findMany({
-    where: { userId: { in: userIds }, lastActiveAt: { gte: cutoff } },
-    select: { userId: true },
-  });
-  const activeSet = new Set(withProfileActivity.map((p) => p.userId));
-  for (const loc of locations) {
-    if (loc.updatedAt >= cutoff) activeSet.add(loc.userId);
-  }
-  const now = Date.now();
+  const nowMs = Date.now();
   return profiles
-    .filter((p) => locByUser.has(p.userId) && activeSet.has(p.userId))
+    .filter((p) => locByUser.has(p.userId))
     .map((p) => {
       const loc = locByUser.get(p.userId)!;
       const rawOnline =
-        p.lastActiveAt != null && now - p.lastActiveAt.getTime() < MAP_ONLINE_MS;
+        p.lastActiveAt != null && nowMs - p.lastActiveAt.getTime() < MAP_USER_ONLINE_MS;
       const online = p.showOnline ? rawOnline : false;
       return {
         id: p.userId,

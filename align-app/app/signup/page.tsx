@@ -1,13 +1,16 @@
 "use client";
 
-import { Suspense, useState, useEffect } from "react";
+import { Suspense, useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import AuthProviders from "@/components/AuthProviders";
 import { getDeviceFingerprint } from "@/lib/deviceFingerprint";
 import { displayName } from "@/lib/displayName";
-import { validateUsername, USERNAME_HELP_TEXT } from "@/lib/usernameFormat";
+import { validateUsername } from "@/lib/usernameFormat";
+import { useI18n } from "@/lib/i18n/context";
+import { formatTpl } from "@/lib/i18n/formatTpl";
+import { translateApiErrorMessage } from "@/lib/i18n/translateApiError";
 
 const RECAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY ?? "";
 
@@ -35,7 +38,7 @@ function getRecaptchaToken(): Promise<string> {
 }
 
 function SignUpContent() {
-  const router = useRouter();
+  const { tStr } = useI18n();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
@@ -107,12 +110,14 @@ function SignUpContent() {
     loadRecaptchaScript().catch(() => {});
   }, []);
 
-  const MONTHS: { value: string; label: string }[] = [
-    { value: "1", label: "Ianuarie" }, { value: "2", label: "Februarie" }, { value: "3", label: "Martie" },
-    { value: "4", label: "Aprilie" }, { value: "5", label: "Mai" }, { value: "6", label: "Iunie" },
-    { value: "7", label: "Iulie" }, { value: "8", label: "August" }, { value: "9", label: "Septembrie" },
-    { value: "10", label: "Octombrie" }, { value: "11", label: "Noiembrie" }, { value: "12", label: "Decembrie" },
-  ];
+  const monthOptions = useMemo(
+    () =>
+      Array.from({ length: 12 }, (_, i) => ({
+        value: String(i + 1),
+        label: tStr(`common.months.${i + 1}`),
+      })),
+    [tStr]
+  );
 
   function getBirthDateString(): string {
     if (!birthDay || !birthMonth || !birthYear) return "";
@@ -152,33 +157,42 @@ function SignUpContent() {
     e.preventDefault();
     setError("");
     if (password.length < 6) {
-      setError("Parola trebuie să aibă cel puțin 6 caractere.");
+      setError(tStr("pages.signup.errPasswordShort"));
       return;
     }
     if (password !== confirmPassword) {
-      setError("Parolele nu coincid.");
+      setError(tStr("pages.signup.errPasswordMismatch"));
       return;
     }
     const birthDateStr = getBirthDateString();
     if (!birthDateStr) {
-      setError("Selectează ziua, luna și anul nașterii.");
+      setError(tStr("pages.signup.errBirthdate"));
       return;
     }
     if (!isAtLeast18(birthDateStr)) {
-      setError("Trebuie să ai cel puțin 18 ani pentru a crea un cont.");
+      setError(tStr("pages.signup.errAge"));
       return;
     }
     const usernameValidation = validateUsername(username);
     if (!usernameValidation.ok) {
-      setError(usernameValidation.error);
+      const r = usernameValidation.reason;
+      setError(
+        tStr(
+          r === "too_short"
+            ? "pages.signup.usernameTooShort"
+            : r === "too_long"
+              ? "pages.signup.usernameTooLong"
+              : "pages.signup.usernameInvalid"
+        )
+      );
       return;
     }
     if (usernameCheck === "taken") {
-      setError("Acest username este deja folosit.");
+      setError(tStr("pages.signup.errUsernameTaken"));
       return;
     }
     if (!acceptTerms) {
-      setError("Trebuie să accepți Termenii și Politica de Confidențialitate.");
+      setError(tStr("pages.signup.errMustAcceptTerms"));
       return;
     }
     setLoading(true);
@@ -203,7 +217,7 @@ function SignUpContent() {
       });
       const data = await res.json();
       if (!res.ok) {
-        const msg = data.error || "Eroare la înregistrare";
+        const msg = String(data.error ?? "");
         const isSuspect = msg.includes("suspect") || msg.includes("Activitate");
         if (res.status === 429) {
           const retryAfter = res.headers.get("Retry-After");
@@ -211,18 +225,19 @@ function SignUpContent() {
             const sec = parseInt(retryAfter, 10);
             if (!Number.isNaN(sec) && sec > 0) setRetryAfterSeconds(sec);
           }
-          setError("Prea multe încercări, încearcă mai târziu.");
+          setError(tStr("pages.signup.errRateLimit"));
           return;
         }
         if (msg.includes("reCAPTCHA") || msg.includes("Verificarea")) {
-          setError("Verificarea reCAPTCHA a eșuat.");
+          setError(tStr("pages.signup.errRecaptcha"));
           return;
         }
         if (isSuspect) {
-          setError("Activitate suspectă detectată.");
+          setError(tStr("pages.signup.errSuspicious"));
           return;
         }
-        setError(msg);
+        const trimmed = msg.trim();
+        setError(trimmed ? translateApiErrorMessage(trimmed, tStr) || trimmed : tStr("pages.signup.errSignupGeneric"));
         return;
       }
       const storage = data.sessionType === "persistent" ? localStorage : sessionStorage;
@@ -240,7 +255,7 @@ function SignUpContent() {
       await new Promise((r) => setTimeout(r, 100));
       window.location.href = "/onboarding/location";
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Eroare");
+      setError(err instanceof Error ? err.message : tStr("pages.signup.errGeneric"));
     } finally {
       setLoading(false);
     }
@@ -250,52 +265,61 @@ function SignUpContent() {
     <div className="min-h-screen flex items-center justify-center px-4 py-8 bg-dark-900">
       <div className="max-w-sm mx-auto px-4 flex flex-col w-full">
         <Link href="/" className="inline-block text-brand-400 font-bold mt-4">
-          ← Align
+          {tStr("pages.signup.backBrand")}
         </Link>
-        <h1 className="text-2xl font-semibold text-zinc-900 mt-4">Creează cont</h1>
+        <h1 className="text-2xl font-semibold text-zinc-900 mt-4">{tStr("pages.signup.title")}</h1>
         <p className="text-sm text-dark-300 mt-2">
           {searchParams.get("email") ? (
             <>
-              <span className="text-brand-400/90">Email precompletat.</span> Adaugi parola, data nașterii (min. 18 ani) și
-              genul. Nume și oraș mai târziu din „Completează profilul”.
+              <span className="text-brand-400/90">{tStr("pages.signup.introPrefillTag")}</span>{" "}
+              {tStr("pages.signup.introPrefillBody")}
             </>
           ) : (
-            <>
-              Email, parolă, data nașterii (min. 18 ani) și genul. Nume, oraș și restul din „Completează profilul” după
-              înregistrare.
-            </>
+            tStr("pages.signup.introDefault")
           )}
         </p>
 
         <div className="mt-6">
           <AuthProviders compact />
         </div>
-        <p className="text-xs text-dark-400 text-center mt-2">
-          Rețele sociale în curând — completezi formularul de mai jos.
-        </p>
+        <p className="text-xs text-dark-400 text-center mt-2">{tStr("pages.signup.socialSoon")}</p>
 
         <form onSubmit={handleSubmit} className="space-y-4 mt-3">
           <div>
-            <label htmlFor="signup-email" className="block text-xs text-dark-400 mb-1">Email</label>
+            <label htmlFor="signup-email" className="block text-xs text-dark-400 mb-1">
+              {tStr("pages.signup.emailLabel")}
+            </label>
             <input
               id="signup-email"
               type="email"
-              placeholder="ex: nume@email.com"
+              placeholder={tStr("pages.signup.emailPlaceholder")}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
               autoComplete="email"
               className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-zinc-900 placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
-            {emailCheck === "available" && <p className="text-green-400 text-xs mt-1">Acest email este liber. Poți crea cont.</p>}
-            {emailCheck === "taken" && <p className="text-red-400 text-xs mt-1">Există deja un cont cu acest email. <Link href="/login" className="underline">Loghează-te</Link>.</p>}
+            {emailCheck === "available" && (
+              <p className="text-green-400 text-xs mt-1">{tStr("pages.signup.emailFree")}</p>
+            )}
+            {emailCheck === "taken" && (
+              <p className="text-red-400 text-xs mt-1">
+                {tStr("pages.signup.emailTakenBefore")}{" "}
+                <Link href="/login" className="underline">
+                  {tStr("pages.signup.emailTakenLink")}
+                </Link>
+                {tStr("pages.signup.emailTakenAfter")}
+              </p>
+            )}
           </div>
           <div>
-            <label htmlFor="signup-username" className="block text-xs text-dark-400 mb-1">Username (nu email-ul — ex: ana_maria)</label>
+            <label htmlFor="signup-username" className="block text-xs text-dark-400 mb-1">
+              {tStr("pages.signup.usernameLabel")}
+            </label>
             <input
               id="signup-username"
               type="text"
-              placeholder="ex: ana_maria"
+              placeholder={tStr("pages.signup.usernamePlaceholder")}
               value={username}
               onChange={(e) => setUsername(e.target.value.replace(/\s/g, ""))}
               required
@@ -304,14 +328,22 @@ function SignUpContent() {
               autoComplete="username"
               className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-zinc-900 placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
-            <p className="text-dark-500 text-xs mt-1">{USERNAME_HELP_TEXT}</p>
-            {usernameCheck === "available" && <p className="text-green-400 text-xs mt-1">{displayName(username.trim().toLowerCase())} este disponibil</p>}
-            {usernameCheck === "taken" && <p className="text-red-400 text-xs mt-1">Acest username este folosit. Alege altul (ex: ana_maria2).</p>}
+            <p className="text-dark-500 text-xs mt-1">{tStr("pages.signup.usernameHelp")}</p>
+            {usernameCheck === "available" && (
+              <p className="text-green-400 text-xs mt-1">
+                {formatTpl(tStr("pages.signup.usernameAvailable"), {
+                  name: displayName(username.trim().toLowerCase()),
+                })}
+              </p>
+            )}
+            {usernameCheck === "taken" && (
+              <p className="text-red-400 text-xs mt-1">{tStr("pages.signup.usernameTaken")}</p>
+            )}
           </div>
           <div className="relative">
             <input
               type={showPassword ? "text" : "password"}
-              placeholder="Parolă (min. 6 caractere)"
+              placeholder={tStr("pages.signup.passwordPlaceholder")}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -323,7 +355,7 @@ function SignUpContent() {
               type="button"
               onClick={() => setShowPassword((v) => !v)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-500 hover:text-zinc-900 transition p-1 rounded"
-              aria-label={showPassword ? "Ascunde parola" : "Arată parola"}
+              aria-label={showPassword ? tStr("pages.signup.hidePassword") : tStr("pages.signup.showPassword")}
             >
               {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </button>
@@ -331,7 +363,7 @@ function SignUpContent() {
           <div className="relative">
             <input
               type={showConfirmPassword ? "text" : "password"}
-              placeholder="Confirmă parola"
+              placeholder={tStr("pages.signup.confirmPasswordPlaceholder")}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
@@ -343,16 +375,18 @@ function SignUpContent() {
               type="button"
               onClick={() => setShowConfirmPassword((v) => !v)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-500 hover:text-zinc-900 transition p-1 rounded"
-              aria-label={showConfirmPassword ? "Ascunde parola" : "Arată parola"}
+              aria-label={
+                showConfirmPassword ? tStr("pages.signup.hidePassword") : tStr("pages.signup.showPassword")
+              }
             >
               {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </button>
           </div>
           <div>
-            <label className="block text-dark-500 text-sm mb-1">Data nașterii</label>
+            <label className="block text-dark-500 text-sm mb-1">{tStr("pages.signup.birthdateLabel")}</label>
             <div className="grid grid-cols-3 gap-2">
               <div>
-                <label className="sr-only">Zi</label>
+                <label className="sr-only">{tStr("common.day")}</label>
                 <select
                   value={birthDay}
                   onChange={(e) => setBirthDay(e.target.value)}
@@ -362,14 +396,14 @@ function SignUpContent() {
                   }}
                   className="w-full bg-dark-800 border border-dark-600 rounded-xl px-3 py-3 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
                 >
-                  <option value="">Zi</option>
+                  <option value="">{tStr("common.day")}</option>
                   {Array.from({ length: daysInMonth(birthMonth, birthYear) }, (_, i) => i + 1).map((d) => (
                     <option key={d} value={String(d)}>{d}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="sr-only">Lună</label>
+                <label className="sr-only">{tStr("common.month")}</label>
                 <select
                   value={birthMonth}
                   onChange={(e) => setBirthMonth(e.target.value)}
@@ -379,14 +413,14 @@ function SignUpContent() {
                   }}
                   className="w-full bg-dark-800 border border-dark-600 rounded-xl px-3 py-3 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
                 >
-                  <option value="">Lună</option>
-                  {MONTHS.map((m) => (
+                  <option value="">{tStr("common.month")}</option>
+                  {monthOptions.map((m) => (
                     <option key={m.value} value={m.value}>{m.label}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="sr-only">An</label>
+                <label className="sr-only">{tStr("common.year")}</label>
                 <select
                   value={birthYear}
                   onChange={(e) => setBirthYear(e.target.value)}
@@ -396,33 +430,33 @@ function SignUpContent() {
                   }}
                   className="w-full bg-dark-800 border border-dark-600 rounded-xl px-3 py-3 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
                 >
-                  <option value="">An</option>
+                  <option value="">{tStr("common.year")}</option>
                   {Array.from({ length: maxYear18 - minYear + 1 }, (_, i) => maxYear18 - i).map((y) => (
                     <option key={y} value={String(y)}>{y}</option>
                   ))}
                 </select>
               </div>
             </div>
-            <p className="text-dark-500 text-xs mt-1">Trebuie să ai cel puțin 18 ani.</p>
+            <p className="text-dark-500 text-xs mt-1">{tStr("pages.signup.birthdateHint")}</p>
           </div>
           <div>
-            <label className="block text-dark-500 text-sm mb-1">Gen</label>
+            <label className="block text-dark-500 text-sm mb-1">{tStr("pages.signup.genderLabel")}</label>
             <select
               value={gender}
               onChange={(e) => setGender(e.target.value)}
               className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
             >
-              <option value="">— Alege genul</option>
-              <option value="male">Bărbat</option>
-              <option value="female">Femeie</option>
-              <option value="other">Altul</option>
+              <option value="">{tStr("pages.signup.genderSelect")}</option>
+              <option value="male">{tStr("pages.signup.genderMale")}</option>
+              <option value="female">{tStr("pages.signup.genderFemale")}</option>
+              <option value="other">{tStr("pages.signup.genderOther")}</option>
             </select>
           </div>
           {error && (
             <p className="text-red-400 text-sm">{error}</p>
           )}
           {retryAfterSeconds > 0 && (
-            <p className="text-dark-500 text-sm">Încearcă din nou în {retryAfterSeconds} secunde.</p>
+            <p className="text-dark-500 text-sm">{formatTpl(tStr("pages.signup.retryIn"), { n: retryAfterSeconds })}</p>
           )}
           <label className="flex items-start gap-2 cursor-pointer">
             <input
@@ -432,12 +466,19 @@ function SignUpContent() {
               className="w-4 h-4 mt-0.5 rounded border-dark-600 bg-dark-800 text-brand-500 focus:ring-brand-500 shrink-0"
             />
             <span className="text-dark-500 text-xs">
-              Prin continuare, ești de acord cu{" "}
-              <Link href="/terms" className="text-brand-400 hover:underline">Termenii</Link>
-              {", "}
-              <Link href="/privacy" className="text-brand-400 hover:underline">Politica de Confidențialitate</Link>
-              {" și "}
-              <Link href="/cookies" className="text-brand-400 hover:underline">Politica cookie</Link>.
+              {tStr("pages.signup.termsLead")}
+              <Link href="/terms" className="text-brand-400 hover:underline">
+                {tStr("pages.signup.termsLink")}
+              </Link>
+              {tStr("pages.signup.termsBetween")}
+              <Link href="/privacy" className="text-brand-400 hover:underline">
+                {tStr("pages.signup.privacyLink")}
+              </Link>
+              {tStr("pages.signup.termsAnd")}
+              <Link href="/cookies" className="text-brand-400 hover:underline">
+                {tStr("pages.signup.cookiesLink")}
+              </Link>
+              {tStr("pages.signup.termsEnd")}
             </span>
           </label>
           <div className="mt-2 pt-2 border-t border-dark-600/60">
@@ -448,7 +489,7 @@ function SignUpContent() {
                 onChange={(e) => setRememberDevice(e.target.checked)}
                 className="w-4 h-4 rounded border-dark-600 bg-dark-800 text-brand-500 focus:ring-brand-500 shrink-0"
               />
-              <span className="text-dark-500 text-sm">Ține-mă minte pe acest dispozitiv</span>
+              <span className="text-dark-500 text-sm">{tStr("pages.signup.rememberDevice")}</span>
             </label>
           </div>
           <button
@@ -456,14 +497,18 @@ function SignUpContent() {
             disabled={loading || !acceptTerms || retryAfterSeconds > 0}
             className="w-full !h-11 !min-h-[44px] !max-h-[44px] !py-0 px-4 rounded-xl bg-brand-500 hover:bg-brand-400 text-dark-900 font-medium text-sm transition disabled:opacity-50"
           >
-            {loading ? "Se creează..." : retryAfterSeconds > 0 ? `Creează cont (${retryAfterSeconds}s)` : "Creează cont"}
+            {loading
+              ? tStr("pages.signup.btnCreating")
+              : retryAfterSeconds > 0
+                ? formatTpl(tStr("pages.signup.btnCreateWait"), { n: retryAfterSeconds })
+                : tStr("pages.signup.btnCreate")}
           </button>
         </form>
 
         <p className="mt-6 text-center text-dark-500 text-sm">
-          Ai deja cont?{" "}
+          {tStr("pages.signup.hasAccount")}{" "}
           <Link href="/login" className="text-brand-400 hover:underline">
-            Log in
+            {tStr("pages.signup.loginLink")}
           </Link>
         </p>
       </div>
@@ -471,9 +516,18 @@ function SignUpContent() {
   );
 }
 
+function SignupSuspenseFallback() {
+  const { tStr } = useI18n();
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-dark-900 text-dark-400">
+      {tStr("pages.signup.loading")}
+    </div>
+  );
+}
+
 export default function SignUpPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-dark-900 text-dark-400">Se încarcă...</div>}>
+    <Suspense fallback={<SignupSuspenseFallback />}>
       <SignUpContent />
     </Suspense>
   );

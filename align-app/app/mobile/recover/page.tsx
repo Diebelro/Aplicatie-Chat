@@ -1,15 +1,21 @@
 "use client";
 
-import { Suspense, useState, useEffect } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { useI18n } from "@/lib/i18n/context";
+import { translateApiErrorMessage } from "@/lib/i18n/translateApiError";
 
 function MobileRecoverContent() {
+  const { tStr } = useI18n();
   const searchParams = useSearchParams();
   const token = searchParams.get("token") ?? "";
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+
+  const showErr = (msg: string) =>
+    translateApiErrorMessage(msg, tStr) || msg || tStr("pages.mobileRecover.errGeneric");
 
   const handleConfirm = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,7 +33,8 @@ function MobileRecoverContent() {
       if (!res.ok) throw new Error(data.error || "Eroare la confirmare");
       setSuccess(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Eroare");
+      const msg = err instanceof Error ? err.message : "";
+      setError(showErr(msg));
     } finally {
       setLoading(false);
     }
@@ -37,12 +44,12 @@ function MobileRecoverContent() {
     return (
       <div className="min-h-screen flex items-center justify-center px-4 py-8 bg-dark-900">
         <div className="max-w-sm mx-auto px-4 flex flex-col w-full text-center">
-          <h1 className="text-xl font-semibold text-zinc-900">Link invalid</h1>
+          <h1 className="text-xl font-semibold text-zinc-900">{tStr("pages.mobileRecover.invalidTitle")}</h1>
           <p className="text-sm text-dark-300 mt-2">
-            Lipsește token-ul de recuperare. Scanează din nou codul QR de pe calculator.
+            {tStr("pages.mobileRecover.invalidBody")}
           </p>
           <Link href="/login" className="mt-6 text-brand-400 hover:underline">
-            Mergi la Log in
+            {tStr("pages.mobileRecover.goLogin")}
           </Link>
         </div>
       </div>
@@ -53,12 +60,12 @@ function MobileRecoverContent() {
     return (
       <div className="min-h-screen flex items-center justify-center px-4 py-8 bg-dark-900">
         <div className="max-w-sm mx-auto px-4 flex flex-col w-full text-center">
-          <h1 className="text-xl font-semibold text-zinc-900 text-green-400">Confirmat</h1>
+          <h1 className="text-xl font-semibold text-zinc-900 text-green-400">{tStr("pages.mobileRecover.successTitle")}</h1>
           <p className="text-sm text-dark-300 mt-2">
-            Recuperarea a fost confirmată. Revino la calculator și setează parola nouă.
+            {tStr("pages.mobileRecover.successP1")}
           </p>
           <p className="text-sm text-dark-400 mt-4">
-            Poți închide această pagină.
+            {tStr("pages.mobileRecover.closeHint")}
           </p>
         </div>
       </div>
@@ -69,13 +76,13 @@ function MobileRecoverContent() {
     <div className="min-h-screen flex items-center justify-center px-4 py-8 bg-dark-900">
       <div className="max-w-sm mx-auto px-4 flex flex-col w-full">
         <h1 className="text-xl font-semibold text-zinc-900 text-center">
-          Recuperare parolă
+          {tStr("pages.mobileRecover.title")}
         </h1>
         <p className="text-sm text-dark-300 mt-2 text-center">
-          Ai deschis linkul de pe calculator. Confirmă că acest dispozitiv (telefonul) este al tău pentru a reseta parola pe calculator.
+          {tStr("pages.mobileRecover.intro1")}
         </p>
         <p className="text-sm text-dark-400 mt-2 text-center">
-          Trebuie să fii deja logat pe acest dispozitiv.
+          {tStr("pages.mobileRecover.intro2")}
         </p>
 
         <form onSubmit={handleConfirm} className="mt-6">
@@ -87,13 +94,13 @@ function MobileRecoverContent() {
             disabled={loading}
             className="w-full !h-11 !min-h-[44px] !max-h-[44px] !py-0 px-4 rounded-xl bg-brand-500 hover:bg-brand-400 text-dark-900 font-medium text-sm transition disabled:opacity-50"
           >
-            {loading ? "Se confirmă..." : "Confirmă recuperarea"}
+            {loading ? tStr("pages.mobileRecover.confirming") : tStr("pages.mobileRecover.confirmBtn")}
           </button>
         </form>
 
         <p className="mt-6 text-center text-dark-500 text-sm">
           <Link href="/login" className="text-brand-400 hover:underline">
-            Log in
+            {tStr("pages.mobileRecover.login")}
           </Link>
         </p>
       </div>
@@ -101,9 +108,18 @@ function MobileRecoverContent() {
   );
 }
 
+function MobileRecoverFallback() {
+  const { tStr } = useI18n();
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-dark-900 text-dark-400">
+      {tStr("pages.signup.loading")}
+    </div>
+  );
+}
+
 export default function MobileRecoverPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-dark-900 text-dark-400">Se încarcă...</div>}>
+    <Suspense fallback={<MobileRecoverFallback />}>
       <MobileRecoverContent />
     </Suspense>
   );

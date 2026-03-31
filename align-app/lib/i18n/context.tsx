@@ -1,31 +1,27 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
+import { usePathname } from "next/navigation";
 import type { Locale, Translations } from "./types";
 import { DEFAULT_LOCALE, LOCALES } from "./types";
+import { detectBrowserLocale } from "./intlLocale";
 import roBootstrap from "@/messages/ro.json";
 
-const STORAGE_KEY = "align-locale";
+/**
+ * Limba aleasă explicit de utilizator (LanguageSwitcher). Nu scriem această cheie la detectare automată din browser —
+ * astfel, la fiecare vizită fără preferință salvată, UI urmează limba mediului (navigator.languages).
+ */
+const USER_CHOICE_STORAGE_KEY = "align-locale";
 
-function loadStoredLocale(): Locale | null {
+function loadUserChosenLocale(): Locale | null {
   if (typeof window === "undefined") return null;
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = localStorage.getItem(USER_CHOICE_STORAGE_KEY);
     if (stored && LOCALES.includes(stored as Locale)) return stored as Locale;
   } catch {
     // ignore
   }
   return null;
-}
-
-function detectBrowserLocale(): Locale {
-  if (typeof window === "undefined") return DEFAULT_LOCALE;
-  const lang = navigator.language || (navigator as unknown as { userLanguage?: string }).userLanguage;
-  const code = lang?.slice(0, 2).toLowerCase();
-  if (code === "en") return "en";
-  if (code === "de") return "de";
-  if (code === "ro") return "ro";
-  return DEFAULT_LOCALE;
 }
 
 /** Get nested value by path e.g. "cookieConsent.bannerText". */
@@ -44,6 +40,10 @@ interface I18nContextValue {
   setLocale: (locale: Locale) => void;
   /** Get translation by namespace (e.g. t("cookieConsent")) or path (e.g. t("cookieConsent.bannerText")). */
   t: (key: keyof Translations | string) => Translations[keyof Translations] | string;
+  /** Doar frunze string din JSON (ex. `appNav.messages`, `legal.links.terms`) — pentru UI fără asertări. */
+  tStr: (path: string) => string;
+  /** Frunze `string[]` din JSON (ex. lista de features Premium). */
+  tArray: (path: string) => string[];
   translations: Translations | null;
 }
 
@@ -60,11 +60,74 @@ async function loadTranslations(locale: Locale): Promise<Translations> {
   return mod.default;
 }
 
+/** Panoul /admin rămâne doar în română (fără en/de în context); preferința utilizatorului se păstrază în afara admin. */
+function I18nProviderShell({
+  locale,
+  setLocale,
+  translations,
+  children,
+}: {
+  locale: Locale;
+  setLocale: (locale: Locale) => void;
+  translations: Translations | null;
+  children: React.ReactNode;
+}) {
+  const pathname = usePathname();
+  const isAdminRoute = pathname?.startsWith("/admin") ?? false;
+  const activeTranslations = isAdminRoute ? (roBootstrap as Translations) : (translations ?? (roBootstrap as Translations));
+  const activeLocale: Locale = isAdminRoute ? "ro" : locale;
+
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      document.documentElement.lang = activeLocale;
+    }
+  }, [activeLocale]);
+
+  const t = useCallback(
+    (key: keyof Translations | string): Translations[keyof Translations] | string => {
+      if (!activeTranslations) {
+        return typeof key === "string" && key.includes(".") ? "" : ({} as Translations[keyof Translations]);
+      }
+      if (typeof key === "string" && key.includes(".")) {
+        const value = getByPath(activeTranslations, key);
+        return typeof value === "string" ? value : "";
+      }
+      return activeTranslations[key as keyof Translations];
+    },
+    [activeTranslations]
+  );
+
+  const tStr = useCallback(
+    (path: string): string => {
+      if (!activeTranslations) return "";
+      const value = getByPath(activeTranslations, path);
+      return typeof value === "string" ? value : "";
+    },
+    [activeTranslations]
+  );
+
+  const tArray = useCallback((path: string): string[] => {
+    if (!activeTranslations) return [];
+    const value = getByPath(activeTranslations, path);
+    if (!Array.isArray(value)) return [];
+    return value.filter((x): x is string => typeof x === "string");
+  }, [activeTranslations]);
+
+  return (
+    <I18nContext.Provider
+      value={{ locale: activeLocale, setLocale, t, tStr, tArray, translations: activeTranslations }}
+    >
+      {children}
+    </I18nContext.Provider>
+  );
+}
+
 export function I18nProvider({ children }: { children: React.ReactNode }) {
   const localeLoadGen = useRef(0);
   const [locale, setLocaleState] = useState<Locale>(DEFAULT_LOCALE);
   const [translations, setTranslations] = useState<Translations>(() => roBootstrap as Translations);
 
+  /** Doar din LanguageSwitcher: persistă preferința utilizatorului. */
   const setLocale = useCallback((newLocale: Locale) => {
     if (newLocale === locale) return;
     const gen = ++localeLoadGen.current;
@@ -74,7 +137,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
         setTranslations(nextTranslations);
         setLocaleState(newLocale);
         try {
-          localStorage.setItem(STORAGE_KEY, newLocale);
+          localStorage.setItem(USER_CHOICE_STORAGE_KEY, newLocale);
         } catch {
           // ignore
         }
@@ -85,8 +148,8 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   }, [locale]);
 
   useEffect(() => {
-    const stored = loadStoredLocale();
-    const initial = stored ?? detectBrowserLocale();
+    const userChoice = loadUserChosenLocale();
+    const initial = userChoice ?? detectBrowserLocale();
     setLocaleState(initial);
     if (initial === "ro") {
       setTranslations(roBootstrap as Translations);
@@ -104,30 +167,10 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
       });
   }, []);
 
-  useEffect(() => {
-    if (typeof document !== "undefined") {
-      document.documentElement.lang = locale;
-    }
-  }, [locale]);
-
-  const t = useCallback(
-    (key: keyof Translations | string): Translations[keyof Translations] | string => {
-      if (!translations) {
-        return typeof key === "string" && key.includes(".") ? "" : ({} as Translations[keyof Translations]);
-      }
-      if (typeof key === "string" && key.includes(".")) {
-        const value = getByPath(translations, key);
-        return typeof value === "string" ? value : "";
-      }
-      return translations[key as keyof Translations];
-    },
-    [translations]
-  );
-
   return (
-    <I18nContext.Provider value={{ locale, setLocale, t, translations }}>
+    <I18nProviderShell locale={locale} setLocale={setLocale} translations={translations}>
       {children}
-    </I18nContext.Provider>
+    </I18nProviderShell>
   );
 }
 

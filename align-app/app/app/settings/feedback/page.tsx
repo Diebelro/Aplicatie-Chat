@@ -4,8 +4,15 @@ import { useState, useEffect, useLayoutEffect } from "react";
 import Link from "next/link";
 import { getAuthHeaders } from "@/lib/authClient";
 import { clearFeedbackDraft, readFeedbackDraft, writeFeedbackDraft } from "@/lib/formDrafts";
+import { useI18n } from "@/lib/i18n/context";
+import { formatTpl } from "@/lib/i18n/formatTpl";
+import { translateApiErrorMessage } from "@/lib/i18n/translateApiError";
+
+const MAX_LEN = 8000;
+const MIN_LEN = 8;
 
 export default function AppFeedbackPage() {
+  const { tStr } = useI18n();
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,14 +44,19 @@ export default function AppFeedbackPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(typeof data.error === "string" ? data.error : "Nu s-a putut trimite.");
+        const raw = typeof data.error === "string" ? data.error : "";
+        setError(
+          raw
+            ? translateApiErrorMessage(raw, tStr) || raw
+            : tStr("pages.feedback.sendFailed")
+        );
         return;
       }
       setOk(true);
       setMessage("");
       clearFeedbackDraft();
     } catch {
-      setError("Eroare de rețea.");
+      setError(tStr("pages.feedback.networkError"));
     } finally {
       setBusy(false);
     }
@@ -57,21 +69,21 @@ export default function AppFeedbackPage() {
     <div className="max-w-xl mx-auto space-y-6 pb-8">
       <div className="flex items-center gap-4 flex-wrap">
         <Link href="/app/settings/account" className="text-dark-400 hover:text-zinc-900 transition text-sm shrink-0">
-          ← Setări cont
+          {tStr("pages.feedback.backToAccount")}
         </Link>
-        <h1 className="text-xl font-semibold text-zinc-900">Propuneri și feedback</h1>
+        <h1 className="text-xl font-semibold text-zinc-900">{tStr("pages.feedback.title")}</h1>
       </div>
 
       <p className="text-dark-400 text-sm leading-relaxed">
-        Spune-ne ce ai vreo idee ca să îmbunătățim aplicația sau dacă ceva nu merge cum trebuie (ecran, mesaje,
-        apeluri etc.). Citim mesajele și folosim feedback-ul pentru prioritate la remedieri. Textul rămâne salvat pe{" "}
-        <strong className="text-dark-300">acest tab</strong> dacă pleci și revii (nu și după ce închizi tab-ul).
+        {tStr("pages.feedback.introBefore")}
+        <strong className="text-dark-300">{tStr("pages.feedback.introTab")}</strong>
+        {tStr("pages.feedback.introAfter")}
       </p>
 
       <form onSubmit={(e) => void submit(e)} className="p-6 rounded-2xl bg-dark-800 border border-dark-600 space-y-4">
         <div>
           <label htmlFor="feedback-msg" className="block text-dark-500 text-sm mb-2">
-            Mesajul tău
+            {tStr("pages.feedback.yourMessage")}
           </label>
           <textarea
             id="feedback-msg"
@@ -82,11 +94,17 @@ export default function AppFeedbackPage() {
               setOk(false);
             }}
             className={inputClass}
-            placeholder="Ex.: Pe telefon, în chat, nu văd câmpul de scris până nu dau scroll… / Aș vrea un filtru pentru…"
-            maxLength={8000}
+            placeholder={tStr("pages.feedback.placeholder")}
+            maxLength={MAX_LEN}
             disabled={busy}
           />
-          <p className="text-dark-600 text-xs mt-1">{message.trim().length} / 8000 · minim 8 caractere</p>
+          <p className="text-dark-600 text-xs mt-1">
+            {formatTpl(tStr("pages.feedback.charCount"), {
+              current: message.trim().length,
+              max: MAX_LEN,
+              min: MIN_LEN,
+            })}
+          </p>
         </div>
         {error && (
           <p className="text-red-400 text-sm" role="alert">
@@ -95,15 +113,15 @@ export default function AppFeedbackPage() {
         )}
         {ok && (
           <p className="text-green-400 text-sm" role="status">
-            Mulțumim! Mesajul a fost trimis.
+            {tStr("pages.feedback.success")}
           </p>
         )}
         <button
           type="submit"
-          disabled={busy || message.trim().length < 8}
+          disabled={busy || message.trim().length < MIN_LEN}
           className="px-4 py-2.5 rounded-lg bg-brand-500 text-dark-900 font-medium hover:bg-brand-400 disabled:opacity-50 transition touch-manipulation"
         >
-          {busy ? "Se trimite…" : "Trimite"}
+          {busy ? tStr("pages.feedback.submitting") : tStr("pages.feedback.submit")}
         </button>
       </form>
     </div>
