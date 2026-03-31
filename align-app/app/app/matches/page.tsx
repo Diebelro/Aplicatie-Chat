@@ -86,7 +86,7 @@ export default function MatchesPage() {
                   </p>
                 </div>
               </Link>
-              <div className="shrink-0 flex items-center gap-2 pr-3 pl-2 border-l border-dark-600 bg-dark-800">
+              <div className="shrink-0 flex items-center gap-2 px-3 border-l border-dark-600 bg-dark-800">
                 <QuickCallButtons toUserId={u.id} size="md" />
                 <Link
                   href={`/app/review-swipes?focus=${encodeURIComponent(u.id)}`}

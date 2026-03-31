@@ -13,7 +13,8 @@ import { formatTpl } from "@/lib/i18n/formatTpl";
 import { translateApiErrorMessage } from "@/lib/i18n/translateApiError";
 
 const MAX_PHOTOS = 5;
-const PHOTO_MAX_SIZE = 400;
+/** Latura lungă maximă după resize (înainte era 400px → foarte neclar pe carduri/retina). */
+const PHOTO_MAX_SIZE = 1600;
 
 function resizeImageAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -37,7 +38,7 @@ function resizeImageAsDataUrl(file: File): Promise<string> {
       const ctx = canvas.getContext("2d");
       if (!ctx) { reject(new Error("canvas")); return; }
       ctx.drawImage(img, 0, 0, width, height);
-      resolve(canvas.toDataURL("image/jpeg", 0.65));
+      resolve(canvas.toDataURL("image/jpeg", 0.88));
     };
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("load")); };
     img.src = url;

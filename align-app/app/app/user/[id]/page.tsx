@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, MessageCircle, X } from "lucide-react";
+import { MessageCircle } from "lucide-react";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
 import { getAuthHeaders } from "@/lib/authClient";
@@ -17,6 +17,7 @@ import { useI18n } from "@/lib/i18n/context";
 import { formatTpl } from "@/lib/i18n/formatTpl";
 import { formatKmDistance } from "@/lib/i18n/formatKmDistance";
 import { translateApiErrorMessage } from "@/lib/i18n/translateApiError";
+import { ProfilePhotoLightbox } from "@/components/ProfilePhotoLightbox";
 
 type FriendStatusApi = "pending_sent" | "pending_received" | "accepted" | "rejected" | null;
 
@@ -37,6 +38,7 @@ export default function PublicUserProfilePage() {
   const [error, setError] = useState<string | null>(null);
   /** null = închis, 0..photos.length-1 = poză în vizualizare mare */
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [photoPortalReady, setPhotoPortalReady] = useState(false);
 
   const meRaw = typeof window !== "undefined" ? getStoredUserRaw() : null;
   const me: User | null = meRaw
@@ -89,18 +91,8 @@ export default function PublicUserProfilePage() {
   }, [id, me?.id, router, refetch]);
 
   useEffect(() => {
-    if (lightboxIndex == null) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setLightboxIndex(null);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = prev;
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [lightboxIndex]);
+    setPhotoPortalReady(true);
+  }, []);
 
   if (loading) {
     return (
@@ -152,78 +144,18 @@ export default function PublicUserProfilePage() {
         <h1 className="text-xl font-semibold truncate">{name}</h1>
       </div>
 
-      {lightboxIndex != null && photos[lightboxIndex] && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/92 p-2"
-          role="dialog"
-          aria-modal="true"
-          aria-label={tStr("pages.userPublic.galleryAria")}
-          onClick={() => setLightboxIndex(null)}
-        >
-          <button
-            type="button"
-            className="absolute top-3 right-3 z-10 p-3 rounded-full bg-night-800/95 text-white hover:bg-night-700 border border-night-600"
-            aria-label={tStr("pages.userPublic.closeAria")}
-            onClick={(e) => {
-              e.stopPropagation();
-              setLightboxIndex(null);
-            }}
-          >
-            <X className="w-6 h-6" />
-          </button>
-          {photos.length > 1 && (
-            <>
-              <button
-                type="button"
-                className="absolute left-2 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-night-800/90 text-white border border-night-600 disabled:opacity-30"
-                aria-label={tStr("pages.userPublic.prevPhoto")}
-                disabled={lightboxIndex <= 0}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setLightboxIndex((i) => (i != null && i > 0 ? i - 1 : i));
-                }}
-              >
-                <ChevronLeft className="w-8 h-8" />
-              </button>
-              <button
-                type="button"
-                className="absolute right-2 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-night-800/90 text-white border border-night-600 disabled:opacity-30"
-                aria-label={tStr("pages.userPublic.nextPhoto")}
-                disabled={lightboxIndex >= photos.length - 1}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setLightboxIndex((i) =>
-                    i != null && i < photos.length - 1 ? i + 1 : i
-                  );
-                }}
-              >
-                <ChevronRight className="w-8 h-8" />
-              </button>
-            </>
-          )}
-          <div
-            className="relative w-full max-w-lg aspect-[3/4] max-h-[85vh]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <OptimizedImage
-              src={photos[lightboxIndex]}
-              alt=""
-              fill
-              className="object-contain"
-              sizes="100vw"
-              priority
-            />
-          </div>
-          <p className="absolute bottom-4 left-0 right-0 text-center text-dark-400 text-sm tabular-nums">
-            {lightboxIndex + 1} / {photos.length}
-          </p>
-        </div>
-      )}
+      <ProfilePhotoLightbox
+        portalReady={photoPortalReady}
+        photos={photos}
+        index={lightboxIndex}
+        setIndex={setLightboxIndex}
+        tStr={tStr}
+      />
 
       <div className="rounded-2xl overflow-hidden border border-dark-600 bg-dark-800 mb-4">
         <button
           type="button"
-          className={`w-full h-52 sm:h-60 bg-dark-700 overflow-hidden relative border-0 p-0 block text-left ${photos.length ? "cursor-zoom-in focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" : ""}`}
+          className={`w-full h-52 sm:h-60 bg-dark-700 overflow-hidden relative border-0 p-0 block text-left ${photos.length ? "cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" : ""}`}
           onClick={() => {
             if (photos.length > 0) setLightboxIndex(0);
           }}
@@ -316,7 +248,7 @@ export default function PublicUserProfilePage() {
               <button
                 key={`${i}-${src.slice(0, 48)}`}
                 type="button"
-                className="relative aspect-square rounded-xl overflow-hidden bg-dark-700 border border-dark-600 cursor-zoom-in focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 w-full p-0"
+                className="relative aspect-square rounded-xl overflow-hidden bg-dark-700 border border-dark-600 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 w-full p-0"
                 onClick={() => setLightboxIndex(i)}
                 aria-label={formatTpl(tStr("pages.userPublic.photoCounterAria"), { i: i + 1, n: photos.length })}
               >

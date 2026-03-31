@@ -187,26 +187,36 @@ export default function ReviewSwipesPage() {
         <>
           <p className="text-xs text-dark-500 mb-2 w-full">{progress}</p>
           <div className="w-full aspect-[3/4] rounded-2xl overflow-hidden bg-dark-800 border border-dark-600 relative">
-            {current.photos?.[0] ? (
-              <OptimizedImage
-                src={current.photos[0]}
-                alt=""
-                fill
-                sizes="(max-width: 480px) 100vw, 384px"
-                className="object-cover"
-              />
-            ) : (
-              <div className="absolute inset-0 flex items-center justify-center p-8">
-                <SilhouetteAvatar
-                  photoUrl={null}
-                  gender={current.gender}
-                  name={current.name}
-                  className="w-full max-w-[70%] h-full max-h-[70%] text-dark-600"
+            <Link
+              href={`/app/user/${current.id}`}
+              className="absolute inset-0 z-0 block relative rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-inset"
+              aria-label={formatTpl(tStr("pages.matches.viewProfileAria"), {
+                name: displayName(current.username ?? current.name),
+              })}
+            >
+              {current.photos?.[0] ? (
+                <OptimizedImage
+                  src={current.photos[0]}
+                  alt=""
+                  fill
+                  sizes="(max-width: 480px) 100vw, 384px"
+                  className="object-cover"
                 />
-              </div>
-            )}
-            <div className="absolute inset-0 p-5 flex flex-col justify-end bg-gradient-to-t from-black/85 to-transparent">
-              <h3 className="text-xl font-bold text-zinc-900">{displayName(current.username ?? current.name)}</h3>
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center p-8 bg-dark-700">
+                  <SilhouetteAvatar
+                    photoUrl={null}
+                    gender={current.gender}
+                    name={current.name}
+                    className="w-full max-w-[70%] h-full max-h-[70%] text-dark-600"
+                  />
+                </div>
+              )}
+            </Link>
+            <div className="absolute inset-0 z-10 flex flex-col justify-end bg-gradient-to-t from-black/90 via-black/60 to-black/20 p-5 pointer-events-none">
+              <h3 className="text-xl font-bold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.95),0_0_16px_rgba(0,0,0,0.5)]">
+                {displayName(current.username ?? current.name)}
+              </h3>
               <p className="text-xs mt-1 mb-2">
                 <span
                   className={
@@ -219,7 +229,7 @@ export default function ReviewSwipesPage() {
                   {current.mySwipeLiked ? tStr("pages.reviewSwipes.like") : tStr("pages.reviewSwipes.pass")}
                 </span>
               </p>
-              <p className="text-gray-300 text-sm line-clamp-4">
+              <p className="text-white/95 text-sm line-clamp-4 [text-shadow:0_1px_4px_rgba(0,0,0,0.92)]">
                 {current.bio || tStr("pages.reviewSwipes.noBio")}
               </p>
             </div>

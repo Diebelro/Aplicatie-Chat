@@ -224,7 +224,7 @@ export default function MessagesPage() {
                     {f.online ? tStr("pages.messages.online") : formatLastActive(f.lastActivityAt)}
                   </span>
                 </Link>
-                <div className="flex items-center pr-1.5 border-l border-dark-600 bg-dark-800">
+                <div className="flex items-center px-2.5 border-l border-dark-600 bg-dark-800">
                   <QuickCallButtons toUserId={f.id} size="sm" />
                 </div>
               </li>
@@ -338,7 +338,7 @@ export default function MessagesPage() {
                     {formatTime(lastMessage.at)}
                   </span>
                 </Link>
-                <div className="flex items-center pr-1 sm:pr-2 pl-0 border-l border-dark-600 bg-dark-800 shrink-0">
+                <div className="flex items-center px-2 sm:px-2.5 border-l border-dark-600 bg-dark-800 shrink-0">
                   <QuickCallButtons toUserId={otherUser.id} size="sm" />
                 </div>
               </li>

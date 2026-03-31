@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Heart, X, ChevronRight, MessageCircle } from "lucide-react";
+import { Heart, X, ChevronRight, MessageCircle, Undo2 } from "lucide-react";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
 import { useSearchFilters, type SearchFilters } from "@/lib/useSearchFilters";
@@ -17,6 +17,7 @@ import {
   getInitialIntervals,
   adjustAfterFastSwipeState,
   type FeedItem,
+  type FeedItemProfile,
 } from "@/lib/feedBuilder";
 import { getAuthHeaders } from "@/lib/authClient";
 import { MAX_PROFILE_SEARCH_RADIUS_KM } from "@/lib/profileSearchConstants";
@@ -71,6 +72,8 @@ function buildQuery(f: SearchFilters): string {
 }
 
 const FAST_SWIPE_MS = 2500;
+/** Câte profile poți aduce înapoi în stivă după ce le-ai trecut (like/pass). */
+const MAX_PROFILE_UNDO = 7;
 
 const LEGEND_KEYS = [
   "friends",
@@ -138,6 +141,13 @@ export default function AppDiscoverPage() {
   const swipeMaxAbsDeltaRef = useRef(0);
   const cardRef = useRef<HTMLDivElement>(null);
   const [matchModal, setMatchModal] = useState<{ toId: string; name: string } | null>(null);
+  const profileUndoStackRef = useRef<FeedItemProfile[]>([]);
+  const [undoStackLength, setUndoStackLength] = useState(0);
+
+  const resetProfileUndoStack = useCallback(() => {
+    profileUndoStackRef.current = [];
+    setUndoStackLength(0);
+  }, []);
   const SWIPE_THRESHOLD = 55;
   const SWIPE_EXIT_OFFSET = 400;
   const FLY_OUT_MS = 100;
@@ -173,6 +183,7 @@ export default function AppDiscoverPage() {
         if (!data) {
           setFeedItems([]);
           setFeedConfig(null);
+          resetProfileUndoStack();
           setLoading(false);
           return;
         }
@@ -199,12 +210,14 @@ export default function AppDiscoverPage() {
           externalInterval: iExt,
         });
         setFeedItems(items);
+        resetProfileUndoStack();
         setLoading(false);
         if (data.profiles.length > 0) setRetriedAfterEmpty(false);
       })
       .catch(() => {
         setFeedItems([]);
         setFeedConfig(null);
+        resetProfileUndoStack();
         setLoading(false);
       });
   };
@@ -250,7 +263,10 @@ export default function AppDiscoverPage() {
       })
       .then((data) => {
         if (cancelled || !data) {
-          if (!cancelled) setFeedItems([]);
+          if (!cancelled) {
+            setFeedItems([]);
+            resetProfileUndoStack();
+          }
           setLoading(false);
           return;
         }
@@ -277,19 +293,47 @@ export default function AppDiscoverPage() {
           externalInterval: initial.external,
         });
         setFeedItems(items);
+        resetProfileUndoStack();
         if (data.profiles.length > 0) setRetriedAfterEmpty(false);
         setLoading(false);
       })
       .catch(() => {
-        if (!cancelled) setFeedItems([]);
+        if (!cancelled) {
+          setFeedItems([]);
+          resetProfileUndoStack();
+        }
         setLoading(false);
       });
     return () => { cancelled = true; };
-  }, [filters.gender, filters.minAge, filters.maxAge, filters.maxDistanceKm, filters.country, filters.city, filters.onlineOnly, debouncedName, filters.sortBy]);
+  }, [filters.gender, filters.minAge, filters.maxAge, filters.maxDistanceKm, filters.country, filters.city, filters.onlineOnly, debouncedName, filters.sortBy, resetProfileUndoStack]);
 
-  const advanceToNext = () => {
-    setFeedItems((prev) => prev.slice(1));
-  };
+  /** Trece la următorul card; reține profilul curent pentru „Revenire” (până la 7 profile). */
+  const dismissCurrentFeedItem = useCallback(() => {
+    setFeedItems((prev) => {
+      if (prev.length === 0) return prev;
+      const [first, ...rest] = prev;
+      if (first.type === "profile") {
+        const item = first as FeedItemProfile;
+        const arr = profileUndoStackRef.current;
+        const next = [...arr, item];
+        profileUndoStackRef.current = next.length > MAX_PROFILE_UNDO ? next.slice(1) : next;
+      }
+      return rest;
+    });
+    setUndoStackLength(profileUndoStackRef.current.length);
+  }, []);
+
+  const undoLastProfile = useCallback(() => {
+    const arr = profileUndoStackRef.current;
+    if (arr.length === 0) return;
+    const restored = arr[arr.length - 1]!;
+    profileUndoStackRef.current = arr.slice(0, -1);
+    setUndoStackLength(profileUndoStackRef.current.length);
+    setFeedItems((prev) => [restored, ...prev]);
+    setDragOffset(0);
+    isDraggingRef.current = false;
+    setIsDragging(false);
+  }, []);
 
   const getClientX = (e: React.MouseEvent | React.TouchEvent): number =>
     "touches" in e && e.touches.length ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
@@ -363,7 +407,7 @@ export default function AppDiscoverPage() {
 
   const swipe = (toId: string, liked: boolean) => {
     const swipeDurationMs = Date.now() - cardShownAtRef.current;
-    advanceToNext();
+    dismissCurrentFeedItem();
 
     (async () => {
       if (!liked && swipeDurationMs < FAST_SWIPE_MS) {
@@ -661,8 +705,10 @@ export default function AppDiscoverPage() {
                   </div>
                 )}
                 </div>
-                <div className="absolute inset-0 px-5 pt-5 pb-36 sm:pb-32 flex flex-col justify-end bg-gradient-to-t from-black/80 via-black/50 to-transparent pointer-events-none [&>_*]:pointer-events-auto">
-                  <h3 className="text-2xl font-bold text-zinc-900 mb-1 pr-14 sm:pr-16 line-clamp-2">{displayName(current.username ?? current.name)}</h3>
+                <div className="absolute inset-0 px-5 pt-5 pb-36 sm:pb-32 flex flex-col justify-end bg-gradient-to-t from-black/90 via-black/65 to-black/20 pointer-events-none [&>_*]:pointer-events-auto">
+                  <h3 className="text-2xl font-bold text-white mb-1 pr-14 sm:pr-16 line-clamp-2 [text-shadow:0_1px_3px_rgba(0,0,0,0.95),0_0_20px_rgba(0,0,0,0.55)]">
+                    {displayName(current.username ?? current.name)}
+                  </h3>
                   <div className="flex flex-wrap items-center gap-2 mb-2">
                     {current.friendStatus === "accepted" && (
                       <span className="text-xs px-2 py-0.5 rounded-full bg-[#4DA6FF]/30 text-[#4DA6FF] border border-[#4DA6FF]/50">
@@ -724,7 +770,7 @@ export default function AppDiscoverPage() {
                       );
                     })()}
                   </div>
-                  <p className="text-gray-400 text-xs mb-1">
+                  <p className="text-white/90 text-xs mb-1 [text-shadow:0_1px_3px_rgba(0,0,0,0.95)]">
                     {current.age != null && (
                       <span>{formatTpl(tStr("pages.discover.ageYears"), { n: current.age })}</span>
                     )}
@@ -749,21 +795,23 @@ export default function AppDiscoverPage() {
                       variant="big"
                     />
                   </div>
-                  <p className="text-gray-300 text-sm line-clamp-2 sm:line-clamp-3 mb-2">
+                  <p className="text-white/95 text-sm line-clamp-2 sm:line-clamp-3 mb-2 [text-shadow:0_1px_4px_rgba(0,0,0,0.92)]">
                     {current.bio || tStr("pages.discover.bioNone")}
                   </p>
-                  <div className="flex flex-wrap gap-2 text-xs text-gray-400 mb-0">
+                  <div className="flex flex-wrap gap-2 text-xs text-white/85 mb-0 [text-shadow:0_1px_3px_rgba(0,0,0,0.95)]">
                     {current.visitedByThem && (
-                      <span className="text-[#9D4EDD]">{tStr("pages.discover.visitedYou")}</span>
+                      <span className="text-[#e9d4ff] font-medium">{tStr("pages.discover.visitedYou")}</span>
                     )}
                     {current.messageSeen && (
-                      <span className="text-[#22B8CF]">{tStr("pages.discover.sawYourMessage")}</span>
+                      <span className="text-[#99e9f0] font-medium">{tStr("pages.discover.sawYourMessage")}</span>
                     )}
                     {current.online && (
-                      <span style={{ color: FRIEND_CARD_COLORS.online }}>{tStr("pages.messages.online")}</span>
+                      <span className="font-medium" style={{ color: FRIEND_CARD_COLORS.online }}>
+                        {tStr("pages.messages.online")}
+                      </span>
                     )}
                     {!current.online && current.lastActivityAt != null && (
-                      <span>{formatLastActive(current.lastActivityAt)}</span>
+                      <span className="text-white/90">{formatLastActive(current.lastActivityAt)}</span>
                     )}
                   </div>
                 </div>
@@ -824,7 +872,7 @@ export default function AppDiscoverPage() {
               </div>
               <div className="p-3 border-t border-dark-600 flex justify-end">
                 <button
-                  onClick={advanceToNext}
+                  onClick={dismissCurrentFeedItem}
                   className="flex items-center gap-1 px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white text-sm transition"
                 >
                   {tStr("pages.discover.adNext")} <ChevronRight className="w-4 h-4" />
@@ -840,7 +888,7 @@ export default function AppDiscoverPage() {
               </div>
               <div className="p-3 border-t border-dark-600 flex justify-end">
                 <button
-                  onClick={advanceToNext}
+                  onClick={dismissCurrentFeedItem}
                   className="flex items-center gap-1 px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white text-sm transition"
                 >
                   {tStr("pages.discover.adNext")} <ChevronRight className="w-4 h-4" />
@@ -849,8 +897,33 @@ export default function AppDiscoverPage() {
             </div>
           )}
 
+          <div className="w-full max-w-sm flex justify-center mt-4">
+            <button
+              type="button"
+              onClick={undoLastProfile}
+              disabled={undoStackLength === 0}
+              title={tStr("pages.discover.backPreviousTitle")}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-dark-600 bg-dark-800 text-dark-200 text-sm font-medium hover:bg-dark-700 hover:text-white disabled:opacity-40 disabled:pointer-events-none transition touch-manipulation"
+            >
+              <Undo2 className="w-4 h-4 shrink-0" aria-hidden />
+              <span>
+                {tStr("pages.discover.backPreviousProfile")}
+                {undoStackLength > 0
+                  ? ` (${formatTpl(tStr("pages.discover.backPreviousCount"), { n: undoStackLength })})`
+                  : ""}
+              </span>
+            </button>
+          </div>
+
           <p className="text-dark-500 text-sm mt-4">
-            {formatTpl(tStr("pages.discover.profilesLeft"), { n: profilesRemaining })}
+            {formatTpl(
+              tStr(
+                profilesRemaining === 1
+                  ? "pages.discover.profilesLeftOne"
+                  : "pages.discover.profilesLeftMany"
+              ),
+              { n: profilesRemaining }
+            )}
           </p>
         </>
       ) : (

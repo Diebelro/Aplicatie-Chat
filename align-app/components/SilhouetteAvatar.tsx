@@ -12,6 +12,11 @@ import type { Gender } from "@/lib/store";
 const DEFAULT_AVATAR_FEMALE = "/avatars/female-default.jpg";
 const DEFAULT_AVATAR_MALE = "/avatars/male-default-1.jpg";
 
+/** Grid profiluri: lățimea reală a benzii foto → srcset potrivit (fără upscale slab). */
+const DEFAULT_SIZES_RECT = "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw";
+/** Avatar rotund în liste / header: ~64–128px CSS, 2× retina. */
+const DEFAULT_SIZES_CIRCLE = "(max-width: 768px) 30vw, 128px";
+
 function getGradient(gender?: Gender | null): string {
   switch (gender) {
     case "female":
@@ -32,6 +37,13 @@ interface SilhouetteAvatarProps {
   name?: string;
   className?: string;
   imgClassName?: string;
+  /**
+   * `circle` = avatar rotund (implicit). `rectangle` = bandă foto dreptunghiulară (ex. card profil);
+   * altfel `rounded-full` pe lățime mare taie poza în formă de oval.
+   */
+  shape?: "circle" | "rectangle";
+  /** Pentru next/image `sizes` când e poză cu `fill` (claritate pe carduri / retina). */
+  imageSizes?: string;
 }
 
 /**
@@ -43,27 +55,33 @@ export function SilhouetteAvatar({
   name,
   className = "",
   imgClassName = "w-full h-full object-cover",
+  shape = "circle",
+  imageSizes,
 }: SilhouetteAvatarProps) {
   const defaultByGender =
     gender === "female" ? DEFAULT_AVATAR_FEMALE : gender === "male" ? DEFAULT_AVATAR_MALE : null;
   const src = photoUrl || defaultByGender;
+  const radiusClass = shape === "rectangle" ? "rounded-none" : "rounded-full";
 
   if (src) {
+    const fillSizes =
+      imageSizes ?? (shape === "rectangle" ? DEFAULT_SIZES_RECT : DEFAULT_SIZES_CIRCLE);
     return (
-      <div className={`relative w-full h-full rounded-full overflow-hidden ${className}`.trim()}>
-        <OptimizedImage src={src} alt="" fill className="object-cover object-center" />
+      <div className={`relative w-full h-full overflow-hidden ${radiusClass} ${className}`.trim()}>
+        <OptimizedImage src={src} alt="" fill sizes={fillSizes} className="object-cover object-center" />
       </div>
     );
   }
 
   const initial = name?.trim()?.[0]?.toUpperCase();
   const gradient = getGradient(gender);
+  const fallbackBox =
+    shape === "rectangle"
+      ? `flex items-center justify-center bg-gradient-to-br ${gradient} w-full h-full max-w-full max-h-full ${radiusClass}`
+      : `flex items-center justify-center bg-gradient-to-br ${gradient} aspect-square w-full h-full max-w-full max-h-full ${radiusClass}`;
 
   return (
-    <div
-      className={`flex items-center justify-center rounded-full bg-gradient-to-br ${gradient} aspect-square w-full h-full max-w-full max-h-full ${className}`}
-      aria-hidden
-    >
+    <div className={`${fallbackBox} ${className}`.trim()} aria-hidden>
       {initial ? (
         <span className="text-white font-semibold select-none drop-shadow-sm text-5xl leading-none">
           {initial}

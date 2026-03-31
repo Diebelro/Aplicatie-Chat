@@ -13,13 +13,26 @@ type OptimizedImageProps = {
   height?: number;
   sizes?: string;
   priority?: boolean;
+  /** Calitate decodificare next/image (implicit mai mare ca default-ul 75). */
+  quality?: number;
 };
 
+/** URL-uri care trec prin `next.config` `images.remotePatterns` (ex. Vercel Blob). */
+function isOptimizableRemoteUrl(src: string): boolean {
+  if (!src.startsWith("https://") && !src.startsWith("http://")) return false;
+  try {
+    const h = new URL(src).hostname;
+    return h.endsWith(".public.blob.vercel-storage.com") || h.endsWith(".blob.vercel-storage.com");
+  } catch {
+    return false;
+  }
+}
+
 /**
- * Imagine optimizată: lazy load, fără blur.
+ * Imagine optimizată: lazy load, fără blur placeholder.
  * - data: → <img> lazy
- * - URL relativ (/) → next/image
- * - URL extern (http(s)) → <img> lazy (fără config remotePatterns)
+ * - /… relativ sau Blob permis → next/image (srcset + calitate)
+ * - alte URL-uri externe → <img> lazy
  */
 export function OptimizedImage({
   src,
@@ -30,11 +43,13 @@ export function OptimizedImage({
   height,
   sizes,
   priority = false,
+  quality = 86,
 }: OptimizedImageProps) {
   const isDataUrl = src.startsWith("data:");
-  const isSameOrigin = src.startsWith("/");
+  const isRelative = src.startsWith("/");
+  const useNext = !isDataUrl && (isRelative || isOptimizableRemoteUrl(src));
 
-  if (isDataUrl || !isSameOrigin) {
+  if (isDataUrl || !useNext) {
     const imgClass = fill ? `absolute inset-0 w-full h-full ${className}` : className;
     return (
       <img
@@ -48,13 +63,16 @@ export function OptimizedImage({
   }
 
   if (fill) {
+    const hasObjectFit = /\bobject-(contain|cover|fill|none|scale-down)\b/.test(className);
+    const fit = hasObjectFit ? "" : "object-cover ";
     return (
       <Image
         src={src}
         alt={alt}
         fill
         sizes={sizes ?? "100vw"}
-        className={`object-cover ${className}`}
+        quality={quality}
+        className={`${fit}${className}`.trim()}
         loading={priority ? "eager" : "lazy"}
         priority={priority}
       />
@@ -70,6 +88,7 @@ export function OptimizedImage({
       width={w}
       height={h}
       sizes={sizes ?? "(max-width: 768px) 96px, 96px"}
+      quality={quality}
       className={className}
       loading={priority ? "eager" : "lazy"}
       priority={priority}

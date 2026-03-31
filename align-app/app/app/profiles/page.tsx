@@ -406,6 +406,7 @@ export default function ProfilesPage() {
                   photoUrl={me.photos?.[0]}
                   gender={me.gender}
                   name={me.name}
+                  shape="rectangle"
                   className="w-full h-32"
                   imgClassName="w-full h-32 object-cover"
                 />
@@ -485,6 +486,7 @@ export default function ProfilesPage() {
                   photoUrl={u.photos?.[0]}
                   gender={u.gender}
                   name={u.name}
+                  shape="rectangle"
                   className="w-full h-32"
                   imgClassName="w-full h-32 object-cover"
                 />
