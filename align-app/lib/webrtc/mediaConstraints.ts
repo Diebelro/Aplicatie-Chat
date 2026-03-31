@@ -100,7 +100,7 @@ export function formatMediaPermissionHelp(err: unknown): { headline: string; lin
     "Desktop: iconița de lacăt sau „i” lângă adresa site-ului → Microfon și Camera → „Permite”.",
     "Android (Chrome): meniul site-ului → Permisiuni → Microfon / Cameră.",
     "iPhone (Safari): Setări → Safari → Microfon / Cameră pentru acest site.",
-    "După ce modifici permisiunile: închide fereastra de apel și intră din nou (sau reîmprospătează pagina), apoi Acceptă din nou.",
+    "După ce modifici permisiunile: apasă „Încearcă din nou” pe acest ecran, sau închide apelul și intră din nou.",
   ];
 
   return { headline, lines };

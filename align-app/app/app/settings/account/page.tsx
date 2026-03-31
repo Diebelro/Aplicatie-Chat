@@ -203,7 +203,7 @@ export default function AccountSettingsPage() {
       .catch(() => setDeleting(false));
   };
 
-  const inputClass = "w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-white placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500";
+  const inputClass = "w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-zinc-900 placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500";
   const labelClass = "block text-dark-500 text-sm mb-1";
 
   if (!user) {
@@ -217,14 +217,14 @@ export default function AccountSettingsPage() {
   return (
     <div className="max-w-xl mx-auto space-y-10">
       <div className="flex items-center gap-4">
-        <Link href="/app/profile" className="text-dark-400 hover:text-white transition text-sm">
+        <Link href="/app/profile" className="text-dark-400 hover:text-zinc-900 transition text-sm">
           ← Înapoi la profil
         </Link>
-        <h1 className="text-xl font-semibold text-white">Setări cont</h1>
+        <h1 className="text-xl font-semibold text-zinc-900">Setări cont</h1>
       </div>
 
       <section className="p-6 rounded-2xl bg-dark-800 border border-dark-600 border-brand-500/20">
-        <h2 className="text-lg font-medium text-white mb-2">Propuneri și feedback</h2>
+        <h2 className="text-lg font-medium text-zinc-900 mb-2">Propuneri și feedback</h2>
         <p className="text-dark-500 text-sm mb-4">
           Ai o idee ca să îmbunătățim aplicația sau ai întâlnit ceva care nu merge? Scrie-ne — citim tot și ne ajută să
           reparăm rapid.
@@ -239,7 +239,7 @@ export default function AccountSettingsPage() {
 
       {/* A) Personal info */}
       <section className="p-6 rounded-2xl bg-dark-800 border border-dark-600">
-        <h2 className="text-lg font-medium text-white mb-4">Informații personale</h2>
+        <h2 className="text-lg font-medium text-zinc-900 mb-4">Informații personale</h2>
         <p className="text-dark-500 text-sm mb-4">Numele real este privat și se afișează doar aici. În aplicație alții te văd username-ul tău.</p>
         <div className="space-y-4">
           <div>
@@ -283,7 +283,7 @@ export default function AccountSettingsPage() {
             type="button"
             onClick={savePersonal}
             disabled={personalSave}
-            className="px-4 py-2 rounded-lg bg-brand-500 text-white font-medium hover:bg-brand-600 disabled:opacity-50 transition"
+            className="px-4 py-2 rounded-lg bg-brand-500 text-zinc-900 font-medium hover:bg-brand-600 disabled:opacity-50 transition"
           >
             {personalSave ? "Se salvează..." : "Salvează"}
           </button>
@@ -292,7 +292,7 @@ export default function AccountSettingsPage() {
 
       {/* Abonament / Premium */}
       <section className="p-6 rounded-2xl bg-dark-800 border border-dark-600">
-        <h2 className="text-lg font-medium text-white mb-4">Abonament Premium</h2>
+        <h2 className="text-lg font-medium text-zinc-900 mb-4">Abonament Premium</h2>
         <p className="text-dark-500 text-sm mb-3">
           {subscriptionPlan
             ? `Plan activ: ${
@@ -316,7 +316,7 @@ export default function AccountSettingsPage() {
 
       {/* B) Password */}
       <section className="p-6 rounded-2xl bg-dark-800 border border-dark-600">
-        <h2 className="text-lg font-medium text-white mb-4">Parolă</h2>
+        <h2 className="text-lg font-medium text-zinc-900 mb-4">Parolă</h2>
         <div className="space-y-4">
           <div>
             <label className={labelClass}>Parola curentă</label>
@@ -353,7 +353,7 @@ export default function AccountSettingsPage() {
           <button
             type="button"
             onClick={updatePassword}
-            className="px-4 py-2 rounded-lg bg-brand-500 text-white font-medium hover:bg-brand-600 transition"
+            className="px-4 py-2 rounded-lg bg-brand-500 text-zinc-900 font-medium hover:bg-brand-600 transition"
           >
             Actualizează parola
           </button>
@@ -362,7 +362,7 @@ export default function AccountSettingsPage() {
 
       {/* C) Privacy */}
       <section className="p-6 rounded-2xl bg-dark-800 border border-dark-600">
-        <h2 className="text-lg font-medium text-white mb-4">Confidențialitate</h2>
+        <h2 className="text-lg font-medium text-zinc-900 mb-4">Confidențialitate</h2>
         {privacyLoading ? (
           <p className="text-dark-500 text-sm">Se încarcă...</p>
         ) : (
@@ -418,7 +418,7 @@ export default function AccountSettingsPage() {
 
       {/* D) GDPR */}
       <section className="p-6 rounded-2xl bg-dark-800 border border-dark-600">
-        <h2 className="text-lg font-medium text-white mb-4">Date personale (GDPR)</h2>
+        <h2 className="text-lg font-medium text-zinc-900 mb-4">Date personale (GDPR)</h2>
         <div className="space-y-4">
           <div>
             <button
@@ -450,7 +450,7 @@ export default function AccountSettingsPage() {
       {deleteConfirmOpen && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-dark-800 border border-dark-600 rounded-2xl p-6 max-w-md w-full">
-            <h3 className="text-lg font-medium text-white mb-2">Ștergere cont</h3>
+            <h3 className="text-lg font-medium text-zinc-900 mb-2">Ștergere cont</h3>
             <p className="text-dark-400 text-sm mb-4">Această acțiune este permanentă. Toate datele tale vor fi șterse. Introdu parola pentru a confirma.</p>
             <input
               type="password"
@@ -465,7 +465,7 @@ export default function AccountSettingsPage() {
               <button
                 type="button"
                 onClick={() => { setDeleteConfirmOpen(false); setDeletePassword(""); setDeleteError(""); }}
-                className="flex-1 px-4 py-2 rounded-lg bg-dark-600 text-white hover:bg-dark-500 transition"
+                className="flex-1 px-4 py-2 rounded-lg bg-dark-600 text-zinc-900 hover:bg-dark-500 transition"
               >
                 Anulează
               </button>

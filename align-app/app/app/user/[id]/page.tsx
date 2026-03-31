@@ -144,7 +144,7 @@ export default function PublicUserProfilePage() {
       <div className="flex items-center gap-2 mb-4">
         <Link
           href="/app/profiles"
-          className="min-h-[44px] min-w-[44px] flex items-center justify-center text-dark-500 hover:text-white transition shrink-0"
+          className="min-h-[44px] min-w-[44px] flex items-center justify-center text-dark-500 hover:text-zinc-900 transition shrink-0"
           aria-label="Înapoi la profiluri"
         >
           ←
@@ -162,7 +162,7 @@ export default function PublicUserProfilePage() {
         >
           <button
             type="button"
-            className="absolute top-3 right-3 z-10 p-3 rounded-full bg-dark-800 text-white hover:bg-dark-600 border border-dark-500"
+            className="absolute top-3 right-3 z-10 p-3 rounded-full bg-night-800/95 text-white hover:bg-night-700 border border-night-600"
             aria-label="Închide"
             onClick={(e) => {
               e.stopPropagation();
@@ -175,7 +175,7 @@ export default function PublicUserProfilePage() {
             <>
               <button
                 type="button"
-                className="absolute left-2 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-dark-800/90 text-white border border-dark-500 disabled:opacity-30"
+                className="absolute left-2 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-night-800/90 text-white border border-night-600 disabled:opacity-30"
                 aria-label="Poză anterioară"
                 disabled={lightboxIndex <= 0}
                 onClick={(e) => {
@@ -187,7 +187,7 @@ export default function PublicUserProfilePage() {
               </button>
               <button
                 type="button"
-                className="absolute right-2 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-dark-800/90 text-white border border-dark-500 disabled:opacity-30"
+                className="absolute right-2 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-night-800/90 text-white border border-night-600 disabled:opacity-30"
                 aria-label="Poză următoare"
                 disabled={lightboxIndex >= photos.length - 1}
                 onClick={(e) => {

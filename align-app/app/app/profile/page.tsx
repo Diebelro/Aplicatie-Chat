@@ -62,7 +62,7 @@ const CLOTHING_STYLE_OPTIONS = ["", "casual", "elegant", "sport", "boem", "clasi
 const PHYSICAL_ASSET_FEMALE = ["", "Ochi", "Zâmbet", "Păr", "Siluetă", "Talie", "Picioare", "Postură", "Umeri", "Spate", "Energie / prezență fizică"];
 const PHYSICAL_ASSET_MALE = ["", "Umeri", "Spate", "Brațe", "Piept", "Postură", "Înălțime", "Siluetă", "Maxilar / trăsături faciale", "Ochi", "Energie / prezență fizică"];
 const MONTH_NAMES = ["", "ianuarie", "februarie", "martie", "aprilie", "mai", "iunie", "iulie", "august", "septembrie", "octombrie", "noiembrie", "decembrie"];
-const inputClass = "w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-white placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500";
+const inputClass = "w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-zinc-900 placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500";
 const labelClass = "block text-dark-500 text-sm mb-1";
 
 function parseBirthDate(s: string): { day: string; month: string; year: string } {
@@ -456,7 +456,7 @@ export default function ProfilePage() {
 
   return (
     <div>
-      <h2 className="text-2xl font-semibold text-white mt-4">Profilul meu</h2>
+      <h2 className="text-2xl font-semibold text-zinc-900 mt-4">Profilul meu</h2>
 
       {!serverHasUser && (
         <div className="mt-4 p-4 rounded-xl bg-amber-500/10 border border-amber-500/40 text-amber-200 text-sm">
@@ -529,7 +529,7 @@ export default function ProfilePage() {
       {/* Rezumat profil: doar câmpurile completate */}
       {(name.trim() || bio.trim() || birthDate.trim() || gender || city.trim() || postalCode.trim() || educationLevel.trim() || occupation.trim() || maritalStatus.trim() || wantsChildren.trim() || (birthDate.trim() && computeAgeFromBirthDate(birthDate.trim()) != null) || height.trim() || weight.trim() || bodyType.trim() || eyeColor.trim() || hairColor.trim() || clothingStyle.trim() || distinctiveFeatures.trim() || physicalAsset.trim() || physicalAssetDetail.trim()) && (
         <section className="mt-4 p-4 rounded-2xl bg-dark-800/50 border border-dark-600 max-w-2xl">
-          <h3 className="text-sm font-semibold text-white mb-3">Rezumat profil</h3>
+          <h3 className="text-sm font-semibold text-zinc-900 mb-3">Rezumat profil</h3>
           <dl className="space-y-1.5 text-sm">
             {name.trim() && <><dt className="text-dark-500 inline">Prenume: </dt><dd className="inline text-dark-200">{name.trim()}</dd></>}
             {gender && <><dt className="text-dark-500 inline">Sex: </dt><dd className="inline text-dark-200">{gender === "male" ? "Bărbat" : gender === "female" ? "Femeie" : "Altul"}</dd></>}
@@ -599,7 +599,7 @@ export default function ProfilePage() {
 
         {/* 1. Date personale */}
         <section className="p-5 rounded-2xl bg-dark-800/50 border border-dark-600">
-          <h3 className="text-base font-semibold text-white mb-4">1. Date personale</h3>
+          <h3 className="text-base font-semibold text-zinc-900 mb-4">1. Date personale</h3>
           <div className="space-y-4">
             <div>
               <label className={labelClass}>Prenume (obligatoriu)</label>
@@ -721,7 +721,7 @@ export default function ProfilePage() {
 
         {/* 2. Aspect fizic */}
         <section className="p-5 rounded-2xl bg-dark-800/50 border border-dark-600">
-          <h3 className="text-base font-semibold text-white mb-4">2. Aspect fizic</h3>
+          <h3 className="text-base font-semibold text-zinc-900 mb-4">2. Aspect fizic</h3>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -811,7 +811,7 @@ export default function ProfilePage() {
         {saving && <p className="text-dark-400 text-sm">Se salvează...</p>}
 
         <section className="mt-10 pt-8 border-t border-dark-600">
-          <h3 className="text-base font-semibold text-white mb-2">Setări confidențialitate și prieteni</h3>
+          <h3 className="text-base font-semibold text-zinc-900 mb-2">Setări confidențialitate și prieteni</h3>
           <p className="text-dark-500 text-sm mb-3">
             Controlează ce informații sunt vizibile pentru alții.
           </p>
@@ -819,7 +819,7 @@ export default function ProfilePage() {
         </section>
 
         <section className="mt-10 pt-8 border-t border-dark-600">
-          <h3 className="text-base font-semibold text-white mb-2">Setări cont</h3>
+          <h3 className="text-base font-semibold text-zinc-900 mb-2">Setări cont</h3>
           <p className="text-dark-500 text-sm mb-3">
             Deloghează-te de pe toate dispozitivele (inclusiv acest browser). Va trebui să te loghezi din nou peste tot.
           </p>
@@ -844,7 +844,7 @@ export default function ProfilePage() {
                 setLogoutAllLoading(false);
               }
             }}
-            className="!h-11 !min-h-[44px] !max-h-[44px] !py-0 px-4 rounded-xl bg-dark-700 hover:bg-dark-600 border border-dark-600 text-white font-medium text-sm transition disabled:opacity-50"
+            className="!h-11 !min-h-[44px] !max-h-[44px] !py-0 px-4 rounded-xl bg-dark-700 hover:bg-dark-600 border border-dark-600 text-zinc-900 font-medium text-sm transition disabled:opacity-50"
           >
             {logoutAllLoading ? "Se procesează..." : "Deloghează-mă de pe toate dispozitivele"}
           </button>

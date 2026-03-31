@@ -1,18 +1,33 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { SessionProvider, signIn } from "next-auth/react";
+
 /** Esențiale: Google, Apple, Email, Telefon. Recomandate: Microsoft, Facebook, Yahoo. */
 const PROVIDERS = [
-  { id: "google", label: "Continue with Google", essential: true },
-  { id: "apple", label: "Continue with Apple", essential: true },
+  { id: "google", label: "Continue with Google", essential: true, nextAuthId: "google" as const },
+  { id: "apple", label: "Continue with Apple", essential: true, nextAuthId: "apple" as const },
   { id: "phone", label: "Continue with Phone Number (SMS)", essential: true },
-  { id: "microsoft", label: "Continue with Microsoft", essential: false },
-  { id: "facebook", label: "Continue with Facebook", essential: false },
+  { id: "microsoft", label: "Continue with Microsoft", essential: false, nextAuthId: "azure-ad" as const },
+  { id: "facebook", label: "Continue with Facebook", essential: false, nextAuthId: "facebook" as const },
   { id: "yahoo", label: "Continue with Yahoo Mail", essential: false },
 ] as const;
 
-function handleProviderClick(provider: string) {
-  // TODO: redirecționare la OAuth / SMS când sunt configurate
-  window.location.href = `/api/auth/${provider}`;
+type SocialCfg = {
+  google: boolean;
+  facebook: boolean;
+  apple: boolean;
+  microsoft: boolean;
+};
+
+/** Map id SocialConfig key */
+function cfgKey(providerId: string): keyof SocialCfg | null {
+  if (providerId === "google") return "google";
+  if (providerId === "facebook") return "facebook";
+  if (providerId === "apple") return "apple";
+  if (providerId === "microsoft") return "microsoft";
+  return null;
 }
 
 interface AuthProvidersProps {
@@ -28,7 +43,7 @@ const compactButtonClass = `
   rounded-xl
   border border-dark-600
   bg-dark-800
-  text-white
+  text-zinc-900
   hover:bg-dark-700
   transition
   font-medium
@@ -40,28 +55,85 @@ const compactButtonClass = `
 `.replace(/\s+/g, " ").trim();
 
 export default function AuthProviders({ compact }: AuthProvidersProps) {
-  // Implicit afișat (ca în UI inițial + disclaimer „în curând”). Ascunde doar cu NEXT_PUBLIC_ENABLE_SOCIAL_LOGIN=false.
+  const router = useRouter();
+  const [socialCfg, setSocialCfg] = useState<SocialCfg | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/auth/social-config")
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((j: Partial<SocialCfg>) => {
+        if (!cancelled) {
+          setSocialCfg({
+            google: !!j.google,
+            facebook: !!j.facebook,
+            apple: !!j.apple,
+            microsoft: !!j.microsoft,
+          });
+        }
+      })
+      .catch(() => {
+        if (!cancelled)
+          setSocialCfg({ google: false, facebook: false, apple: false, microsoft: false });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleClick = (p: (typeof PROVIDERS)[number]) => {
+    if (p.id === "phone" || p.id === "yahoo") {
+      router.push(`/login?soon=1&auth=${encodeURIComponent(p.id)}`);
+      return;
+    }
+    if (!("nextAuthId" in p)) return;
+    const key = cfgKey(p.id);
+    if (key && socialCfg && !socialCfg[key]) {
+      router.push(`/login?reason=oauth_not_configured&p=${encodeURIComponent(p.id)}`);
+      return;
+    }
+    const cb = `${window.location.origin}/api/auth/align-bridge`;
+    void signIn(p.nextAuthId, { callbackUrl: cb });
+  };
+
   if (process.env.NEXT_PUBLIC_ENABLE_SOCIAL_LOGIN === "false") {
     return null;
   }
+
+  const cfgReady = socialCfg !== null;
+
   return (
-    <div className={compact ? "flex flex-col gap-2" : "space-y-2"}>
-      {PROVIDERS.map((p) => (
-        <button
-          key={p.id}
-          type="button"
-          onClick={() => handleProviderClick(p.id)}
-          className={
-            compact
-              ? compactButtonClass
-              : "w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-dark-600 bg-dark-800 text-white hover:bg-dark-700 transition font-medium text-sm"
-          }
-        >
-          <ProviderIcon id={p.id} compact={compact} />
-          <span>{p.label}</span>
-        </button>
-      ))}
-    </div>
+    <SessionProvider refetchOnWindowFocus={false} refetchInterval={0}>
+      <div className={compact ? "flex flex-col gap-2" : "space-y-2"}>
+        {PROVIDERS.map((p) => {
+          const key = cfgKey(p.id);
+          const oauthConfigured = key == null ? true : !cfgReady || socialCfg![key];
+          const disabled = !oauthConfigured;
+          const title = disabled
+            ? `Nu e configurat pe server (vezi .env.example — ${p.id})`
+            : undefined;
+
+          return (
+            <button
+              key={p.id}
+              type="button"
+              title={title}
+              disabled={disabled}
+              onClick={() => handleClick(p)}
+              className={
+                (compact
+                  ? compactButtonClass
+                  : "w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-dark-600 bg-dark-800 text-zinc-900 hover:bg-dark-700 transition font-medium text-sm") +
+                (disabled ? " opacity-45 cursor-not-allowed" : "")
+              }
+            >
+              <ProviderIcon id={p.id} compact={compact} />
+              <span>{p.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </SessionProvider>
   );
 }
 

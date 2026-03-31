@@ -24,7 +24,7 @@ export function LanguageSwitcher() {
           className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
             locale === loc
               ? "bg-brand-500 text-dark-900"
-              : "text-dark-400 hover:text-white hover:bg-dark-700"
+              : "text-dark-400 hover:text-zinc-900 hover:bg-dark-700"
           }`}
           aria-label={`Switch to ${LABELS[loc]}`}
         >

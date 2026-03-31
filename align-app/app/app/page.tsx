@@ -384,7 +384,7 @@ export default function AppDiscoverPage() {
       {matchModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setMatchModal(null)}>
           <div className="bg-dark-800 border border-dark-600 rounded-2xl p-6 max-w-sm w-full shadow-xl text-center" onClick={(e) => e.stopPropagation()}>
-            <p className="text-lg font-semibold text-white mb-1">Ești match!</p>
+            <p className="text-lg font-semibold text-zinc-900 mb-1">Ești match!</p>
             <p className="text-dark-300 mb-6">Poți trimite mesaje lui {matchModal.name}.</p>
             <div className="flex flex-col gap-2">
               <div className="flex gap-3">
@@ -398,7 +398,7 @@ export default function AppDiscoverPage() {
                 <button
                   type="button"
                   onClick={() => { router.push(`/app/chat/${matchModal.toId}`); setMatchModal(null); }}
-                  className="flex-1 py-2.5 rounded-xl bg-brand-500 text-white font-medium hover:bg-brand-600"
+                  className="flex-1 py-2.5 rounded-xl bg-brand-500 text-zinc-900 font-medium hover:bg-brand-600"
                 >
                   Trimite mesaj
                 </button>
@@ -427,7 +427,7 @@ export default function AppDiscoverPage() {
                 placeholder="Caută după nume..."
                 value={filters.name}
                 onChange={(e) => setFilters((f) => ({ ...f, name: e.target.value }))}
-                className="w-40 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                className="w-40 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 text-sm placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
               />
               {filters.name !== debouncedName && filters.name.trim() !== "" && (
                 <span className="text-xs text-dark-500">Se caută...</span>
@@ -448,7 +448,7 @@ export default function AppDiscoverPage() {
             <select
               value={filters.gender}
               onChange={(e) => setFilters((f) => ({ ...f, gender: e.target.value }))}
-              className="bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             >
               <option value="">Toate</option>
               <option value="male">Bărbat</option>
@@ -474,7 +474,7 @@ export default function AppDiscoverPage() {
                   return { ...f, minAge, maxAge };
                 });
               }}
-              className="w-20 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-20 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
           <div>
@@ -495,7 +495,7 @@ export default function AppDiscoverPage() {
                   return { ...f, minAge, maxAge };
                 });
               }}
-              className="w-20 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-20 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
           <div>
@@ -506,7 +506,7 @@ export default function AppDiscoverPage() {
               placeholder="100"
               value={filters.maxDistanceKm}
               onChange={(e) => setFilters((f) => ({ ...f, maxDistanceKm: e.target.value }))}
-              className="w-24 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-24 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
           <div>
@@ -516,7 +516,7 @@ export default function AppDiscoverPage() {
               placeholder="ex. România"
               value={filters.country}
               onChange={(e) => setFilters((f) => ({ ...f, country: e.target.value }))}
-              className="w-36 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-36 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 text-sm placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
           <div>
@@ -526,7 +526,7 @@ export default function AppDiscoverPage() {
               placeholder="ex. București"
               value={filters.city}
               onChange={(e) => setFilters((f) => ({ ...f, city: e.target.value }))}
-              className="w-36 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-36 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 text-sm placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
         </div>
@@ -639,7 +639,7 @@ export default function AppDiscoverPage() {
                 )}
                 </div>
                 <div className="absolute inset-0 px-5 pt-5 pb-36 sm:pb-32 flex flex-col justify-end bg-gradient-to-t from-black/80 via-black/50 to-transparent pointer-events-none [&>_*]:pointer-events-auto">
-                  <h3 className="text-2xl font-bold text-white mb-1 pr-14 sm:pr-16 line-clamp-2">{displayName(current.username ?? current.name)}</h3>
+                  <h3 className="text-2xl font-bold text-zinc-900 mb-1 pr-14 sm:pr-16 line-clamp-2">{displayName(current.username ?? current.name)}</h3>
                   <div className="flex flex-wrap items-center gap-2 mb-2">
                     {current.friendStatus === "accepted" && (
                       <span className="text-xs px-2 py-0.5 rounded-full bg-[#4DA6FF]/30 text-[#4DA6FF] border border-[#4DA6FF]/50">
@@ -792,7 +792,7 @@ export default function AppDiscoverPage() {
               <div className="p-3 border-t border-dark-600 flex justify-end">
                 <button
                   onClick={advanceToNext}
-                  className="flex items-center gap-1 px-4 py-2 rounded-lg bg-dark-600 hover:bg-dark-500 text-white text-sm transition"
+                  className="flex items-center gap-1 px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white text-sm transition"
                 >
                   Mai departe <ChevronRight className="w-4 h-4" />
                 </button>
@@ -808,7 +808,7 @@ export default function AppDiscoverPage() {
               <div className="p-3 border-t border-dark-600 flex justify-end">
                 <button
                   onClick={advanceToNext}
-                  className="flex items-center gap-1 px-4 py-2 rounded-lg bg-dark-600 hover:bg-dark-500 text-white text-sm transition"
+                  className="flex items-center gap-1 px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white text-sm transition"
                 >
                   Mai departe <ChevronRight className="w-4 h-4" />
                 </button>

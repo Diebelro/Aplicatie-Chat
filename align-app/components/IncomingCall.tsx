@@ -180,14 +180,14 @@ export default function IncomingCall() {
   if (onCallPage || !incoming) return null;
 
   return (
-    <div className="fixed inset-0 z-[220] flex flex-col items-center justify-center bg-dark-900 min-h-screen p-6">
-      <p className="text-dark-400 text-base mb-2">
+    <div className="fixed inset-0 z-[220] flex flex-col items-center justify-center bg-night-900 min-h-screen p-6">
+      <p className="text-night-400 text-base mb-2">
         {incoming.audioOnly ? "Apel audio" : "Apel video"}
       </p>
       <p className="text-2xl md:text-3xl font-semibold text-white mb-2 text-center">
         {incoming.fromName}
       </p>
-      <p className="text-lg text-dark-400 mb-8">te sună</p>
+      <p className="text-lg text-night-400 mb-8">te sună</p>
       {actionError && (
         <p className="text-amber-400 text-sm text-center max-w-sm mb-6 px-2" role="alert">
           {actionError}
@@ -216,7 +216,7 @@ export default function IncomingCall() {
       <p className="mt-10 text-center">
         <Link
           href="/app/missed-calls"
-          className="text-sm text-dark-500 hover:text-brand-400 underline underline-offset-2"
+          className="text-sm text-night-500 hover:text-brand-400 underline underline-offset-2"
         >
           Vezi apeluri pierdute
         </Link>

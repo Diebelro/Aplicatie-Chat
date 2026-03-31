@@ -92,7 +92,7 @@ function ResetPasswordContent() {
           <Link href="/login" className="inline-block text-brand-400 font-bold">
             ← Align
           </Link>
-          <h1 className="text-2xl font-semibold text-white mt-4">Link invalid sau expirat</h1>
+          <h1 className="text-2xl font-semibold text-zinc-900 mt-4">Link invalid sau expirat</h1>
           <p className="text-sm text-dark-300 mt-2">
             Linkul de resetare nu este valid sau a expirat. Cere un link nou din „Ai uitat parola?”.
           </p>
@@ -121,7 +121,7 @@ function ResetPasswordContent() {
           <Link href="/login" className="inline-block text-brand-400 font-bold">
             ← Align
           </Link>
-          <h1 className="text-2xl font-semibold text-white mt-4">Parolă actualizată</h1>
+          <h1 className="text-2xl font-semibold text-zinc-900 mt-4">Parolă actualizată</h1>
           <p className="text-sm text-dark-300 mt-2">
             Parola ta a fost resetată.
           </p>
@@ -152,7 +152,7 @@ function ResetPasswordContent() {
         <Link href="/login" className="inline-block text-brand-400 font-bold">
           ← Align
         </Link>
-        <h1 className="text-2xl font-semibold text-white mt-4">Setare parolă nouă</h1>
+        <h1 className="text-2xl font-semibold text-zinc-900 mt-4">Setare parolă nouă</h1>
         <p className="text-sm text-dark-300 mt-2">
           Introdu parola nouă (min. 6 caractere) și confirm-o.
         </p>
@@ -169,12 +169,12 @@ function ResetPasswordContent() {
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={6}
-              className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 pr-12 text-white placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 pr-12 text-zinc-900 placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
             <button
               type="button"
               onClick={() => setShowPassword((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-500 hover:text-white transition p-1 rounded"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-500 hover:text-zinc-900 transition p-1 rounded"
               aria-label={showPassword ? "Ascunde parola" : "Arată parola"}
             >
               {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -188,12 +188,12 @@ function ResetPasswordContent() {
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
               minLength={6}
-              className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 pr-12 text-white placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 pr-12 text-zinc-900 placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
             <button
               type="button"
               onClick={() => setShowConfirmPassword((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-500 hover:text-white transition p-1 rounded"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-500 hover:text-zinc-900 transition p-1 rounded"
               aria-label={showConfirmPassword ? "Ascunde parola" : "Arată parola"}
             >
               {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}

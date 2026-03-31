@@ -102,7 +102,7 @@ export function RewardedPremiumCTA() {
 
   return (
     <div className="rounded-xl bg-dark-800 border border-dark-600 p-4">
-      <div className="flex items-center gap-2 text-white font-medium mb-1">
+      <div className="flex items-center gap-2 text-zinc-900 font-medium mb-1">
         <Gift className="w-5 h-5 text-amber-400" />
         Premium 1 ora – Urmărește o reclamă
       </div>

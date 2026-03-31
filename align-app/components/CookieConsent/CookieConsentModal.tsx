@@ -67,7 +67,7 @@ export function CookieConsentModal({ onClose, onSave }: CookieConsentModalProps)
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-6">
-          <h2 id="cookie-modal-title" className="text-lg font-semibold text-white mb-4">
+          <h2 id="cookie-modal-title" className="text-lg font-semibold text-zinc-900 mb-4">
             {get("preferences")}
           </h2>
 
@@ -81,7 +81,7 @@ export function CookieConsentModal({ onClose, onSave }: CookieConsentModalProps)
                 className="mt-1 w-4 h-4 rounded border-dark-500 bg-dark-700 text-brand-500"
               />
               <div>
-                <label htmlFor="necessary" className="font-medium text-white">
+                <label htmlFor="necessary" className="font-medium text-zinc-900">
                   {get("necessary")}
                 </label>
                 <p className="text-sm text-dark-400 mt-0.5">{get("necessaryDesc")}</p>
@@ -97,7 +97,7 @@ export function CookieConsentModal({ onClose, onSave }: CookieConsentModalProps)
                 className="mt-1 w-4 h-4 rounded border-dark-500 bg-dark-700 text-brand-500"
               />
               <div>
-                <label htmlFor="statistics" className="font-medium text-white">
+                <label htmlFor="statistics" className="font-medium text-zinc-900">
                   {get("statistics")}
                 </label>
                 <p className="text-sm text-dark-400 mt-0.5">{get("statisticsDesc")}</p>
@@ -113,7 +113,7 @@ export function CookieConsentModal({ onClose, onSave }: CookieConsentModalProps)
                 className="mt-1 w-4 h-4 rounded border-dark-500 bg-dark-700 text-brand-500"
               />
               <div>
-                <label htmlFor="marketing" className="font-medium text-white">
+                <label htmlFor="marketing" className="font-medium text-zinc-900">
                   {get("marketing")}
                 </label>
                 <p className="text-sm text-dark-400 mt-0.5">{get("marketingDesc")}</p>
@@ -129,7 +129,7 @@ export function CookieConsentModal({ onClose, onSave }: CookieConsentModalProps)
                 className="mt-1 w-4 h-4 rounded border-dark-500 bg-dark-700 text-brand-500"
               />
               <div>
-                <label htmlFor="functional" className="font-medium text-white">
+                <label htmlFor="functional" className="font-medium text-zinc-900">
                   {get("functional")}
                 </label>
                 <p className="text-sm text-dark-400 mt-0.5">{get("functionalDesc")}</p>
@@ -148,14 +148,14 @@ export function CookieConsentModal({ onClose, onSave }: CookieConsentModalProps)
             <button
               type="button"
               onClick={handleSave}
-              className="px-4 py-2 rounded-xl bg-dark-600 hover:bg-dark-500 text-white font-medium text-sm transition"
+              className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-medium text-sm transition"
             >
               {getCommon("save")}
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl border border-dark-500 text-gray-300 hover:bg-dark-700 font-medium text-sm transition"
+              className="px-4 py-2 rounded-xl border border-dark-600 text-zinc-600 hover:bg-dark-700 font-medium text-sm transition"
             >
               {getCommon("cancel")}
             </button>

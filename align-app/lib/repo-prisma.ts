@@ -334,6 +334,73 @@ export async function prismaCreateUserWithProfile(data: {
   } as Parameters<typeof profileToUserDTO>[0]);
 }
 
+/**
+ * Login OAuth: găsește user după email sau creează cont fără parolă (passwordHash null), profil minimal.
+ */
+export async function prismaFindOrCreateOAuthUser(params: {
+  email: string;
+  name: string | null | undefined;
+}): Promise<{ id: string; profileComplete: boolean }> {
+  const email = normalizeAuthEmail(params.email);
+  if (!email) {
+    throw new Error("Email lipsă pentru OAuth.");
+  }
+  const existing = await prisma.user.findUnique({
+    where: { email },
+    include: { profile: true },
+  });
+  if (existing) {
+    if (!existing.profile) {
+      const base = email.split("@")[0]?.replace(/[^a-z0-9_]/gi, "") || "user";
+      let username = base.slice(0, 24).toLowerCase() || "user";
+      let n = 0;
+      while (
+        await prisma.profile.findUnique({
+          where: { username },
+        })
+      ) {
+        username = `${base.slice(0, 16)}${++n}`;
+      }
+      await prisma.profile.create({
+        data: {
+          userId: existing.id,
+          username,
+          name: params.name?.trim() || username,
+        },
+      });
+      return { id: existing.id, profileComplete: false };
+    }
+    return { id: existing.id, profileComplete: !!existing.profile.completedAt };
+  }
+
+  const base = email.split("@")[0]?.replace(/[^a-z0-9_]/gi, "") || "user";
+  let username = base.slice(0, 24).toLowerCase() || "user";
+  let n = 0;
+  while (
+    await prisma.profile.findUnique({
+      where: { username },
+    })
+  ) {
+    username = `${base.slice(0, 16)}${++n}`;
+  }
+  const display = (params.name?.trim() || username).slice(0, 120);
+  const user = await prisma.user.create({
+    data: {
+      email,
+      passwordHash: null,
+      emailVerified: new Date(),
+      profile: {
+        create: {
+          username,
+          name: display,
+        },
+      },
+    },
+    include: { profile: true },
+  });
+  return { id: user.id, profileComplete: !!user.profile?.completedAt };
+}
+
 /** Găsește user doar după email (pentru login). Nu cere Profile – astfel conturile existente sunt găsite mereu. */
 export async function prismaFindUserByEmailForLogin(
   email: string

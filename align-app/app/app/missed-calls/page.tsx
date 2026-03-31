@@ -78,7 +78,7 @@ export default function MissedCallsPage() {
                   <PhoneOff className="w-5 h-5" />
                 </span>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-white truncate">
+                  <p className="font-medium text-zinc-900 truncate">
                     Apel {m.audioOnly ? "audio" : "video"} de la {m.fromName}
                   </p>
                   <p className="text-dark-500 text-sm">{formatWhen(m.at)}</p>
@@ -96,7 +96,7 @@ export default function MissedCallsPage() {
             type="button"
             onClick={clearList}
             disabled={clearing}
-            className="w-full py-2.5 rounded-xl border border-dark-600 text-dark-400 hover:bg-dark-800 hover:text-white transition disabled:opacity-50 text-sm"
+            className="w-full py-2.5 rounded-xl border border-dark-600 text-dark-400 hover:bg-dark-800 hover:text-zinc-900 transition disabled:opacity-50 text-sm"
           >
             {clearing ? "Se șterge..." : "Șterge lista"}
           </button>

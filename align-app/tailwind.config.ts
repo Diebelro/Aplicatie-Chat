@@ -21,13 +21,27 @@ const config: Config = {
           800: "#115e59",
           900: "#134e4a",
         },
+        /** Tema app Cursor-ish (light): „dark-*” = suprafețe & text pe fundal deschis. */
         dark: {
+          950: "#fafafa",
+          900: "#f6f6f7",
+          800: "#ffffff",
+          700: "#f4f4f5",
+          600: "#e4e4e7",
+          500: "#71717a",
+          400: "#a1a1aa",
+          300: "#d4d4d8",
+        },
+        /** UI apeluri / overlay întunecat (valorile vechi dark). */
+        night: {
+          950: "#0c1116",
           900: "#0f1419",
           800: "#15202b",
           700: "#192734",
           600: "#22303c",
           500: "#5c6770",
           400: "#8b98a5",
+          300: "#b8c5d1",
         },
       },
       fontFamily: {

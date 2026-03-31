@@ -62,7 +62,7 @@ function AdminConversationsForm() {
             value={pastedId}
             onChange={(e) => setPastedId(e.target.value)}
             placeholder="ex. clxxxxxxxx_clyyyyyyyy"
-            className="flex-1 bg-dark-700 border border-dark-600 rounded px-3 py-2 text-white font-mono text-sm"
+            className="flex-1 bg-dark-700 border border-dark-600 rounded px-3 py-2 text-zinc-900 font-mono text-sm"
           />
           <button
             type="button"
@@ -83,7 +83,7 @@ function AdminConversationsForm() {
             value={userA}
             onChange={(e) => setUserA(e.target.value)}
             placeholder="ex. clxx123…"
-            className="w-full bg-dark-700 border border-dark-600 rounded px-3 py-2 text-white font-mono text-sm"
+            className="w-full bg-dark-700 border border-dark-600 rounded px-3 py-2 text-zinc-900 font-mono text-sm"
           />
         </div>
         <div>
@@ -93,7 +93,7 @@ function AdminConversationsForm() {
             value={userB}
             onChange={(e) => setUserB(e.target.value)}
             placeholder="ex. clyy456…"
-            className="w-full bg-dark-700 border border-dark-600 rounded px-3 py-2 text-white font-mono text-sm"
+            className="w-full bg-dark-700 border border-dark-600 rounded px-3 py-2 text-zinc-900 font-mono text-sm"
           />
         </div>
         <button

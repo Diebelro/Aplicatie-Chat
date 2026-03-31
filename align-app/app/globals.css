@@ -3,11 +3,11 @@
 @tailwind utilities;
 
 :root {
-  --bg: #0f1419;
-  --card: #15202b;
-  --border: #22303c;
-  --text: #e7e9ea;
-  --muted: #8b98a5;
+  --bg: #f6f6f7;
+  --card: #ffffff;
+  --border: #e4e4e7;
+  --text: #18181b;
+  --muted: #71717a;
   --accent: #14b8a6;
 }
 
@@ -48,12 +48,12 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Text secundar (dark-500, dark-400) mai ușor de citit – aceleași tonuri, mai deschise */
+/* Aliniat cu tema light: utilitare pentru clase text-dark-* din Tailwind + fallback */
 .text-dark-500 {
-  color: #8b98a5;
+  color: #71717a;
 }
 .text-dark-400 {
-  color: #9ca8b5;
+  color: #a1a1aa;
 }
 
 @layer utilities {
@@ -76,4 +76,11 @@ body {
 .leaflet-container .map-avatar-divicon {
   background: transparent !important;
   border: none !important;
+  cursor: pointer !important;
+}
+/* Img în medalion capta clicul și nu ajungea la handlerul markerului → profilul nu se deschidea */
+.leaflet-container .map-avatar-divicon img {
+  pointer-events: none !important;
+  user-select: none;
+  -webkit-user-drag: none;
 }

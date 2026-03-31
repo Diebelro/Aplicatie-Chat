@@ -115,7 +115,7 @@ export default function ForgotPasswordPage() {
           <Link href="/login" className="inline-block text-brand-400 font-bold">
             ← Align
           </Link>
-          <h1 className="text-2xl font-semibold text-white mt-4">Verifică emailul</h1>
+          <h1 className="text-2xl font-semibold text-zinc-900 mt-4">Verifică emailul</h1>
           <p className="text-sm text-dark-300 mt-2">
             Am trimis un link la {email}.
           </p>
@@ -183,7 +183,7 @@ export default function ForgotPasswordPage() {
           <Link href="/login" className="inline-block text-brand-400 font-bold">
             ← Align
           </Link>
-          <h1 className="text-2xl font-semibold text-white mt-4">Recuperează prin scan</h1>
+          <h1 className="text-2xl font-semibold text-zinc-900 mt-4">Recuperează prin scan</h1>
           <p className="text-sm text-dark-300 mt-2">
             Deschide aplicația Align pe telefon (sau acest site în browser pe telefon), fii logat, apoi scanează codul de mai jos sau deschide linkul.
           </p>
@@ -227,7 +227,7 @@ export default function ForgotPasswordPage() {
           )}
           <Link
             href="/forgot-password"
-            className="mt-6 text-center text-dark-500 text-sm hover:text-white"
+            className="mt-6 text-center text-dark-500 text-sm hover:text-zinc-900"
           >
             Înapoi la opțiuni
           </Link>
@@ -250,7 +250,7 @@ export default function ForgotPasswordPage() {
           >
             ← Înapoi la opțiuni
           </button>
-          <h1 className="text-2xl font-semibold text-white mt-4">Trimite link pe email</h1>
+          <h1 className="text-2xl font-semibold text-zinc-900 mt-4">Trimite link pe email</h1>
           <p className="text-sm text-dark-300 mt-2">
             Introdu email-ul contului și îți trimitem un link pentru resetarea parolei.
           </p>
@@ -265,7 +265,7 @@ export default function ForgotPasswordPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-white placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-zinc-900 placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
             {error && (
               <p className="text-red-400 text-sm">{error}</p>
@@ -296,7 +296,7 @@ export default function ForgotPasswordPage() {
         <Link href="/login" className="inline-block text-brand-400 font-bold">
           ← Align
         </Link>
-        <h1 className="text-2xl font-semibold text-white mt-4">Ai uitat parola?</h1>
+        <h1 className="text-2xl font-semibold text-zinc-900 mt-4">Ai uitat parola?</h1>
         <p className="text-sm text-dark-300 mt-2">
           Alege cum vrei să recuperezi contul:
         </p>
@@ -305,7 +305,7 @@ export default function ForgotPasswordPage() {
           <button
             type="button"
             onClick={() => { setMode("email"); setDevResetLink(null); }}
-            className="w-full !h-11 !min-h-[44px] !max-h-[44px] !py-0 px-4 rounded-xl border border-dark-600 bg-dark-800 hover:bg-dark-700 text-white font-medium text-sm transition flex items-center justify-center"
+            className="w-full !h-11 !min-h-[44px] !max-h-[44px] !py-0 px-4 rounded-xl border border-dark-600 bg-dark-800 hover:bg-dark-700 text-zinc-900 font-medium text-sm transition flex items-center justify-center"
           >
             Trimite link pe email
           </button>

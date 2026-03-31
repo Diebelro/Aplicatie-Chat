@@ -1,18 +1,29 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 
-const ALLOWED = ["google", "apple", "microsoft", "facebook", "phone", "yahoo"];
+const LEGACY = ["google", "apple", "microsoft", "facebook", "phone", "yahoo"];
 
-/** Stub pentru OAuth / SMS: redirecționează înapoi la login. Conectează aici providerii când sunt configurați. */
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ provider: string }> }
-) {
+/** Map vechi /api/auth/google → flux NextAuth cu legare la sesiunea Align. */
+const NEXT_AUTH_SLUG: Record<string, string> = {
+  google: "google",
+  apple: "apple",
+  facebook: "facebook",
+  microsoft: "azure-ad",
+};
+
+export async function GET(request: NextRequest, { params }: { params: Promise<{ provider: string }> }) {
   const { provider } = await params;
-  if (!provider || !ALLOWED.includes(provider)) {
+  if (!provider || !LEGACY.includes(provider)) {
     return NextResponse.json({ error: "Provider necunoscut" }, { status: 400 });
   }
-  // TODO: inițiază OAuth flow sau SMS; deocamdată redirecționare la login
-  const url = new URL("/login", _request.url);
+  const slug = NEXT_AUTH_SLUG[provider];
+  if (slug) {
+    const callbackUrl = new URL("/api/auth/align-bridge", request.url).toString();
+    const signin = new URL(`/api/auth/signin/${slug}`, request.url);
+    signin.searchParams.set("callbackUrl", callbackUrl);
+    return NextResponse.redirect(signin);
+  }
+  const url = new URL("/login", request.url);
   url.searchParams.set("auth", provider);
   url.searchParams.set("soon", "1");
   return NextResponse.redirect(url);

@@ -59,7 +59,7 @@ export default function OnboardingLocationPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-8 bg-dark-900">
       <div className="max-w-sm w-full text-center">
-        <h1 className="text-2xl font-semibold text-white mb-2">Permite locația</h1>
+        <h1 className="text-2xl font-semibold text-zinc-900 mb-2">Permite locația</h1>
         <p className="text-dark-400 text-sm mb-8">
           Folosim locația doar pentru a arăta distanța dintre utilizatori.
         </p>

@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { startTransition, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type { DivIcon } from "leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import { displayName } from "@/lib/displayName";
 
 const DEFAULT_CENTER = { lat: 45.9432, lng: 24.9668 }; // România
@@ -16,27 +18,9 @@ export type MapData = {
     lat: number;
     lng: number;
     photoUrl?: string | null;
-    /** Dacă lipsește (API vechi), tratăm ca online pe in-memory. */
     online?: boolean;
   }[];
 };
-
-function getBbox(me: MapData["me"], users: MapData["users"]) {
-  const points = me ? [me, ...users] : users;
-  if (points.length === 0) return null;
-  let minLat = points[0].lat,
-    maxLat = points[0].lat,
-    minLng = points[0].lng,
-    maxLng = points[0].lng;
-  points.forEach((p) => {
-    minLat = Math.min(minLat, p.lat);
-    maxLat = Math.max(maxLat, p.lat);
-    minLng = Math.min(minLng, p.lng);
-    maxLng = Math.max(maxLng, p.lng);
-  });
-  const pad = 0.02;
-  return { minLat: minLat - pad, minLng: minLng - pad, maxLat: maxLat + pad, maxLng: maxLng + pad };
-}
 
 function escapeHtmlAttr(s: string): string {
   return s
@@ -46,9 +30,8 @@ function escapeHtmlAttr(s: string): string {
     .replace(/</g, "&lt;");
 }
 
-/** Medalion circular pe hartă. Tu = turcoaz; alții = verde dacă online, gri dacă offline. */
+/** Medalion circular: tu = turcoaz; alții = verde dacă online, gri offline — ca înainte. */
 function createAvatarDivIcon(
-  L: typeof import("leaflet"),
   photoUrl: string | null | undefined,
   name: string,
   variant: "me" | "other",
@@ -65,11 +48,11 @@ function createAvatarDivIcon(
 
   const inner = photoUrl?.trim()
     ? `<div style="width:${innerSize}px;height:${innerSize}px;border-radius:50%;overflow:hidden;background:#1e293b;">
-         <img src="${escapeHtmlAttr(photoUrl.trim())}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;" referrerpolicy="no-referrer" />
+         <img src="${escapeHtmlAttr(photoUrl.trim())}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;user-select:none" draggable="false" referrerpolicy="no-referrer" />
        </div>`
     : fallback;
 
-  const html = `<div style="width:${outer}px;height:${outer}px;padding:${pad}px;border-radius:50%;background:${border};box-shadow:0 4px 16px rgba(0,0,0,0.4);box-sizing:border-box;">${inner}</div>`;
+  const html = `<div style="width:${outer}px;height:${outer}px;padding:${pad}px;border-radius:50%;background:${border};box-shadow:0 4px 16px rgba(0,0,0,0.4);box-sizing:border-box;cursor:pointer;">${inner}</div>`;
 
   return L.divIcon({
     className: "map-avatar-divicon",
@@ -80,69 +63,143 @@ function createAvatarDivIcon(
   });
 }
 
-function MapViewLeaflet({ data }: { data: MapData }) {
+/**
+ * Leaflet imperativ (fără MapContainer din react-leaflet) — evită „Map container is already initialized”
+ * la Strict Mode / dublă montare, păstrând cercurile cu poza ca înainte.
+ */
+export default function MapView({
+  data,
+  viewerUserId,
+}: {
+  data: MapData;
+  /** ID cont curent (din storage) — pentru click pe markerul „tu” → /app/user/[id] */
+  viewerUserId: string | null;
+}) {
   const router = useRouter();
-  const [L, setL] = useState<typeof import("react-leaflet") | null>(null);
-  const [Leaflet, setLeaflet] = useState<typeof import("leaflet") | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const routerRef = useRef(router);
+  routerRef.current = router;
 
   useEffect(() => {
-    Promise.all([import("react-leaflet"), import("leaflet")]).then(([RL, leafMod]) => {
-      setL(RL);
-      setLeaflet(leafMod.default);
-    });
-    import("leaflet/dist/leaflet.css");
-  }, []);
+    let cancelled = false;
+    const el = containerRef.current;
+    if (!el) return;
 
-  const center = data.me ?? DEFAULT_CENTER;
-  const points = data.me ? [data.me, ...data.users] : data.users;
-
-  const meIcon = useMemo(() => {
-    if (!Leaflet || !data.me) return null;
-    return createAvatarDivIcon(Leaflet, data.me.photoUrl, "Eu", "me");
-  }, [Leaflet, data.me?.lat, data.me?.lng, data.me?.photoUrl]);
-
-  const userIcons = useMemo(() => {
-    if (!Leaflet) return new Map<string, DivIcon>();
-    const m = new Map<string, DivIcon>();
-    for (const u of data.users) {
-      const online = u.online !== undefined ? u.online : true;
-      m.set(u.id, createAvatarDivIcon(Leaflet, u.photoUrl, u.name, "other", online));
-    }
-    return m;
-  }, [Leaflet, data.users]);
-
-  if (!L || !Leaflet) {
-    const bbox = getBbox(data.me, data.users);
-    const bboxStr = bbox
-      ? `${bbox.minLng},${bbox.minLat},${bbox.maxLng},${bbox.maxLat}`
-      : `${center.lng - 0.1},${center.lat - 0.1},${center.lng + 0.1},${center.lat + 0.1}`;
-    const embedUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${bboxStr}&layer=mapnik&marker=${center.lat}%2C${center.lng}`;
-    return (
-      <div className="w-full h-[min(70vh,560px)] rounded-xl overflow-hidden border border-dark-600 bg-dark-800">
-        <iframe
-          title="Harta"
-          src={embedUrl}
-          className="w-full h-full border-0"
-          allowFullScreen
-          loading="lazy"
-          referrerPolicy="no-referrer-when-downgrade"
-        />
-      </div>
-    );
-  }
-
-  const { MapContainer, TileLayer, Marker, Tooltip, useMap } = L;
-
-  function FitBounds({ points: pts }: { points: { lat: number; lng: number }[] }) {
-    const map = useMap();
-    useEffect(() => {
-      if (!map || pts.length === 0) return;
-      if (pts.length === 1) {
-        map.setView([pts[0].lat, pts[0].lng], 12);
-        return;
+    if (mapRef.current) {
+      try {
+        mapRef.current.remove();
+      } catch {
+        /* ignore */
       }
-      const lats = pts.map((p) => p.lat);
-      const lngs = pts.map((p) => p.lng);
+      mapRef.current = null;
+    }
+
+    const center = data.me ?? DEFAULT_CENTER;
+    const points = data.me ? [data.me, ...data.users] : [...data.users];
+
+    const map = L.map(el, {
+      center: [center.lat, center.lng],
+      zoom: points.length > 0 ? 10 : 6,
+      tapTolerance: 28,
+    });
+    mapRef.current = map;
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    }).addTo(map);
+
+    if (data.me) {
+      const icon = createAvatarDivIcon(data.me.photoUrl, "Eu", "me");
+      const selfMarker = L.marker([data.me.lat, data.me.lng], {
+        icon,
+        interactive: true,
+        bubblingMouseEvents: false,
+      }).addTo(map);
+      selfMarker.bindTooltip(
+        viewerUserId
+          ? "Tu (poziția ta) — apasă pentru profil"
+          : "Tu (poziția ta)",
+        { direction: "top", offset: [0, -6], opacity: 1 }
+      );
+      if (viewerUserId) {
+        let lastNavSelf = 0;
+        const openSelf = () => {
+          const now = Date.now();
+          if (now - lastNavSelf < 400) return;
+          lastNavSelf = now;
+          startTransition(() => {
+            try {
+              routerRef.current.push(`/app/user/${viewerUserId}`);
+            } catch {
+              window.location.assign(`/app/user/${viewerUserId}`);
+            }
+          });
+        };
+        selfMarker.on("click", openSelf);
+        selfMarker.on("add", () => {
+          if (cancelled) return;
+          const iconEl = selfMarker.getElement?.() ?? null;
+          if (!iconEl) return;
+          const stopForMap = (domEv: Event) => {
+            domEv.stopPropagation();
+          };
+          iconEl.addEventListener("mousedown", stopForMap, true);
+          iconEl.addEventListener("touchstart", stopForMap, { capture: true, passive: true });
+        });
+      }
+    }
+
+    for (const u of data.users) {
+      const icon = createAvatarDivIcon(u.photoUrl, u.name, "other", u.online !== false);
+      const label = escapeHtmlAttr(displayName(u.username ?? u.name));
+      const isOnline = u.online !== false;
+      const statusColor = isOnline ? "#16a34a" : "#64748b";
+      const statusText = isOnline ? "Online" : "Offline";
+      const uid = u.id;
+      /** bubblingMouseEvents: false — altfel harta primește evenimentul și pornește drag în loc de click pe marker. */
+      const m = L.marker([u.lat, u.lng], { icon, interactive: true, bubblingMouseEvents: false }).addTo(map);
+      m.bindTooltip(
+        `<div style="min-width:130px;line-height:1.35;pointer-events:none">
+          <div style="font-weight:600;color:#0f172a">${label}</div>
+          <div style="color:${statusColor};font-size:12px;font-weight:600">${statusText}</div>
+          <div style="font-size:11px;color:#475569;margin-top:4px">Apasă → profil</div>
+        </div>`,
+        { direction: "top", offset: [0, -6], opacity: 1, interactive: false }
+      );
+      let lastNav = 0;
+      const openProfile = () => {
+        const now = Date.now();
+        if (now - lastNav < 400) return;
+        lastNav = now;
+        startTransition(() => {
+          try {
+            routerRef.current.push(`/app/user/${uid}`);
+          } catch {
+            window.location.assign(`/app/user/${uid}`);
+          }
+        });
+      };
+      m.on("click", openProfile);
+      /**
+       * Fără asta, Leaflet folosește mousedown pe containerul hărții pentru pan — click-ul pe cerc nu
+       * se transformă în „click” pe marker (frecvent pe desktop și mobil).
+       */
+      m.on("add", () => {
+        if (cancelled) return;
+        const iconEl = typeof m.getElement === "function" ? m.getElement() : null;
+        if (!iconEl) return;
+        const stopForMap = (domEv: Event) => {
+          domEv.stopPropagation();
+        };
+        iconEl.addEventListener("mousedown", stopForMap, true);
+        iconEl.addEventListener("touchstart", stopForMap, { capture: true, passive: true });
+      });
+    }
+
+    if (points.length > 1) {
+      const lats = points.map((p) => p.lat);
+      const lngs = points.map((p) => p.lng);
       const pad = 0.01;
       map.fitBounds(
         [
@@ -151,61 +208,33 @@ function MapViewLeaflet({ data }: { data: MapData }) {
         ],
         { padding: [24, 24], maxZoom: 14 }
       );
-    }, [map, pts]);
-    return null;
-  }
+    } else if (points.length === 1) {
+      map.setView([points[0].lat, points[0].lng], 12);
+    }
+
+    const t = window.setTimeout(() => {
+      try {
+        map.invalidateSize();
+      } catch {
+        /* ignore */
+      }
+    }, 120);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+      try {
+        map.remove();
+      } catch {
+        /* ignore */
+      }
+      mapRef.current = null;
+    };
+  }, [data, router, viewerUserId]);
 
   return (
-    <div className="w-full h-[min(70vh,560px)] rounded-xl overflow-hidden border border-dark-600 bg-dark-800 [&_.leaflet-container]:rounded-xl">
-      <MapContainer
-        center={[center.lat, center.lng]}
-        zoom={points.length > 0 ? 10 : 6}
-        style={{ height: "100%", width: "100%" }}
-      >
-        <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        />
-        {data.me && meIcon && (
-          <Marker position={[data.me.lat, data.me.lng]} icon={meIcon}>
-            <Tooltip direction="top" offset={[0, -6]} opacity={1}>
-              Tu (poziția ta)
-            </Tooltip>
-          </Marker>
-        )}
-        {data.users.map((u) => {
-          const icon = userIcons.get(u.id);
-          const label = displayName(u.username ?? u.name);
-          const isOnline = u.online !== undefined ? u.online : true;
-          return (
-            <Marker
-              key={u.id}
-              position={[u.lat, u.lng]}
-              icon={icon}
-              eventHandlers={{
-                click: () => {
-                  router.push(`/app/user/${u.id}`);
-                },
-              }}
-            >
-              <Tooltip direction="top" offset={[0, -6]} opacity={1}>
-                <div style={{ minWidth: 130, lineHeight: 1.35 }}>
-                  <div style={{ fontWeight: 600, color: "#0f172a" }}>{label}</div>
-                  <div style={{ color: isOnline ? "#16a34a" : "#64748b", fontSize: 12, fontWeight: 600 }}>
-                    {isOnline ? "Online" : "Offline"}
-                  </div>
-                  <div style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>Apasă → profil</div>
-                </div>
-              </Tooltip>
-            </Marker>
-          );
-        })}
-        <FitBounds points={points} />
-      </MapContainer>
+    <div className="w-full h-[min(70vh,560px)] rounded-xl overflow-hidden border border-dark-600 bg-dark-800 [&_.leaflet-container]:rounded-xl [&_.leaflet-container]:h-full [&_.leaflet-container]:w-full">
+      <div ref={containerRef} className="h-full min-h-[min(70vh,560px)] w-full" />
     </div>
   );
-}
-
-export default function MapView({ data }: { data: MapData }) {
-  return <MapViewLeaflet data={data} />;
 }

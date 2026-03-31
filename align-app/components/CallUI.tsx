@@ -92,11 +92,11 @@ function RemoteVideoCard({ participant }: { participant: RemoteParticipant }) {
     participant.stream?.getVideoTracks().some((t) => t.readyState === "live" && t.enabled) ?? false;
 
   return (
-    <div className="relative rounded-2xl overflow-hidden bg-dark-800 border border-white/10 aspect-video shadow-xl">
+    <div className="relative rounded-2xl overflow-hidden bg-night-800 border border-white/10 aspect-video shadow-xl">
       {hasLiveVideo ? (
         <video ref={ref} autoPlay playsInline className="w-full h-full object-cover" />
       ) : (
-        <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-dark-800 to-dark-950 text-dark-400 gap-2">
+        <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-night-800 to-night-950 text-night-400 gap-2">
           <span className="text-3xl font-semibold text-white/40">
             {(participant.displayName || "?").slice(0, 1).toUpperCase()}
           </span>
@@ -195,6 +195,7 @@ export default function CallUI({
     screenSharing,
     switchCamera,
     toggleScreenShare,
+    retryPermissions,
   } = useWebRtcCall({
     roomId,
     userId,
@@ -436,7 +437,7 @@ export default function CallUI({
       <RemotePlaybackContext.Provider value={remotePlayback}>
         <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4 px-4 text-center">
           <p className="text-red-400 font-medium">Apel respins</p>
-          <p className="text-dark-500 text-sm">Celălalt utilizator a refuzat apelul. Redirecționare la mesaje…</p>
+          <p className="text-night-500 text-sm">Celălalt utilizator a refuzat apelul. Redirecționare la mesaje…</p>
           <Link href="/app/messages" className="text-brand-400 hover:underline mt-2">
             Înapoi la mesaje
           </Link>
@@ -448,7 +449,7 @@ export default function CallUI({
   if (status === "permission_help" && permissionHelp) {
     return (
       <RemotePlaybackContext.Provider value={remotePlayback}>
-        <div className="flex flex-col items-center justify-center min-h-[50vh] gap-6 px-5 py-10 text-center bg-dark-950">
+        <div className="flex flex-col items-center justify-center min-h-[50vh] gap-6 px-5 py-10 text-center bg-night-950">
           <div className="max-w-lg rounded-2xl border border-amber-500/40 bg-amber-500/[0.12] px-6 py-6 text-left shadow-lg shadow-amber-900/20">
             <p className="text-amber-200/80 text-xs font-medium uppercase tracking-wide mb-2">
               Ce înseamnă acest ecran
@@ -463,6 +464,14 @@ export default function CallUI({
               În browser nu putem forța „doar casca telefonului” ca la apelul clasic — după ce permiți microfonul, vocea merge la ieșirea pe care o alege telefonul; dacă apare butonul „Difuzor”, îl poți folosi ca să comuți unde se aude.
             </p>
           </div>
+          <button
+            type="button"
+            onClick={() => retryPermissions()}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-500 px-6 py-3.5 text-night-900 font-semibold hover:bg-brand-400 transition active:scale-[0.98]"
+          >
+            <RefreshCw className="w-5 h-5" aria-hidden />
+            Încearcă din nou (permite microfon / cameră)
+          </button>
           <Link
             href="/app/messages"
             className="text-brand-400 hover:text-brand-300 font-medium hover:underline"
@@ -479,16 +488,16 @@ export default function CallUI({
       <RemotePlaybackContext.Provider value={remotePlayback}>
         <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4 px-4 text-center">
           <p className="text-red-400 font-medium">{error}</p>
-          <p className="text-dark-500 text-sm max-w-md">
+          <p className="text-night-500 text-sm max-w-md">
             Pe Vercel aceste valori sunt în Settings → Environment Variables; local pune-le în{" "}
-            <code className="text-dark-400">.env.local</code> (ex.{" "}
-            <code className="text-dark-400">npm run env:pull-production</code> după{" "}
-            <code className="text-dark-400">vercel link</code>). Vezi{" "}
-            <code className="text-dark-400">docs/calls.md</code>:{" "}
-            <code className="text-dark-400">NEXT_PUBLIC_SIGNALING_WS_URL</code>,{" "}
-            <code className="text-dark-400">NEXT_PUBLIC_TURN_URLS</code>,{" "}
-            <code className="text-dark-400">TURN_REALM</code>, <code className="text-dark-400">TURN_STATIC_SECRET</code>,{" "}
-            <code className="text-dark-400">TURN_AUTH_SECRET</code>.
+            <code className="text-night-400">.env.local</code> (ex.{" "}
+            <code className="text-night-400">npm run env:pull-production</code> după{" "}
+            <code className="text-night-400">vercel link</code>). Vezi{" "}
+            <code className="text-night-400">docs/calls.md</code>:{" "}
+            <code className="text-night-400">NEXT_PUBLIC_SIGNALING_WS_URL</code>,{" "}
+            <code className="text-night-400">NEXT_PUBLIC_TURN_URLS</code>,{" "}
+            <code className="text-night-400">TURN_REALM</code>, <code className="text-night-400">TURN_STATIC_SECRET</code>,{" "}
+            <code className="text-night-400">TURN_AUTH_SECRET</code>.
           </p>
           <Link href="/app/messages" className="text-brand-400 hover:underline mt-2">
             Înapoi la mesaje
@@ -905,11 +914,11 @@ export default function CallUI({
   return (
     <RemotePlaybackContext.Provider value={remotePlayback}>
     <div className="flex flex-col min-h-[calc(100dvh-4rem)] sm:min-h-[calc(100vh-5rem)]">
-      <div className="flex items-center justify-between border-b border-dark-600 py-2 px-3 sm:px-4">
-        <Link href="/app/messages" onClick={() => leave()} className="text-dark-500 hover:text-white text-sm">
+      <div className="flex items-center justify-between border-b border-night-600 py-2 px-3 sm:px-4">
+        <Link href="/app/messages" onClick={() => leave()} className="text-night-500 hover:text-white text-sm">
           ← Mesaje
         </Link>
-        <span className="text-dark-500 text-sm">
+        <span className="text-night-500 text-sm">
           {status === "connecting" && "Se conectează…"}
           {status === "connected" && (isConference ? "Conferință" : "Apel")}
           {status === "left" && "Apel încheiat"}
@@ -943,7 +952,7 @@ export default function CallUI({
           isConference ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 max-w-3xl mx-auto w-full"
         }`}
       >
-        <div className="relative rounded-2xl overflow-hidden bg-dark-800 border border-white/10 aspect-video shadow-lg">
+        <div className="relative rounded-2xl overflow-hidden bg-night-800 border border-white/10 aspect-video shadow-lg">
           <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
           <audio ref={localAudioRef} autoPlay playsInline muted className="hidden" />
           <span className="absolute bottom-2 left-2 text-xs bg-black/55 backdrop-blur-sm px-2 py-1 rounded-lg">Tu</span>
@@ -954,18 +963,18 @@ export default function CallUI({
         ))}
 
         {status === "connected" && remoteParticipants.length === 0 && (
-          <div className="flex items-center justify-center text-dark-500 col-span-full min-h-[12rem]">
+          <div className="flex items-center justify-center text-night-500 col-span-full min-h-[12rem]">
             Așteptăm participanți…
           </div>
         )}
       </div>
 
-      <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 border-t border-dark-600 bg-dark-950/90 py-3 px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 border-t border-night-600 bg-night-950/90 py-3 px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <button
           type="button"
           onClick={onMicToggle}
           className={`flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium transition ${
-            muted ? "bg-red-500/25 text-red-300" : "bg-dark-600 text-white hover:bg-dark-500"
+            muted ? "bg-red-500/25 text-red-300" : "bg-night-600 text-white hover:bg-night-500"
           }`}
         >
           {muted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
@@ -976,7 +985,7 @@ export default function CallUI({
             type="button"
             onClick={() => setVideoMuted(!videoMuted)}
             className={`flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium transition ${
-              videoMuted ? "bg-red-500/25 text-red-300" : "bg-dark-600 text-white hover:bg-dark-500"
+              videoMuted ? "bg-red-500/25 text-red-300" : "bg-night-600 text-white hover:bg-night-500"
             }`}
           >
             {videoMuted ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
@@ -988,7 +997,7 @@ export default function CallUI({
             type="button"
             onClick={() => void switchCamera()}
             title="Față / spate — comută camera"
-            className="flex items-center gap-2 rounded-full bg-dark-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-dark-500"
+            className="flex items-center gap-2 rounded-full bg-night-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-night-500"
           >
             <RefreshCw className="w-5 h-5" />
             Față / spate
@@ -999,7 +1008,7 @@ export default function CallUI({
             type="button"
             onClick={() => void toggleScreenShare()}
             className={`flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium transition ${
-              screenSharing ? "bg-amber-500/25 text-amber-300" : "bg-dark-600 text-white hover:bg-dark-500"
+              screenSharing ? "bg-amber-500/25 text-amber-300" : "bg-night-600 text-white hover:bg-night-500"
             }`}
           >
             <MonitorUp className="w-5 h-5" />
@@ -1011,7 +1020,7 @@ export default function CallUI({
             type="button"
             onClick={() => setSpeakerOutputOn((v) => !v)}
             className={`flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium transition ${
-              speakerOutputOn ? "bg-brand-500/25 text-brand-200" : "bg-dark-600 text-white hover:bg-dark-500"
+              speakerOutputOn ? "bg-brand-500/25 text-brand-200" : "bg-night-600 text-white hover:bg-night-500"
             }`}
             title={speakerOutputOn ? "Ieșire implicită" : "Difuzor"}
           >
@@ -1023,7 +1032,7 @@ export default function CallUI({
           type="button"
           onClick={togglePrivacyQuietMode}
           className={`flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium transition ${
-            privacyQuietMode ? "bg-amber-500/25 text-amber-200" : "bg-dark-600 text-white hover:bg-dark-500"
+            privacyQuietMode ? "bg-amber-500/25 text-amber-200" : "bg-night-600 text-white hover:bg-night-500"
           }`}
           title={
             privacyQuietMode

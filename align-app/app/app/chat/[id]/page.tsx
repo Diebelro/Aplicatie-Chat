@@ -39,6 +39,13 @@ function isImageType(ct: string | null | undefined): boolean {
   return ct === "image/jpeg" || ct === "image/png" || ct === "image/webp";
 }
 
+/** Compară ID-uri user indiferent de tip (numeric vs string) sau spații. */
+function sameUserId(a: string | null | undefined, b: string | null | undefined): boolean {
+  const x = a != null ? String(a).trim() : "";
+  const y = b != null ? String(b).trim() : "";
+  return x !== "" && y !== "" && x === y;
+}
+
 /** Dacă API-ul nu trimite încă currentUserId, deducem „cine sunt eu” din mesaje. */
 function inferMyUserIdFromMessages(messages: Message[], otherUserId: string): string | null {
   for (const m of messages) {
@@ -80,6 +87,7 @@ export default function ChatPage() {
   /** Doar zona listei de mesaje — evită scrollIntoView care poate derula tot viewport-ul și ascunde câmpul de scris. */
   const messagesScrollRef = useRef<HTMLDivElement>(null);
   const initialScrollDoneRef = useRef(false);
+  const prevCallerIdRef = useRef<string | null>(null);
   /** După încărcare conversație: câteva sute de ms ținem lista lipită de jos când crește înălțimea (imagini, font). */
   const pinListToBottomUntilRef = useRef(0);
   const otherPollTickRef = useRef(0);
@@ -187,6 +195,10 @@ export default function ChatPage() {
     if (typeof window !== "undefined") {
       window.scrollTo({ top: 0, left: 0, behavior: "instant" });
     }
+  }, [otherId]);
+
+  useEffect(() => {
+    prevCallerIdRef.current = null;
   }, [otherId]);
 
   /** Fără restaurarea automată a scroll-ului din istoric — alfel conversația se deschide „pe la mijloc”. */
@@ -361,12 +373,30 @@ export default function ChatPage() {
     return () => ro.disconnect();
   }, [loading, otherId, scrollMessagesToBottom]);
 
+  /**
+   * Când îți vine `callerId` după primul paint (ex. doar din /api/me), trebuie scroll la ultimul mesaj;
+   * altfel rămâi „sus” în listă și mesajele tale par invizibile (bulă greșită pe tema light).
+   */
+  useEffect(() => {
+    if (loading || messages.length === 0 || !callerId) return;
+    const prev = prevCallerIdRef.current;
+    prevCallerIdRef.current = callerId;
+    if (prev === callerId) return;
+    pinListToBottomUntilRef.current = Math.max(pinListToBottomUntilRef.current, Date.now() + 2500);
+    const run = () => scrollMessagesToBottom("auto");
+    run();
+    requestAnimationFrame(() => {
+      run();
+      requestAnimationFrame(run);
+    });
+  }, [callerId, loading, messages.length, scrollMessagesToBottom]);
+
   /** Deschidere: scroll instant în panoul mesaje. După: doar dacă tu trimiți (sau încă pending), fără scroll pe tot documentul. */
   useLayoutEffect(() => {
     if (loading || messages.length === 0) return;
     const last = messages[messages.length - 1];
     const lastIsMine =
-      callerId != null && last != null && String(last.fromId) === String(callerId);
+      callerId != null && last != null && sameUserId(last.fromId, callerId);
     const grew = messages.length > prevMessageCountRef.current;
     prevMessageCountRef.current = messages.length;
 
@@ -588,7 +618,7 @@ export default function ChatPage() {
         <div className="flex items-center gap-3">
           <Link
             href="/app/profiles"
-            className="min-h-[44px] min-w-[44px] flex items-center justify-center -ml-2 text-dark-500 hover:text-white active:text-white transition shrink-0 touch-manipulation"
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center -ml-2 text-dark-500 hover:text-zinc-900 active:text-zinc-900 transition shrink-0 touch-manipulation"
             aria-label="Înapoi"
           >
             ←
@@ -637,7 +667,7 @@ export default function ChatPage() {
                   type="button"
                   disabled={!!calling}
                   onClick={() => void ringAndGoCall(true)}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-dark-600 text-white hover:bg-dark-500 border border-dark-500 transition disabled:opacity-50"
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-sky-500/15 text-sky-600 hover:bg-sky-500/25 border border-sky-500/40 transition disabled:opacity-50"
                   title="Apel audio"
                 >
                   <Phone className="w-5 h-5" />
@@ -761,7 +791,10 @@ export default function ChatPage() {
         {messages.map((m) => {
           const fromId = m.fromId != null ? String(m.fromId) : "";
           const isPlatform = !!m.isPlatformNotice;
-          const isMe = !isPlatform && callerId != null && fromId === callerId;
+          const isMe =
+            !isPlatform &&
+            myIdForTicks !== "" &&
+            sameUserId(fromId, myIdForTicks);
           const status = String(m.status ?? "").trim().toUpperCase();
           const isRead = status === "SEEN" || !!m.seenAt;
           const showTick = isMe;
@@ -781,7 +814,7 @@ export default function ChatPage() {
                     Notificare platformă
                   </p>
                   {(m.text?.trim() ?? "") ? (
-                    <p className="text-sm text-dark-100 whitespace-pre-wrap break-words">{m.text}</p>
+                    <p className="text-sm text-zinc-800 whitespace-pre-wrap break-words">{m.text}</p>
                   ) : null}
                 </div>
               </div>
@@ -795,8 +828,8 @@ export default function ChatPage() {
               <div
                 className={`max-w-[80%] rounded-2xl px-4 py-2 ${
                   isMe
-                    ? "bg-brand-500 text-dark-900"
-                    : "bg-dark-700 text-gray-200"
+                    ? "bg-brand-500 text-white shadow-sm"
+                    : "bg-white border border-zinc-200 text-zinc-900 shadow-sm"
                 }`}
               >
                 {m.attachmentUrl && (
@@ -831,7 +864,7 @@ export default function ChatPage() {
                   >
                     {m.clientPending ? (
                       <Loader2
-                        className="w-4 h-4 shrink-0 text-dark-900/85 animate-spin"
+                        className="w-4 h-4 shrink-0 text-white/90 animate-spin"
                         strokeWidth={2.25}
                         aria-hidden
                       />
@@ -839,8 +872,8 @@ export default function ChatPage() {
                       <Check
                         className={
                           isRead
-                            ? "w-[18px] h-[18px] shrink-0 text-neutral-950"
-                            : "w-4 h-4 shrink-0 text-dark-900/25"
+                            ? "w-[18px] h-[18px] shrink-0 text-white"
+                            : "w-4 h-4 shrink-0 text-white/45"
                         }
                         strokeWidth={isRead ? 3 : 1.65}
                         aria-hidden
@@ -940,7 +973,7 @@ export default function ChatPage() {
                 type="button"
                 disabled={!!calling || sending || uploadingAttachment}
                 onClick={() => void ringAndGoCall(true)}
-                className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-dark-600 text-white hover:bg-dark-500 border border-dark-500 disabled:opacity-50 transition shrink-0 touch-manipulation"
+                className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-sky-500/15 text-sky-600 hover:bg-sky-500/25 border border-sky-500/40 disabled:opacity-50 transition shrink-0 touch-manipulation"
                 title="Apel audio"
                 aria-label="Apel audio"
               >
@@ -957,7 +990,7 @@ export default function ChatPage() {
               setSendError(null);
             }}
             placeholder="Scrie un mesaj..."
-            className="flex-1 min-h-[44px] text-base bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-white placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500 touch-manipulation"
+            className="flex-1 min-h-[44px] text-base bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-zinc-900 placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500 touch-manipulation"
             autoComplete="off"
           />
           <button

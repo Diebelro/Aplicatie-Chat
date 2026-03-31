@@ -136,7 +136,7 @@ export default function ReviewSwipesPage() {
             className="bg-dark-800 border border-dark-600 rounded-2xl p-6 max-w-sm w-full shadow-xl text-center"
             onClick={(e) => e.stopPropagation()}
           >
-            <p className="text-lg font-semibold text-white mb-1">Ești match!</p>
+            <p className="text-lg font-semibold text-zinc-900 mb-1">Ești match!</p>
             <p className="text-dark-300 mb-6">Poți trimite mesaje lui {matchModal.name}.</p>
             <div className="flex gap-3">
               <button
@@ -152,7 +152,7 @@ export default function ReviewSwipesPage() {
                   router.push(`/app/chat/${matchModal.toId}`);
                   setMatchModal(null);
                 }}
-                className="flex-1 py-2.5 rounded-xl bg-brand-500 text-white font-medium hover:bg-brand-600"
+                className="flex-1 py-2.5 rounded-xl bg-brand-500 text-zinc-900 font-medium hover:bg-brand-600"
               >
                 Mesaj
               </button>
@@ -205,7 +205,7 @@ export default function ReviewSwipesPage() {
               </div>
             )}
             <div className="absolute inset-0 p-5 flex flex-col justify-end bg-gradient-to-t from-black/85 to-transparent">
-              <h3 className="text-xl font-bold text-white">{displayName(current.username ?? current.name)}</h3>
+              <h3 className="text-xl font-bold text-zinc-900">{displayName(current.username ?? current.name)}</h3>
               <p className="text-xs mt-1 mb-2">
                 <span
                   className={

@@ -37,7 +37,7 @@ function MobileRecoverContent() {
     return (
       <div className="min-h-screen flex items-center justify-center px-4 py-8 bg-dark-900">
         <div className="max-w-sm mx-auto px-4 flex flex-col w-full text-center">
-          <h1 className="text-xl font-semibold text-white">Link invalid</h1>
+          <h1 className="text-xl font-semibold text-zinc-900">Link invalid</h1>
           <p className="text-sm text-dark-300 mt-2">
             Lipsește token-ul de recuperare. Scanează din nou codul QR de pe calculator.
           </p>
@@ -53,7 +53,7 @@ function MobileRecoverContent() {
     return (
       <div className="min-h-screen flex items-center justify-center px-4 py-8 bg-dark-900">
         <div className="max-w-sm mx-auto px-4 flex flex-col w-full text-center">
-          <h1 className="text-xl font-semibold text-white text-green-400">Confirmat</h1>
+          <h1 className="text-xl font-semibold text-zinc-900 text-green-400">Confirmat</h1>
           <p className="text-sm text-dark-300 mt-2">
             Recuperarea a fost confirmată. Revino la calculator și setează parola nouă.
           </p>
@@ -68,7 +68,7 @@ function MobileRecoverContent() {
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-8 bg-dark-900">
       <div className="max-w-sm mx-auto px-4 flex flex-col w-full">
-        <h1 className="text-xl font-semibold text-white text-center">
+        <h1 className="text-xl font-semibold text-zinc-900 text-center">
           Recuperare parolă
         </h1>
         <p className="text-sm text-dark-300 mt-2 text-center">

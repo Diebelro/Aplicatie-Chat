@@ -314,7 +314,7 @@ export default function AdminUserDetailPage() {
               max={3650}
               value={premiumDays}
               onChange={(e) => setPremiumDays(Math.min(3650, Math.max(1, Number(e.target.value) || 1)))}
-              className="w-20 bg-dark-700 border border-dark-600 rounded px-2 py-1.5 text-white text-sm"
+              className="w-20 bg-dark-700 border border-dark-600 rounded px-2 py-1.5 text-zinc-900 text-sm"
             />
             <span className="text-sm text-dark-400">zile</span>
             <button

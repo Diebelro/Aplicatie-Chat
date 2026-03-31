@@ -109,7 +109,7 @@ export default function AdminConversationPage() {
   return (
     <div className="max-w-3xl">
       <div className="mb-6 flex flex-wrap items-center gap-3">
-        <Link href="/admin/conversations" className="text-dark-400 hover:text-white text-sm">
+        <Link href="/admin/conversations" className="text-dark-400 hover:text-zinc-900 text-sm">
           ← Înapoi la căutare
         </Link>
       </div>

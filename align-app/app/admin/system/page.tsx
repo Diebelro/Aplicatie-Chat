@@ -179,7 +179,7 @@ export default function AdminSystemDashboardPage() {
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <Card title="Baza de date" icon={Database} ok={dbOk} warn={dbSkip && !dbOk}>
-          <p className="text-lg font-medium text-white capitalize">{snap.db.status}</p>
+          <p className="text-lg font-medium text-zinc-900 capitalize">{snap.db.status}</p>
           {snap.db.latencyMs != null && <p className="text-dark-400 text-sm">Ping: {snap.db.latencyMs} ms</p>}
           {snap.db.detail && <p className="text-red-300/90 text-xs mt-1">{snap.db.detail}</p>}
         </Card>
@@ -193,7 +193,7 @@ export default function AdminSystemDashboardPage() {
         </Card>
 
         <Card title="Memorie" icon={HardDrive}>
-          <p className="text-white font-medium">
+          <p className="text-zinc-900 font-medium">
             Heap {snap.memory.heapUsedMb} / {snap.memory.heapTotalMb} MB
           </p>
           <p className="text-dark-400 text-sm">RSS ~{snap.memory.rssMb} MB</p>
@@ -220,14 +220,14 @@ export default function AdminSystemDashboardPage() {
           ok={snap.errors.count === 0}
           warn={snap.errors.count > 0 && snap.errors.count < 8}
         >
-          <p className="text-2xl font-semibold text-white">{snap.errors.count}</p>
+          <p className="text-2xl font-semibold text-zinc-900">{snap.errors.count}</p>
           <p className="text-dark-500 text-xs">Ultima oră: {snap.errors1h.count}</p>
         </Card>
 
         <Card title="Performanță (browser)" icon={Gauge}>
           <p className="text-dark-200 text-sm">
             LCP mediu (ultimele rapoarte):{" "}
-            <strong className="text-white">{snap.vitals.avgLcpLast20 ?? "—"}</strong> ms
+            <strong className="text-zinc-900">{snap.vitals.avgLcpLast20 ?? "—"}</strong> ms
           </p>
           {snap.vitals.latest && (
             <p className="text-dark-500 text-xs mt-2 truncate" title={snap.vitals.latest.path}>

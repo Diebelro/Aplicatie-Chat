@@ -8,7 +8,8 @@ import path from "node:path";
 import process from "node:process";
 
 const port = 3005;
-const defaultUrl = `http://127.0.0.1:${port}/`;
+/** Aliniat cu NEXTAUTH_URL din .env.example — altfel cookies OAuth pe localhost vs 127.0.0.1 se desincronizează. */
+const defaultUrl = `http://localhost:${port}/`;
 const openUrl = (process.env.ALIGN_DEV_OPEN || defaultUrl).trim();
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");

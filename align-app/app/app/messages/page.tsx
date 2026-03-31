@@ -205,7 +205,7 @@ export default function MessagesPage() {
                       <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-green-400 border-2 border-dark-800" />
                     )}
                   </div>
-                  <span className="font-medium text-white text-sm truncate max-w-[100px]">{f.username ?? f.name}</span>
+                  <span className="font-medium text-zinc-900 text-sm truncate max-w-[100px]">{f.username ?? f.name}</span>
                   <span className="text-xs text-dark-500 shrink-0 max-sm:hidden">
                     {f.online ? "Online" : formatLastActive(f.lastActivityAt)}
                   </span>
@@ -276,7 +276,7 @@ export default function MessagesPage() {
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium text-white truncate">{otherLabel}</span>
+                      <span className="font-medium text-zinc-900 truncate">{otherLabel}</span>
                       {otherUser.online && (
                         <span className="shrink-0 w-2 h-2 rounded-full bg-green-400" title="Online" />
                       )}

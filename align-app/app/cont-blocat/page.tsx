@@ -75,7 +75,7 @@ function ContBlocatForm() {
           onChange={(e) => setEmail(e.target.value)}
           required
           autoComplete="email"
-          className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white"
+          className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900"
         />
       </div>
       <div>
@@ -86,7 +86,7 @@ function ContBlocatForm() {
           onChange={(e) => setPassword(e.target.value)}
           required
           autoComplete="current-password"
-          className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white"
+          className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900"
         />
       </div>
       <div>
@@ -98,7 +98,7 @@ function ContBlocatForm() {
           minLength={10}
           rows={5}
           placeholder="Explică pe scurt de ce crezi că blocarea nu e justificată..."
-          className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white placeholder-dark-500 resize-y min-h-[120px]"
+          className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 placeholder-dark-500 resize-y min-h-[120px]"
         />
       </div>
       {error && <p className="text-red-400 text-sm">{error}</p>}
@@ -119,7 +119,7 @@ export default function ContBlocatPage() {
       <Link href="/" className="text-brand-400 font-bold">
         ← Align
       </Link>
-      <h1 className="text-2xl font-semibold text-white mt-8">Cont blocat</h1>
+      <h1 className="text-2xl font-semibold text-zinc-900 mt-8">Cont blocat</h1>
       <p className="text-dark-300 mt-2 text-center max-w-md text-sm">
         Contul tău a fost blocat de la accesarea aplicației.
       </p>
@@ -128,7 +128,7 @@ export default function ContBlocatPage() {
           <ContBlocatForm />
         </Suspense>
       </div>
-      <Link href="/login" className="mt-8 text-dark-400 hover:text-white text-sm">
+      <Link href="/login" className="mt-8 text-dark-400 hover:text-zinc-900 text-sm">
         Înapoi la login
       </Link>
       <p className="mt-8 text-dark-500 text-xs text-center">{APP_CREDIT}</p>

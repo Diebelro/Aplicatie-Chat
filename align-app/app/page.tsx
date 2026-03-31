@@ -5,62 +5,46 @@ export const metadata: Metadata = {
   alternates: { canonical: "/" },
 };
 
+/** Landing statică — aceeași paletă ca restul site-ului (dark-* canvas + brand + text-zinc-900). */
 export default function HomePage() {
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="border-b border-dark-600">
+    <div className="min-h-screen flex flex-col bg-dark-900 text-zinc-900">
+      <header className="border-b border-dark-600 bg-dark-900/95 backdrop-blur-sm sticky top-0 z-10 supports-[backdrop-filter]:bg-dark-900/80">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-          <span className="text-xl font-bold gradient-text">Align</span>
-          <nav className="flex gap-6">
+          <span className="text-xl font-bold tracking-tight gradient-text">Align</span>
+          <nav className="flex items-center gap-4 sm:gap-6">
             <Link
               href="/login"
-              className="text-dark-500 hover:text-white transition"
+              className="text-sm font-medium text-dark-500 hover:text-zinc-900 transition"
             >
               Log in
             </Link>
             <Link
               href="/signup"
-              className="bg-brand-500 hover:bg-brand-400 text-dark-900 font-semibold px-4 py-2 rounded-full transition"
+              className="text-sm font-semibold bg-brand-500 hover:bg-brand-400 text-zinc-900 px-4 py-2 rounded-xl border border-teal-600/20 shadow-sm transition"
             >
-              Inregistrare
+              Înregistrare
             </Link>
           </nav>
         </div>
       </header>
 
       <main className="flex-1 flex flex-col items-center justify-center px-4 py-16">
-        <h1 className="text-4xl md:text-6xl font-bold text-center max-w-3xl mb-6">
+        <h1 className="text-4xl md:text-6xl font-bold text-center max-w-3xl mb-6 text-zinc-900 tracking-tight">
           Same intent.{" "}
           <span className="gradient-text">Real connections.</span>
         </h1>
-        <p className="text-xl text-dark-500 text-center max-w-xl mb-12">
-          Alege intentia ta. Vezi doar oameni care vor acelasi lucru. Fara
-          confuzie, fara timp irosit.
+        <p className="text-lg sm:text-xl text-dark-500 text-center max-w-xl mb-12 leading-relaxed">
+          Alege intenția ta. Vezi doar oameni care vor același lucru. Fără confuzie, fără timp irosit.
         </p>
 
         <Link
           href="/signup"
-          className="bg-brand-500 hover:bg-brand-400 text-dark-900 font-semibold px-8 py-4 rounded-full text-lg transition"
+          className="bg-brand-500 hover:bg-brand-400 text-zinc-900 font-semibold px-8 py-4 rounded-xl text-lg border border-teal-600/25 shadow-sm transition"
         >
-          Incepe acum
+          Începe acum
         </Link>
       </main>
-
-      <footer className="border-t border-dark-600 py-6 px-4">
-        <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs text-dark-500">
-          <Link href="/terms" className="text-brand-400/90 hover:underline">
-            Termeni
-          </Link>
-          <span className="text-dark-600">·</span>
-          <Link href="/privacy" className="text-brand-400/90 hover:underline">
-            Confidențialitate
-          </Link>
-          <span className="text-dark-600">·</span>
-          <Link href="/cookies" className="text-brand-400/90 hover:underline">
-            Cookie
-          </Link>
-        </div>
-      </footer>
     </div>
   );
 }

@@ -60,7 +60,7 @@ function ResetPasswordViaScanContent() {
           <Link href="/login" className="inline-block text-brand-400 font-bold">
             ← Align
           </Link>
-          <h1 className="text-2xl font-semibold text-white mt-4">Sesiune invalidă</h1>
+          <h1 className="text-2xl font-semibold text-zinc-900 mt-4">Sesiune invalidă</h1>
           <p className="text-sm text-dark-300 mt-2">
             Lipsește sesiunea de recuperare. Încearcă din nou fluxul „Recuperează prin scan”.
           </p>
@@ -78,7 +78,7 @@ function ResetPasswordViaScanContent() {
         <Link href="/login" className="inline-block text-brand-400 font-bold">
           ← Align
         </Link>
-        <h1 className="text-2xl font-semibold text-white mt-4">Setare parolă nouă</h1>
+        <h1 className="text-2xl font-semibold text-zinc-900 mt-4">Setare parolă nouă</h1>
         <p className="text-sm text-dark-300 mt-2">
           Ai confirmat recuperarea pe telefon. Introdu parola nouă (min. 6 caractere) și confirm-o.
         </p>
@@ -92,12 +92,12 @@ function ResetPasswordViaScanContent() {
               onChange={(e) => setNewPassword(e.target.value)}
               required
               minLength={6}
-              className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 pr-12 text-white placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 pr-12 text-zinc-900 placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
             <button
               type="button"
               onClick={() => setShowPassword((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-500 hover:text-white transition p-1 rounded"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-500 hover:text-zinc-900 transition p-1 rounded"
               aria-label={showPassword ? "Ascunde parola" : "Arată parola"}
             >
               {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -111,12 +111,12 @@ function ResetPasswordViaScanContent() {
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
               minLength={6}
-              className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 pr-12 text-white placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 pr-12 text-zinc-900 placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
             <button
               type="button"
               onClick={() => setShowConfirm((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-500 hover:text-white transition p-1 rounded"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-500 hover:text-zinc-900 transition p-1 rounded"
               aria-label={showConfirm ? "Ascunde parola" : "Arată parola"}
             >
               {showConfirm ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}

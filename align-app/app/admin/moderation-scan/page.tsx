@@ -272,7 +272,7 @@ export default function AdminModerationScanPage() {
               value={aiLimit}
               onChange={(e) => setAiLimit(Math.min(50, Math.max(5, Number(e.target.value) || 25)))}
               disabled={!aiConfigured}
-              className="w-24 bg-dark-700 border border-dark-600 rounded px-2 py-1.5 text-white text-sm disabled:opacity-45"
+              className="w-24 bg-dark-700 border border-dark-600 rounded px-2 py-1.5 text-zinc-900 text-sm disabled:opacity-45"
             />
           </div>
           <label className="flex items-center gap-2 text-xs text-dark-400 cursor-pointer select-none">
@@ -456,7 +456,7 @@ export default function AdminModerationScanPage() {
           type="button"
           onClick={() => setMode("text")}
           className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium ${
-            mode === "text" ? "bg-brand-600 text-white" : "bg-dark-700 text-dark-300 hover:text-white"
+            mode === "text" ? "bg-brand-600 text-white" : "bg-dark-700 text-dark-300 hover:text-zinc-900"
           }`}
         >
           <FileText className="w-4 h-4" />
@@ -466,7 +466,7 @@ export default function AdminModerationScanPage() {
           type="button"
           onClick={() => setMode("attachments")}
           className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium ${
-            mode === "attachments" ? "bg-brand-600 text-white" : "bg-dark-700 text-dark-300 hover:text-white"
+            mode === "attachments" ? "bg-brand-600 text-white" : "bg-dark-700 text-dark-300 hover:text-zinc-900"
           }`}
         >
           <ImageIcon className="w-4 h-4" />
@@ -509,7 +509,7 @@ export default function AdminModerationScanPage() {
             max={500}
             value={limit}
             onChange={(e) => setLimit(Math.min(500, Math.max(20, Number(e.target.value) || 150)))}
-            className="w-24 bg-dark-700 border border-dark-600 rounded px-2 py-1.5 text-white text-sm"
+            className="w-24 bg-dark-700 border border-dark-600 rounded px-2 py-1.5 text-zinc-900 text-sm"
           />
         </div>
         <button

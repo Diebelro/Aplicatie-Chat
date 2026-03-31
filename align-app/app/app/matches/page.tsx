@@ -71,7 +71,7 @@ export default function MatchesPage() {
                   />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium text-white">{matchLabel}</p>
+                  <p className="font-medium text-zinc-900">{matchLabel}</p>
                   <p className="text-sm text-dark-500 line-clamp-1">{u.bio || "—"}</p>
                   <p className="text-xs text-dark-400 mt-1">
                     {u.distanceHidden || u.distanceKm == null

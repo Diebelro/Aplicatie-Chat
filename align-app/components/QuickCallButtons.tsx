@@ -88,7 +88,7 @@ export function QuickCallButtons({ toUserId, size = "md", className = "" }: Quic
           type="button"
           disabled={busy}
           onClick={() => void start(true)}
-          className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-dark-600 hover:bg-dark-500 active:scale-90 flex items-center justify-center text-white border-2 border-dark-500 transition-[transform,background-color] duration-75 touch-none shrink-0 disabled:opacity-50"
+          className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-sky-500/15 hover:bg-sky-500/25 active:scale-90 flex items-center justify-center text-sky-600 border-2 border-sky-500/40 transition-[transform,background-color] duration-75 touch-none shrink-0 disabled:opacity-50"
           title="Apel audio"
         >
           <Phone className="w-6 h-6 sm:w-7 sm:h-7" />
@@ -127,7 +127,7 @@ export function QuickCallButtons({ toUserId, size = "md", className = "" }: Quic
         type="button"
         disabled={busy}
         onClick={() => void start(true)}
-        className={`flex items-center justify-center ${btn} bg-dark-600 text-white hover:bg-dark-500 border border-dark-500 transition touch-manipulation disabled:opacity-50`}
+        className={`flex items-center justify-center ${btn} bg-sky-500/15 text-sky-600 hover:bg-sky-500/25 border border-sky-500/40 transition touch-manipulation disabled:opacity-50`}
         title="Apel audio"
       >
         <Phone className={icon} />

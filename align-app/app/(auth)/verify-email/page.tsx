@@ -59,7 +59,7 @@ function VerifyEmailContent() {
           <Link href="/login" className="inline-block text-brand-400 font-bold">
             ← Align
           </Link>
-          <h1 className="text-2xl font-semibold text-white mt-4">Email verificat</h1>
+          <h1 className="text-2xl font-semibold text-zinc-900 mt-4">Email verificat</h1>
           <p className="text-sm text-dark-300 mt-2">
             Adresa de email a fost confirmată.
           </p>
@@ -90,7 +90,7 @@ function VerifyEmailContent() {
         <Link href="/login" className="inline-block text-brand-400 font-bold">
           ← Align
         </Link>
-        <h1 className="text-2xl font-semibold text-white mt-4">Confirmă email-ul</h1>
+        <h1 className="text-2xl font-semibold text-zinc-900 mt-4">Confirmă email-ul</h1>
         <p className="text-sm text-dark-300 mt-2">
           Apasă butonul de mai jos pentru a confirma adresa de email.
         </p>
@@ -124,7 +124,7 @@ function VerifyEmailContent() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full !h-11 !min-h-[44px] !max-h-[44px] !py-0 px-4 rounded-xl border border-dark-600 bg-dark-800 hover:bg-dark-700 text-white font-medium text-sm transition disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full !h-11 !min-h-[44px] !max-h-[44px] !py-0 px-4 rounded-xl border border-dark-600 bg-dark-800 hover:bg-dark-700 text-zinc-900 font-medium text-sm transition disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-brand-500"
             >
               {loading ? "Se trimite..." : "Retrimite link verificare"}
             </button>

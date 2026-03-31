@@ -223,7 +223,7 @@ export default function ProfilesPage() {
               placeholder="Caută după nume..."
               value={filters.name}
               onChange={(e) => setFilters((f) => ({ ...f, name: e.target.value }))}
-              className="w-40 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-40 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 text-sm placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
           <label className="flex items-center gap-2 cursor-pointer">
@@ -240,7 +240,7 @@ export default function ProfilesPage() {
             <select
               value={filters.gender}
               onChange={(e) => setFilters((f) => ({ ...f, gender: e.target.value }))}
-              className="bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             >
               <option value="">Toate</option>
               <option value="male">Bărbat</option>
@@ -266,7 +266,7 @@ export default function ProfilesPage() {
                   return { ...f, minAge, maxAge };
                 });
               }}
-              className="w-20 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-20 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
           <div>
@@ -287,7 +287,7 @@ export default function ProfilesPage() {
                   return { ...f, minAge, maxAge };
                 });
               }}
-              className="w-20 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-20 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
           <div className="w-full max-w-xs">
@@ -306,7 +306,7 @@ export default function ProfilesPage() {
             <select
               value={filters.sortBy}
               onChange={(e) => setFilters((f) => ({ ...f, sortBy: e.target.value }))}
-              className="bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             >
               <option value="">Implicit</option>
               <option value="distance">Distanță</option>
@@ -320,7 +320,7 @@ export default function ProfilesPage() {
               placeholder="ex. România"
               value={filters.country}
               onChange={(e) => setFilters((f) => ({ ...f, country: e.target.value }))}
-              className="w-28 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-28 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 text-sm placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
           <div>
@@ -330,7 +330,7 @@ export default function ProfilesPage() {
               placeholder="ex. București"
               value={filters.city}
               onChange={(e) => setFilters((f) => ({ ...f, city: e.target.value }))}
-              className="w-36 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-36 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 text-sm placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
         </div>
@@ -384,7 +384,7 @@ export default function ProfilesPage() {
                 />
               </div>
               <div className="flex-1 min-w-0 p-4">
-                <p className="font-semibold text-white truncate">{displayName(me.username ?? me.name)}</p>
+                <p className="font-semibold text-zinc-900 truncate">{displayName(me.username ?? me.name)}</p>
                 <p className="text-xs mt-0.5 text-brand-400">Tu</p>
                 {me.bio?.trim() && (
                   <p className="text-sm text-dark-500 mt-1 line-clamp-2">{me.bio.trim()}</p>
@@ -446,7 +446,7 @@ export default function ProfilesPage() {
                 />
               </div>
               <div className="flex-1 min-w-0 p-4">
-                <p className="font-semibold text-white truncate group-hover:text-brand-200 transition-colors">{displayName(u.username ?? u.name)}</p>
+                <p className="font-semibold text-zinc-900 truncate group-hover:text-brand-600 transition-colors">{displayName(u.username ?? u.name)}</p>
                 {statusLabel && (
                   <p className="text-xs mt-0.5 flex items-center gap-1 font-medium" style={{ color: stateColor || border || undefined }}>
                     {IconComp && (

@@ -51,15 +51,15 @@ export default function AppFeedbackPage() {
   };
 
   const inputClass =
-    "w-full min-h-[160px] bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-white placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500 text-base";
+    "w-full min-h-[160px] bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-zinc-900 placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500 text-base";
 
   return (
     <div className="max-w-xl mx-auto space-y-6 pb-8">
       <div className="flex items-center gap-4 flex-wrap">
-        <Link href="/app/settings/account" className="text-dark-400 hover:text-white transition text-sm shrink-0">
+        <Link href="/app/settings/account" className="text-dark-400 hover:text-zinc-900 transition text-sm shrink-0">
           ← Setări cont
         </Link>
-        <h1 className="text-xl font-semibold text-white">Propuneri și feedback</h1>
+        <h1 className="text-xl font-semibold text-zinc-900">Propuneri și feedback</h1>
       </div>
 
       <p className="text-dark-400 text-sm leading-relaxed">

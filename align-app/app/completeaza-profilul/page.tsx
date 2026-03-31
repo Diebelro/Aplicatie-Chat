@@ -12,21 +12,41 @@ export default function CompleteazaProfilulPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const raw = typeof window !== "undefined" ? (localStorage.getItem("align_user") || sessionStorage.getItem("align_user")) : null;
-    if (!raw) {
-      router.replace("/login");
-      return;
-    }
-    try {
-      const u = JSON.parse(raw) as { role?: string };
-      if (u.role === "ADMIN" || u.role === "SUPERADMIN") {
-        router.replace("/app");
+    let cancelled = false;
+    (async () => {
+      let raw =
+        typeof window !== "undefined"
+          ? localStorage.getItem("align_user") || sessionStorage.getItem("align_user")
+          : null;
+      if (!raw && typeof window !== "undefined") {
+        const res = await fetch("/api/me", { credentials: "include" });
+        if (cancelled) return;
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.user) {
+            sessionStorage.setItem("align_user", JSON.stringify(data.user));
+            raw = JSON.stringify(data.user);
+          }
+        }
+      }
+      if (!raw) {
+        if (!cancelled) router.replace("/login");
         return;
       }
-    } catch {
-      /* fall through */
-    }
-    router.replace("/app/profile");
+      try {
+        const u = JSON.parse(raw) as { role?: string };
+        if (u.role === "ADMIN" || u.role === "SUPERADMIN") {
+          if (!cancelled) router.replace("/app");
+          return;
+        }
+      } catch {
+        /* fall through */
+      }
+      if (!cancelled) router.replace("/app/profile");
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [router]);
 
   return (

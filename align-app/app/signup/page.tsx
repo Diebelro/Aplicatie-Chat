@@ -252,7 +252,7 @@ function SignUpContent() {
         <Link href="/" className="inline-block text-brand-400 font-bold mt-4">
           ← Align
         </Link>
-        <h1 className="text-2xl font-semibold text-white mt-4">Creează cont</h1>
+        <h1 className="text-2xl font-semibold text-zinc-900 mt-4">Creează cont</h1>
         <p className="text-sm text-dark-300 mt-2">
           {searchParams.get("email") ? (
             <>
@@ -285,7 +285,7 @@ function SignUpContent() {
               onChange={(e) => setEmail(e.target.value)}
               required
               autoComplete="email"
-              className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-white placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-zinc-900 placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
             {emailCheck === "available" && <p className="text-green-400 text-xs mt-1">Acest email este liber. Poți crea cont.</p>}
             {emailCheck === "taken" && <p className="text-red-400 text-xs mt-1">Există deja un cont cu acest email. <Link href="/login" className="underline">Loghează-te</Link>.</p>}
@@ -302,7 +302,7 @@ function SignUpContent() {
               minLength={2}
               maxLength={30}
               autoComplete="username"
-              className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-white placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-zinc-900 placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
             <p className="text-dark-500 text-xs mt-1">{USERNAME_HELP_TEXT}</p>
             {usernameCheck === "available" && <p className="text-green-400 text-xs mt-1">{displayName(username.trim().toLowerCase())} este disponibil</p>}
@@ -317,12 +317,12 @@ function SignUpContent() {
               required
               minLength={6}
               autoComplete={rememberDevice ? "on" : "off"}
-              className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 pr-12 text-white placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 pr-12 text-zinc-900 placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
             <button
               type="button"
               onClick={() => setShowPassword((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-500 hover:text-white transition p-1 rounded"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-500 hover:text-zinc-900 transition p-1 rounded"
               aria-label={showPassword ? "Ascunde parola" : "Arată parola"}
             >
               {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -337,12 +337,12 @@ function SignUpContent() {
               required
               minLength={6}
               autoComplete={rememberDevice ? "on" : "off"}
-              className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 pr-12 text-white placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 pr-12 text-zinc-900 placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
             <button
               type="button"
               onClick={() => setShowConfirmPassword((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-500 hover:text-white transition p-1 rounded"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-500 hover:text-zinc-900 transition p-1 rounded"
               aria-label={showConfirmPassword ? "Ascunde parola" : "Arată parola"}
             >
               {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -360,7 +360,7 @@ function SignUpContent() {
                     const v = (e.target as HTMLSelectElement).value;
                     if (v !== "") setBirthDay(v);
                   }}
-                  className="w-full bg-dark-800 border border-dark-600 rounded-xl px-3 py-3 text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  className="w-full bg-dark-800 border border-dark-600 rounded-xl px-3 py-3 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
                 >
                   <option value="">Zi</option>
                   {Array.from({ length: daysInMonth(birthMonth, birthYear) }, (_, i) => i + 1).map((d) => (
@@ -377,7 +377,7 @@ function SignUpContent() {
                     const v = (e.target as HTMLSelectElement).value;
                     if (v !== "") setBirthMonth(v);
                   }}
-                  className="w-full bg-dark-800 border border-dark-600 rounded-xl px-3 py-3 text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  className="w-full bg-dark-800 border border-dark-600 rounded-xl px-3 py-3 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
                 >
                   <option value="">Lună</option>
                   {MONTHS.map((m) => (
@@ -394,7 +394,7 @@ function SignUpContent() {
                     const v = (e.target as HTMLSelectElement).value;
                     if (v !== "") setBirthYear(v);
                   }}
-                  className="w-full bg-dark-800 border border-dark-600 rounded-xl px-3 py-3 text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  className="w-full bg-dark-800 border border-dark-600 rounded-xl px-3 py-3 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
                 >
                   <option value="">An</option>
                   {Array.from({ length: maxYear18 - minYear + 1 }, (_, i) => maxYear18 - i).map((y) => (
@@ -410,7 +410,7 @@ function SignUpContent() {
             <select
               value={gender}
               onChange={(e) => setGender(e.target.value)}
-              className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
             >
               <option value="">— Alege genul</option>
               <option value="male">Bărbat</option>

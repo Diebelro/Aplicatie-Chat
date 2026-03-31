@@ -69,7 +69,7 @@ export default function AdminSetupPage() {
 
   if (canSetup === null) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-dark-900 text-white">
+      <div className="min-h-screen flex items-center justify-center bg-dark-900 text-zinc-900">
         <p className="text-dark-400">Se încarcă...</p>
       </div>
     );
@@ -77,7 +77,7 @@ export default function AdminSetupPage() {
 
   if (!canSetup) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-dark-900 text-white">
+      <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-dark-900 text-zinc-900">
         <p className="text-dark-500 text-sm mb-2">Se verifică accesul…</p>
         <h1 className="text-xl font-semibold mb-2">Panoul admin e deja configurat</h1>
         <p className="text-dark-400 text-center mb-6 max-w-md">
@@ -101,7 +101,7 @@ export default function AdminSetupPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-dark-900 text-white">
+      <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-dark-900 text-zinc-900">
         <h1 className="text-xl font-semibold mb-2 text-green-400">Gata!</h1>
         <p className="text-dark-300 text-center mb-4">
           Contul tău a fost făcut admin. Loghează-te cu același email și parolă — vei intra în aplicație și vei vedea butonul{" "}
@@ -115,7 +115,7 @@ export default function AdminSetupPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-dark-900 text-white">
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-dark-900 text-zinc-900">
       <div className="w-full max-w-sm">
         <h1 className="text-2xl font-semibold mb-2">Configurează primul admin</h1>
         <p className="text-dark-400 text-sm mb-6">
@@ -130,7 +130,7 @@ export default function AdminSetupPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
               placeholder="email@exemplu.com"
             />
           </div>
@@ -141,7 +141,7 @@ export default function AdminSetupPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
               placeholder="Parola contului"
             />
           </div>

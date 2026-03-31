@@ -75,7 +75,7 @@ export default function PremiumPage() {
       <div className="flex items-center gap-3">
         <Crown className="w-8 h-8 text-amber-400" />
         <div>
-          <h1 className="text-2xl font-bold text-white">Premium</h1>
+          <h1 className="text-2xl font-bold text-zinc-900">Premium</h1>
           <p className="text-dark-400 text-sm">
             Beneficii extra, opționale. Funcțiile de bază sunt gratuite în perioada de lansare.
           </p>
@@ -85,7 +85,7 @@ export default function PremiumPage() {
       <RewardedPremiumCTA />
 
       <section>
-        <h2 className="text-lg font-semibold text-white mb-4">Abonamente</h2>
+        <h2 className="text-lg font-semibold text-zinc-900 mb-4">Abonamente</h2>
         <p className="text-dark-400 text-sm mb-4">
           Mesajele și profilul sunt gratuite în perioada de lansare. Abonamentele Premium adaugă beneficii extra
           (ex. fără reclame) — nu sunt obligatorii.
@@ -104,9 +104,9 @@ export default function PremiumPage() {
                 key={plan.id}
                 className="rounded-2xl border p-5 flex flex-col border-dark-600 bg-dark-800"
               >
-                <h3 className="font-semibold text-white mb-1">{plan.name}</h3>
+                <h3 className="font-semibold text-zinc-900 mb-1">{plan.name}</h3>
                 <p className="text-dark-500 text-sm mb-3">{plan.description}</p>
-                <p className="text-xl font-bold text-white mb-4">{priceLabel}</p>
+                <p className="text-xl font-bold text-zinc-900 mb-4">{priceLabel}</p>
                 <ul className="space-y-2 mb-3 flex-1">
                   {plan.features.map((f, i) => (
                     <li key={i} className="flex items-center gap-2 text-dark-300 text-sm">

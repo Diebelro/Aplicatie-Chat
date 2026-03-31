@@ -14,7 +14,7 @@ function CheckEmailContent() {
         <Link href="/login" className="inline-block text-brand-400 font-bold">
           ← Align
         </Link>
-        <h1 className="text-2xl font-semibold text-white mt-4">Verifică emailul</h1>
+        <h1 className="text-2xl font-semibold text-zinc-900 mt-4">Verifică emailul</h1>
         <p className="text-sm text-dark-300 mt-2">
           {email
             ? `Am trimis un link de verificare la ${email}.`

@@ -33,11 +33,11 @@ export default function TermsPage() {
             {String(t("legal.links.cookies"))}
           </Link>
         </p>
-        <h1 className="text-2xl font-semibold text-white mb-8">{legal.termsTitle}</h1>
+        <h1 className="text-2xl font-semibold text-zinc-900 mb-8">{legal.termsTitle}</h1>
         <div className="prose prose-invert max-w-none space-y-8">
           {sections.map((section, i) => (
             <section key={i}>
-              <h2 className="text-lg font-semibold text-white mb-3">{section.title}</h2>
+              <h2 className="text-lg font-semibold text-zinc-900 mb-3">{section.title}</h2>
               {section.content.map((para, j) => (
                 <p key={j} className="text-dark-300 text-sm leading-relaxed mb-3">
                   {para}

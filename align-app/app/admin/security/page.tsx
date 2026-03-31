@@ -78,7 +78,7 @@ export default function AdminSecurityPage() {
           <select
             value={win}
             onChange={(e) => setWin(Number(e.target.value))}
-            className="ml-2 bg-dark-800 border border-dark-600 rounded-lg px-2 py-1 text-white"
+            className="ml-2 bg-dark-800 border border-dark-600 rounded-lg px-2 py-1 text-zinc-900"
           >
             {[5, 15, 30, 60, 120].map((m) => (
               <option key={m} value={m}>

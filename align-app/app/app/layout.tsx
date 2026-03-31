@@ -61,10 +61,38 @@ export default function AppLayout({
     const raw = typeof window !== "undefined" ? getStoredUserRaw() : null;
     if (!raw) {
       if (storageRetry > 0) {
-        const redirect = pathnameRef.current ? `/login?redirect=${encodeURIComponent(pathnameRef.current)}` : "/login";
-        router.replace(redirect);
-        setLoading(false);
-        return;
+        let cancelled = false;
+        (async () => {
+          try {
+            const res = await fetch("/api/me", { credentials: "include" });
+            if (cancelled) return;
+            if (res.ok) {
+              const data = await res.json();
+              const serverUser = data?.user as (User & { isBanned?: boolean }) | undefined;
+              if (serverUser?.isBanned) {
+                router.replace("/cont-blocat");
+                setLoading(false);
+                return;
+              }
+              if (serverUser && typeof window !== "undefined") {
+                sessionStorage.setItem("align_user", JSON.stringify(serverUser));
+                setUser(serverUser as User);
+                setLoading(false);
+                return;
+              }
+            }
+          } catch {
+            /* fall through */
+          }
+          if (!cancelled) {
+            const redirect = pathnameRef.current ? `/login?redirect=${encodeURIComponent(pathnameRef.current)}` : "/login";
+            router.replace(redirect);
+            setLoading(false);
+          }
+        })();
+        return () => {
+          cancelled = true;
+        };
       }
       const t = setTimeout(() => setStorageRetry((r) => r + 1), 100);
       return () => clearTimeout(t);
@@ -334,9 +362,11 @@ export default function AppLayout({
 
   const isAdmin = user.role === "ADMIN" || user.role === "SUPERADMIN";
 
+  const isChatRoute = pathname?.startsWith("/app/chat/") ?? false;
+
   return (
-    <div className="min-h-screen bg-dark-900 flex flex-col min-h-[100dvh]">
-      <header className="border-b border-dark-600 sticky top-0 bg-dark-900/95 backdrop-blur z-20 safe-area-inset-top">
+    <div className="h-dvh min-h-0 bg-dark-900 flex flex-col overflow-hidden">
+      <header className="border-b border-dark-600 shrink-0 sticky top-0 bg-dark-900/95 backdrop-blur z-20 safe-area-inset-top">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
           <Link href="/app" className="text-lg font-bold gradient-text shrink-0">
             Align
@@ -346,9 +376,9 @@ export default function AppLayout({
             <Link href="/app/profile" className="px-3 py-1.5 rounded-lg bg-brand-500/20 text-brand-400 hover:bg-brand-500/30 font-medium text-sm transition">
               Completează profilul
             </Link>
-            <Link href="/app" className="text-dark-400 hover:text-white transition">Descoperă</Link>
-            <Link href="/app/profiles" className="text-dark-400 hover:text-white transition">Toate profilurile</Link>
-            <Link href="/app/messages" className="text-dark-400 hover:text-white transition relative inline-flex items-center">
+            <Link href="/app" className="text-dark-400 hover:text-zinc-900 transition">Descoperă</Link>
+            <Link href="/app/profiles" className="text-dark-400 hover:text-zinc-900 transition">Toate profilurile</Link>
+            <Link href="/app/messages" className="text-dark-400 hover:text-zinc-900 transition relative inline-flex items-center">
               Mesaje
               {totalUnread > 0 && (
                 <span
@@ -371,12 +401,12 @@ export default function AppLayout({
                 </span>
               </Link>
             )}
-            <Link href="/app/call/start" className="text-dark-400 hover:text-white transition text-sm">Conferință</Link>
-            <Link href="/app/matches" className="text-dark-400 hover:text-white transition">Matches</Link>
+            <Link href="/app/call/start" className="text-dark-400 hover:text-zinc-900 transition text-sm">Conferință</Link>
+            <Link href="/app/matches" className="text-dark-400 hover:text-zinc-900 transition">Matches</Link>
             <Link href="/app/review-swipes" className="text-amber-400/90 hover:text-amber-300 transition text-sm" title="Recenzează like/pass">
               Recenzare swipe
             </Link>
-            <Link href="/app/map" className="text-dark-400 hover:text-white transition">Harta</Link>
+            <Link href="/app/map" className="text-dark-400 hover:text-zinc-900 transition">Harta</Link>
             <Link href="/app/premium" className="text-amber-400 hover:text-amber-300 transition text-sm">Premium</Link>
             {isAdmin && (
               <Link
@@ -388,10 +418,10 @@ export default function AppLayout({
                 Admin
               </Link>
             )}
-            <Link href="/app/settings/feedback" className="text-dark-400 hover:text-white transition text-sm">
+            <Link href="/app/settings/feedback" className="text-dark-400 hover:text-zinc-900 transition text-sm">
               Propuneri
             </Link>
-            <Link href="/app/settings/account" className="text-dark-400 hover:text-white transition text-sm">Setări cont</Link>
+            <Link href="/app/settings/account" className="text-dark-400 hover:text-zinc-900 transition text-sm">Setări cont</Link>
             <div className="flex items-center gap-2 border-l border-dark-600 pl-3">
               <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 bg-dark-700">
                 <SilhouetteAvatar photoUrl={getProfileImageUrl(user) ?? undefined} gender={user.gender} name={user.name} className="w-full h-full" imgClassName="w-full h-full object-cover object-center" />
@@ -408,7 +438,7 @@ export default function AppLayout({
             <button
               type="button"
               onClick={() => setMobileMenuOpen((o) => !o)}
-              className="p-2 rounded-lg text-dark-400 hover:text-white hover:bg-dark-700 transition"
+              className="p-2 rounded-lg text-dark-400 hover:text-zinc-900 hover:bg-dark-700 transition"
               aria-label={mobileMenuOpen ? "Închide meniu" : "Meniu"}
             >
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -440,22 +470,29 @@ export default function AppLayout({
           </div>
         )}
       </header>
-      <main className="flex-1 flex flex-col min-h-0 max-w-4xl w-full mx-auto px-4 py-4 md:py-6 pb-24 md:pb-6">
+      <main
+        className={
+          "flex-1 flex flex-col min-h-0 max-w-4xl w-full mx-auto px-4 py-4 md:py-6 pb-24 md:pb-6 " +
+          (isChatRoute ? "overflow-hidden" : "overflow-y-auto overscroll-y-contain")
+        }
+      >
         {children}
-        <div className="mt-10 pt-4 border-t border-dark-700/80 shrink-0">
-          <p className="text-center text-dark-500 text-[10px] md:text-xs mb-2 px-2">
-            Documente legale — te rugăm să le citești înainte de a folosi serviciul.
-          </p>
-          <LegalDocLinks className="text-dark-500" />
-        </div>
+        {!isChatRoute && (
+          <div className="mt-10 pt-4 border-t border-dark-700/80 shrink-0">
+            <p className="text-center text-dark-500 text-[10px] md:text-xs mb-2 px-2">
+              Documente legale — te rugăm să le citești înainte de a folosi serviciul.
+            </p>
+            <LegalDocLinks className="text-dark-500" />
+          </div>
+        )}
       </main>
       {/* Bottom nav: doar pe mobile */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 border-t border-dark-600 bg-dark-900/98 backdrop-blur z-20 flex items-center justify-around safe-area-inset-bottom touch-manipulation" style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))", paddingTop: "0.5rem" }}>
-        <Link href="/app" className="flex flex-col items-center justify-center gap-0.5 min-h-[56px] min-w-[64px] py-2 px-3 rounded-lg transition text-dark-400 hover:text-white active:bg-dark-800" title="Descoperă">
+        <Link href="/app" className="flex flex-col items-center justify-center gap-0.5 min-h-[56px] min-w-[64px] py-2 px-3 rounded-lg transition text-dark-400 hover:text-zinc-900 active:bg-dark-800" title="Descoperă">
           <Compass className="w-6 h-6 shrink-0" />
           <span className="text-xs">Descoperă</span>
         </Link>
-        <Link href="/app/messages" className="flex flex-col items-center justify-center gap-0.5 min-h-[56px] min-w-[64px] py-2 px-3 rounded-lg transition text-dark-400 hover:text-white active:bg-dark-800 relative" title="Mesaje">
+        <Link href="/app/messages" className="flex flex-col items-center justify-center gap-0.5 min-h-[56px] min-w-[64px] py-2 px-3 rounded-lg transition text-dark-400 hover:text-zinc-900 active:bg-dark-800 relative" title="Mesaje">
           <MessageCircle className="w-6 h-6 shrink-0" />
           <span className="text-xs">Mesaje</span>
           {totalUnread > 0 && (
@@ -471,7 +508,7 @@ export default function AppLayout({
             </span>
           )}
         </Link>
-        <Link href="/app/matches" className="flex flex-col items-center justify-center gap-0.5 min-h-[56px] min-w-[64px] py-2 px-3 rounded-lg transition text-dark-400 hover:text-white active:bg-dark-800" title="Matches">
+        <Link href="/app/matches" className="flex flex-col items-center justify-center gap-0.5 min-h-[56px] min-w-[64px] py-2 px-3 rounded-lg transition text-dark-400 hover:text-zinc-900 active:bg-dark-800" title="Matches">
           <Heart className="w-6 h-6 shrink-0" />
           <span className="text-xs">Matches</span>
         </Link>

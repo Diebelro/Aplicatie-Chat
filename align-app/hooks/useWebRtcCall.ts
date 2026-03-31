@@ -74,6 +74,9 @@ export function useWebRtcCall({
   isConference,
   onAutoEnded,
 }: UseWebRtcCallOptions) {
+  /** Incrementat la „Încearcă din nou” pe ecranul de permisiuni — rerulează inițializarea (getUserMedia + semnalizare). */
+  const [permissionRetryKey, setPermissionRetryKey] = useState(0);
+
   const [state, setState] = useState<CallState>({
     status: "idle",
     error: null,
@@ -205,6 +208,22 @@ export function useWebRtcCall({
       canSwitchCamera: false,
       permissionHelp: null,
     }));
+  }, [cleanupMedia]);
+
+  const retryPermissions = useCallback(() => {
+    cleanupMedia();
+    setState((s) => ({
+      ...s,
+      status: "connecting",
+      error: null,
+      permissionHelp: null,
+      localStream: null,
+      remoteParticipants: [],
+      banner: null,
+      canSwitchCamera: false,
+      screenSharing: false,
+    }));
+    setPermissionRetryKey((k) => k + 1);
   }, [cleanupMedia]);
 
   const setMuted = useCallback((muted: boolean) => {
@@ -1334,7 +1353,17 @@ export function useWebRtcCall({
       clearInterval(limitTimer);
       cleanupMedia();
     };
-  }, [roomId, userId, audioOnly, isCaller, isConference, flushIceQueue, cleanupMedia, clearStatsMonitor]);
+  }, [
+    roomId,
+    userId,
+    audioOnly,
+    isCaller,
+    isConference,
+    flushIceQueue,
+    cleanupMedia,
+    clearStatsMonitor,
+    permissionRetryKey,
+  ]);
 
   return {
     status: state.status,
@@ -1352,5 +1381,6 @@ export function useWebRtcCall({
     screenSharing: state.screenSharing,
     switchCamera,
     toggleScreenShare,
+    retryPermissions,
   };
 }

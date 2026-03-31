@@ -15,13 +15,13 @@ export function Footer() {
     <footer className="border-t border-dark-600 bg-dark-900/80 py-6 px-4">
       <div className="max-w-4xl mx-auto flex flex-col items-center gap-4">
         <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-8 text-sm text-dark-400">
-          <Link href="/terms" className="hover:text-white transition">
+          <Link href="/terms" className="hover:text-zinc-900 transition">
             {termsLabel}
           </Link>
-          <Link href="/privacy" className="hover:text-white transition">
+          <Link href="/privacy" className="hover:text-zinc-900 transition">
             {privacyLabel}
           </Link>
-          <Link href="/cookies" className="hover:text-white transition">
+          <Link href="/cookies" className="hover:text-zinc-900 transition">
             {cookiesLabel}
           </Link>
         </div>

@@ -75,7 +75,7 @@ export default function AdminDashboardPage() {
               <Sparkles className="w-5 h-5 text-amber-400 shrink-0" aria-hidden />
               <h2 className="text-lg font-semibold text-amber-100">Noutăți de urmărit</h2>
               {summary.attentionCount > 0 ? (
-                <span className="rounded-full bg-red-600 px-2 py-0.5 text-xs font-bold text-white">
+                <span className="rounded-full bg-red-600 px-2 py-0.5 text-xs font-bold text-zinc-900">
                   {summary.attentionCount} de verificat
                 </span>
               ) : (
@@ -139,7 +139,7 @@ export default function AdminDashboardPage() {
                 <Users className="w-4 h-4" />
                 Total utilizatori
               </div>
-              <p className="text-2xl font-semibold text-white">{summary.totalUsers}</p>
+              <p className="text-2xl font-semibold text-zinc-900">{summary.totalUsers}</p>
               <ul className="text-dark-500 text-xs mt-2 space-y-1 tabular-nums">
                 <li>
                   Ultimele 24 h: <strong className="text-dark-300">+{summary.signupsLast24Hours}</strong> înscrieri
@@ -163,7 +163,7 @@ export default function AdminDashboardPage() {
                 <Flag className="w-4 h-4" />
                 Rapoarte (total)
               </div>
-              <p className="text-2xl font-semibold text-white">{summary.totalReports}</p>
+              <p className="text-2xl font-semibold text-zinc-900">{summary.totalReports}</p>
               <ul className="text-dark-500 text-xs mt-2 space-y-1 tabular-nums">
                 <li>
                   Ultimele 24 h: <strong className="text-dark-300">{summary.reportsLast24Hours}</strong> rapoarte

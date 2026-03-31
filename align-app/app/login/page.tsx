@@ -105,8 +105,19 @@ function LoginContent() {
     const auth = searchParams.get("auth");
     const soon = searchParams.get("soon");
     const reason = searchParams.get("reason");
+    const p = searchParams.get("p");
     if (reason === "session_expired") {
       setSoonMessage("Sesiunea a expirat. Introdu același email și parola ca la înregistrare.");
+    } else if (reason === "oauth_failed") {
+      setSoonMessage(
+        "Autentificarea socială nu s-a putut finaliza. Încearcă din nou sau folosește email și parolă."
+      );
+    } else if (reason === "oauth_no_db") {
+      setSoonMessage("OAuth pe server necesită DATABASE_URL / Prisma activ.");
+    } else if (reason === "oauth_not_configured" && p && AUTH_PROVIDER_NAMES[p]) {
+      setSoonMessage(
+        `${AUTH_PROVIDER_NAMES[p]} nu e încă configurat pe server (variabile de mediu — vezi .env.example).`
+      );
     } else if (soon === "1" && auth && AUTH_PROVIDER_NAMES[auth]) {
       setSoonMessage(`Autentificarea cu ${AUTH_PROVIDER_NAMES[auth]} va fi disponibilă în curând.`);
     }
@@ -245,7 +256,7 @@ function LoginContent() {
         <Link href="/" className="inline-block text-brand-400 font-bold mt-4">
           ← Align
         </Link>
-        <h1 className="text-2xl font-semibold text-white mt-4">Log in</h1>
+        <h1 className="text-2xl font-semibold text-zinc-900 mt-4">Log in</h1>
         <p className="text-sm text-dark-300 mt-2">
           Email și parola contului. Fără cont?{" "}
           <Link href="/signup" className="text-brand-400 hover:underline">Înregistrare</Link>.
@@ -277,7 +288,7 @@ function LoginContent() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-white placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+            className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-zinc-900 placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
           />
           <div className="relative">
             <input
@@ -287,12 +298,12 @@ function LoginContent() {
               onChange={(e) => setPassword(e.target.value)}
               required
               autoComplete="current-password"
-              className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 pr-12 text-white placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 pr-12 text-zinc-900 placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
             <button
               type="button"
               onClick={() => setShowPassword((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-500 hover:text-white transition p-1 rounded"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-500 hover:text-zinc-900 transition p-1 rounded"
               aria-label={showPassword ? "Ascunde parola" : "Arată parola"}
             >
               {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}

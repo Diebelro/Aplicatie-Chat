@@ -131,7 +131,7 @@ export default function AdminUsersPage() {
         placeholder="Caută email sau id"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        className="bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-white w-full max-w-md mb-4"
+        className="bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 w-full max-w-md mb-4"
       />
       {error && <p className="text-red-400 mb-3 text-sm">{error}</p>}
       {loading ? (
@@ -148,7 +148,7 @@ export default function AdminUsersPage() {
               >
                 <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
                   <div>
-                    <p className="font-medium text-white text-lg">{u.email}</p>
+                    <p className="font-medium text-zinc-900 text-lg">{u.email}</p>
                     <p className="text-dark-500 text-xs font-mono mt-0.5">{u.id}</p>
                     <p className="text-dark-500 text-xs mt-1">
                       Creat: {u.createdAt} · Rol: {u.role}

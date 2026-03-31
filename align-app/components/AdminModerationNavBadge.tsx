@@ -43,7 +43,7 @@ export function AdminModerationNavBadge() {
 
   return (
     <span
-      className="ml-0.5 inline-flex min-w-[1.35rem] justify-center rounded-full bg-red-600 px-1.5 py-px text-[11px] font-bold text-white leading-tight"
+      className="ml-0.5 inline-flex min-w-[1.35rem] justify-center rounded-full bg-red-600 px-1.5 py-px text-[11px] font-bold text-zinc-900 leading-tight"
       title={`De verificat: ${attention} (înscrieri + rapoarte noi față de ultimul punct)`}
     >
       {attention > 99 ? "99+" : attention}

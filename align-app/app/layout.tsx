@@ -45,7 +45,7 @@ export const viewport: Viewport = {
   maximumScale: 5,
   userScalable: true,
   viewportFit: "cover",
-  themeColor: [{ media: "(prefers-color-scheme: dark)", color: "#0f0f12" }],
+  themeColor: [{ media: "(prefers-color-scheme: light)", color: "#f6f6f7" }],
 };
 
 export default function RootLayout({
@@ -56,11 +56,11 @@ export default function RootLayout({
   return (
     <html lang="ro" suppressHydrationWarning>
       <body
-        className="antialiased min-h-screen font-sans bg-dark-900 text-gray-100"
+        className="antialiased min-h-screen font-sans bg-dark-900 text-zinc-900"
         style={{
           // Fallback când CSS-ul Tailwind nu se încarcă (preview iframe, CDN blocat, etc.)
-          backgroundColor: "var(--bg, #0f1419)",
-          color: "var(--text, #e7e9ea)",
+          backgroundColor: "var(--bg, #f6f6f7)",
+          color: "var(--text, #18181b)",
         }}
       >
         <DisableDevTools />
