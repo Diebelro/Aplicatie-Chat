@@ -8,6 +8,7 @@ import { CookieConsentFloatingButton } from "@/components/CookieConsent/CookieCo
 import { TrackingScripts } from "@/components/TrackingScripts";
 import { Footer } from "@/components/Footer";
 import { AppWebVitalsBeacon } from "@/components/AppWebVitalsBeacon";
+import { InLucruBanner } from "@/components/InLucruBanner";
 
 /**
  * Fără SessionProvider aici: NextAuth face fetch la /api/auth/session pe tot site-ul și în dev apare
@@ -18,6 +19,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <I18nProvider>
       <CookieConsentProvider>
+        {process.env.NEXT_PUBLIC_SHOW_WIP_BANNER === "true" ? <InLucruBanner /> : null}
         <AppWebVitalsBeacon />
         {children}
         <CookieConsentBanner />

@@ -22,7 +22,16 @@
     },
     "labels": {
       "language": "Language"
-    }
+    },
+    "wipBanner": "Work in progress — features may change."
+  },
+  "home": {
+    "login": "Log in",
+    "signup": "Sign up",
+    "headlineBefore": "Same intent. ",
+    "headlineAccent": "Real connections.",
+    "subhead": "Choose your intent. See only people who want the same thing. No confusion, no wasted time.",
+    "cta": "Get started"
   },
   "legal": {
     "links": {

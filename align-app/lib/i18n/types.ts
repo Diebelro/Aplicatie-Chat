@@ -22,6 +22,17 @@ export interface CookieConsentTranslations {
 export interface CommonTranslations {
   buttons: Record<string, string>;
   labels: Record<string, string>;
+  /** Mesaj bandă „site în lucru” (NEXT_PUBLIC_SHOW_WIP_BANNER) */
+  wipBanner: string;
+}
+
+export interface HomeTranslations {
+  login: string;
+  signup: string;
+  headlineBefore: string;
+  headlineAccent: string;
+  subhead: string;
+  cta: string;
 }
 
 export interface LegalLinkTranslations {
@@ -49,4 +60,5 @@ export interface Translations {
   cookieConsent: CookieConsentTranslations;
   common: CommonTranslations;
   legal: LegalTranslations;
+  home: HomeTranslations;
 }

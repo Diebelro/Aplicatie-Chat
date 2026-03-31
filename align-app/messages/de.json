@@ -22,7 +22,16 @@
     },
     "labels": {
       "language": "Sprache"
-    }
+    },
+    "wipBanner": "Website in Arbeit — Funktionen können sich ändern."
+  },
+  "home": {
+    "login": "Anmelden",
+    "signup": "Registrieren",
+    "headlineBefore": "Gleiche Absicht. ",
+    "headlineAccent": "Echte Verbindungen.",
+    "subhead": "Wähle deine Absicht. Sieh nur Menschen, die dasselbe wollen. Kein Durcheinander, keine verschwendete Zeit.",
+    "cta": "Jetzt starten"
   },
   "legal": {
     "links": {

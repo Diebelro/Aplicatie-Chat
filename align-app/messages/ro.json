@@ -22,7 +22,16 @@
     },
     "labels": {
       "language": "Limba"
-    }
+    },
+    "wipBanner": "Site în lucru — funcționalitățile pot fi modificate."
+  },
+  "home": {
+    "login": "Autentificare",
+    "signup": "Înregistrare",
+    "headlineBefore": "Aceeași intenție. ",
+    "headlineAccent": "Conexiuni reale.",
+    "subhead": "Alege intenția ta. Vezi doar oameni care vor același lucru. Fără confuzie, fără timp irosit.",
+    "cta": "Începe acum"
   },
   "legal": {
     "links": {

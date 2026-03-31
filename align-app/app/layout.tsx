@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
 import { DisableDevTools } from "@/components/DisableDevTools";
-import { InLucruBanner } from "@/components/InLucruBanner";
 import { getPublicAppUrl } from "@/lib/appUrl";
 
 const siteUrlRaw = getPublicAppUrl();
@@ -64,7 +63,6 @@ export default function RootLayout({
         }}
       >
         <DisableDevTools />
-        {process.env.NEXT_PUBLIC_SHOW_WIP_BANNER === "true" ? <InLucruBanner /> : null}
         <Providers>{children}</Providers>
       </body>
     </html>

@@ -1,8 +1,9 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import type { Locale, Translations } from "./types";
 import { DEFAULT_LOCALE, LOCALES } from "./types";
+import roBootstrap from "@/messages/ro.json";
 
 const STORAGE_KEY = "align-locale";
 
@@ -60,27 +61,47 @@ async function loadTranslations(locale: Locale): Promise<Translations> {
 }
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
+  const localeLoadGen = useRef(0);
   const [locale, setLocaleState] = useState<Locale>(DEFAULT_LOCALE);
-  const [translations, setTranslations] = useState<Translations | null>(null);
+  const [translations, setTranslations] = useState<Translations>(() => roBootstrap as Translations);
 
   const setLocale = useCallback((newLocale: Locale) => {
     if (newLocale === locale) return;
-    loadTranslations(newLocale).then((nextTranslations) => {
-      setTranslations(nextTranslations);
-      setLocaleState(newLocale);
-      try {
-        localStorage.setItem(STORAGE_KEY, newLocale);
-      } catch {
-        // ignore
-      }
-    });
+    const gen = ++localeLoadGen.current;
+    loadTranslations(newLocale)
+      .then((nextTranslations) => {
+        if (gen !== localeLoadGen.current) return;
+        setTranslations(nextTranslations);
+        setLocaleState(newLocale);
+        try {
+          localStorage.setItem(STORAGE_KEY, newLocale);
+        } catch {
+          // ignore
+        }
+      })
+      .catch(() => {
+        /* import eșuat — păstrăm limba și mesajele curente */
+      });
   }, [locale]);
 
   useEffect(() => {
     const stored = loadStoredLocale();
     const initial = stored ?? detectBrowserLocale();
     setLocaleState(initial);
-    loadTranslations(initial).then(setTranslations);
+    if (initial === "ro") {
+      setTranslations(roBootstrap as Translations);
+      return;
+    }
+    const gen = ++localeLoadGen.current;
+    loadTranslations(initial)
+      .then((tr) => {
+        if (gen !== localeLoadGen.current) return;
+        setTranslations(tr);
+      })
+      .catch(() => {
+        setLocaleState("ro");
+        setTranslations(roBootstrap as Translations);
+      });
   }, []);
 
   useEffect(() => {
