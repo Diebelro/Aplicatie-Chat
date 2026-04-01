@@ -28,7 +28,8 @@ export default function IncomingCall() {
   const [incoming, setIncoming] = useState<IncomingCallData | null>(null);
   const [loading, setLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
-  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** În browser `window.setTimeout` → number; `ReturnType<typeof setTimeout>` cu @types/node → Timeout și pică build-ul Vercel. */
+  const pollTimerRef = useRef<number | null>(null);
   const incomingRef = useRef<IncomingCallData | null>(null);
   incomingRef.current = incoming;
 
