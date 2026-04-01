@@ -1,0 +1,35 @@
+# Generare: brew install xcodegen && xcodegen generate
+# Deschide Align.xcodeproj în Xcode 15+, selectează echipa ta de semnare, rulează pe dispozitiv (PushKit nu merge pe simulator complet).
+name: Align
+options:
+  bundleIdPrefix: com.align
+  deploymentTarget:
+    iOS: "15.0"
+  createIntermediateGroups: true
+packages:
+  WebRTC:
+    url: https://github.com/stasel/WebRTC.git
+    from: 125.0.0
+targets:
+  Align:
+    type: application
+    platform: iOS
+    deploymentTarget: "15.0"
+    sources:
+      - path: Align
+        excludes:
+          - "**/*.md"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.align.app
+        INFOPLIST_FILE: Align/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Align/Align.entitlements
+        SWIFT_VERSION: "5.0"
+        CURRENT_PROJECT_VERSION: "1"
+        MARKETING_VERSION: "1.0.0"
+    info:
+      path: Align/Info.plist
+    entitlements:
+      path: Align/Align.entitlements
+    dependencies:
+      - package: WebRTC

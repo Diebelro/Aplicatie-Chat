@@ -6,6 +6,8 @@ import Link from "next/link";
 import { Phone, PhoneOff } from "lucide-react";
 import { getAuthHeaders, fetchWithAuthRetry } from "@/lib/authClient";
 import { markIncomingCallDismissed, shouldIgnorePolledIncoming } from "@/lib/callIncomingDismiss";
+import { startIncomingRingtone, stopIncomingRingtone } from "@/lib/callRingtone";
+import { isBrowserPushPrimaryPath } from "@/lib/browserPushConstants";
 
 /** Filă activă: poll mai des ca „te sună” să apară repede când celălalt sună de pe telefon. */
 const POLL_MS_VISIBLE = 1200;
@@ -28,6 +30,8 @@ export default function IncomingCall() {
   const [incoming, setIncoming] = useState<IncomingCallData | null>(null);
   const [loading, setLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  /** Browserul blochează audio până la un gest — indicăm discret utilizatorului. */
+  const [ringNeedsTap, setRingNeedsTap] = useState(false);
   /** În browser `window.setTimeout` → number; `ReturnType<typeof setTimeout>` cu @types/node → Timeout și pică build-ul Vercel. */
   const pollTimerRef = useRef<number | null>(null);
   const incomingRef = useRef<IncomingCallData | null>(null);
@@ -89,11 +93,12 @@ export default function IncomingCall() {
     };
 
     /**
-     * setTimeout în lanț (nu setInterval): în fundal navigatoarele îngheață des interval-ul;
-     * interval variabil vizibil vs ascuns + focus/pageshow/online prind apelul când sună cineva de pe mobil.
+     * Cu Web Push + SW activ (semnal în sessionStorage), nu facem poll continuu pentru apel critic —
+     * utilizatorul e nudgat prin notificare; la revenire în tab prindem starea din server.
      */
     const scheduleAfterFetchCycle = () => {
       if (cancelled) return;
+      if (isBrowserPushPrimaryPath()) return;
       const ms =
         typeof document !== "undefined" && document.visibilityState === "visible"
           ? POLL_MS_VISIBLE
@@ -132,6 +137,29 @@ export default function IncomingCall() {
       window.removeEventListener("online", bumpIncoming);
     };
   }, [fetchIncoming, onCallPage]);
+
+  useEffect(() => {
+    if (onCallPage || !incoming) {
+      stopIncomingRingtone();
+      setRingNeedsTap(false);
+      return;
+    }
+    const { resume, needsUserGesture } = startIncomingRingtone();
+    setRingNeedsTap(needsUserGesture);
+    void resume();
+
+    const unlock = () => {
+      void resume();
+      setRingNeedsTap(false);
+    };
+    window.addEventListener("pointerdown", unlock, { passive: true });
+
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      stopIncomingRingtone();
+      setRingNeedsTap(false);
+    };
+  }, [incoming?.roomId, onCallPage]);
 
   /** Back browser cât e overlay „te sună”: respinge pe server ca să nu reapară la următorul back. */
   useEffect(() => {
@@ -214,6 +242,11 @@ export default function IncomingCall() {
         {incoming.fromName}
       </p>
       <p className="text-lg text-night-400 mb-8">te sună</p>
+      {ringNeedsTap && (
+        <p className="text-night-500 text-sm text-center max-w-sm mb-4 px-2">
+          Apasă oriunde pe ecran ca să se audă soneria (blocaj browser).
+        </p>
+      )}
       {actionError && (
         <p className="text-amber-400 text-sm text-center max-w-sm mb-6 px-2" role="alert">
           {actionError}

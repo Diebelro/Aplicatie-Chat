@@ -1,7 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { setPendingCall } from "@/lib/store";
 import { getVideoRoomId } from "@/lib/videoCall";
-import { findUserOrPrisma, isPrismaAvailable, prismaUpsertPendingIncomingCall } from "@/lib/repo-prisma";
+import {
+  findUserOrPrisma,
+  isPrismaAvailable,
+  prismaListFcmTokensForUser,
+  prismaListVoipTokensForUser,
+  prismaUpsertPendingIncomingCall,
+} from "@/lib/repo-prisma";
+import { isApnsVoipConfigured, sendIncomingCallVoipPush } from "@/lib/apnsVoipPush";
+import { isFcmConfigured, sendIncomingCallDataPush } from "@/lib/fcmCallPush";
+import { isWebPushConfigured } from "@/lib/webPushEnv";
+import { sendIncomingCallWebPush } from "@/lib/webPushSend";
 import { rateLimitAllow } from "@/lib/callRateLimit";
 import { resolveRequestUserId } from "@/lib/sessionAuth";
 
@@ -45,5 +55,35 @@ export async function POST(request: NextRequest) {
       console.error("[api/call/ring] prismaUpsertPendingIncomingCall", e);
     }
   }
+
+  /** Android: FCM. iOS: APNs VoIP. Browser: Web Push (VAPID) + fallback ușor la /api/call/incoming când push lipsește. */
+  if (isPrismaAvailable()) {
+    const callerName = me.name ?? me.username ?? "Apel";
+    const pushData = { roomId, callerId: me.id, callerName, audioOnly };
+    if (isFcmConfigured()) {
+      try {
+        const tokens = await prismaListFcmTokensForUser(toId);
+        void sendIncomingCallDataPush(tokens, pushData);
+      } catch (e) {
+        console.error("[api/call/ring] FCM push", e);
+      }
+    }
+    if (isApnsVoipConfigured()) {
+      try {
+        const voipTokens = await prismaListVoipTokensForUser(toId);
+        void sendIncomingCallVoipPush(voipTokens, pushData);
+      } catch (e) {
+        console.error("[api/call/ring] APNs VoIP push", e);
+      }
+    }
+    if (isWebPushConfigured()) {
+      try {
+        void sendIncomingCallWebPush(toId, pushData);
+      } catch (e) {
+        console.error("[api/call/ring] Web Push", e);
+      }
+    }
+  }
+
   return NextResponse.json({ ok: true, roomId });
 }

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Align" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="android:statusBarColor">@color/align_bg</item>
+        <item name="android:navigationBarColor">@color/align_bg</item>
+        <item name="colorPrimary">@color/align_accent</item>
+    </style>
+    <style name="Theme.Align.Call" parent="Theme.Align">
+        <item name="android:windowFullscreen">true</item>
+    </style>
+</resources>

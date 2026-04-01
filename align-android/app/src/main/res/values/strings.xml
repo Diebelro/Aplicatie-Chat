@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Align</string>
+    <string name="call_channel_name">Apeluri</string>
+    <string name="call_channel_desc">Apeluri vocale și video Align</string>
+    <string name="incoming_call">Apel primit</string>
+    <string name="ongoing_call">Apel în curs</string>
+    <string name="open_for_calls">Deschide pentru apeluri</string>
+    <string name="hang_up">Închide</string>
+</resources>

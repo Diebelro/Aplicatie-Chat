@@ -41,6 +41,39 @@ model User {
   emailVerificationTokens EmailVerificationToken[]
   banAppeals BanAppeal[]
   sessions   UserSession[]
+  pushDevices UserPushDevice[]
+  webPushSubscriptions WebPushSubscription[]
+}
+
+/// Push API (VAPID) — notificări apel în browser; fără WebRTC în Service Worker.
+model WebPushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Token push per dispozitiv: FCM (Android) și/sau APNs VoIP PushKit (iOS).
+model UserPushDevice {
+  id             String    @id @default(cuid())
+  userId         String
+  /// Android — Firebase Cloud Messaging
+  fcmToken       String?   @unique
+  /// iOS — PushKit VoIP token (hex), trimis la APNs cu apns-push-type: voip
+  apnsVoipToken  String?   @unique
+  /// android | ios
+  platform       String    @default("android")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 /// Sesiune login (token = valoarea cookie align_sid / x-session-token). Persistată pentru Vercel / mai multe instanțe.

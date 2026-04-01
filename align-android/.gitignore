@@ -1,0 +1,8 @@
+/.gradle/
+/build/
+**/build/
+/local.properties
+/.idea/
+*.iml
+.DS_Store
+# Înlocuiește app/google-services.json cu fișierul din Firebase Console (același package ro.align.app).

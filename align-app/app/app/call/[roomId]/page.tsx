@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import type { User } from "@/lib/store";
@@ -27,9 +27,41 @@ export default function CallPage() {
   const searchParams = useSearchParams();
   const roomId = params.roomId as string;
   const audioOnly = searchParams.get("audio") === "1";
+  const fromPush = searchParams.get("from") === "push";
   const isCaller = searchParams.get("from") === "ring";
   const [user, setUser] = useState<User | null>(null);
   const [allowed, setAllowed] = useState<boolean | null>(null);
+  /** Deschis din notificare push: WebRTC pornește doar după gest explicit (Răspunde). */
+  const [callStarted, setCallStarted] = useState(() => !fromPush);
+  const [resolvedAudioOnly, setResolvedAudioOnly] = useState(audioOnly);
+  const [pushGateError, setPushGateError] = useState<string | null>(null);
+  const [pushGateLoading, setPushGateLoading] = useState(false);
+  const [incomingHint, setIncomingHint] = useState<{ fromName: string; audioOnly: boolean } | null>(null);
+  const callSessionStartedRef = useRef(!fromPush);
+
+  useEffect(() => {
+    callSessionStartedRef.current = callStarted;
+  }, [callStarted]);
+
+  const fetchIncomingHint = useCallback(() => {
+    if (!fromPush || callStarted) return;
+    void fetchWithAuthRetry("/api/call/incoming", { cache: "no-store" })
+      .then(async (r) => {
+        if (!r.ok) return null;
+        try {
+          return await r.json();
+        } catch {
+          return null;
+        }
+      })
+      .then((d) => {
+        const inc = d && typeof d === "object" ? (d as { incoming?: { fromName?: string; audioOnly?: boolean; roomId?: string } }).incoming : null;
+        if (inc?.roomId === roomId && inc.fromName) {
+          setIncomingHint({ fromName: inc.fromName, audioOnly: Boolean(inc.audioOnly) });
+        }
+      })
+      .catch(() => {});
+  }, [fromPush, callStarted, roomId]);
 
   /**
    * Pe mobil (Safari, PWA, ITp) `align_user` lipsește des deși cookie-ul de sesiune e valid.
@@ -95,9 +127,25 @@ export default function CallPage() {
     };
   }, [roomId]);
 
+  useEffect(() => {
+    if (!fromPush || callStarted) return;
+    fetchIncomingHint();
+    const onFocus = () => fetchIncomingHint();
+    const onVis = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") fetchIncomingHint();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [fromPush, callStarted, fetchIncomingHint]);
+
   /**
    * Ieșire cu Back browser / navigare fără butonul din CallUI: tot trebuie să curățăm pending pe server,
    * altfel poll-ul „incoming” crede că încă sună. Întârziere scurtă evită dublarea în React Strict Mode (dev).
+   * Din push, înainte de accept: respingem ca să primească apelantul feedback, nu `/end` de apel activ.
    */
   useEffect(() => {
     let armed = false;
@@ -108,6 +156,15 @@ export default function CallPage() {
       window.clearTimeout(tid);
       if (!armed) return;
       markIncomingCallDismissed(roomId);
+      if (!callSessionStartedRef.current) {
+        void fetch("/api/call/reject", {
+          method: "POST",
+          headers: getAuthHeaders(),
+          credentials: "same-origin",
+          keepalive: true,
+        }).catch(() => {});
+        return;
+      }
       void fetch("/api/call/end", {
         method: "POST",
         headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
@@ -127,6 +184,19 @@ export default function CallPage() {
     const body = JSON.stringify({ roomId });
     const flush = () => {
       markIncomingCallDismissed(roomId);
+      if (!callSessionStartedRef.current) {
+        try {
+          void fetch("/api/call/reject", {
+            method: "POST",
+            headers: getAuthHeaders(),
+            credentials: "same-origin",
+            keepalive: true,
+          });
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
       try {
         if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
           const blob = new Blob([body], { type: "application/json" });
@@ -177,14 +247,98 @@ export default function CallPage() {
     );
   }
 
+  const handlePushAnswer = () => {
+    setPushGateError(null);
+    setPushGateLoading(true);
+    fetch("/api/call/accept", {
+      method: "POST",
+      headers: getAuthHeaders(),
+      credentials: "same-origin",
+    })
+      .then(async (r) => {
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          setPushGateError((d.error as string) || "Nu s-a putut răspunde. Apelul poate fi expirat.");
+          return;
+        }
+        const accRoom = d.roomId as string | undefined;
+        if (accRoom && accRoom !== roomId) {
+          setPushGateError("Camera apelului nu se potrivește. Deschide din nou din notificare.");
+          return;
+        }
+        if (typeof d.audioOnly === "boolean") {
+          setResolvedAudioOnly(d.audioOnly);
+        }
+        markIncomingCallDismissed(typeof d.roomId === "string" ? d.roomId : roomId);
+        setCallStarted(true);
+      })
+      .catch(() => setPushGateError("Eroare rețea. Încearcă din nou."))
+      .finally(() => setPushGateLoading(false));
+  };
+
+  const handlePushDecline = () => {
+    setPushGateLoading(true);
+    markIncomingCallDismissed(roomId);
+    fetch("/api/call/reject", {
+      method: "POST",
+      headers: getAuthHeaders(),
+      credentials: "same-origin",
+    })
+      .finally(() => {
+        setPushGateLoading(false);
+        window.location.href = "/app/messages";
+      });
+  };
+
+  if (fromPush && !callStarted) {
+    const labelAudio = incomingHint?.audioOnly ?? audioOnly;
+    return (
+      <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-gradient-to-b from-zinc-900 to-black px-6 text-center text-white">
+        <p className="text-white/50 text-sm mb-2">{labelAudio ? "Apel audio" : "Apel video"}</p>
+        <p className="text-2xl font-semibold mb-2">
+          {incomingHint?.fromName ? incomingHint.fromName : "Apel primit"}
+        </p>
+        <p className="text-white/60 text-sm mb-8 max-w-sm">
+          Din browser, apelul pornește doar după ce alegi să răspunzi — vei fi întrebat de microfon/cameră la pasul următor.
+        </p>
+        {pushGateError ? (
+          <p className="text-amber-400 text-sm mb-6 max-w-sm" role="alert">
+            {pushGateError}
+          </p>
+        ) : null}
+        <div className="flex flex-col sm:flex-row gap-4 w-full max-w-sm">
+          <button
+            type="button"
+            onClick={handlePushDecline}
+            disabled={pushGateLoading}
+            className="flex-1 rounded-xl border border-white/20 py-4 text-white/80 hover:bg-white/10 transition disabled:opacity-50"
+          >
+            Respinge
+          </button>
+          <button
+            type="button"
+            onClick={handlePushAnswer}
+            disabled={pushGateLoading}
+            className="flex-1 rounded-xl bg-green-500/90 text-white font-semibold py-4 hover:bg-green-500 transition disabled:opacity-50"
+          >
+            {pushGateLoading ? "Se deschide…" : "Atinge pentru a răspunde"}
+          </button>
+        </div>
+        <Link href="/app/messages" className="mt-10 text-sm text-white/40 hover:text-brand-400 underline">
+          Înapoi la mesaje
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <CallUI
       roomId={roomId}
       userId={String(user.id)}
       displayName={displayName((user.username ?? user.name) || "Utilizator")}
-      audioOnly={audioOnly}
+      audioOnly={resolvedAudioOnly}
       isConference={isConferenceRoomId(roomId)}
-      isCaller={isCaller}
+      isCaller={fromPush ? false : isCaller}
     />
   );
 }

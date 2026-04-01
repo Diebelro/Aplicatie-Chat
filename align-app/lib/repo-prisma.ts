@@ -2119,6 +2119,127 @@ export async function prismaDeletePendingIncomingByRoomId(roomId: string): Promi
   }
 }
 
+/** Înregistrare / refresh token FCM (Android). */
+export async function prismaUpsertFcmPushDevice(
+  userId: string,
+  fcmToken: string,
+  platform: string = "android"
+): Promise<void> {
+  await prisma.userPushDevice.upsert({
+    where: { fcmToken },
+    create: { userId, fcmToken, platform },
+    update: { userId, platform, updatedAt: new Date() },
+  });
+}
+
+/** Înregistrare / refresh token PushKit VoIP (iOS) — APNs push-type voip. */
+export async function prismaUpsertVoipPushDevice(userId: string, apnsVoipToken: string): Promise<void> {
+  await prisma.userPushDevice.upsert({
+    where: { apnsVoipToken },
+    create: { userId, apnsVoipToken, platform: "ios", fcmToken: null },
+    update: { userId, platform: "ios", updatedAt: new Date() },
+  });
+}
+
+/** @deprecated folosește prismaUpsertFcmPushDevice */
+export async function prismaUpsertPushDevice(
+  userId: string,
+  fcmToken: string,
+  platform: string = "android"
+): Promise<void> {
+  return prismaUpsertFcmPushDevice(userId, fcmToken, platform);
+}
+
+export async function prismaListFcmTokensForUser(userId: string): Promise<string[]> {
+  const rows = await prisma.userPushDevice.findMany({
+    where: { userId, fcmToken: { not: null } },
+    select: { fcmToken: true },
+  });
+  return rows.map((r) => r.fcmToken!).filter(Boolean);
+}
+
+export async function prismaListVoipTokensForUser(userId: string): Promise<string[]> {
+  const rows = await prisma.userPushDevice.findMany({
+    where: { userId, apnsVoipToken: { not: null } },
+    select: { apnsVoipToken: true },
+  });
+  return rows.map((r) => r.apnsVoipToken!).filter(Boolean);
+}
+
+export async function prismaDeletePushDeviceByToken(fcmToken: string): Promise<void> {
+  try {
+    await prisma.userPushDevice.delete({ where: { fcmToken } });
+  } catch {
+    /* P2025 */
+  }
+}
+
+export async function prismaDeletePushDeviceByVoipToken(apnsVoipToken: string): Promise<void> {
+  try {
+    await prisma.userPushDevice.delete({ where: { apnsVoipToken } });
+  } catch {
+    /* P2025 */
+  }
+}
+
+/** Șterge token doar dacă aparține userului (logout sigur). */
+export async function prismaDeletePushDeviceIfOwned(
+  userId: string,
+  token: string,
+  kind: "fcm" | "voip" = "fcm"
+): Promise<void> {
+  if (kind === "voip") {
+    await prisma.userPushDevice.deleteMany({ where: { userId, apnsVoipToken: token } });
+  } else {
+    await prisma.userPushDevice.deleteMany({ where: { userId, fcmToken: token } });
+  }
+}
+
+export async function prismaDeletePushDevicesForUser(userId: string): Promise<void> {
+  await prisma.userPushDevice.deleteMany({ where: { userId } });
+}
+
+// ——— Web Push (browser, VAPID) ———
+
+export async function prismaUpsertWebPushSubscription(
+  userId: string,
+  endpoint: string,
+  p256dh: string,
+  auth: string
+): Promise<void> {
+  await prisma.webPushSubscription.upsert({
+    where: { endpoint },
+    create: { userId, endpoint, p256dh, auth },
+    update: { userId, p256dh, auth, updatedAt: new Date() },
+  });
+}
+
+export async function prismaListWebPushSubscriptionsForUser(userId: string): Promise<
+  { endpoint: string; p256dh: string; auth: string }[]
+> {
+  const rows = await prisma.webPushSubscription.findMany({
+    where: { userId },
+    select: { endpoint: true, p256dh: true, auth: true },
+  });
+  return rows;
+}
+
+export async function prismaDeleteWebPushSubscription(endpoint: string): Promise<void> {
+  try {
+    await prisma.webPushSubscription.delete({ where: { endpoint } });
+  } catch {
+    /* P2025 */
+  }
+}
+
+export async function prismaDeleteWebPushSubscriptionsForUser(userId: string): Promise<void> {
+  await prisma.webPushSubscription.deleteMany({ where: { userId } });
+}
+
+export async function prismaDeleteWebPushIfOwned(userId: string, endpoint: string): Promise<void> {
+  await prisma.webPushSubscription.deleteMany({ where: { userId, endpoint } });
+}
+
 export async function findUserOrPrisma(userId: string): Promise<User | null> {
   if (isPrismaAvailable()) {
     try {

@@ -1,0 +1,8 @@
+xcuserdata/
+DerivedData/
+*.xcworkspace/xcuserdata/
+.swiftpm/
+.build/
+*.xcodeproj/project.xcworkspace/xcshareddata/
+Pods/
+Carthage/Build/

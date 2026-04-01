@@ -141,6 +141,8 @@ export function useWebRtcCall({
   const meshRemoteStreamsRef = useRef<Map<string, MediaStream>>(new Map());
   /** 1-la-1: același lucru când audio și video nu vin în același eveniment ontrack. */
   const p2pRemoteStreamRef = useRef<MediaStream | null>(null);
+  /** Un singur listener `ended` per track video local (mesh adaugă același track în mai multe PC-uri). */
+  const localVideoEndedHandledRef = useRef<WeakSet<MediaStreamTrack>>(new WeakSet());
 
   onAutoEndedRef.current = onAutoEnded;
 
@@ -222,7 +224,42 @@ export function useWebRtcCall({
     callStartRef.current = 0;
     reconnectAttemptRef.current = 0;
     stableNetworkIntervalsRef.current = 0;
+    localVideoEndedHandledRef.current = new WeakSet();
   }, [clearStatsMonitor]);
+
+  const attachLocalVideoEndedOnce = useCallback(
+    (track: MediaStreamTrack) => {
+      if (audioOnly || track.kind !== "video") return;
+      const bag = localVideoEndedHandledRef.current;
+      if (bag.has(track)) return;
+      bag.add(track);
+      track.addEventListener("ended", () => {
+        if (audioOnly) return;
+        console.warn("[WebRTC] local video track ended");
+        setState((s) => ({
+          ...s,
+          videoMuted: true,
+          banner:
+            "Cameră întreruptă (sistem sau browser). Apasă „Pornește video” după ce ai recamera activă.",
+        }));
+        const clearEndedVideoSenders = (pc: RTCPeerConnection | null) => {
+          if (!pc) return;
+          for (const sender of pc.getSenders()) {
+            if (sender.track?.kind === "video" && sender.track.readyState === "ended") {
+              try {
+                void sender.replaceTrack(null);
+              } catch {
+                /* ignore */
+              }
+            }
+          }
+        };
+        clearEndedVideoSenders(pcRef.current);
+        for (const [, b] of peerMapRef.current) clearEndedVideoSenders(b.pc);
+      });
+    },
+    [audioOnly]
+  );
 
   const leave = useCallback(() => {
     try {
@@ -275,22 +312,96 @@ export function useWebRtcCall({
     for (const [, b] of peerMapRef.current) applyAudio(b.pc);
   }, []);
 
-  const setVideoMuted = useCallback((videoMuted: boolean) => {
-    setState((s) => {
-      const ls = s.localStream;
-      ls?.getVideoTracks().forEach((t) => {
-        t.enabled = !videoMuted;
+  const setVideoMuted = useCallback(
+    (wantMuted: boolean) => {
+      if (!wantMuted && !audioOnly) {
+        const ls = localStreamRef.current;
+        const vt = ls?.getVideoTracks()[0];
+        if (vt?.readyState === "ended") {
+          void (async () => {
+            try {
+              const prefer1080 =
+                !isMobileDevice() && typeof window !== "undefined" && window.innerWidth >= 1200;
+              let video: MediaTrackConstraints = getVideoConstraints(prefer1080);
+              if (isMobileDevice()) {
+                video = { ...video, facingMode: { ideal: facingModeRef.current } };
+              }
+              const cam = await navigator.mediaDevices.getUserMedia({ audio: false, video });
+              const newVt = cam.getVideoTracks()[0];
+              const stream = localStreamRef.current;
+              if (!stream || wsRef.current?.readyState !== WebSocket.OPEN) {
+                newVt.stop();
+                return;
+              }
+              stream.getVideoTracks().forEach((t) => {
+                try {
+                  stream.removeTrack(t);
+                  t.stop();
+                } catch {
+                  /* ignore */
+                }
+              });
+              stream.addTrack(newVt);
+              attachLocalVideoEndedOnce(newVt);
+              const pcs = [
+                ...(pcRef.current ? [pcRef.current] : []),
+                ...[...peerMapRef.current.values()].map((b) => b.pc),
+              ];
+              const cfg = getWebrtcPublicConfig();
+              const maxBps = isMobileDevice() ? cfg.CALL_MAX_BITRATE_MOBILE : cfg.CALL_MAX_BITRATE_DESKTOP;
+              for (const pc of pcs) {
+                const sender = pc.getSenders().find((s) => s.track?.kind === "video");
+                if (sender) {
+                  try {
+                    await sender.replaceTrack(newVt);
+                  } catch {
+                    /* ignore */
+                  }
+                }
+              }
+              setState((s) => ({
+                ...s,
+                videoMuted: false,
+                localStream: stream,
+                banner: null,
+              }));
+              await negotiateRef.current?.();
+              maxVideoBpsCapRef.current = maxBps;
+              adaptiveVideoBpsRef.current = Math.min(adaptiveVideoBpsRef.current, maxBps);
+              for (const pc of pcs) {
+                await setMaxBitrate(pc, adaptiveVideoBpsRef.current);
+              }
+            } catch {
+              setState((s) => ({
+                ...s,
+                videoMuted: true,
+                banner: "Nu am putut reporni camera. Verifică permisiunile browserului.",
+              }));
+            }
+          })();
+          return;
+        }
+      }
+
+      setState((s) => {
+        const ls = s.localStream;
+        ls?.getVideoTracks().forEach((t) => {
+          if (t.readyState === "live") t.enabled = !wantMuted;
+        });
+        return { ...s, videoMuted: wantMuted };
       });
-      return { ...s, videoMuted };
-    });
-    const applyVideo = (pc: RTCPeerConnection) => {
-      pc.getSenders().forEach((sender) => {
-        if (sender.track?.kind === "video") sender.track.enabled = !videoMuted;
-      });
-    };
-    pcRef.current && applyVideo(pcRef.current);
-    for (const [, b] of peerMapRef.current) applyVideo(b.pc);
-  }, []);
+      const applyVideo = (pc: RTCPeerConnection) => {
+        pc.getSenders().forEach((sender) => {
+          if (sender.track?.kind === "video" && sender.track.readyState === "live") {
+            sender.track.enabled = !wantMuted;
+          }
+        });
+      };
+      pcRef.current && applyVideo(pcRef.current);
+      for (const [, b] of peerMapRef.current) applyVideo(b.pc);
+    },
+    [audioOnly, attachLocalVideoEndedOnce]
+  );
 
   const restoreCameraAfterScreen = useCallback(async () => {
     const stream = localStreamRef.current;
@@ -321,6 +432,7 @@ export function useWebRtcCall({
         t.stop();
       });
       stream.addTrack(vt);
+      attachLocalVideoEndedOnce(vt);
       for (const pc of pcs) {
         const sender = pc.getSenders().find((s) => s.track?.kind === "video");
         if (!sender) continue;
@@ -340,7 +452,7 @@ export function useWebRtcCall({
     } catch {
       /* ignore */
     }
-  }, [audioOnly]);
+  }, [audioOnly, attachLocalVideoEndedOnce]);
 
   const toggleScreenShare = useCallback(async () => {
     if (!isScreenshareFeatureEnabled() || audioOnly) return;
@@ -432,6 +544,7 @@ export function useWebRtcCall({
         t.stop();
       });
       stream.addTrack(vt);
+      attachLocalVideoEndedOnce(vt);
       for (const pc of pcs) {
         const sender = pc.getSenders().find((s) => s.track?.kind === "video");
         if (!sender?.track) continue;
@@ -452,7 +565,7 @@ export function useWebRtcCall({
     } catch {
       /* ignore */
     }
-  }, [audioOnly]);
+  }, [audioOnly, attachLocalVideoEndedOnce]);
 
   const flushIceQueue = useCallback((pc: RTCPeerConnection) => {
     const q = iceQueueRef.current;
@@ -671,6 +784,7 @@ export function useWebRtcCall({
             }
           }
           pc.addTrack(track, localStream);
+          attachLocalVideoEndedOnce(track);
         });
         applyCodecPreferencesIfSupported(pc);
         void (async () => {
@@ -1030,6 +1144,7 @@ export function useWebRtcCall({
           }
         }
         pc.addTrack(track, localStream);
+        attachLocalVideoEndedOnce(track);
       });
       applyCodecPreferencesIfSupported(pc);
       void (async () => {
@@ -1415,6 +1530,7 @@ export function useWebRtcCall({
     cleanupMedia,
     clearStatsMonitor,
     permissionRetryKey,
+    attachLocalVideoEndedOnce,
   ]);
 
   return {

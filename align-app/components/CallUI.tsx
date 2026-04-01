@@ -44,11 +44,16 @@ type RemoteAudioPlayback = {
   sinkId: string;
   /** true = volum 0 pe vocea celuilalt; microfonul tău nu e afectat */
   remoteMuted: boolean;
+  /** Incrementat după gest utilizator când browserul blochează redarea automată a audio-ului remot. */
+  playbackUnlockKey: number;
+  onRemotePlayBlocked?: () => void;
 };
 
 const defaultRemotePlayback: RemoteAudioPlayback = {
   sinkId: DEFAULT_AUDIO_SINK,
   remoteMuted: false,
+  playbackUnlockKey: 0,
+  onRemotePlayBlocked: undefined,
 };
 
 const RemotePlaybackContext = createContext<RemoteAudioPlayback>(defaultRemotePlayback);
@@ -60,7 +65,7 @@ function fmtCallDuration(totalSec: number): string {
 }
 
 function RemoteAudio({ stream }: { stream: MediaStream }) {
-  const { sinkId, remoteMuted } = useContext(RemotePlaybackContext);
+  const { sinkId, remoteMuted, playbackUnlockKey, onRemotePlayBlocked } = useContext(RemotePlaybackContext);
   const ref = useRef<HTMLAudioElement>(null);
   useEffect(() => {
     const el = ref.current;
@@ -68,10 +73,16 @@ function RemoteAudio({ stream }: { stream: MediaStream }) {
     el.srcObject = stream;
     el.volume = remoteMuted ? 0 : 1;
     void applyAudioSinkId(el, sinkId);
+    const p = el.play();
+    if (p !== undefined && typeof (p as Promise<void>).catch === "function") {
+      void (p as Promise<void>).catch(() => {
+        onRemotePlayBlocked?.();
+      });
+    }
     return () => {
       el.srcObject = null;
     };
-  }, [stream, sinkId, remoteMuted]);
+  }, [stream, sinkId, remoteMuted, playbackUnlockKey, onRemotePlayBlocked]);
   return <audio ref={ref} autoPlay playsInline className="hidden" />;
 }
 
@@ -246,6 +257,9 @@ export default function CallUI({
   /** În browser setTimeout returnează number; evită conflict cu tipul Node `Timeout`. */
   const chromeHideTimerRef = useRef<number | null>(null);
   const lastMoveBumpRef = useRef(0);
+  /** Autoplay: redarea audio-ului remot poate necesita un al doilea gest după ce microfonul e deja activ. */
+  const [remotePlaybackBlockedHint, setRemotePlaybackBlockedHint] = useState(false);
+  const [playbackUnlockKey, setPlaybackUnlockKey] = useState(0);
 
   const scheduleChromeHide = useCallback(() => {
     if (chromeHideTimerRef.current) {
@@ -272,6 +286,10 @@ export default function CallUI({
 
   const onImmersivePointer = useCallback(
     (e: React.PointerEvent) => {
+      if (remotePlaybackBlockedHint) {
+        setRemotePlaybackBlockedHint(false);
+        setPlaybackUnlockKey((k) => k + 1);
+      }
       if (e.type === "pointermove" && e.pointerType === "mouse") {
         const now = Date.now();
         if (now - lastMoveBumpRef.current < 450) return;
@@ -279,7 +297,7 @@ export default function CallUI({
       }
       scheduleChromeHide();
     },
-    [scheduleChromeHide]
+    [scheduleChromeHide, remotePlaybackBlockedHint]
   );
 
   /** Implicit: ieșirea default a browserului/OS; pe mobil: butonul Difuzor forțează setSinkId spre difuzor dacă există. */
@@ -337,13 +355,29 @@ export default function CallUI({
     return DEFAULT_AUDIO_SINK;
   }, [speakerOutputOn, speakerSinkIdResolved]);
 
+  const reportRemotePlayBlocked = useCallback(() => {
+    setRemotePlaybackBlockedHint(true);
+  }, []);
+
   const remotePlayback = useMemo(
     () => ({
       sinkId: remoteAudioSinkId,
       remoteMuted: privacyQuietMode,
+      playbackUnlockKey,
+      onRemotePlayBlocked: reportRemotePlayBlocked,
     }),
-    [remoteAudioSinkId, privacyQuietMode]
+    [remoteAudioSinkId, privacyQuietMode, playbackUnlockKey, reportRemotePlayBlocked]
   );
+
+  useEffect(() => {
+    if (!remotePlaybackBlockedHint) return;
+    const unlock = () => {
+      setRemotePlaybackBlockedHint(false);
+      setPlaybackUnlockKey((k) => k + 1);
+    };
+    window.addEventListener("pointerdown", unlock, { passive: true });
+    return () => window.removeEventListener("pointerdown", unlock);
+  }, [remotePlaybackBlockedHint]);
 
   /** Doar pe mobil: pe desktop lăsăm ieșirea implicită (boxe/căști după OS). */
   const showSpeakerToggle = isMobileUi && supportsAudioOutputSelection() && !!speakerSinkIdResolved;
@@ -402,18 +436,28 @@ export default function CallUI({
     if (!remote) setVideoLayoutSwapped(false);
   }, [remote]);
 
-  /** Buton circular bară jos (WhatsApp-style). */
+  /** Pe laptop: camera oprită = păstrezi interlocutorul pe tot ecranul, fără chenar PiP cu icon în colț. */
+  useEffect(() => {
+    if (isConference || audioOnly) return;
+    if (!isMobileUi && videoMuted) {
+      setVideoLayoutSwapped(false);
+    }
+  }, [isConference, audioOnly, isMobileUi, videoMuted]);
+
+  /** Buton circular bară jos (WhatsApp-style). `quiet` = fără umbre puternice (ex. laptop cu camera oprită). */
   const CircleBtn = ({
     onClick,
     title,
     active,
     danger,
+    quiet,
     children,
   }: {
     onClick: () => void;
     title: string;
     active?: boolean;
     danger?: boolean;
+    quiet?: boolean;
     children: ReactNode;
   }) => (
     <button
@@ -423,14 +467,19 @@ export default function CallUI({
       className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full transition-all active:scale-95 sm:h-[3.75rem] sm:w-[3.75rem] ${
         danger
           ? "bg-red-500 text-white shadow-lg shadow-red-500/30 hover:bg-red-600"
-          : active
-            ? "bg-white text-zinc-900 shadow-lg hover:bg-white/90"
-            : "bg-white/12 text-white backdrop-blur-md hover:bg-white/20"
+          : quiet
+            ? "bg-white/10 text-white border border-white/18 hover:bg-white/16"
+            : active
+              ? "bg-white text-zinc-900 shadow-lg hover:bg-white/90"
+              : "bg-white/12 text-white backdrop-blur-md hover:bg-white/20"
       }`}
     >
       {children}
     </button>
   );
+
+  /** Apel audio: `videoMuted` e mereu true — nu folosi stilul „quiet” acolo. */
+  const toolbarQuiet = !isMobileUi && videoMuted && !audioOnly;
 
   if (callRejected) {
     return (
@@ -520,6 +569,12 @@ export default function CallUI({
     "bottom-[calc(7.25rem+env(safe-area-inset-bottom))] " +
     "w-[min(34vw,11rem)] sm:w-44 sm:bottom-[calc(7.5rem+env(safe-area-inset-bottom))] md:w-52 aspect-video " +
     (canSwapVideoLayout ? "cursor-pointer touch-manipulation active:scale-[0.98] transition-transform" : "");
+
+  const remotePlaybackHintBanner = remotePlaybackBlockedHint ? (
+    <div className="relative z-[240] mx-3 mt-1 rounded-xl bg-amber-500/30 border border-amber-400/50 px-3 py-2 text-xs text-amber-50 shadow-lg backdrop-blur-sm">
+      Browserul poate bloca sunetul interlocutorului până la o atingere pe ecran. Atinge oriunde pentru a continua.
+    </div>
+  ) : null;
 
   /* ——— Apel video 1-la-1: fullscreen + PiP ——— */
   if (immersiveVideo) {
@@ -634,6 +689,7 @@ export default function CallUI({
             {banner}
           </div>
         ) : null}
+        {remotePlaybackHintBanner}
 
         {/* PiP: implicit tu mic; după swap — celălalt mic. Atinge mare sau mic pentru a comuta. */}
         {!videoLayoutSwapped && localStream && !videoMuted && (
@@ -653,7 +709,7 @@ export default function CallUI({
             />
           </div>
         )}
-        {!videoLayoutSwapped && localStream && videoMuted && (
+        {!videoLayoutSwapped && localStream && videoMuted && isMobileUi && (
           <div
             className={`${pipFrameClass} flex items-center justify-center bg-zinc-800/95 ring-white/15`}
             onClick={canSwapVideoLayout ? toggleVideoLayout : undefined}
@@ -707,6 +763,7 @@ export default function CallUI({
         >
           <CircleBtn
             onClick={onMicToggle}
+            quiet={toolbarQuiet}
             title={
               privacyQuietMode
                 ? "Mod discret activ — apasă pentru sunet + microfon normal"
@@ -720,6 +777,7 @@ export default function CallUI({
           </CircleBtn>
           <CircleBtn
             onClick={() => setVideoMuted(!videoMuted)}
+            quiet={toolbarQuiet}
             title={videoMuted ? "Pornește camera" : "Oprește camera"}
             active={!videoMuted}
           >
@@ -834,6 +892,11 @@ export default function CallUI({
             {banner}
           </div>
         ) : null}
+        {remotePlaybackBlockedHint ? (
+          <div className="relative z-[240] mx-4 mb-2 rounded-xl bg-amber-500/30 border border-amber-400/50 px-3 py-2 text-xs text-amber-50 shadow-lg">
+            Browserul poate bloca sunetul interlocutorului până la o atingere pe ecran. Atinge oriunde pentru a continua.
+          </div>
+        ) : null}
 
         {chromeVisible && status === "connected" ? (
           <p
@@ -858,6 +921,7 @@ export default function CallUI({
         >
           <CircleBtn
             onClick={onMicToggle}
+            quiet={toolbarQuiet}
             title={
               privacyQuietMode
                 ? "Mod discret — apasă pentru normal"
@@ -943,6 +1007,7 @@ export default function CallUI({
           {banner}
         </div>
       ) : null}
+      {remotePlaybackHintBanner}
 
       <div
         className={`grid flex-1 min-h-0 gap-3 p-3 sm:p-4 overflow-auto ${

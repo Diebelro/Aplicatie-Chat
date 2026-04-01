@@ -10,6 +10,7 @@ import { getAuthHeaders } from "@/lib/authClient";
 import { getProfileImageUrl } from "@/lib/profileImage";
 import { SilhouetteAvatar } from "@/components/SilhouetteAvatar";
 import IncomingCall from "@/components/IncomingCall";
+import ServiceWorkerAndPush from "@/components/ServiceWorkerAndPush";
 import { Watermark } from "@/components/Watermark";
 import { displayName } from "@/lib/displayName";
 import { LegalDocLinks } from "@/components/LegalDocLinks";
@@ -578,6 +579,7 @@ export default function AppLayout({
         />
       )}
       <Watermark />
+      <ServiceWorkerAndPush />
       <IncomingCall />
     </div>
   );

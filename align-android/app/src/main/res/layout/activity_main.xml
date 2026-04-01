@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/align_bg"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/open_for_calls"
+            android:textColor="@color/align_accent"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Introdu tokenul de sesiune (x-session-token) și userId după login în web. În producție: WebView + JS bridge."
+            android:textColor="#b0b8c4"
+            android:textSize="13sp" />
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:hint="userId">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/inputUserId"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="text"
+                tools:text="clxxx..." />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:hint="session token (align_sid value)">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/inputSession"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textVisiblePassword" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnSaveSession"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="Salvează sesiunea" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnRegisterFcm"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Înregistrează FCM la server" />
+
+        <TextView
+            android:id="@+id/fcmStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:textColor="#8899aa"
+            android:textSize="12sp" />
+    </LinearLayout>
+</ScrollView>
