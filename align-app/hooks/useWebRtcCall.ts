@@ -18,7 +18,11 @@ import {
   applyInboundAudioPlayoutHint,
   applyPlayoutHintsForAllReceivers,
 } from "@/lib/webrtc/rtcConfig";
-import { signalingWsConnectUrl, parseSignalingIncoming } from "@/lib/webrtc/signaling";
+import {
+  signalingWsConnectUrl,
+  parseSignalingIncoming,
+  coerceSignalingWsBaseForSecureContext,
+} from "@/lib/webrtc/signaling";
 import {
   getWebrtcPublicConfig,
   getPublicSignalingWsBaseUrl,
@@ -40,6 +44,8 @@ type CallState = {
   remoteParticipants: RemoteParticipant[];
   muted: boolean;
   videoMuted: boolean;
+  /** Microfon OK dar camera refuzată / indisponibilă — UI să nu zică „ai oprit tu camera”. */
+  cameraSoftFailed: boolean;
   localStream: MediaStream | null;
   banner: string | null;
   canSwitchCamera: boolean;
@@ -56,6 +62,23 @@ export type UseWebRtcCallOptions = {
   /** Apel încheiat de celălalt sau limită timp — ex. redirecționare la mesaje. */
   onAutoEnded?: () => void;
 };
+
+/**
+ * Multe browsere emit `ontrack` separat pentru audio și video, uneori pe MediaStream-uri diferite.
+ * Dacă înlocuim tot `stream`-ul la fiecare eveniment cu un singur track, pierdem celălalt.
+ * Returnăm mereu un MediaStream **nou** (referință nouă) ca React să refacă srcObject pe <audio>/<video>.
+ */
+function accumulateRemoteMediaStream(prev: MediaStream | undefined, ev: RTCTrackEvent): MediaStream {
+  const t = ev.track;
+  const byId = new Map<string, MediaStreamTrack>();
+  for (const x of prev?.getTracks() ?? []) byId.set(x.id, x);
+  const s0 = ev.streams[0];
+  if (s0) {
+    for (const x of s0.getTracks()) byId.set(x.id, x);
+  }
+  byId.set(t.id, t);
+  return new MediaStream([...byId.values()]);
+}
 
 /** Heartbeat client 15–30s (server TTL ~75s implicit). */
 const HEARTBEAT_MS = 25_000;
@@ -84,6 +107,7 @@ export function useWebRtcCall({
     remoteParticipants: [],
     muted: false,
     videoMuted: audioOnly,
+    cameraSoftFailed: false,
     localStream: null,
     banner: null,
     canSwitchCamera: false,
@@ -113,6 +137,10 @@ export function useWebRtcCall({
   const screenStreamRef = useRef<MediaStream | null>(null);
   /** Pe mobil: ultima față folosită pentru comutare user ↔ environment. */
   const facingModeRef = useRef<"user" | "environment">("user");
+  /** Conferință: stream combinat per participant distant (vezi accumulateRemoteMediaStream). */
+  const meshRemoteStreamsRef = useRef<Map<string, MediaStream>>(new Map());
+  /** 1-la-1: același lucru când audio și video nu vin în același eveniment ontrack. */
+  const p2pRemoteStreamRef = useRef<MediaStream | null>(null);
 
   onAutoEndedRef.current = onAutoEnded;
 
@@ -183,6 +211,8 @@ export function useWebRtcCall({
     wsRef.current = null;
     iceQueueRef.current = [];
     remoteIdRef.current = null;
+    meshRemoteStreamsRef.current.clear();
+    p2pRemoteStreamRef.current = null;
     localStreamRef.current?.getTracks().forEach((t) => {
       try {
         t.stop();
@@ -207,6 +237,7 @@ export function useWebRtcCall({
       screenSharing: false,
       canSwitchCamera: false,
       permissionHelp: null,
+      cameraSoftFailed: false,
     }));
   }, [cleanupMedia]);
 
@@ -222,6 +253,7 @@ export function useWebRtcCall({
       banner: null,
       canSwitchCamera: false,
       screenSharing: false,
+      cameraSoftFailed: false,
     }));
     setPermissionRetryKey((k) => k + 1);
   }, [cleanupMedia]);
@@ -449,6 +481,7 @@ export function useWebRtcCall({
         canSwitchCamera: false,
         screenSharing: false,
         remoteParticipants: [],
+        cameraSoftFailed: false,
       }));
 
       for (const [, b] of peerMapRef.current) {
@@ -459,6 +492,7 @@ export function useWebRtcCall({
         }
       }
       peerMapRef.current.clear();
+      meshRemoteStreamsRef.current.clear();
 
       let localStream: MediaStream;
       let cameraUnavailable = false;
@@ -474,6 +508,7 @@ export function useWebRtcCall({
             status: "permission_help",
             error: null,
             permissionHelp: help,
+            cameraSoftFailed: false,
           }));
         }
         return;
@@ -485,10 +520,12 @@ export function useWebRtcCall({
 
       localStreamRef.current = localStream;
       const videoMutedNow = audioOnly || cameraUnavailable;
+      const softFail = !audioOnly && cameraUnavailable;
       setState((s) => ({
         ...s,
         localStream,
         videoMuted: videoMutedNow,
+        cameraSoftFailed: softFail,
         banner:
           cameraUnavailable && !audioOnly
             ? "Camera nu e activă — auzi și vorbești normal. Permite camera din setările browserului pentru acest site dacă vrei imagine."
@@ -644,7 +681,9 @@ export function useWebRtcCall({
         pc.ontrack = (ev) => {
           if (cancelled) return;
           applyInboundAudioPlayoutHint(ev.receiver);
-          const stream = ev.streams[0] ?? new MediaStream([ev.track]);
+          const prev = meshRemoteStreamsRef.current.get(remoteUserId);
+          const stream = accumulateRemoteMediaStream(prev, ev);
+          meshRemoteStreamsRef.current.set(remoteUserId, stream);
           setState((s) => {
             const others = s.remoteParticipants.filter((p) => p.id !== remoteUserId);
             return {
@@ -694,6 +733,7 @@ export function useWebRtcCall({
           if (!targetIds.has(id)) {
             peerMapRef.current.get(id)?.pc.close();
             peerMapRef.current.delete(id);
+            meshRemoteStreamsRef.current.delete(id);
             if (!cancelled) {
               setState((s) => ({
                 ...s,
@@ -787,6 +827,7 @@ export function useWebRtcCall({
         if (m.t === "call-end" && typeof m.from === "string" && m.from !== userId) {
           peerMapRef.current.get(m.from)?.pc.close();
           peerMapRef.current.delete(m.from);
+          meshRemoteStreamsRef.current.delete(m.from);
           setState((s) => ({
             ...s,
             remoteParticipants: s.remoteParticipants.filter((p) => p.id !== m.from),
@@ -812,6 +853,7 @@ export function useWebRtcCall({
         banner: null,
         canSwitchCamera: false,
         screenSharing: false,
+        cameraSoftFailed: false,
       }));
 
       let localStream: MediaStream;
@@ -828,6 +870,7 @@ export function useWebRtcCall({
             status: "permission_help",
             error: null,
             permissionHelp: help,
+            cameraSoftFailed: false,
           }));
         }
         return;
@@ -839,6 +882,7 @@ export function useWebRtcCall({
 
       localStreamRef.current = localStream;
       const videoMutedNow = audioOnly || cameraUnavailable;
+      const softFail = !audioOnly && cameraUnavailable;
       const cameraBanner =
         cameraUnavailable && !audioOnly
           ? "Camera nu e activă — auzi și vorbești normal. Permite camera din setările browserului pentru acest site dacă vrei imagine."
@@ -847,6 +891,7 @@ export function useWebRtcCall({
         ...s,
         localStream,
         videoMuted: videoMutedNow,
+        cameraSoftFailed: softFail,
         banner: cameraBanner ?? s.banner,
       }));
 
@@ -966,6 +1011,7 @@ export function useWebRtcCall({
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
+      p2pRemoteStreamRef.current = null;
       const pc = new RTCPeerConnection(buildRtcPeerConnectionConfig(iceServers));
       pcRef.current = pc;
       maxVideoBpsCapRef.current = maxVideoBps;
@@ -1073,8 +1119,9 @@ export function useWebRtcCall({
       pc.ontrack = (ev) => {
         if (cancelled) return;
         applyInboundAudioPlayoutHint(ev.receiver);
-        const stream = ev.streams[0] ?? new MediaStream([ev.track]);
         const rid = remoteIdRef.current ?? "remote";
+        const stream = accumulateRemoteMediaStream(p2pRemoteStreamRef.current ?? undefined, ev);
+        p2pRemoteStreamRef.current = stream;
         setState((s) => ({
           ...s,
           status: "connected",
@@ -1261,6 +1308,7 @@ export function useWebRtcCall({
               screenSharing: false,
               canSwitchCamera: false,
               permissionHelp: null,
+              cameraSoftFailed: false,
             }));
             onAutoEndedRef.current?.();
           }
@@ -1319,6 +1367,8 @@ export function useWebRtcCall({
         return;
       }
 
+      signalingBase = coerceSignalingWsBaseForSecureContext(signalingBase);
+
       if (isConference) {
         void runConference(signalingBase);
       } else {
@@ -1344,6 +1394,7 @@ export function useWebRtcCall({
           localStream: null,
           remoteParticipants: [],
           screenSharing: false,
+          cameraSoftFailed: false,
         }));
         onAutoEndedRef.current?.();
       }
@@ -1373,6 +1424,7 @@ export function useWebRtcCall({
     remoteParticipants: state.remoteParticipants,
     muted: state.muted,
     videoMuted: state.videoMuted,
+    cameraSoftFailed: state.cameraSoftFailed,
     setMuted,
     setVideoMuted,
     leave,

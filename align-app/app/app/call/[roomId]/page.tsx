@@ -5,7 +5,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
-import { getAuthHeaders } from "@/lib/authClient";
+import { getAuthHeaders, fetchWithAuthRetry } from "@/lib/authClient";
 import { markIncomingCallDismissed } from "@/lib/callIncomingDismiss";
 import { canAccessRoom, isConferenceRoomId } from "@/lib/videoCall";
 import { displayName } from "@/lib/displayName";
@@ -31,14 +31,68 @@ export default function CallPage() {
   const [user, setUser] = useState<User | null>(null);
   const [allowed, setAllowed] = useState<boolean | null>(null);
 
+  /**
+   * Pe mobil (Safari, PWA, ITp) `align_user` lipsește des deși cookie-ul de sesiune e valid.
+   * Fără /api/me, rămâneai la „Nu ai acces” sau înghețat — vezi și chat/[id] (meIdFromMeApi).
+   */
   useEffect(() => {
-    const u = getStoredUser();
-    setUser(u);
-    if (!u) {
-      setAllowed(false);
-      return;
+    let cancelled = false;
+    const local = getStoredUser();
+    if (local?.id != null) {
+      setUser(local);
+      setAllowed(canAccessRoom(roomId, String(local.id)));
+    } else {
+      setUser(null);
+      setAllowed(null);
     }
-    setAllowed(canAccessRoom(roomId, u.id));
+
+    void fetchWithAuthRetry("/api/me", { cache: "no-store" })
+      .then(async (r) => {
+        if (cancelled) return;
+        if (r.ok) {
+          const d = (await r.json()) as { user?: User };
+          const u = d.user;
+          if (!u?.id) {
+            if (!local) {
+              setUser(null);
+              setAllowed(false);
+            }
+            return;
+          }
+          setUser(u);
+          try {
+            if (typeof window !== "undefined") {
+              const fromLocal = !!localStorage.getItem("align_user");
+              (fromLocal ? localStorage : sessionStorage).setItem("align_user", JSON.stringify(u));
+              window.dispatchEvent(new CustomEvent("align_user_updated", { detail: u }));
+            }
+          } catch {
+            /* ignore */
+          }
+          setAllowed(canAccessRoom(roomId, String(u.id)));
+          return;
+        }
+        if (r.status === 401 || r.status === 403) {
+          setUser(null);
+          setAllowed(false);
+          return;
+        }
+        if (!local) {
+          setUser(null);
+          setAllowed(false);
+        }
+      })
+      .catch(() => {
+        if (cancelled) return;
+        if (!local) {
+          setUser(null);
+          setAllowed(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [roomId]);
 
   /**
@@ -126,7 +180,7 @@ export default function CallPage() {
   return (
     <CallUI
       roomId={roomId}
-      userId={user.id}
+      userId={String(user.id)}
       displayName={displayName((user.username ?? user.name) || "Utilizator")}
       audioOnly={audioOnly}
       isConference={isConferenceRoomId(roomId)}

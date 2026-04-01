@@ -18,6 +18,27 @@ export function parseSignalingIncoming(raw: string): unknown {
   }
 }
 
+function isLocalDevSignalingHost(hostname: string): boolean {
+  const h = hostname.toLowerCase();
+  return h === "localhost" || h === "127.0.0.1" || h === "[::1]" || h.endsWith(".local");
+}
+
+/** Pe https, `ws://` e blocat (mixed content) — urcă la `wss://` aceeași gazdă. */
+export function coerceSignalingWsBaseForSecureContext(baseUrl: string): string {
+  if (typeof window === "undefined" || !window.isSecureContext) return baseUrl;
+  let u: URL;
+  try {
+    u = new URL(baseUrl.trim());
+  } catch {
+    return baseUrl;
+  }
+  if (u.protocol !== "ws:") return baseUrl;
+  if (isLocalDevSignalingHost(u.hostname)) return baseUrl;
+  u.protocol = "wss:";
+  if (u.port === "80") u.port = "";
+  return u.href.replace(/\/+$/, "");
+}
+
 /**
  * Construiește URL-ul WS final: path `/ws` + `?token=`.
  * Acceptă `wss://ws.diebel.ro`, `wss://ws.diebel.ro/ws` sau `ws://127.0.0.1:4001` (fără dublare `/ws`).

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { MessageCircle } from "lucide-react";
+import { Images, MessageCircle } from "lucide-react";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
 import { getAuthHeaders } from "@/lib/authClient";
@@ -153,33 +153,39 @@ export default function PublicUserProfilePage() {
       />
 
       <div className="rounded-2xl overflow-hidden border border-dark-600 bg-dark-800 mb-4">
-        <button
-          type="button"
-          className={`w-full h-52 sm:h-60 bg-dark-700 overflow-hidden relative border-0 p-0 block text-left ${photos.length ? "cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" : ""}`}
-          onClick={() => {
-            if (photos.length > 0) setLightboxIndex(0);
-          }}
-          title={
-            photos.length > 1
-              ? tStr("pages.userPublic.photoTapMany")
-              : photos.length === 1
-                ? tStr("pages.userPublic.photoTapOne")
-                : undefined
-          }
-        >
+        {/*
+          Întreaga poză nu mai e un singur buton: altfel atingeri lângă Apel deschideau galeria
+          și părea că „vrea video dar vede poza de profil”. Galeria doar din iconița din colț.
+        */}
+        <div className="relative w-full h-52 sm:h-60 bg-dark-700 overflow-hidden">
           <SilhouetteAvatar
             photoUrl={photos[0]}
             gender={user.gender}
             name={user.name}
             className="w-full h-full"
-            imgClassName="w-full h-full object-cover"
+            imgClassName="w-full h-full object-cover pointer-events-none select-none"
           />
           {photos.length > 1 && (
-            <span className="absolute bottom-2 right-2 rounded-full bg-black/65 text-white text-xs px-2 py-1 tabular-nums">
+            <span className="absolute top-2 left-2 rounded-full bg-black/65 text-white text-xs px-2 py-1 tabular-nums pointer-events-none">
               {formatTpl(tStr("pages.userPublic.photosBadge"), { n: photos.length })}
             </span>
           )}
-        </button>
+          {photos.length > 0 && (
+            <button
+              type="button"
+              className="absolute bottom-2 right-2 z-[2] flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-black/75 text-white hover:bg-black/90 active:scale-95 border border-white/20 shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+              onClick={() => setLightboxIndex(0)}
+              title={
+                photos.length > 1
+                  ? tStr("pages.userPublic.photoTapMany")
+                  : tStr("pages.userPublic.photoTapOne")
+              }
+              aria-label={tStr("pages.userPublic.galleryAria")}
+            >
+              <Images className="h-5 w-5 sm:h-6 sm:w-6 opacity-95" aria-hidden />
+            </button>
+          )}
+        </div>
         <div className="p-4 space-y-3">
           <div className="flex flex-wrap items-center gap-2 text-sm">
             {user.online ? (
@@ -224,7 +230,7 @@ export default function PublicUserProfilePage() {
               onStatusChange={refetch}
               variant="big"
             />
-            <QuickCallButtons toUserId={user.id} size="md" />
+            <QuickCallButtons toUserId={user.id} size="md" className="relative z-10" />
             <Link
               href={`/app/chat/${user.id}`}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand-500/25 text-brand-400 hover:bg-brand-500/35 border border-brand-500/40 transition text-sm font-medium"

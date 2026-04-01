@@ -9,7 +9,7 @@ import { getStoredUserRaw } from "@/lib/store";
 import { getVideoRoomId } from "@/lib/videoCall";
 import { track } from "@/lib/tracking";
 import { displayName } from "@/lib/displayName";
-import { getAuthHeaders } from "@/lib/authClient";
+import { getAuthHeaders, fetchWithAuthRetry } from "@/lib/authClient";
 import { messageAttachmentProxyPath, shouldProxyChatAttachment } from "@/lib/chatAttachmentProxy";
 import {
   ALIGN_LOCATION_CONTENT_TYPE,
@@ -835,21 +835,29 @@ export default function ChatPage() {
   const ringAndGoCall = useCallback(
     async (audioOnly: boolean) => {
       if (!callerId) return;
+      setSendError(null);
       setCalling(audioOnly ? "audio" : "video");
       try {
-        await fetch("/api/call/ring", {
+        const res = await fetchWithAuthRetry("/api/call/ring", {
           method: "POST",
-          headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ toId: otherId, audioOnly }),
         });
+        if (!res.ok) {
+          const j = (await res.json().catch(() => ({}))) as { error?: string };
+          const raw = String(j.error ?? "").trim();
+          setSendError(translateApiErrorMessage(raw, tStr) || raw || tStr("pages.chat.errGeneric"));
+          return;
+        }
+        const qs = audioOnly ? "?audio=1&from=ring" : "?from=ring";
+        router.push(`/app/call/${getVideoRoomId(callerId, otherId)}${qs}`);
+      } catch {
+        setSendError(tStr("pages.chat.fetchErrGeneric"));
       } finally {
         setCalling(null);
       }
-      const qs = audioOnly ? "?audio=1&from=ring" : "?from=ring";
-      router.push(`/app/call/${getVideoRoomId(callerId, otherId)}${qs}`);
     },
-    [callerId, otherId, router]
+    [callerId, otherId, router, tStr]
   );
 
   if (loading) {

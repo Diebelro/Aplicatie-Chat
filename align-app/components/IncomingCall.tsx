@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { Phone, PhoneOff } from "lucide-react";
-import { getAuthHeaders } from "@/lib/authClient";
+import { getAuthHeaders, fetchWithAuthRetry } from "@/lib/authClient";
 import { markIncomingCallDismissed, shouldIgnorePolledIncoming } from "@/lib/callIncomingDismiss";
 
 const POLL_MS = 2500;
@@ -30,9 +30,7 @@ export default function IncomingCall() {
   incomingRef.current = incoming;
 
   const fetchIncoming = useCallback(() => {
-    fetch("/api/call/incoming", {
-      headers: getAuthHeaders(),
-      credentials: "same-origin",
+    void fetchWithAuthRetry("/api/call/incoming", {
       cache: "no-store",
     })
       .then(async (r) => {
@@ -80,25 +78,16 @@ export default function IncomingCall() {
       }
     };
 
-    const startPoll = () => {
-      clearPoll();
-      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
-      pollRef.current = setInterval(fetchIncoming, POLL_MS);
-    };
+    /** Poll mereu: dacă opream în fundal, cel sunat cu alt tab activ nu vedea deloc „te sună”. */
+    fetchIncoming();
+    clearPoll();
+    pollRef.current = setInterval(fetchIncoming, POLL_MS);
 
     const onVisibility = () => {
-      if (document.visibilityState === "visible") {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
         fetchIncoming();
-        startPoll();
-      } else {
-        clearPoll();
       }
     };
-
-    if (typeof document !== "undefined" && document.visibilityState === "visible") {
-      fetchIncoming();
-      startPoll();
-    }
 
     document.addEventListener("visibilitychange", onVisibility);
     return () => {

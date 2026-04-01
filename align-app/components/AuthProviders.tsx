@@ -103,7 +103,7 @@ export default function AuthProviders({ compact }: AuthProvidersProps) {
   const cfgReady = socialCfg !== null;
 
   return (
-    <SessionProvider refetchOnWindowFocus={false} refetchInterval={0}>
+    <SessionProvider basePath="/api/auth" refetchOnWindowFocus={false} refetchInterval={0}>
       <div className={compact ? "flex flex-col gap-2" : "space-y-2"}>
         {PROVIDERS.map((p) => {
           const key = cfgKey(p.id);

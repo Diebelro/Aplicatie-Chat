@@ -33,6 +33,40 @@ function resolveBuildHash() {
 
 const buildHash = resolveBuildHash();
 
+/**
+ * NextAuth în `next-auth/react` citește `process.env.NEXTAUTH_URL` în bundle-ul client.
+ * Fără valoare (sau cu URL de producție când rulezi pe localhost), `getSession` pică → CLIENT_FETCH_ERROR.
+ * Dacă ai tras env de pe Vercel dar testezi local: pune la sfârșitul lui `.env.local`
+ * `NEXTAUTH_URL=http://localhost:3005` (vezi .env.example). Aici aliniez automat când vezi
+ * NEXT_PUBLIC_APP_URL pe localhost dar NEXTAUTH_URL e încă https de producție.
+ */
+function resolveNextAuthUrlForBundle() {
+  const explicit = process.env.NEXTAUTH_URL?.trim();
+  const pub = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  const dev = process.env.NODE_ENV !== "production";
+
+  if (
+    dev &&
+    explicit &&
+    /^https:\/\//i.test(explicit) &&
+    pub &&
+    /^http:\/\/(localhost|127\.0\.0\.1)/i.test(pub)
+  ) {
+    console.warn(
+      "[next.config] Dev: NEXTAUTH_URL era URL HTTPS de producție dar NEXT_PUBLIC_APP_URL e localhost — folosesc %s (vezi .env.example ca să pui manual NEXTAUTH_URL).",
+      pub.replace(/\/$/, "")
+    );
+    return pub.replace(/\/$/, "");
+  }
+  if (explicit) return explicit.replace(/\/$/, "");
+  if (dev) {
+    if (pub && /^http:\/\//i.test(pub)) return pub.replace(/\/$/, "");
+    return "http://localhost:3005";
+  }
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`.replace(/\/$/, "");
+  return "";
+}
+
 const nextConfig = {
   /** Dev: permite HMR când deschizi site-ul pe 127.0.0.1 vs localhost (altfel Next blochează /_next/webpack-hmr). */
   allowedDevOrigins: ["127.0.0.1", "localhost"],
@@ -52,6 +86,7 @@ const nextConfig = {
   poweredByHeader: false,
   env: {
     NEXT_PUBLIC_BUILD_HASH: buildHash,
+    NEXTAUTH_URL: resolveNextAuthUrlForBundle(),
   },
   compiler: {
     removeConsole: process.env.NODE_ENV === "production" ? { exclude: ["error", "warn"] } : false,
