@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Users, PhoneMissed } from "lucide-react";
 import type { User } from "@/lib/store";
 import type { Message } from "@/lib/store";
-import { getStoredUserRaw } from "@/lib/store";
 import { SilhouetteAvatar } from "@/components/SilhouetteAvatar";
 import { QuickCallButtons } from "@/components/QuickCallButtons";
 import { displayName } from "@/lib/displayName";
@@ -71,16 +70,6 @@ export default function MessagesPage() {
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
   const [friends, setFriends] = useState<FriendWithMeta[]>([]);
   const [loading, setLoading] = useState(true);
-  const meRaw = typeof window !== "undefined" ? getStoredUserRaw() : null;
-  const me: User | null = meRaw
-    ? (() => {
-        try {
-          return JSON.parse(meRaw);
-        } catch {
-          return null;
-        }
-      })()
-    : null;
 
   const fetchConversations = () => {
     fetch("/api/conversations", { headers: getAuthHeaders() })
@@ -251,15 +240,14 @@ export default function MessagesPage() {
       ) : (
         <ul className="space-y-1">
           {conversations.map(({ otherUser, lastMessage, receivedCount, unreadCount, noMessagesYet }) => {
-            const isFromMe =
-              me?.id != null && String(lastMessage.fromId) === String(me.id);
             const isPlatformNotice = !!(lastMessage as Message & { isPlatformNotice?: boolean }).isPlatformNotice;
             const preview = noMessagesYet
               ? tStr("pages.messages.sendMessage")
               : isPlatformNotice
                 ? tStr("pages.messages.platformNotice")
-                : (isFromMe ? tStr("pages.messages.youPrefix") : "") +
-                  (lastMessage.text.length > 50 ? lastMessage.text.slice(0, 50) + "…" : lastMessage.text);
+                : lastMessage.text.length > 50
+                  ? lastMessage.text.slice(0, 50) + "…"
+                  : lastMessage.text;
             const otherLabel = displayName(otherUser.username ?? otherUser.name);
             return (
               <li
