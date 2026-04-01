@@ -7,7 +7,10 @@ import { Phone, PhoneOff } from "lucide-react";
 import { getAuthHeaders, fetchWithAuthRetry } from "@/lib/authClient";
 import { markIncomingCallDismissed, shouldIgnorePolledIncoming } from "@/lib/callIncomingDismiss";
 
-const POLL_MS = 2500;
+/** Filă activă: poll mai des ca „te sună” să apară repede când celălalt sună de pe telefon. */
+const POLL_MS_VISIBLE = 1200;
+/** Filă în fundal: mai rare ca să nu omoare bateria; la revenire facem fetch imediat. */
+const POLL_MS_HIDDEN = 5000;
 
 interface IncomingCallData {
   fromId: string;
@@ -25,13 +28,17 @@ export default function IncomingCall() {
   const [incoming, setIncoming] = useState<IncomingCallData | null>(null);
   const [loading, setLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const incomingRef = useRef<IncomingCallData | null>(null);
   incomingRef.current = incoming;
 
   const fetchIncoming = useCallback(() => {
     void fetchWithAuthRetry("/api/call/incoming", {
       cache: "no-store",
+      headers: {
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+      },
     })
       .then(async (r) => {
         /** 401: nu reseta overlay — poate cursă cookie/header după login sau schimbare tab; următorul poll reușește. */
@@ -64,35 +71,64 @@ export default function IncomingCall() {
   useEffect(() => {
     if (onCallPage) {
       setIncoming(null);
-      if (pollRef.current) {
-        clearInterval(pollRef.current);
-        pollRef.current = null;
+      if (pollTimerRef.current) {
+        clearTimeout(pollTimerRef.current);
+        pollTimerRef.current = null;
       }
       return;
     }
 
+    let cancelled = false;
+
     const clearPoll = () => {
-      if (pollRef.current) {
-        clearInterval(pollRef.current);
-        pollRef.current = null;
+      if (pollTimerRef.current) {
+        clearTimeout(pollTimerRef.current);
+        pollTimerRef.current = null;
       }
     };
 
-    /** Poll mereu: dacă opream în fundal, cel sunat cu alt tab activ nu vedea deloc „te sună”. */
+    /**
+     * setTimeout în lanț (nu setInterval): în fundal navigatoarele îngheață des interval-ul;
+     * interval variabil vizibil vs ascuns + focus/pageshow/online prind apelul când sună cineva de pe mobil.
+     */
+    const scheduleAfterFetchCycle = () => {
+      if (cancelled) return;
+      const ms =
+        typeof document !== "undefined" && document.visibilityState === "visible"
+          ? POLL_MS_VISIBLE
+          : POLL_MS_HIDDEN;
+      pollTimerRef.current = window.setTimeout(() => {
+        fetchIncoming();
+        scheduleAfterFetchCycle();
+      }, ms);
+    };
+
     fetchIncoming();
-    clearPoll();
-    pollRef.current = setInterval(fetchIncoming, POLL_MS);
+    scheduleAfterFetchCycle();
+
+    const bumpIncoming = () => {
+      fetchIncoming();
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        clearPoll();
+        scheduleAfterFetchCycle();
+      }
+    };
 
     const onVisibility = () => {
-      if (typeof document !== "undefined" && document.visibilityState === "visible") {
-        fetchIncoming();
-      }
+      bumpIncoming();
     };
 
+    window.addEventListener("focus", bumpIncoming);
+    window.addEventListener("pageshow", bumpIncoming);
+    window.addEventListener("online", bumpIncoming);
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
+      cancelled = true;
       clearPoll();
       document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("focus", bumpIncoming);
+      window.removeEventListener("pageshow", bumpIncoming);
+      window.removeEventListener("online", bumpIncoming);
     };
   }, [fetchIncoming, onCallPage]);
 

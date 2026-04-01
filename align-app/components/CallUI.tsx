@@ -651,9 +651,6 @@ export default function CallUI({
               muted
               className="h-full w-full object-cover scale-x-[-1]"
             />
-            <span className="pointer-events-none absolute bottom-1.5 left-2 text-[10px] font-medium uppercase tracking-wider text-white/70 bg-black/40 px-1.5 py-0.5 rounded">
-              Tu
-            </span>
           </div>
         )}
         {!videoLayoutSwapped && localStream && videoMuted && (
@@ -955,7 +952,6 @@ export default function CallUI({
         <div className="relative rounded-2xl overflow-hidden bg-night-800 border border-white/10 aspect-video shadow-lg">
           <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
           <audio ref={localAudioRef} autoPlay playsInline muted className="hidden" />
-          <span className="absolute bottom-2 left-2 text-xs bg-black/55 backdrop-blur-sm px-2 py-1 rounded-lg">Tu</span>
         </div>
 
         {remoteParticipants.map((p) => (

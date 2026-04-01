@@ -58,7 +58,23 @@ function resolveNextAuthUrlForBundle() {
     );
     return pub.replace(/\/$/, "");
   }
-  if (explicit) return explicit.replace(/\/$/, "");
+  if (explicit) {
+    let e = explicit.replace(/\/$/, "");
+    /** Producție: NEXTAUTH_URL=https://diebel.ro trimite OAuth/sesiunea pe site-ul marketing — folosim chat. */
+    if (!dev) {
+      try {
+        const u = new URL(e);
+        const h = u.hostname.toLowerCase();
+        if (!u.port && (h === "diebel.ro" || h === "www.diebel.ro")) {
+          const pubNorm = pub ? pub.replace(/\/$/, "") : "";
+          e = pubNorm && /^https:\/\//i.test(pubNorm) ? pubNorm : "https://chat.diebel.ro";
+        }
+      } catch {
+        /* păstrăm e */
+      }
+    }
+    return e;
+  }
   if (dev) {
     if (pub && /^http:\/\//i.test(pub)) return pub.replace(/\/$/, "");
     return "http://localhost:3005";

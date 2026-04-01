@@ -37,6 +37,18 @@ function normalizeApexDiebelForEmail(url: string): string {
   return url;
 }
 
+/**
+ * NextAuth `NEXTAUTH_URL` / callback `baseUrl`: dacă în env e apex-ul marketing (`diebel.ro`),
+ * autentificarea și SessionProvider pe mobil te duc pe site-ul greșit. Aliniem la hostul chat.
+ * (Aceeași regulă ca la email; dezactivare: `DISABLE_DIEBEL_APEX_EMAIL_REDIRECT=1`.)
+ */
+export function normalizeMarketingApexToChat(url: string): string {
+  let t = trimEnv(url);
+  if (!t) return t;
+  if (!t.includes("://")) t = `https://${t}`;
+  return normalizeApexDiebelForEmail(t);
+}
+
 let loggedPublicUrlOnce = false;
 
 /**

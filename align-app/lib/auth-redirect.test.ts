@@ -25,4 +25,11 @@ describe("resolveNextAuthRedirect", () => {
   it("URL absolut același origin spre /login → descopera", () => {
     expect(resolveNextAuthRedirect(`${base}/login`, base)).toBe(`${base}/descopera`);
   });
+
+  it("NEXTAUTH_URL pe apex diebel.ro → bază chat.diebel.ro (login mobil pe hostul corect)", () => {
+    const wrongBase = "https://diebel.ro";
+    expect(resolveNextAuthRedirect("https://evil.com/phish", wrongBase)).toBe("https://chat.diebel.ro");
+    expect(resolveNextAuthRedirect("/login", wrongBase)).toBe("https://chat.diebel.ro/descopera");
+    expect(resolveNextAuthRedirect("/app", wrongBase)).toBe("/app");
+  });
 });
