@@ -17,6 +17,7 @@ import {
 } from "@/lib/repo-prisma";
 import { recordSecurityThreat } from "@/lib/securityThreats";
 import { recordApiRouteError } from "@/lib/serverErrorRing";
+import { describePrismaLoginError, shouldExposeAuthDebugDetails } from "@/lib/prisma-auth-error";
 
 const TEN_MIN_MS = 10 * 60 * 1000;
 const MAX_FAILED_ATTEMPTS = 5;
@@ -164,12 +165,21 @@ export async function POST(request: Request) {
           }
         }
       } catch (err) {
-        console.error("[auth login] Prisma error", err);
+        const detail = describePrismaLoginError(err);
+        console.error("[auth login] Prisma error", detail, err);
         recordApiRouteError("POST /api/auth/login", err);
-        return NextResponse.json(
-          { error: "Eroare la conexiunea cu baza de date. Verifică DATABASE_URL în .env și rulează npm run db:setup." },
-          { status: 503 }
-        );
+        const generic =
+          "Eroare la conexiunea cu baza de date. Verifică DATABASE_URL în .env și rulează npm run db:setup.";
+        if (shouldExposeAuthDebugDetails()) {
+          return NextResponse.json(
+            {
+              error: `${generic} (${detail})`,
+              debug: { prisma: detail },
+            },
+            { status: 503 }
+          );
+        }
+        return NextResponse.json({ error: generic }, { status: 503 });
       }
     }
     if (!user) {
