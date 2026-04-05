@@ -5,7 +5,7 @@ import { readFile } from "fs/promises";
 import path from "path";
 import { getAuthenticatedUserId } from "@/lib/sessionAuth";
 import { isPrismaAvailable, prismaGetMessageById, prismaGetUserRole } from "@/lib/repo-prisma";
-import { isImageContentType, isPdfContentType } from "@/lib/chatAttachments";
+import { isImageContentType, isPdfContentType, isVideoContentType } from "@/lib/chatAttachments";
 
 /**
  * Servire atașamente chat (imagini private, PDF private). Doar participanți sau admin.
@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  if (isImageContentType(ct)) {
+  if (isImageContentType(ct) || isVideoContentType(ct)) {
     const localPath = resolveLocalChatDevPath(blobUrl);
     if (localPath) {
       try {
@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
         return new Response(buf, {
           headers: {
             "Content-Type": ct,
-            "Content-Disposition": `inline; filename="image"`,
+            "Content-Disposition": `inline; filename="attachment"`,
             "Cache-Control": "private, no-store",
           },
         });
@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
           return new Response(result.stream, {
             headers: {
               "Content-Type": result.blob.contentType ?? ct,
-              "Content-Disposition": `inline; filename="image"`,
+              "Content-Disposition": `inline; filename="attachment"`,
               "Cache-Control": "private, no-store",
             },
           });
@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
       console.error("[chat/attachment] fetch legacy url", err);
     }
 
-    return NextResponse.json({ error: "Imagine indisponibilă." }, { status: 404 });
+    return NextResponse.json({ error: "Atașament indisponibil." }, { status: 404 });
   }
 
   return NextResponse.json({ error: "Tip atașament nesuportat." }, { status: 400 });

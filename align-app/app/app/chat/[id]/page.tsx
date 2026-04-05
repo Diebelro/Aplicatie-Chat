@@ -25,9 +25,11 @@ import { useI18n } from "@/lib/i18n/context";
 import { formatTpl } from "@/lib/i18n/formatTpl";
 import { translateApiErrorMessage } from "@/lib/i18n/translateApiError";
 import type { Locale } from "@/lib/i18n/types";
+import { isAllowedAttachmentType, isVideoContentType } from "@/lib/chatAttachments";
 
-const ALLOWED_ATTACH_ACCEPT = "image/jpeg,image/png,image/webp,application/pdf";
-const MAX_ATTACH_MB = 10;
+const ALLOWED_ATTACH_ACCEPT =
+  "image/jpeg,image/png,image/webp,application/pdf,video/mp4,video/webm,video/quicktime";
+const MAX_ATTACH_MB = 25;
 
 function intlTagForLocale(locale: Locale): string {
   if (locale === "en") return "en-US";
@@ -70,6 +72,10 @@ interface Message {
 
 function isImageType(ct: string | null | undefined): boolean {
   return ct === "image/jpeg" || ct === "image/png" || ct === "image/webp";
+}
+
+function isVideoType(ct: string | null | undefined): boolean {
+  return isVideoContentType((ct || "").trim());
 }
 
 function locationBubbleParsed(m: Message): ReturnType<typeof parseAlignLocationPayload> {
@@ -167,8 +173,8 @@ function sameUserId(a: string | null | undefined, b: string | null | undefined):
 /** Dacă API-ul nu trimite încă currentUserId, deducem „cine sunt eu” din mesaje. */
 function inferMyUserIdFromMessages(messages: Message[], otherUserId: string): string | null {
   for (const m of messages) {
-    if (m.fromId === otherUserId && m.toId) return m.toId;
-    if (m.toId === otherUserId && m.fromId) return m.fromId;
+    if (sameUserId(m.fromId, otherUserId) && m.toId) return String(m.toId).trim();
+    if (sameUserId(m.toId, otherUserId) && m.fromId) return String(m.fromId).trim();
   }
   return null;
 }
@@ -267,10 +273,10 @@ export default function ChatPage() {
     async (opts?: { markConversationRead?: boolean }) => {
       const markRead = opts?.markConversationRead !== false;
       const q = markRead ? "" : "&markRead=0";
-      const res = await fetch(`/api/messages?with=${encodeURIComponent(otherId)}&_=${Date.now()}${q}`, {
-        headers: getAuthHeaders(),
-        cache: "no-store",
-      });
+      const res = await fetchWithAuthRetry(
+        `/api/messages?with=${encodeURIComponent(otherId)}&_=${Date.now()}${q}`,
+        { cache: "no-store" }
+      );
       const data = await res.json();
       if (res.ok) {
         const incoming = (data.messages || []) as Message[];
@@ -362,15 +368,12 @@ export default function ChatPage() {
     let cancelled = false;
     (async () => {
       try {
-        await Promise.all([
-          fetchOther(),
-          fetch("/api/me/read", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-            body: JSON.stringify({ otherId }),
-          }).catch(() => null),
-          fetchMessages({ markConversationRead: true }),
-        ]);
+        await fetchWithAuthRetry("/api/me/read", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ otherId }),
+        }).catch(() => null);
+        await Promise.all([fetchOther(), fetchMessages({ markConversationRead: true })]);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -437,11 +440,10 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (!otherId || loading) return;
-    const onVis = () => {
-      if (document.visibilityState !== "visible") return;
-      fetch("/api/me/read", {
+    const markReadNow = () => {
+      void fetchWithAuthRetry("/api/me/read", {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ otherId }),
       })
         .then((r) => {
@@ -452,9 +454,35 @@ export default function ChatPage() {
         .catch(() => {});
       void fetchMessages({ markConversationRead: true });
     };
+    const onVis = () => {
+      if (document.visibilityState !== "visible") return;
+      markReadNow();
+    };
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) return;
+      markReadNow();
+    };
     document.addEventListener("visibilitychange", onVis);
-    return () => document.removeEventListener("visibilitychange", onVis);
+    window.addEventListener("pageshow", onPageShow);
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("pageshow", onPageShow);
+    };
   }, [otherId, loading, fetchMessages]);
+
+  /** Mobil / tab-uri: retrimite „citit” periodic ca destinatarul (ex. pe telefon) să primească bifa fără să depindă de un singur poll. */
+  useEffect(() => {
+    if (!otherId || loading) return;
+    const id = window.setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      void fetchWithAuthRetry("/api/me/read", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ otherId }),
+      }).catch(() => {});
+    }, 12_000);
+    return () => clearInterval(id);
+  }, [otherId, loading]);
 
   const scrollMessagesToBottom = useCallback((behavior: ScrollBehavior) => {
     const el = messagesScrollRef.current;
@@ -600,7 +628,7 @@ export default function ChatPage() {
         body.attachmentUrl = backupAttach.url;
         body.attachmentContentType = backupAttach.contentType;
       }
-      const res = await fetch("/api/messages", {
+      const res = await fetchWithAuthRetry("/api/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...headers },
         body: JSON.stringify(body),
@@ -650,8 +678,7 @@ export default function ChatPage() {
       setSendError(formatTpl(tStr("pages.chat.fileTooBig"), { mb: MAX_ATTACH_MB }));
       return;
     }
-    const allowed = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
-    if (!allowed.includes(file.type)) {
+    if (!isAllowedAttachmentType(file.type)) {
       setIsPaywallError(false);
       setSendError(tStr("pages.chat.fileTypeNotAllowed"));
       return;
@@ -669,9 +696,10 @@ export default function ChatPage() {
       });
       const data = await res.json();
       if (res.ok && data.url && data.contentType) {
-        const previewUrl = file.type.startsWith("image/")
-          ? URL.createObjectURL(file)
-          : undefined;
+        const previewUrl =
+          file.type.startsWith("image/") || file.type.startsWith("video/")
+            ? URL.createObjectURL(file)
+            : undefined;
         setPendingAttachment((prev) => {
           if (prev?.previewUrl) URL.revokeObjectURL(prev.previewUrl);
           return { url: data.url as string, contentType: data.contentType as string, previewUrl };
@@ -1217,6 +1245,17 @@ export default function ChatPage() {
                           </a>
                         );
                       }
+                      if (isVideoType(m.attachmentContentType)) {
+                        return (
+                          <video
+                            src={m.attachmentUrl ?? undefined}
+                            controls
+                            playsInline
+                            preload="metadata"
+                            className="max-h-64 w-full max-w-full rounded-lg bg-black/20"
+                          />
+                        );
+                      }
                       return (
                         <a
                           href={m.attachmentUrl}
@@ -1287,6 +1326,13 @@ export default function ChatPage() {
                 src={pendingAttachment.previewUrl || pendingAttachment.url}
                 alt=""
                 className="h-12 w-auto rounded object-cover"
+              />
+            ) : isVideoType(pendingAttachment.contentType) ? (
+              <video
+                src={pendingAttachment.previewUrl || pendingAttachment.url}
+                muted
+                playsInline
+                className="h-14 w-24 rounded object-cover bg-black/30"
               />
             ) : (
               <span className="flex items-center gap-1">

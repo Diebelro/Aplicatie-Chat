@@ -41,7 +41,13 @@ export async function saveLocalChatImage(
         ? "png"
         : contentType === "image/webp"
           ? "webp"
-          : "bin";
+          : contentType === "video/mp4"
+            ? "mp4"
+            : contentType === "video/webm"
+              ? "webm"
+              : contentType === "video/quicktime"
+                ? "mov"
+                : "bin";
   const id = `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
   const safeUser = userId.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 24) || "user";
   const filename = `${safeUser}-${id}.${ext}`;

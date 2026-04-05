@@ -1,17 +1,20 @@
 /**
- * Atașamente chat: imagini (jpg/png/webp) + PDF, max 10MB.
- * Imagini → Blob private (servire prin /api/chat/attachment); PDF → Blob private.
+ * Atașamente chat: imagini + PDF + video scurt (mp4/webm), max 25MB.
+ * Fișierele private se servesc prin /api/chat/attachment.
  */
 
 export const CHAT_ATTACHMENT = {
-  /** Max 10MB per fișier */
-  MAX_BYTES: 10 * 1024 * 1024,
+  /** Max 25MB (video scurt pe mobil) */
+  MAX_BYTES: 25 * 1024 * 1024,
   /** Tipuri MIME permise (allowlist) */
   ALLOWED_TYPES: [
     "image/jpeg",
     "image/png",
     "image/webp",
     "application/pdf",
+    "video/mp4",
+    "video/webm",
+    "video/quicktime",
   ] as const,
 };
 
@@ -27,4 +30,9 @@ export function isImageContentType(type: string): boolean {
 
 export function isPdfContentType(type: string): boolean {
   return type === "application/pdf";
+}
+
+export function isVideoContentType(type: string): boolean {
+  const t = (type || "").trim().toLowerCase();
+  return t === "video/mp4" || t === "video/webm" || t === "video/quicktime";
 }

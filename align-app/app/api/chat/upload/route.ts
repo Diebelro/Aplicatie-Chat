@@ -5,6 +5,7 @@ import {
   isAllowedAttachmentType,
   isImageContentType,
   isPdfContentType,
+  isVideoContentType,
 } from "@/lib/chatAttachments";
 import {
   canSaveChatImagesToLocalDisk,
@@ -25,7 +26,7 @@ export async function GET() {
 }
 
 /**
- * Upload un singur fișier pentru chat. Imagini → Blob private (acces prin /api/chat/attachment); PDF → private. Max 10MB.
+ * Upload un singur fișier pentru chat. Imagini / video → Blob private (acces prin /api/chat/attachment); PDF → private.
  */
 export async function POST(request: NextRequest) {
   const userId = await getAuthenticatedUserId(request);
@@ -59,7 +60,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error:
-          "Tip fișier nepermis. Permise: imagini (JPEG, PNG, WebP) și PDF.",
+          "Tip fișier nepermis. Permise: imagini (JPEG, PNG, WebP), PDF, video (MP4, WebM, MOV).",
       },
       { status: 400 }
     );
@@ -75,6 +76,7 @@ export async function POST(request: NextRequest) {
   }
 
   const isImage = isImageContentType(contentType);
+  const isVideo = isVideoContentType(contentType);
   const isPdf = isPdfContentType(contentType);
 
   if (isPdf) {
@@ -105,10 +107,11 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  if (isImage) {
+  if (isImage || isVideo) {
     if (tokenImages) {
-      const ext = contentType.split("/")[1] || "bin";
-      const pathname = `chat/${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`;
+      const ext =
+        contentType.split("/")[1]?.replace(/[^a-z0-9]/gi, "") || (isVideo ? "mp4" : "bin");
+      const pathname = `chat/${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext || "bin"}`;
       try {
         const blob = await put(pathname, file, {
           access: "private",
@@ -118,7 +121,7 @@ export async function POST(request: NextRequest) {
         });
         return NextResponse.json({ url: blob.url, contentType });
       } catch (err) {
-        console.error("[chat/upload] image blob", err);
+        console.error("[chat/upload] image/video blob", err);
         return NextResponse.json(
           { error: "Eroare la încărcare. Încearcă din nou." },
           { status: 500 }
@@ -137,7 +140,7 @@ export async function POST(request: NextRequest) {
           contentType,
         });
       } catch (err) {
-        console.error("[chat/upload] local image", err);
+        console.error("[chat/upload] local image/video", err);
         return NextResponse.json(
           { error: "Eroare la salvare locală. Încearcă din nou." },
           { status: 500 }
@@ -147,7 +150,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error:
-          "Imaginile în chat pe acest mediu necesită BLOB_READ_WRITE_TOKEN sau rulezi npm run dev local (salvare automată în public/_chatDev).",
+          "Imagini sau video în chat necesită BLOB_READ_WRITE_TOKEN sau dev local (public/_chatDev).",
       },
       { status: 503 }
     );

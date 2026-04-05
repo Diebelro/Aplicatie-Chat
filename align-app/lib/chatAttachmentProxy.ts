@@ -4,7 +4,7 @@
  * să nu fie deschise direct fără verificare participant/admin.
  */
 
-import { isImageContentType, isPdfContentType } from "@/lib/chatAttachments";
+import { isImageContentType, isPdfContentType, isVideoContentType } from "@/lib/chatAttachments";
 
 export function messageAttachmentProxyPath(messageId: string): string {
   return `/api/chat/attachment?messageId=${encodeURIComponent(messageId)}`;
@@ -16,7 +16,11 @@ export function shouldProxyChatAttachment(
   attachmentContentType: string | null | undefined
 ): boolean {
   if (!attachmentUrl || !attachmentContentType) return false;
-  return isImageContentType(attachmentContentType) || isPdfContentType(attachmentContentType);
+  return (
+    isImageContentType(attachmentContentType) ||
+    isPdfContentType(attachmentContentType) ||
+    isVideoContentType(attachmentContentType)
+  );
 }
 
 export function toClientMessageAttachmentFields(m: {
