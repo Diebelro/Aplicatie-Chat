@@ -117,10 +117,10 @@ function LoginContent() {
   }, [email]);
 
   useEffect(() => {
-    const auth = searchParams.get("auth");
-    const soon = searchParams.get("soon");
-    const reason = searchParams.get("reason");
-    const p = searchParams.get("p");
+    const auth = searchParams?.get("auth");
+    const soon = searchParams?.get("soon");
+    const reason = searchParams?.get("reason");
+    const p = searchParams?.get("p");
     if (reason === "session_expired") {
       setSoonMessage(tStr("pages.login.sessionExpired"));
     } else if (reason === "oauth_failed") {
@@ -248,7 +248,7 @@ function LoginContent() {
       other.removeItem("align_device_id");
       other.removeItem("align_device_fingerprint");
       const profileComplete = data.profileComplete !== false;
-      const redirectTo = searchParams.get("redirect");
+      const redirectTo = searchParams?.get("redirect");
       const safeRedirect = redirectTo?.startsWith("/") && !redirectTo.startsWith("//") ? redirectTo : null;
       const target = safeRedirect ?? (profileComplete ? "/app" : "/completeaza-profilul");
       // DEV ONLY: allow browser time to persist Set-Cookie before redirect

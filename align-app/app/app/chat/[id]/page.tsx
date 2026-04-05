@@ -176,7 +176,7 @@ function inferMyUserIdFromMessages(messages: Message[], otherUserId: string): st
 export default function ChatPage() {
   const params = useParams();
   const router = useRouter();
-  const otherId = params.id as string;
+  const otherId = (params?.id as string) ?? "";
   const [other, setOther] = useState<(User & { online?: boolean; distanceKm?: number; lastActivityAt?: number }) | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [areFriends, setAreFriends] = useState(false);

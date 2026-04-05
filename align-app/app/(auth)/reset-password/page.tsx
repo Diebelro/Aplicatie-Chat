@@ -11,7 +11,7 @@ function ResetPasswordContent() {
   const { tStr } = useI18n();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const token = searchParams.get("token") ?? "";
+  const token = searchParams?.get("token") ?? "";
   const [tokenValid, setTokenValid] = useState<boolean | null>(null);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");

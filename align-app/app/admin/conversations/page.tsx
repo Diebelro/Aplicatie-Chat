@@ -18,7 +18,7 @@ function AdminConversationsForm() {
   const [pastedId, setPastedId] = useState("");
 
   useEffect(() => {
-    const withId = searchParams.get("with")?.trim();
+    const withId = searchParams?.get("with")?.trim();
     if (withId) setUserA(withId);
   }, [searchParams]);
 

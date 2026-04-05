@@ -9,7 +9,7 @@ import { translateApiErrorMessage } from "@/lib/i18n/translateApiError";
 function VerifyEmailContent() {
   const { tStr } = useI18n();
   const searchParams = useSearchParams();
-  const token = searchParams.get("token") ?? "";
+  const token = searchParams?.get("token") ?? "";
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [verified, setVerified] = useState(false);

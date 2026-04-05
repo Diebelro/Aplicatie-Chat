@@ -19,6 +19,13 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export function GET() {
+  const examples: Record<string, string> = {
+    productionWss: "wss://ws.diebel.ro/ws",
+    note: "În producție folosește wss://; tokenul se pune automat din /api/call/signaling-token.",
+  };
+  if (process.env.NODE_ENV !== "production") {
+    examples.devWs = "ws://127.0.0.1:4001";
+  }
   return NextResponse.json(
     {
       ok: true,
@@ -26,11 +33,7 @@ export function GET() {
       message:
         "Acest endpoint este HTTP JSON (sanity check). Conexiunile WebSocket WebRTC se deschid către URL-ul din NEXT_PUBLIC_SIGNALING_WS_URL (server/call-signaling-server.mjs, path /ws).",
       requiredEnv: "NEXT_PUBLIC_SIGNALING_WS_URL",
-      examples: {
-        productionWss: "wss://ws.example.com/ws",
-        devWs: "ws://127.0.0.1:4001",
-        note: "În producție folosește wss://; tokenul se pune automat din /api/call/signaling-token.",
-      },
+      examples,
       docs: "docs/calls.md",
     },
     { headers: { "cache-control": "no-store" } }

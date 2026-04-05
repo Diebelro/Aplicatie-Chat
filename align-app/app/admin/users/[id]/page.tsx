@@ -27,7 +27,7 @@ type ReportAboutRow = {
 export default function AdminUserDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const id = params.id as string;
+  const id = (params?.id as string) ?? "";
   const [user, setUser] = useState<User | null>(null);
   const [premium, setPremium] = useState<PremiumInfo | null>(null);
   const [banLog, setBanLog] = useState<BanLogInfo>(null);

@@ -79,7 +79,7 @@ It includes:
 
 ## Deploy online (Vercel)
 
-Pași concreți: **[DEPLOY-ONLINE.md](./DEPLOY-ONLINE.md)** — Vercel + PostgreSQL (Neon/Supabase), Root Directory `align-app`, variabile obligatorii.
+Pași concreți: **[DEPLOY-ONLINE.md](./DEPLOY-ONLINE.md)** — Vercel + PostgreSQL (Neon), Root Directory **`align-app`**. Producție canonică: **`https://chat.diebel.ro`** — `NEXTAUTH_URL`, `NEXT_PUBLIC_APP_URL` și ( pentru apeluri) **`NEXT_PUBLIC_SIGNALING_WS_URL` (`wss://`)**, **`NEXT_PUBLIC_TURN_URLS`**, `TURN_AUTH_SECRET`, `TURN_REALM`, secret semnalizare — fără `ws://127.0.0.1` sau localhost în variabilele Vercel Production.
 
 ## Dezvoltare locală (align-app)
 
@@ -98,9 +98,27 @@ Dacă în PowerShell vezi **`npm is not recognized`** / **`node is not recognize
 
 `npm run dev:auto` pornește Next pe portul implicit (3000 sau următorul liber) dacă preferi comportamentul vechi.
 
+## Medii DB (Neon) și guardrails (flux zilnic)
+
+- **Separare DEV / PROD:** proiecte Neon (sau endpoint-uri) **diferite**. Nu folosi connection string de producție în `.env.local` fără `EXPECTED_DB_ENV=prod` și fără să știi ce faci.
+- **Variabile:** `DATABASE_URL` = conexiune **pooled** (`-pooler`); `DIRECT_URL` = conexiune **directă** (fără `-pooler`) pentru `migrate` / `db push` / `generate` (vezi `prisma/schema.prisma`). Model: **`.env.local.example`**.
+- **Guard:** `scripts/env-guard.mjs` rulează înainte de `dev`, `start`, `db:*`. Setări utile: `EXPECTED_DB_ENV=dev|prod`, `FORBIDDEN_PROD_DB_SUBSTRING`, `DEV_URL_MARKERS`, `PROD_URL_MARKERS_IN_DEV`. Pe producție: **`prisma db push`** este blocat; folosește **`npm run db:migrate:deploy`**.
+- **În mod normal** nu ai nevoie de variabile `BOOTSTRAP_*` în `.env.local`. După recovery, rulează **`npm run cleanup`** ca să rămâi doar cu contul tău real (ex. admin) și fără secrete de bootstrap în env.
+
+## Am pierdut conturile / DB nouă (**doar recovery**, nu uz zilnic)
+
+Folosește după **reset DB**, **Neon nou** sau când **lipsește admin-ul**. Pașii sunt în **`docs/RECOVERY.md`**. Rezumat:
+
+1. În **`.env.local`**, setezi **temporar** `BOOTSTRAP_ADMIN_EMAIL` / `BOOTSTRAP_ADMIN_PASSWORD` (exemple **doar comentate** în **`.env.local.example`**).
+2. **`npm run bootstrap`** — schema + `prisma/bootstrap-accounts.ts` (vezi `docs/RECOVERY.md`).
+3. **`npm run cleanup`** — verifică admin-ul ținut (`contact@diebel.ro` implicit sau `CLEANUP_KEEP_EMAIL`), **șterge din `.env.local` toate `BOOTSTRAP_*`**, listează userii și îți arată (exemplu) **`npm run cleanup:bootstrap -- --keep … --delete … --yes`** dacă vrei să elimini manual conturi de test. **Cleanup nu șterge nimic în DB fără comanda ta explicită.**
+4. **`npm run dev`** și login cu credențialele tale normale (parola e cea din DB după bootstrap / ce ai setat la înregistrare).
+
+**Listare / ștergere user specific (foarte explicit):** `npm run cleanup:bootstrap` fără argumente listează userii; pentru ștergere: `npm run cleanup:bootstrap -- --keep contact@diebel.ro --delete alt@email.com --yes`.
+
 ## Checklist scurt producție
 
-1. **Variabile**: Vercel (sau host) — `DATABASE_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `NEXT_PUBLIC_APP_URL`, email (`RESEND_*`), Blob dacă folosești atașamente, semnalizare/TURN dacă ai apeluri (vezi `.env.example`).
+1. **Variabile**: Vercel (sau host) — `DATABASE_URL` **pooled**, `DIRECT_URL` **direct**, `EXPECTED_DB_ENV=prod`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `NEXT_PUBLIC_APP_URL`, email (`RESEND_*`), Blob dacă folosești atașamente, semnalizare/TURN dacă ai apeluri (vezi `.env.example`).
 2. **UI**: fără bandă WIP — nu seta `NEXT_PUBLIC_SHOW_WIP_BANNER` sau lasă-o `false`. Butoane sociale — afișate implicit (stub); ascunde cu `NEXT_PUBLIC_ENABLE_SOCIAL_LOGIN=false`.
 3. **Tracking**: setează `NEXT_PUBLIC_GA4_ID` / Meta / Ads doar cu ID-uri reale; altfel scripturile nu se încarcă.
 4. **Verificare locală**: din `align-app`, `npm run lint`, `npm run test`, `npm run build`.

@@ -51,7 +51,7 @@ function attachmentDisplayUrl(m: Message): string | null {
 
 export default function AdminConversationPage() {
   const params = useParams();
-  const id = params.id as string;
+  const id = (params?.id as string) ?? "";
   const [messages, setMessages] = useState<Message[]>([]);
   const [userA, setUserA] = useState<UserBrief | null>(null);
   const [userB, setUserB] = useState<UserBrief | null>(null);

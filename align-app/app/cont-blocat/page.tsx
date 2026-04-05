@@ -18,8 +18,8 @@ function intlLocaleTag(locale: Locale): string {
 function ContBlocatForm() {
   const { tStr, locale } = useI18n();
   const searchParams = useSearchParams();
-  const prefEmail = searchParams.get("email") ?? "";
-  const untilIso = searchParams.get("until");
+  const prefEmail = searchParams?.get("email") ?? "";
+  const untilIso = searchParams?.get("until");
   const [email, setEmail] = useState(prefEmail);
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");

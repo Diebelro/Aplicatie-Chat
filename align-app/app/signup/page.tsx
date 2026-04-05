@@ -46,7 +46,7 @@ function SignUpContent() {
   const [usernameCheck, setUsernameCheck] = useState<"idle" | "checking" | "available" | "taken">("idle");
   const [emailCheck, setEmailCheck] = useState<"idle" | "checking" | "available" | "taken">("idle");
   useEffect(() => {
-    const e = searchParams.get("email");
+    const e = searchParams?.get("email");
     if (e) setEmail(decodeURIComponent(e));
   }, [searchParams]);
 
@@ -269,7 +269,7 @@ function SignUpContent() {
         </Link>
         <h1 className="text-2xl font-semibold text-zinc-900 mt-4">{tStr("pages.signup.title")}</h1>
         <p className="text-sm text-dark-300 mt-2">
-          {searchParams.get("email") ? (
+          {searchParams?.get("email") ? (
             <>
               <span className="text-brand-400/90">{tStr("pages.signup.introPrefillTag")}</span>{" "}
               {tStr("pages.signup.introPrefillBody")}

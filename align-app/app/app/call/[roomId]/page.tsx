@@ -25,10 +25,10 @@ function getStoredUser(): User | null {
 export default function CallPage() {
   const params = useParams();
   const searchParams = useSearchParams();
-  const roomId = params.roomId as string;
-  const audioOnly = searchParams.get("audio") === "1";
-  const fromPush = searchParams.get("from") === "push";
-  const isCaller = searchParams.get("from") === "ring";
+  const roomId = (params?.roomId as string) ?? "";
+  const audioOnly = searchParams?.get("audio") === "1";
+  const fromPush = searchParams?.get("from") === "push";
+  const isCaller = searchParams?.get("from") === "ring";
   const [user, setUser] = useState<User | null>(null);
   const [allowed, setAllowed] = useState<boolean | null>(null);
   /** Deschis din notificare push: WebRTC pornește doar după gest explicit (Răspunde). */

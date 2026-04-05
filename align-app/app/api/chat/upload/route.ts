@@ -12,6 +12,7 @@ import {
   isChatUploadConfiguredForClient,
   saveLocalChatImage,
 } from "@/lib/localChatUpload";
+import { getPublicAppUrl } from "@/lib/appUrl";
 import { getAuthenticatedUserId } from "@/lib/sessionAuth";
 
 /** GET: Blob sau (dev) salvare locală pentru imagini. */
@@ -129,9 +130,7 @@ export async function POST(request: NextRequest) {
         const buf = Buffer.from(await file.arrayBuffer());
         const { publicUrlPath } = await saveLocalChatImage(userId, buf, contentType);
         const origin =
-          request.nextUrl.origin ||
-          process.env.NEXT_PUBLIC_APP_URL ||
-          "http://localhost:3005";
+          request.nextUrl.origin || process.env.NEXT_PUBLIC_APP_URL?.trim() || getPublicAppUrl();
         const base = origin.replace(/\/$/, "");
         return NextResponse.json({
           url: `${base}${publicUrlPath}`,

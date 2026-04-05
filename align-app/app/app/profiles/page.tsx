@@ -109,7 +109,7 @@ export default function ProfilesPage() {
     [tStr]
   );
   const searchParams = useSearchParams();
-  const previewMe = searchParams.get("preview") === "me";
+  const previewMe = searchParams?.get("preview") === "me";
   const [profiles, setProfiles] = useState<ProfileWithOnline[]>([]);
   const [loading, setLoading] = useState(true);
   const [myLocationEnabled, setMyLocationEnabled] = useState(false);

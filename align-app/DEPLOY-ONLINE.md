@@ -27,23 +27,38 @@ git push origin main
 2. Importă repo-ul GitHub.
 3. **Root Directory** → **Edit** → setează **`align-app`** (obligatoriu dacă repo-ul conține și alte foldere).
 4. Framework: Next.js (detectat automat).
-5. **Environment Variables** (Production) — minim pentru ca site-ul să meargă:
+5. **Environment Variables** (Production) — pentru **`https://chat.diebel.ro`** (domeniul canonic al app-ului):
 
-   | Variabilă | Exemplu / notă |
-   |-----------|----------------|
-   | `DATABASE_URL` | URL-ul de la Neon/Supabase |
-   | `NEXTAUTH_SECRET` | string aleator **≥ 32** caractere (ex. `openssl rand -base64 32`) |
-   | `NEXTAUTH_URL` | `https://numele-proiectului.vercel.app` sau domeniul tău |
-   | `NEXT_PUBLIC_APP_URL` | **aceeași** valoare ca `NEXTAUTH_URL` |
+   | Variabilă | Obligatoriu | Valoare / notă |
+   |-----------|-------------|----------------|
+   | `DATABASE_URL` | Da | Neon **Pooled** (host cu `-pooler`) |
+   | `DIRECT_URL` | Da | Neon **Direct** (fără `-pooler`) — migrări / Prisma CLI |
+   | `EXPECTED_DB_ENV` | Da | `prod` |
+   | `NEXTAUTH_SECRET` | Da | ≥ 32 caractere (`openssl rand -base64 32`) |
+   | `NEXTAUTH_URL` | Da | `https://chat.diebel.ro` |
+   | `NEXT_PUBLIC_APP_URL` | Da | `https://chat.diebel.ro` (**aceeași** bază ca `NEXTAUTH_URL`; TWA / WKWebView folosesc acest origin) |
+   | `PUBLIC_APP_URL` | Recomandat | `https://chat.diebel.ro` (link-uri email / server) |
+
+   **WebRTC (apeluri voce/video între browser și wrapper mobil)** — fără aceste variabile, semnalizarea și ICE **nu** merg pe internet:
+
+   | Variabilă | Obligatoriu pentru apeluri | Notă |
+   |-----------|----------------------------|------|
+   | `NEXT_PUBLIC_SIGNALING_WS_URL` | Da | Ex. `wss://ws.diebel.ro/ws` (**wss://**, nu `ws://127.0.0.1`) |
+   | `NEXT_PUBLIC_TURN_URLS` | Da | JSON array: `stun` / `turn` / `turns` către serverul TURN (ex. `turn.diebel.ro`) |
+   | `TURN_AUTH_SECRET` | Da | ≥ 16 car.; aliniat cu coturn / `GET /api/call/ice-config` |
+   | `TURN_REALM` | Da | Ex. `turn.diebel.ro` (sau realm-ul coturn) |
+   | `SIGNALING_TOKEN_SECRET` | Da* | ≥ 16 car.; **identic** pe Vercel și pe VPS-ul unde rulează `call-signaling-server.mjs` (sau folosește același `NEXTAUTH_SECRET` ≥ 16) |
+
+   \*Dacă `NEXTAUTH_SECRET` are deja ≥ 16 car., poți omite `SIGNALING_TOKEN_SECRET` doar dacă serverul de semnalizare e configurat să accepte același secret (vezi `docs/calls.md`).
 
 6. **Deploy**.
 
 La build, Vercel rulează **`prisma generate && next build`** (vezi `vercel.json`).  
-**Migrările SQL** nu rulează automat în build (evită erori când DB e indisponibilă sau IP blocat). Le aplici **tu** când aduci cod nou cu migrări:
+**Migrările SQL** nu rulează automat în build (evită erori când DB e indisponibilă sau IP blocat). Le aplici **tu** când aduci cod nou cu migrări — folosește **`prisma migrate deploy`** (nu `db push` pe producție):
 
 ```bash
 cd align-app
-# setează DATABASE_URL = aceeași ca în Vercel (Neon), apoi:
+# setează DATABASE_URL + DIRECT_URL = aceleași ca în Vercel (Neon prod), apoi:
 npx prisma migrate deploy
 ```
 

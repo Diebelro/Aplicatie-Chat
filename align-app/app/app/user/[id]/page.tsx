@@ -32,7 +32,7 @@ export default function PublicUserProfilePage() {
   const { tStr, locale } = useI18n();
   const params = useParams();
   const router = useRouter();
-  const id = params.id as string;
+  const id = (params?.id as string) ?? "";
   const [user, setUser] = useState<UserPublic | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

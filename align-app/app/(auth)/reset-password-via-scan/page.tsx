@@ -11,7 +11,7 @@ function ResetPasswordViaScanContent() {
   const { tStr } = useI18n();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const sessionId = searchParams.get("sessionId") ?? "";
+  const sessionId = searchParams?.get("sessionId") ?? "";
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);

@@ -19,7 +19,7 @@ export default function ReviewSwipesPage() {
   const { tStr } = useI18n();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const focusId = searchParams.get("focus")?.trim() || null;
+  const focusId = searchParams?.get("focus")?.trim() || null;
 
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);

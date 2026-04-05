@@ -5,7 +5,7 @@
  * 1. **EMAIL_PUBLIC_APP_URL** — opțional, doar pentru link-uri din email (override clar).
  * 2. **PUBLIC_APP_URL** — recomandat: domeniul public al aplicației (ex. `https://chat.diebel.ro`).
  * 3. **NEXT_PUBLIC_APP_URL** — fallback.
- * 4. `http://localhost:3005` — doar dacă lipsește tot.
+ * 4. **`http://localhost:3005`** (doar development dacă lipsește tot) sau **`https://chat.diebel.ro`** în `production`.
  *
  * Dacă baza rezolvată e **`diebel.ro`** sau **`www.diebel.ro`** (apex-ul site-ului firmă — cert greșit
  * pentru app), o înlocuim cu **`https://chat.diebel.ro`**. Regula rulează **mereu** (nu doar la
@@ -59,8 +59,9 @@ export function getPublicAppUrl(): string {
   const fromEmail = trimEnv(process.env.EMAIL_PUBLIC_APP_URL);
   const fromPublic = trimEnv(process.env.PUBLIC_APP_URL);
   const fromNext = trimEnv(process.env.NEXT_PUBLIC_APP_URL);
-  let resolved =
-    fromEmail || fromPublic || fromNext || "http://localhost:3005";
+  const fallbackBase =
+    process.env.NODE_ENV === "production" ? CHAT_PUBLIC_FALLBACK : "http://localhost:3005";
+  let resolved = fromEmail || fromPublic || fromNext || fallbackBase;
 
   resolved = normalizeApexDiebelForEmail(resolved);
 

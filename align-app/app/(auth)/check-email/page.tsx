@@ -9,7 +9,8 @@ import { formatTpl } from "@/lib/i18n/formatTpl";
 function CheckEmailContent() {
   const { tStr } = useI18n();
   const searchParams = useSearchParams();
-  const email = searchParams.get("email") ? decodeURIComponent(searchParams.get("email")!) : "";
+  const raw = searchParams?.get("email");
+  const email = raw ? decodeURIComponent(raw) : "";
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-8 bg-dark-900">
