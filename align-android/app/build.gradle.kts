@@ -19,8 +19,9 @@ android {
         val props = Properties()
         val lp = rootProject.file("local.properties")
         if (lp.exists()) lp.inputStream().use { props.load(it) }
-        val baseUrl = props.getProperty("align.apiBaseUrl", "https://YOUR_ALIGN_HOST/")
-        val signalingWs = props.getProperty("align.signalingWsUrl", "wss://YOUR_ALIGN_HOST/ws")
+        // API = Next app (chat). Semnalizare = host VPS (ws), același ca NEXT_PUBLIC_SIGNALING_WS_URL pe Vercel — NU amesteca cu domeniul chat.
+        val baseUrl = props.getProperty("align.apiBaseUrl", "https://chat.diebel.ro/")
+        val signalingWs = props.getProperty("align.signalingWsUrl", "wss://ws.diebel.ro")
         buildConfigField("String", "API_BASE_URL", "\"${baseUrl.trimEnd('/')}/\"")
         buildConfigField("String", "SIGNALING_WS_BASE", "\"${signalingWs.trimEnd('/')}\"")
     }

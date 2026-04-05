@@ -18,8 +18,10 @@
 
 Editează `Align/Info.plist`:
 
-- `ALIGN_API_BASE` — ex. `https://chat.example.com` (fără slash final)  
-- `ALIGN_SIGNALING_WS_BASE` — ex. `wss://ws.example.com/ws`  
+- `ALIGN_API_BASE` — REST: același host ca `NEXT_PUBLIC_APP_URL` (ex. **`https://chat.diebel.ro`**, fără slash final).
+- `ALIGN_SIGNALING_WS_BASE` — WebSocket: același ca `NEXT_PUBLIC_SIGNALING_WS_URL` pe Vercel (ex. **`wss://ws.diebel.ro`**; poți omite `/ws`, codul îl adaugă).
+
+**Nu** folosi domeniul Vercel/Next pentru semnalizare — WS rulează pe VPS. Verificare: `curl -sS https://chat.diebel.ro/api/native-config`.
 
 ## Flux dev sesiune
 

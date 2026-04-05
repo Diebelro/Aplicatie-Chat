@@ -58,8 +58,8 @@
 	<key>NSCameraUsageDescription</key>
 	<string>Align folosește camera pentru apeluri video.</string>
 	<key>ALIGN_API_BASE</key>
-	<string>https://YOUR_HOST</string>
+	<string>https://chat.diebel.ro</string>
 	<key>ALIGN_SIGNALING_WS_BASE</key>
-	<string>wss://YOUR_WS_HOST/ws</string>
+	<string>wss://ws.diebel.ro</string>
 </dict>
 </plist>

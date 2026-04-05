@@ -36,7 +36,7 @@ Folder `align-ios/`: rulezi **XcodeGen** (`brew install xcodegen && xcodegen gen
 - Push Notifications  
 - Background Modes: **Voice over IP**, **Audio**, **Remote notifications**  
 
-`Align/Info.plist`: `ALIGN_API_BASE`, `ALIGN_SIGNALING_WS_BASE` (HTTPS / WSS de producție).
+`Align/Info.plist`: `ALIGN_API_BASE` (REST, ex. `https://chat.diebel.ro`) și `ALIGN_SIGNALING_WS_BASE` (WSS VPS, ex. `wss://ws.diebel.ro`) — **hosturi diferite**, la fel ca pe Vercel. Verificare: `curl -sS https://chat.diebel.ro/api/native-config`.
 
 `Align.entitlements`: `aps-environment` = `development` sau `production` după tipul build-ului (trebuie să corespundă cu certificatul APNs).
 

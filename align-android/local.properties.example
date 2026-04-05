@@ -1,0 +1,11 @@
+## Copiază în local.properties (NU comita). sdk.dir îl setează Android Studio.
+
+# sdk.dir=C:\\Users\\YOU\\AppData\\Local\\Android\\Sdk
+
+# Bază REST = același host ca în browser / NEXT_PUBLIC_APP_URL (ex. chat)
+align.apiBaseUrl=https://chat.diebel.ro/
+
+# WebSocket semnalizare = NEXT_PUBLIC_SIGNALING_WS_URL din Vercel (ex. ws subdomain), NU domeniul Vercel Next
+align.signalingWsUrl=wss://ws.diebel.ro
+
+# Verificare din PC: curl -sS https://chat.diebel.ro/api/native-config
