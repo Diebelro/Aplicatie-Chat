@@ -45,18 +45,23 @@ function resolveNextAuthUrlForBundle() {
   const pub = process.env.NEXT_PUBLIC_APP_URL?.trim();
   const dev = process.env.NODE_ENV !== "production";
 
-  if (
-    dev &&
-    explicit &&
-    /^https:\/\//i.test(explicit) &&
-    pub &&
-    /^http:\/\/(localhost|127\.0\.0\.1)/i.test(pub)
-  ) {
+  /**
+   * În dev, NEXTAUTH_URL=https://… (ex. tras de pe Vercel) + tab pe localhost → next-auth/react
+   * altfel încearcă sesiunea pe HTTPS producție → CLIENT_FETCH_ERROR + overlay Next peste tot UI-ul.
+   * Forțăm URL http local în bundle când NEXTAUTH_URL e HTTPS.
+   */
+  if (dev && explicit && /^https:\/\//i.test(explicit)) {
+    if (pub && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(pub)) {
+      console.warn(
+        "[next.config] Dev: NEXTAUTH_URL HTTPS + NEXT_PUBLIC_APP_URL local — client folosește %s.",
+        pub.replace(/\/$/, "")
+      );
+      return pub.replace(/\/$/, "");
+    }
     console.warn(
-      "[next.config] Dev: NEXTAUTH_URL era URL HTTPS de producție dar NEXT_PUBLIC_APP_URL e localhost — folosesc %s (vezi .env.example ca să pui manual NEXTAUTH_URL).",
-      pub.replace(/\/$/, "")
+      "[next.config] Dev: NEXTAUTH_URL este HTTPS (producție); pentru next-auth/react folosesc http://localhost:3005. Adaugă în .env.local: NEXTAUTH_URL=http://localhost:3005 și NEXT_PUBLIC_APP_URL=http://localhost:3005 (aliniază cu portul dev)."
     );
-    return pub.replace(/\/$/, "");
+    return "http://localhost:3005";
   }
   if (explicit) {
     let e = explicit.replace(/\/$/, "");
@@ -111,6 +116,13 @@ const nextConfig = {
     return [
       { source: "/termeni", destination: "/terms", permanent: true },
       { source: "/confidentialitate", destination: "/privacy", permanent: true },
+      /** Fără acestea /api/auth/:provider clădea /api/auth/session (NextAuth). */
+      { source: "/api/auth/google", destination: "/api/auth/legacy/google", permanent: false },
+      { source: "/api/auth/apple", destination: "/api/auth/legacy/apple", permanent: false },
+      { source: "/api/auth/microsoft", destination: "/api/auth/legacy/microsoft", permanent: false },
+      { source: "/api/auth/facebook", destination: "/api/auth/legacy/facebook", permanent: false },
+      { source: "/api/auth/phone", destination: "/api/auth/legacy/phone", permanent: false },
+      { source: "/api/auth/yahoo", destination: "/api/auth/legacy/yahoo", permanent: false },
     ];
   },
   /**

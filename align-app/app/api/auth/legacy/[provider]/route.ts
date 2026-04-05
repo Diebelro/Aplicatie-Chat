@@ -3,7 +3,10 @@ import { NextResponse } from "next/server";
 
 const LEGACY = ["google", "apple", "microsoft", "facebook", "phone", "yahoo"];
 
-/** Map vechi /api/auth/google → flux NextAuth cu legare la sesiunea Align. */
+/**
+ * Entrypoint vechi /api/auth/google etc. — mutat sub /api/auth/legacy/:provider
+ * ca să nu clădească ruta dinamică [provider] peste /api/auth/session (NextAuth).
+ */
 const NEXT_AUTH_SLUG: Record<string, string> = {
   google: "google",
   apple: "apple",

@@ -54,12 +54,14 @@ export function CookieConsentModal({ onClose, onSave }: CookieConsentModalProps)
 
   const acceptAllLabel = get("accept");
 
+  /* Backdrop: rgba inline dacă utilitarul bg-black/60 nu se aplică — altfel rămâne un layer full-screen invizibil care captează click-urile. */
   return (
     <div
-      className="fixed inset-0 z-[101] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-[10050] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-labelledby="cookie-modal-title"
+      style={{ backgroundColor: "rgba(0,0,0,0.55)" }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div

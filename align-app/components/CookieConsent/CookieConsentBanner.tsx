@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { useI18n } from "@/lib/i18n/context";
 import { useCookieConsent, DEFAULT_CONSENT } from "@/contexts/CookieConsentContext";
 import { CookieConsentModal } from "./CookieConsentModal";
@@ -32,15 +33,15 @@ export function CookieConsentBanner() {
     });
   };
 
-  if (hasConsented || consent !== null) return null;
+  if (hasConsented) return null;
 
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 z-[100] border-t border-white/[0.08] bg-dark-900/98 backdrop-blur-lg shadow-[0_-8px_32px_rgba(0,0,0,0.35)]"
-      role="dialog"
+      className="fixed bottom-0 left-0 right-0 z-[100] isolate border-t border-white/[0.08] bg-dark-900/98 backdrop-blur-lg shadow-[0_-8px_32px_rgba(0,0,0,0.35)]"
+      role="region"
       aria-label="Cookie consent"
     >
-      <div className="mx-auto flex max-w-3xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:gap-4 sm:py-3.5">
+      <div className="mx-auto flex max-w-3xl max-h-[min(48vh,280px)] overflow-y-auto flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:gap-4 sm:py-3.5">
         <p className="flex-1 text-left text-xs leading-relaxed text-dark-400 sm:text-sm sm:leading-snug">
           {bannerText}
         </p>
@@ -67,7 +68,12 @@ export function CookieConsentBanner() {
 }
 
 function CookieConsentPreferencesButton({ preferencesLabel }: { preferencesLabel: string }) {
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
 
   return (
     <>

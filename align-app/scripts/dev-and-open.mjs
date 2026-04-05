@@ -2,7 +2,7 @@
  * Pornește Next pe portul fix 3005 și deschide browserul când serverul răspunde.
  * URL: setează ALIGN_DEV_OPEN (ex. http://localhost:3005/admin/setup) sau implicit http://localhost:3005/
  */
-import { spawn, exec } from "node:child_process";
+import { spawn, spawnSync, exec } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import process from "node:process";
@@ -15,6 +15,20 @@ const openUrl = (process.env.ALIGN_DEV_OPEN || defaultUrl).trim();
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const isWin = process.platform === "win32";
 const npmBin = isWin ? "npm.cmd" : "npm";
+
+const guard = spawnSync(process.execPath, [path.join(root, "scripts", "env-guard.mjs"), "runtime"], {
+  cwd: root,
+  stdio: "inherit",
+  env: process.env,
+  shell: false,
+});
+if (guard.error) {
+  console.error(guard.error);
+  process.exit(1);
+}
+if (guard.status !== 0) {
+  process.exit(guard.status ?? 1);
+}
 
 function openBrowser(url) {
   const safe = url.replace(/"/g, "");

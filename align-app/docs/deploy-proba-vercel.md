@@ -48,6 +48,7 @@ Fără tabele create, login/signup pot da erori.
 
 ## 4. Verificare probă
 
+- După deploy: `GET /api/healthz` (JSON cu env/DB sanitizat) și `GET /api/db-ping` — vezi `DEPLOY-ONLINE.md` §4.
 - Deschide URL-ul Vercel → `/login` sau `/signup`.
 - Testează mesaje, hartă (HTTPS + locație), apeluri doar dacă ai setat variabilele WebRTC din `.env.example`.
 

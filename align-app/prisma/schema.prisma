@@ -3,8 +3,10 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  /// Conexiune directă (fără -pooler) — folosită de Prisma migrate / db push / introspect (recomandare Neon + Prisma).
+  directUrl = env("DIRECT_URL")
 }
 
 model User {

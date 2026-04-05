@@ -25,7 +25,7 @@ git push origin main
 
 1. Intră pe [vercel.com](https://vercel.com) → **Add New… → Project**.
 2. Importă repo-ul GitHub.
-3. **Root Directory** → **Edit** → setează **`align-app`** (obligatoriu dacă repo-ul conține și alte foldere).
+3. **Root Directory** → **Edit** → setează **`align-app`** (obligatoriu dacă repo-ul conține și alte foldere; rădăcina repo-ului Git este de obicei nivelul de deasupra folderului aplicației).
 4. Framework: Next.js (detectat automat).
 5. **Environment Variables** (Production) — pentru **`https://chat.diebel.ro`** (domeniul canonic al app-ului):
 
@@ -65,6 +65,81 @@ npx prisma migrate deploy
 Rulează asta de pe PC sau din orice mediu care poate ajunge la Neon **după** fiecare `git pull` care adaugă fișiere în `prisma/migrations/`.
 
 ## 4. După primul deploy
+
+- Verificare **automată** env + formă conexiuni Neon + ping DB (fără valori secrete în răspuns):
+  - **Health detaliat:** `https://chat.diebel.ro/api/healthz` (înlocuiește domeniul cu cel real al app-ului).
+  - **Doar DB:** `https://chat.diebel.ro/api/db-ping`
+  - **Ce indică „totul verde”:** în JSON, `ok: true`, `dbOk: true`, `expectedDbEnvProd: true`, `nextAuthSecretMinLengthOk: true`, `urlChecks.identical: true`, toate intrările din `requiredEnv` cu `set: true`, `dbChecks.neonPoolerShapeOk` nu este `false` (dacă folosești Neon), `dbChecks.*ContainsAmpEntity` ambele `false`. Lipsa variabilelor WebRTC (`webrtcChecks.*` false) **nu** face `ok` false — doar înseamnă că apelurile nu sunt configurate.
+  - Există și endpoint-ul simplu pentru uptime: `GET /api/health` (doar `ok` / `database` / `ms`).
+
+### Verificare automată end-to-end (recomandat după fiecare deploy)
+
+Din calculator, în folderul **`align-app`**:
+
+```bash
+node scripts/verify-production.mjs
+```
+
+**Ce face:** face `GET` la `/api/healthz` și `/api/db-ping` pe domeniul de producție și verifică strict:
+
+- `/api/healthz`: status **200**, `Content-Type` conține **application/json**, `ok === true`, `dbOk === true`, `urlChecks.identical === true`
+- `/api/db-ping`: status **200**, `dbOk === true`
+
+**Dacă răspunsul e HTML** (ex. pagina 404 din `app/not-found.tsx`), scriptul raportează explicit că **domeniul nu servește rutele API așteptate** (proiect Vercel greșit, Root Directory, sau URL greșit).
+
+**URL alt decât implicit** `https://chat.diebel.ro`:
+
+```bash
+VERIFY_PRODUCTION_BASE_URL=https://nume-proiect.vercel.app node scripts/verify-production.mjs
+```
+
+**Commit Git pe Vercel** (opțional): dacă deployment-ul are `VERCEL_GIT_COMMIT_SHA`, `/api/healthz` include câmpul `gitSha`. Poți forța potrivirea cu commitul tău local:
+
+```bash
+VERIFY_EXPECTED_GIT_SHA=$(git rev-parse HEAD) node scripts/verify-production.mjs
+```
+
+Pe Windows PowerShell:
+
+```powershell
+$env:VERIFY_EXPECTED_GIT_SHA = (git rev-parse HEAD); node scripts/verify-production.mjs
+```
+
+**Output OK:** linia `✅ PROD OK` și exit code **0**.  
+**Output eșuat:** `❌ PROD NOT READY` cu motive pe bullet-uri și exit code **1** (potrivit pentru CI).
+
+### Verificare WebRTC (token + ICE/TURN) în producție
+
+**Endpoint:** `GET /api/webrtc-full-check` — necesită **sesiune autentificată** (același cookie ca în browser după login). Răspunsul este **JSON sanitizat**: nu conține token WS, parole sau credențiale ICE.
+
+**Ce verifică (doar partea Vercel / Next):** apelarea logicii echivalente cu `/api/call/signaling-token` și `/api/call/ice-config`, plus prezența **amânduror** `TURN_STATIC_SECRET` și `TURN_AUTH_SECRET`. Nu verifică dacă **coturn** sau procesul de **semnalizare pe VPS** rulează sau sunt accesibile în rețea — doar că variabilele și rutele API sunt coerente.
+
+**Interpretare rapidă:**
+
+| `step` în răspuns | Acțiune |
+|-------------------|---------|
+| `auth` | Nu ești logat — deschide app-ul în browser sau pune cookie-ul la script (vezi mai jos). |
+| `signaling-token` | Verifică `TURN_AUTH_SECRET` (≥16), `SIGNALING_TOKEN_SECRET` sau `NEXTAUTH_SECRET` (≥16). |
+| `ice-config` | Verifică `NEXT_PUBLIC_TURN_URLS` (JSON cu cel puțin un `turn:` / `turns:`), `TURN_REALM`, `TURN_STATIC_SECRET`. |
+| `secrets` | Setează **ambele** `TURN_STATIC_SECRET` și `TURN_AUTH_SECRET` (altfel apeluri pot pica parțial). |
+
+**Script local (din `align-app`):**
+
+```bash
+npm run verify:webrtc
+```
+
+Cookie de sesiune (din DevTools → Application → Cookies, după login pe domeniul de producție), ex.:
+
+```bash
+VERIFY_WEBRTC_COOKIE="next-auth.session-token=PASTE_TOKEN" npm run verify:webrtc
+```
+
+*Notă:* numele exact al cookie-ului poate fi `__Secure-next-auth.session-token` pe HTTPS; poți pune **întreg** header-ul `Cookie` dacă ai mai multe cookie-uri de sesiune.
+
+**Output:** `✅ WEBRTC OK` și exit **0** dacă `ok: true`; `❌ WEBRTC FAIL at <pas>` și exit **1** altfel.
+
+**Verdict unic „app pregătită, așteaptă VPS”:** `GET /api/webrtc-ready-check` + `npm run verify:webrtc:final` — vezi **`docs/WEBRTC-FINAL.md`**.
 
 - Deschide URL-ul Vercel și testează login/signup.
 - Dacă ai erori la build: verifică că `DATABASE_URL` e setat **înainte** de build (în Vercel → Settings → Environment Variables) și că IP-ul DB permite conexiuni (Neon/Supabase permit de obicei de oriunde).

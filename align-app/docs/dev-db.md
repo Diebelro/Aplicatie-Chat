@@ -1,5 +1,7 @@
 # Bază de date în development
 
+- **Conexiuni Neon:** `DATABASE_URL` (pooled) + `DIRECT_URL` (direct) — vezi `.env.example`. Guardrails: `scripts/env-guard.mjs` (la `npm run dev`, `db:*`). Recuperare date: [RECOVERY.md](./RECOVERY.md).
+
 ## Prisma vs. memorie
 
 - **În dev, dacă există `DATABASE_URL`, scriem în DB (nu în memorie).** Aplicația folosește Prisma la fel ca în producție, astfel că utilizatorii și datele persistă după repornirea `npm run dev`.

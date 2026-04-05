@@ -32,6 +32,16 @@ Pe VPS (ex. Hetzner), lângă coturn:
 
 Standard **nu** funcționează: Vercel nu face upgrade WS la handlerul Next. Folosește subdomeniu dedicat (ex. `ws.diebel.ro`) sau un reverse proxy pe VPS care mapează `/api/ws` către backend-ul de semnalizare.
 
+## Agregator configurare — `GET /api/webrtc-full-check`
+
+Verificare **automată** (cu sesiune logată): token de semnalizare, ICE/TURN din API, și consistența `TURN_STATIC_SECRET` + `TURN_AUTH_SECRET`. Detalii și script: **`DEPLOY-ONLINE.md`** (`npm run verify:webrtc`).
+
+**Limitare:** nu verifică dacă coturn sau serverul WebSocket pe VPS rulează — doar că aplicația Vercel este configurată corect pentru aceste rute.
+
+## Verdict final doar din app — `GET /api/webrtc-ready-check`
+
+Răspuns compact: `readyFromApp`, `missingFromApp`, `summary: APP_READY_WAITING_FOR_VPS | APP_NOT_READY`. Script: `npm run verify:webrtc:final`. Documentație: **`WEBRTC-FINAL.md`**.
+
 ## Test relay (TURN) — `chrome://webrtc-internals`
 
 1. Deschide apelul în Chrome.

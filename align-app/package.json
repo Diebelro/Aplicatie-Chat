@@ -31,7 +31,10 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "db:ensure-contact": "ts-node --project scripts/tsconfig.json scripts/ensure-contact-user.ts",
-    "db:grant-admin": "npx --yes dotenv-cli@8 -e .env -e .env.local -- node scripts/grant-admin.mjs"
+    "db:grant-admin": "npx --yes dotenv-cli@8 -e .env -e .env.local -- node scripts/grant-admin.mjs",
+    "bootstrap": "node scripts/run-bootstrap.mjs",
+    "cleanup": "node scripts/run-cleanup.mjs",
+    "cleanup:users": "node scripts/cleanup-users.mjs"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
