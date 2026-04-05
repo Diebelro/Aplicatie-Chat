@@ -1,5 +1,7 @@
 # Semnalizare pe VPS — copy-paste (ws.diebel.ro / port 4001)
 
+**De pe PC (înainte de SSH):** `cd align-app && npm run verify:calls` — verifică env Vercel + `https://…/health` la hostul din `NEXT_PUBLIC_SIGNALING_WS_URL`.
+
 Eu (în Cursor) **nu pot** intra pe serverul tău. În repo am pus scriptul care automatizează **npm ci**, **.env.signaling**, **systemd**. Tu rulezi comenzile de mai jos pe **SSH (VPS)**.
 
 ## 0) O singură dată — cod pe server
