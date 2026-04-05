@@ -116,6 +116,11 @@ class WebRtcCallSession(
 
         scope.launch {
             try {
+                if (isCaller) {
+                    withContext(Dispatchers.IO) {
+                        api.ringCallee(sessionToken, myUserId, remoteUserId, roomId, audioOnly)
+                    }
+                }
                 val iceServers = api.fetchIceServers(sessionToken, myUserId)
                 val sigTok = api.fetchSignalingToken(sessionToken, myUserId)
                 val wsUrl = buildSignalingUrl(signalingUrlBase, sigTok)

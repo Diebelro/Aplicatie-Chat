@@ -35,6 +35,26 @@ enum AlignAPI {
         return arr
     }
 
+    static func ringCallee(session: String, userId: String, toId: String, roomId: String, audioOnly: Bool) async throws {
+        let url = URL(string: "\(AlignConfig.apiBase)/api/call/ring")!
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.addValue(session, forHTTPHeaderField: "x-session-token")
+        req.addValue(userId, forHTTPHeaderField: "x-user-id")
+        let body: [String: Any] = [
+            "toId": toId,
+            "roomId": roomId,
+            "audioOnly": audioOnly,
+        ]
+        req.httpBody = try JSONSerialization.data(withJSONObject: body)
+        let (data, res) = try await URLSession.shared.data(for: req)
+        guard let http = res as? HTTPURLResponse else { throw AlignAPIError.decode }
+        guard (200 ..< 300).contains(http.statusCode) else {
+            throw AlignAPIError.badStatus(http.statusCode, String(data: data, encoding: .utf8) ?? "")
+        }
+    }
+
     static func registerVoipToken(session: String, userId: String, voipToken: String) async throws {
         let url = URL(string: "\(AlignConfig.apiBase)/api/me/push-token")!
         var req = URLRequest(url: url)

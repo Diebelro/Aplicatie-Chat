@@ -1,5 +1,6 @@
 package ro.align.app
 
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -9,6 +10,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import ro.align.app.call.CallActivity
 import ro.align.app.data.SessionStore
 import ro.align.app.databinding.ActivityMainBinding
 import ro.align.app.net.AlignApi
@@ -33,6 +35,30 @@ class MainActivity : AppCompatActivity() {
             store.userId = binding.inputUserId.text?.toString()?.trim().orEmpty()
             store.sessionToken = binding.inputSession.text?.toString()?.trim().orEmpty()
             Toast.makeText(this, "Salvat.", Toast.LENGTH_SHORT).show()
+        }
+
+        binding.btnStartOutgoingCall.setOnClickListener {
+            val uid = store.userId?.trim().orEmpty()
+            val remote = binding.inputRemoteUserId.text?.toString()?.trim().orEmpty()
+            if (uid.isEmpty() || remote.isEmpty()) {
+                Toast.makeText(this, "Completează userId, sesiunea și ID-ul sunat.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            if (uid == remote) {
+                Toast.makeText(this, "ID-ul sunat trebuie să fie alt cont.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            val sorted = listOf(uid, remote).sorted()
+            val roomId = "align-${sorted[0]}__${sorted[1]}"
+            val audioOnly = binding.checkAudioOnlyCall.isChecked
+            startActivity(
+                Intent(this, CallActivity::class.java).apply {
+                    putExtra(CallActivity.EXTRA_ROOM_ID, roomId)
+                    putExtra(CallActivity.EXTRA_REMOTE_USER_ID, remote)
+                    putExtra(CallActivity.EXTRA_AUDIO_ONLY, audioOnly)
+                    putExtra(CallActivity.EXTRA_IS_CALLER, true)
+                },
+            )
         }
 
         binding.btnRegisterFcm.setOnClickListener {

@@ -72,10 +72,8 @@ final class ActiveCallViewController: UIViewController {
                 self?.present(a, animated: true)
             }
         }
-        mgr.startCallee(
-            roomId: meta.roomId,
-            remoteUserId: meta.remoteUserId,
-            audioOnly: meta.audioOnly,
+        mgr.start(
+            meta: meta,
             session: s,
             myUserId: u,
             localView: meta.audioOnly ? nil : localView,

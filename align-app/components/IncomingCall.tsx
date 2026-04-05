@@ -13,6 +13,12 @@ import { isBrowserPushPrimaryPath } from "@/lib/browserPushConstants";
 const POLL_MS_VISIBLE = 1200;
 /** Filă în fundal: mai rare ca să nu omoare bateria; la revenire facem fetch imediat. */
 const POLL_MS_HIDDEN = 5000;
+/**
+ * Cu Web Push marcat „primar”, evităm poll-ul agresiv — dar push-ul poate să nu livreze (tab deschis, permisiuni).
+ * Un poll lent păstrează UX-ul „te sună” fără să depindem 100% de notificare.
+ */
+const POLL_MS_PUSH_FALLBACK_VISIBLE = 10_000;
+const POLL_MS_PUSH_FALLBACK_HIDDEN = 20_000;
 
 interface IncomingCallData {
   fromId: string;
@@ -93,14 +99,15 @@ export default function IncomingCall() {
     };
 
     /**
-     * Cu Web Push + SW activ (semnal în sessionStorage), nu facem poll continuu pentru apel critic —
-     * utilizatorul e nudgat prin notificare; la revenire în tab prindem starea din server.
+     * Cu Web Push activ folosim poll lent de siguranță; fără push rămâne poll-ul mai des.
      */
     const scheduleAfterFetchCycle = () => {
       if (cancelled) return;
-      if (isBrowserPushPrimaryPath()) return;
-      const ms =
-        typeof document !== "undefined" && document.visibilityState === "visible"
+      const ms = isBrowserPushPrimaryPath()
+        ? typeof document !== "undefined" && document.visibilityState === "visible"
+          ? POLL_MS_PUSH_FALLBACK_VISIBLE
+          : POLL_MS_PUSH_FALLBACK_HIDDEN
+        : typeof document !== "undefined" && document.visibilityState === "visible"
           ? POLL_MS_VISIBLE
           : POLL_MS_HIDDEN;
       pollTimerRef.current = window.setTimeout(() => {

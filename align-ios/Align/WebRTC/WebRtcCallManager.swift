@@ -27,28 +27,26 @@ final class WebRtcCallManager: NSObject, RTCPeerConnectionDelegate {
     var onEnded: (() -> Void)?
     var onError: ((String) -> Void)?
 
-    func startCallee(
-        roomId: String,
-        remoteUserId: String,
-        audioOnly: Bool,
+    func start(
+        meta: PendingCallMetadata,
         session: String,
         myUserId: String,
         localView: RTCMTLVideoView?,
         remoteView: RTCMTLVideoView?
     ) {
-        self.roomId = roomId
-        self.remoteUserId = remoteUserId
+        roomId = meta.roomId
+        remoteUserId = meta.remoteUserId
         self.myUserId = myUserId
-        self.sessionToken = session
-        self.isCaller = false
-        self.audioOnly = audioOnly
-        self.localVideoView = localView
-        self.remoteVideoView = remoteView
+        sessionToken = session
+        isCaller = meta.isCaller
+        audioOnly = meta.audioOnly
+        localVideoView = localView
+        remoteVideoView = remoteView
 
         signaling.onJson = { [weak self] json in self?.handleSignaling(json) }
         signaling.onConnected = { [weak self] in
             guard let self else { return }
-            self.signaling.sendJoin(roomId: self.roomId, userId: self.myUserId, isCaller: self.isCaller)
+            self.signaling.sendJoin(roomId: roomId, userId: myUserId, isCaller: isCaller)
             self.startHeartbeat()
         }
 
@@ -57,6 +55,15 @@ final class WebRtcCallManager: NSObject, RTCPeerConnectionDelegate {
 
     private func runStart() async {
         do {
+            if isCaller {
+                try await AlignAPI.ringCallee(
+                    session: sessionToken,
+                    userId: myUserId,
+                    toId: remoteUserId,
+                    roomId: roomId,
+                    audioOnly: audioOnly
+                )
+            }
             let iceJson = try await AlignAPI.fetchIceServers(session: sessionToken, userId: myUserId)
             let sigTok = try await AlignAPI.fetchSignalingToken(session: sessionToken, userId: myUserId)
             guard let wsURL = buildSignalingURL(base: AlignConfig.signalingWsBase, token: sigTok) else {

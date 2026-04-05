@@ -4,6 +4,8 @@ struct PendingCallMetadata: Equatable {
     let roomId: String
     let remoteUserId: String
     let audioOnly: Bool
+    /** true = apel ieșitor (trebuie `/api/call/ring` înainte de WebSocket). */
+    let isCaller: Bool
 }
 
 /// UUID CallKit → meta pentru WebRTC după răspuns.

@@ -46,7 +46,7 @@ final class VoipPushManager: NSObject, PKPushRegistryDelegate {
         let name = (d["callerName"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? "Align"
         let audioOnly = (d["audioOnly"] as? String) == "1"
         let uuid = UUID()
-        let meta = PendingCallMetadata(roomId: roomId, remoteUserId: callerId, audioOnly: audioOnly)
+        let meta = PendingCallMetadata(roomId: roomId, remoteUserId: callerId, audioOnly: audioOnly, isCaller: false)
         PendingCallStore.save(uuid: uuid, meta: meta)
 
         CallKitManager.shared.reportIncomingCall(

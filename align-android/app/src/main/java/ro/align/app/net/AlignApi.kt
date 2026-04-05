@@ -36,6 +36,35 @@ class AlignApi(
         }
     }
 
+    /**
+     * Anunță pe server că sunăm pe [toId] — înregistrează pending + trimite FCM/Web Push la callee.
+     * Fără asta, apelul din app nativ pornește doar WebSocket-ul și browserul nu vede „te sună”.
+     */
+    suspend fun ringCallee(
+        sessionToken: String,
+        userId: String,
+        toId: String,
+        roomId: String,
+        audioOnly: Boolean,
+    ) = withContext(Dispatchers.IO) {
+        val json = JSONObject()
+            .put("toId", toId)
+            .put("roomId", roomId)
+            .put("audioOnly", audioOnly)
+            .toString()
+        val body = json.toRequestBody(JSON_MEDIA)
+        val req = Request.Builder()
+            .url("$base/api/call/ring")
+            .header("x-session-token", sessionToken)
+            .header("x-user-id", userId)
+            .post(body)
+            .build()
+        client.newCall(req).execute().use { res ->
+            val resBody = res.body?.string().orEmpty()
+            if (!res.isSuccessful) throw ApiException("ring ${res.code}: $resBody")
+        }
+    }
+
     suspend fun fetchIceServers(sessionToken: String, userId: String): List<PeerConnection.IceServer> =
         withContext(Dispatchers.IO) {
             val req = Request.Builder()

@@ -69,6 +69,42 @@
             android:text="Înregistrează FCM la server" />
 
         <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="Apel ieșitor (către alt utilizator)"
+            android:textColor="@color/align_accent"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:hint="ID utilizator sunat">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/inputRemoteUserId"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="text" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.checkbox.MaterialCheckBox
+            android:id="@+id/checkAudioOnlyCall"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Doar audio" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnStartOutgoingCall"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Sună (trimite ring + WebRTC)" />
+
+        <TextView
             android:id="@+id/fcmStatus"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
