@@ -104,6 +104,11 @@ export type ProductionHealthzJson = {
   dbPing: { dbOk: boolean; ms?: number; error?: string };
   /** Pe Vercel: hash Git al deploymentului (VERCEL_GIT_COMMIT_SHA). Nu e secret — ajută la verificarea commitului. */
   gitSha?: string;
+  /**
+   * Recomandări (nu blochează `ok` dacă DB răspunde). Ex.: Neon DIRECT_URL cu host `-pooler`
+   * — migrările ar trebui pe conexiune „Direct” fără pooler.
+   */
+  warnings?: string[];
 };
 
 export async function getProductionHealthzSnapshot(): Promise<ProductionHealthzJson> {
@@ -151,6 +156,12 @@ export async function getProductionHealthzSnapshot(): Promise<ProductionHealthzJ
     !containsLiteralAmpEntity(dbRaw) && !containsLiteralAmpEntity(dirRaw);
 
   const neonShapeFails = neonPoolerShapeOk === false;
+  const warnings: string[] = [];
+  if (neonShapeFails && (isLikelyNeonHost(dbHost) || isLikelyNeonHost(dirHost))) {
+    warnings.push(
+      "NEON_POOLER_SHAPE: folosește DATABASE_URL cu host `-pooler` și DIRECT_URL cu host direct Neon (fără `-pooler`) pentru migrări și advisory locks."
+    );
+  }
 
   const expectedDbEnvProd =
     (process.env.EXPECTED_DB_ENV ?? "").trim().toLowerCase() === "prod";
@@ -163,7 +174,6 @@ export async function getProductionHealthzSnapshot(): Promise<ProductionHealthzJ
     identical &&
     noAmp &&
     dbPing.dbOk &&
-    !neonShapeFails &&
     expectedDbEnvProd &&
     nextAuthSecretMinLengthOk;
 
@@ -193,5 +203,6 @@ export async function getProductionHealthzSnapshot(): Promise<ProductionHealthzJ
     },
     dbPing,
     ...(deployGitSha ? { gitSha: deployGitSha } : {}),
+    ...(warnings.length ? { warnings } : {}),
   };
 }
