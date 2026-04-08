@@ -7,6 +7,8 @@ import { Send, Video, Phone, Check, Loader2, Paperclip, X, FileText, MapPin } fr
 import type { Gender, User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
 import { getVideoRoomId } from "@/lib/videoCall";
+import type { RingNotifySnapshot } from "@/lib/callRingNotifySnapshot";
+import { formatRingNotifyHint } from "@/lib/callRingNotifySnapshot";
 import { track } from "@/lib/tracking";
 import { displayName } from "@/lib/displayName";
 import { getAuthHeaders, fetchWithAuthRetry } from "@/lib/authClient";
@@ -194,6 +196,8 @@ export default function ChatPage() {
   const [sendError, setSendError] = useState<string | null>(null);
   const [isPaywallError, setIsPaywallError] = useState(false);
   const [calling, setCalling] = useState<"video" | "audio" | null>(null);
+  /** Afișat după ring reușit dacă push către destinatar probabil lipsește. */
+  const [ringPushHint, setRingPushHint] = useState<string | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
   const [pendingAttachment, setPendingAttachment] = useState<{
     url: string;
@@ -864,6 +868,7 @@ export default function ChatPage() {
     async (audioOnly: boolean) => {
       if (!callerId) return;
       setSendError(null);
+      setRingPushHint(null);
       setCalling(audioOnly ? "audio" : "video");
       try {
         const res = await fetchWithAuthRetry("/api/call/ring", {
@@ -876,6 +881,12 @@ export default function ChatPage() {
           const raw = String(j.error ?? "").trim();
           setSendError(translateApiErrorMessage(raw, tStr) || raw || tStr("pages.chat.errGeneric"));
           return;
+        }
+        const j = (await res.json().catch(() => ({}))) as { notify?: RingNotifySnapshot };
+        const pushHint = formatRingNotifyHint(j.notify);
+        if (pushHint) {
+          setRingPushHint(pushHint);
+          await new Promise((r) => setTimeout(r, 2200));
         }
         const qs = audioOnly ? "?audio=1&from=ring" : "?from=ring";
         router.push(`/app/call/${getVideoRoomId(callerId, otherId)}${qs}`);
@@ -1018,6 +1029,11 @@ export default function ChatPage() {
                   <span className="text-sm font-medium">{tStr("pages.chat.audio")}</span>
                 </button>
               </>
+            )}
+            {ringPushHint && (
+              <p className="w-full text-xs text-amber-400/95 leading-snug mt-1" role="status">
+                {ringPushHint}
+              </p>
             )}
           </div>
         )}
@@ -1307,6 +1323,11 @@ export default function ChatPage() {
       </div>
 
       <form onSubmit={sendMessage} className="flex flex-col gap-2 pt-4 shrink-0 pb-[env(safe-area-inset-bottom,0)]">
+        {ringPushHint && (
+          <p className="text-xs text-amber-400/95 leading-snug" role="status">
+            {ringPushHint}
+          </p>
+        )}
         {sendError && (
           <div className="flex flex-col gap-2">
             <p className="text-red-400 text-sm" role="alert">

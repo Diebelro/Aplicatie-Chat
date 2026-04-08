@@ -77,7 +77,9 @@ Setează **identic** în **Production** și **Preview** pe Vercel (dacă vrei ap
 ```env
 NEXT_PUBLIC_SIGNALING_WS_URL="wss://ws.diebel.ro/ws"
 NEXT_PUBLIC_TURN_URLS='["stun:turn.diebel.ro:3478","turn:turn.diebel.ro:3478?transport=udp","turns:turn.diebel.ro:5349?transport=tcp"]'
-TURN_AUTH_SECRET=<ACELAȘI_SECRET_CA_IN_COTURN_static-auth-secret>
+TURN_REALM=turn.diebel.ro
+TURN_STATIC_SECRET=<identic cu static-auth-secret din coturn; doar pe server — necesar pentru /api/call/ice-config>
+TURN_AUTH_SECRET=<≥16; de obicei aceeași valoare ca static-auth-secret>
 SIGNALING_TOKEN_SECRET=<min 16; aliniat cu VPS .env.signaling sau omită și folosește NEXTAUTH_SECRET>
 CALL_MAX_MINUTES=30
 CALL_MAX_BITRATE_DESKTOP=2500000

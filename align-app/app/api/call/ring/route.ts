@@ -6,6 +6,7 @@ import {
   isPrismaAvailable,
   prismaListFcmTokensForUser,
   prismaListVoipTokensForUser,
+  prismaListWebPushSubscriptionsForUser,
   prismaUpsertPendingIncomingCall,
 } from "@/lib/repo-prisma";
 import { isApnsVoipConfigured, sendIncomingCallVoipPush } from "@/lib/apnsVoipPush";
@@ -48,6 +49,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Utilizatorul sunat nu există." }, { status: 404 });
   }
   setPendingCall(toId, { fromId: me.id, roomId, audioOnly });
+  let notify:
+    | {
+        prisma: boolean;
+        fcm: { server: boolean; calleeDevices: number };
+        voip: { server: boolean; calleeDevices: number };
+        webPush: { server: boolean; calleeSubscriptions: number };
+      }
+    | undefined;
+
   if (isPrismaAvailable()) {
     try {
       await prismaUpsertPendingIncomingCall(toId, me.id, roomId, audioOnly);
@@ -56,34 +66,57 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  /** Android: FCM. iOS: APNs VoIP. Browser: Web Push (VAPID) + fallback ușor la /api/call/incoming când push lipsește. */
+  /** Android: FCM. iOS: APNs VoIP. Browser: Web Push (VAPID) + fallback la poll /api/call/incoming. */
   if (isPrismaAvailable()) {
     const callerName = me.name ?? me.username ?? "Apel";
     const pushData = { roomId, callerId: me.id, callerName, audioOnly };
-    if (isFcmConfigured()) {
+    const fcmServer = isFcmConfigured();
+    const voipServer = isApnsVoipConfigured();
+    const webServer = isWebPushConfigured();
+    let fcmCallee = 0;
+    let voipCallee = 0;
+    let webCallee = 0;
+    if (fcmServer) {
       try {
         const tokens = await prismaListFcmTokensForUser(toId);
+        fcmCallee = tokens.length;
         void sendIncomingCallDataPush(tokens, pushData);
       } catch (e) {
         console.error("[api/call/ring] FCM push", e);
       }
     }
-    if (isApnsVoipConfigured()) {
+    if (voipServer) {
       try {
         const voipTokens = await prismaListVoipTokensForUser(toId);
+        voipCallee = voipTokens.length;
         void sendIncomingCallVoipPush(voipTokens, pushData);
       } catch (e) {
         console.error("[api/call/ring] APNs VoIP push", e);
       }
     }
-    if (isWebPushConfigured()) {
+    if (webServer) {
       try {
+        const subs = await prismaListWebPushSubscriptionsForUser(toId);
+        webCallee = subs.length;
         void sendIncomingCallWebPush(toId, pushData);
       } catch (e) {
         console.error("[api/call/ring] Web Push", e);
       }
     }
+    notify = {
+      prisma: true,
+      fcm: { server: fcmServer, calleeDevices: fcmCallee },
+      voip: { server: voipServer, calleeDevices: voipCallee },
+      webPush: { server: webServer, calleeSubscriptions: webCallee },
+    };
+  } else {
+    notify = {
+      prisma: false,
+      fcm: { server: false, calleeDevices: 0 },
+      voip: { server: false, calleeDevices: 0 },
+      webPush: { server: false, calleeSubscriptions: 0 },
+    };
   }
 
-  return NextResponse.json({ ok: true, roomId });
+  return NextResponse.json({ ok: true, roomId, notify });
 }

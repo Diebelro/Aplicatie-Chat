@@ -7,6 +7,8 @@ import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
 import { fetchWithAuthRetry } from "@/lib/authClient";
 import { getVideoRoomId } from "@/lib/videoCall";
+import type { RingNotifySnapshot } from "@/lib/callRingNotifySnapshot";
+import { formatRingNotifyHint } from "@/lib/callRingNotifySnapshot";
 
 async function resolveMyIdForCall(): Promise<string | null> {
   const raw = getStoredUserRaw();
@@ -62,6 +64,12 @@ export function QuickCallButtons({ toUserId, size = "md", className = "" }: Quic
         const msg = typeof j.error === "string" && j.error.trim() ? j.error.trim() : "Nu am putut porni apelul.";
         setCallHint(msg);
         return;
+      }
+      const j = (await res.json().catch(() => ({}))) as { notify?: RingNotifySnapshot };
+      const pushHint = formatRingNotifyHint(j.notify);
+      if (pushHint) {
+        setCallHint(pushHint);
+        await new Promise((r) => setTimeout(r, 2200));
       }
       router.push(`/app/call/${getVideoRoomId(myId, toUserId)}${audioOnly ? "?audio=1&from=ring" : "?from=ring"}`);
     } catch {

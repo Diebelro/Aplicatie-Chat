@@ -23,6 +23,12 @@ import {
   parseSignalingIncoming,
   coerceSignalingWsBaseForSecureContext,
 } from "@/lib/webrtc/signaling";
+
+/** Cerere explicită receive audio+video la ofertă — aliniat cu `ensurePeer` (conferință); fără asta unele browsere negociază incomplet video 1-la-1. */
+const P2P_OFFER_MEDIA: RTCOfferOptions = {
+  offerToReceiveAudio: true,
+  offerToReceiveVideo: true,
+};
 import {
   getWebrtcPublicConfig,
   getPublicSignalingWsBaseUrl,
@@ -759,10 +765,7 @@ export function useWebRtcCall({
         for (const [peerId, { pc }] of peerMapRef.current) {
           if (userId >= peerId) continue;
           try {
-            const offer = await pc.createOffer({
-              offerToReceiveAudio: true,
-              offerToReceiveVideo: true,
-            });
+            const offer = await pc.createOffer(P2P_OFFER_MEDIA);
             await pc.setLocalDescription(offer);
             w.send(JSON.stringify({ t: "offer", sdp: offer.sdp ?? "", to: peerId }));
           } catch {
@@ -823,10 +826,7 @@ export function useWebRtcCall({
 
         if (shouldOffer) {
           try {
-            const offer = await pc.createOffer({
-              offerToReceiveAudio: true,
-              offerToReceiveVideo: true,
-            });
+            const offer = await pc.createOffer(P2P_OFFER_MEDIA);
             await pc.setLocalDescription(offer);
             ws.send(JSON.stringify({ t: "offer", sdp: offer.sdp ?? "", to: remoteUserId }));
           } catch {
@@ -1158,10 +1158,7 @@ export function useWebRtcCall({
         const to = remoteIdRef.current;
         if (!p || !w || w.readyState !== WebSocket.OPEN || cancelled || !to) return;
         try {
-          const offer = await p.createOffer({
-            offerToReceiveAudio: true,
-            offerToReceiveVideo: true,
-          });
+          const offer = await p.createOffer(P2P_OFFER_MEDIA);
           await p.setLocalDescription(offer);
           console.info("[SIGNALING] outbound offer");
           w.send(JSON.stringify({ t: "offer", sdp: offer.sdp ?? "", to }));
@@ -1278,7 +1275,7 @@ export function useWebRtcCall({
             const to = remoteIdRef.current;
             if (cancelled || ws.readyState !== WebSocket.OPEN || !to) return;
             try {
-              const offer = await pc.createOffer({ iceRestart: true });
+              const offer = await pc.createOffer({ ...P2P_OFFER_MEDIA, iceRestart: true });
               await pc.setLocalDescription(offer);
               console.info("[SIGNALING] outbound offer (iceRestart)");
               ws.send(JSON.stringify({ t: "offer", sdp: offer.sdp ?? "", to }));
@@ -1324,7 +1321,7 @@ export function useWebRtcCall({
         const to = remoteIdRef.current;
         if (!to) return;
         try {
-          const offer = await pc.createOffer();
+          const offer = await pc.createOffer(P2P_OFFER_MEDIA);
           await pc.setLocalDescription(offer);
           console.info("[SIGNALING] outbound offer (initial)");
           ws.send(JSON.stringify({ t: "offer", sdp: offer.sdp ?? "", to }));
