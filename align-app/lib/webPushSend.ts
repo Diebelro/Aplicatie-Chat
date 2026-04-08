@@ -5,7 +5,7 @@
 
 import { getPublicAppUrl } from "@/lib/appUrl";
 import { prismaDeleteWebPushSubscription, prismaListWebPushSubscriptionsForUser } from "@/lib/repo-prisma";
-import { getVapidSubject } from "@/lib/webPushEnv";
+import { getVapidPrivateKey, getVapidPublicKey, getVapidSubject } from "@/lib/webPushEnv";
 
 export type IncomingCallWebPushPayload = {
   roomId: string;
@@ -18,8 +18,8 @@ export async function sendIncomingCallWebPush(
   calleeUserId: string,
   data: IncomingCallWebPushPayload
 ): Promise<{ sent: number; failed: number }> {
-  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY?.trim();
-  const privateKey = process.env.VAPID_PRIVATE_KEY?.trim();
+  const publicKey = getVapidPublicKey();
+  const privateKey = getVapidPrivateKey();
   if (!publicKey || !privateKey) {
     if (process.env.NODE_ENV !== "production") {
       console.warn("[webPushSend] VAPID neconfigurat");

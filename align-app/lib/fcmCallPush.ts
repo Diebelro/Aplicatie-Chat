@@ -7,13 +7,13 @@
 
 import type { App } from "firebase-admin/app";
 import type { Messaging } from "firebase-admin/messaging";
+import { normalizeMultilineEnv } from "@/lib/env/normalizeMultilineEnv";
 
 let adminApp: App | null = null;
 let messaging: Messaging | null = null;
 
 function getPrivateKey(): string {
-  const raw = process.env.FIREBASE_PRIVATE_KEY ?? "";
-  return raw.replace(/\\n/g, "\n");
+  return normalizeMultilineEnv(process.env.FIREBASE_PRIVATE_KEY);
 }
 
 export function isFcmConfigured(): boolean {

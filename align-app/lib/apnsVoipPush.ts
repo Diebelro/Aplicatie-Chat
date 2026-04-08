@@ -8,9 +8,10 @@
 
 import http2 from "node:http2";
 import jwt from "jsonwebtoken";
+import { normalizeMultilineEnv } from "@/lib/env/normalizeMultilineEnv";
 
 function apnsPrivateKey(): string {
-  return (process.env.APNS_PRIVATE_KEY ?? "").replace(/\\n/g, "\n");
+  return normalizeMultilineEnv(process.env.APNS_PRIVATE_KEY);
 }
 
 export function isApnsVoipConfigured(): boolean {
