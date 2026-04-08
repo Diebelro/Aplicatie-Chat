@@ -8,7 +8,7 @@ import type { Gender, User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
 import { getVideoRoomId } from "@/lib/videoCall";
 import type { RingNotifySnapshot } from "@/lib/callRingNotifySnapshot";
-import { formatRingNotifyHint } from "@/lib/callRingNotifySnapshot";
+import { RING_PUSH_HINT_DELAY_MS, formatRingNotifyHint } from "@/lib/callRingNotifySnapshot";
 import { track } from "@/lib/tracking";
 import { displayName } from "@/lib/displayName";
 import { getAuthHeaders, fetchWithAuthRetry } from "@/lib/authClient";
@@ -886,7 +886,7 @@ export default function ChatPage() {
         const pushHint = formatRingNotifyHint(j.notify);
         if (pushHint) {
           setRingPushHint(pushHint);
-          await new Promise((r) => setTimeout(r, 2200));
+          await new Promise((r) => setTimeout(r, RING_PUSH_HINT_DELAY_MS));
         }
         const qs = audioOnly ? "?audio=1&from=ring" : "?from=ring";
         router.push(`/app/call/${getVideoRoomId(callerId, otherId)}${qs}`);

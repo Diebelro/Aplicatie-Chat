@@ -7,7 +7,13 @@ export type RingNotifySnapshot = {
   webPush: { server: boolean; calleeSubscriptions: number };
 };
 
-/** Mesaj scurt pentru UI dacă notificările către destinatar probabil lipsesc. */
+/** Timp scurt ca utilizatorul să vadă avertismentul înainte de navigare către sala de apel. */
+export const RING_PUSH_HINT_DELAY_MS = 650;
+
+/**
+ * Mesaj scurt: doar despre **push în fundal**, nu despre WebRTC în sine.
+ * Apelul audio/video poate merge dacă amândoi au Align deschis (polling / UI), fără FCM.
+ */
 export function formatRingNotifyHint(n: RingNotifySnapshot | null | undefined): string | null {
   if (!n || !n.prisma) return null;
   const hasCallee =
@@ -15,7 +21,7 @@ export function formatRingNotifyHint(n: RingNotifySnapshot | null | undefined): 
   if (hasCallee) return null;
   const anyServer = n.fcm.server || n.voip.server || n.webPush.server;
   if (!anyServer) {
-    return "Serverul nu are configurate FCM (Android), APNs VoIP (iOS) sau Web Push (browser) — nimeni nu primește „apel primit” în fundal. Verifică variabilele de mediu pe Vercel.";
+    return "Notificări în fundal: pe Vercel nu sunt setate FCM, APNs VoIP sau Web Push — celălalt nu primește alertă dacă nu are Align deschis. Apelul merge în continuare dacă amândoi sunteți în app; configurează push pentru sunat când e în altă aplicație.";
   }
-  return "Destinatarul nu are niciun dispozitiv înregistrat pentru notificări. Pe Android: Align → Înregistrează FCM. În browser: permite notificările pentru site. Dacă destinatarul are deja deschis Align în conversație, poate vedea apelul fără push.";
+  return "Destinatarul nu are dispozitiv înregistrat pentru notificări — poate să nu vadă apelul cu app în fundal. Cu chat deschis merge fără push. Android: FCM. Browser: notificări + Web Push.";
 }
