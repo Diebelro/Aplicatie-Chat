@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
       fromName: fromUser?.name ?? fromUser?.username ?? "Cineva",
       roomId: pending.roomId,
       audioOnly: pending.audioOnly,
+      pendingSince: pending.pendingSince,
     },
   });
 }

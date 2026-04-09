@@ -9,7 +9,13 @@ import {
   prismaDeletePendingIncomingByRoomId,
 } from "@/lib/repo-prisma";
 
-export type PendingIncomingPayload = { fromId: string; roomId: string; audioOnly: boolean };
+export type PendingIncomingPayload = {
+  fromId: string;
+  roomId: string;
+  audioOnly: boolean;
+  /** ISO timestamp — se schimbă la fiecare ring nou (upsert DB); clientul ignoră doar același ring respins. */
+  pendingSince: string;
+};
 
 export async function getPendingIncomingForCallee(toUserId: string): Promise<PendingIncomingPayload | null> {
   if (isPrismaAvailable()) {
@@ -17,7 +23,9 @@ export async function getPendingIncomingForCallee(toUserId: string): Promise<Pen
     if (db) return db;
   }
   const m = getPendingCall(toUserId);
-  return m ? { fromId: m.fromId, roomId: m.roomId, audioOnly: m.audioOnly } : null;
+  return m
+    ? { fromId: m.fromId, roomId: m.roomId, audioOnly: m.audioOnly, pendingSince: m.at }
+    : null;
 }
 
 export async function clearPendingIncomingForCallee(toUserId: string): Promise<void> {

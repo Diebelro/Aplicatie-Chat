@@ -6,7 +6,7 @@ import Link from "next/link";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
 import { getAuthHeaders, fetchWithAuthRetry } from "@/lib/authClient";
-import { markIncomingCallDismissed } from "@/lib/callIncomingDismiss";
+import { clearIncomingRingDismissFilter } from "@/lib/callIncomingDismiss";
 import { canAccessRoom, isConferenceRoomId } from "@/lib/videoCall";
 import { displayName } from "@/lib/displayName";
 import CallUI from "@/components/CallUI";
@@ -155,7 +155,7 @@ export default function CallPage() {
     return () => {
       window.clearTimeout(tid);
       if (!armed) return;
-      markIncomingCallDismissed(roomId);
+      clearIncomingRingDismissFilter();
       if (!callSessionStartedRef.current) {
         void fetch("/api/call/reject", {
           method: "POST",
@@ -183,7 +183,7 @@ export default function CallPage() {
   useEffect(() => {
     const body = JSON.stringify({ roomId });
     const flush = () => {
-      markIncomingCallDismissed(roomId);
+      clearIncomingRingDismissFilter();
       if (!callSessionStartedRef.current) {
         try {
           void fetch("/api/call/reject", {
@@ -269,7 +269,7 @@ export default function CallPage() {
         if (typeof d.audioOnly === "boolean") {
           setResolvedAudioOnly(d.audioOnly);
         }
-        markIncomingCallDismissed(typeof d.roomId === "string" ? d.roomId : roomId);
+        clearIncomingRingDismissFilter();
         setCallStarted(true);
       })
       .catch(() => setPushGateError("Eroare rețea. Încearcă din nou."))
@@ -278,7 +278,7 @@ export default function CallPage() {
 
   const handlePushDecline = () => {
     setPushGateLoading(true);
-    markIncomingCallDismissed(roomId);
+    clearIncomingRingDismissFilter();
     fetch("/api/call/reject", {
       method: "POST",
       headers: getAuthHeaders(),

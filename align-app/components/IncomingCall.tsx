@@ -25,6 +25,8 @@ interface IncomingCallData {
   fromName: string;
   roomId: string;
   audioOnly: boolean;
+  /** ISO — unic per ring (server); lipsă la răspunsuri vechi. */
+  pendingSince?: string;
 }
 
 export default function IncomingCall() {
@@ -63,7 +65,7 @@ export default function IncomingCall() {
       .then((d) => {
         if (!d || typeof d !== "object") return;
         const inc = (d as { incoming?: IncomingCallData | null }).incoming as IncomingCallData | null | undefined;
-        if (inc?.roomId && shouldIgnorePolledIncoming(inc.roomId)) {
+        if (inc?.roomId && shouldIgnorePolledIncoming(inc.roomId, inc.pendingSince)) {
           setIncoming(null);
           void fetch("/api/call/end", {
             method: "POST",
@@ -175,7 +177,7 @@ export default function IncomingCall() {
     const onPopState = () => {
       const cur = incomingRef.current;
       if (!cur || cur.roomId !== roomId) return;
-      markIncomingCallDismissed(cur.roomId);
+      markIncomingCallDismissed(cur.roomId, cur.pendingSince);
       void fetch("/api/call/reject", {
         method: "POST",
         headers: getAuthHeaders(),
@@ -211,7 +213,7 @@ export default function IncomingCall() {
         if (d.roomId) {
           const q = d.audioOnly ? "?audio=1" : "";
           /** După accept, serverul curăță pending; marchează local ca să nu reapară overlay la poll între navigări. */
-          markIncomingCallDismissed(d.roomId);
+          markIncomingCallDismissed(d.roomId, incoming.pendingSince);
           /** Nu setIncoming(null) înainte de navigare — altfel dispare overlay-ul și se vede o clipă pagina de dedesubt (ex. mesaje). */
           router.push(`/app/call/${d.roomId}${q}`);
         } else {
@@ -226,7 +228,7 @@ export default function IncomingCall() {
     if (!incoming || loading) return;
     setActionError(null);
     setLoading(true);
-    markIncomingCallDismissed(incoming.roomId);
+    markIncomingCallDismissed(incoming.roomId, incoming.pendingSince);
     fetch("/api/call/reject", {
       method: "POST",
       headers: getAuthHeaders(),

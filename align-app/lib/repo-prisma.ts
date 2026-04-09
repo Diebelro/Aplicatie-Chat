@@ -2088,7 +2088,7 @@ export async function prismaUpsertPendingIncomingCall(
 
 export async function prismaGetPendingIncomingCall(
   toUserId: string
-): Promise<{ fromId: string; roomId: string; audioOnly: boolean } | null> {
+): Promise<{ fromId: string; roomId: string; audioOnly: boolean; pendingSince: string } | null> {
   try {
     const row = await prisma.pendingIncomingCall.findUnique({ where: { toUserId } });
     if (!row) return null;
@@ -2096,7 +2096,12 @@ export async function prismaGetPendingIncomingCall(
       await prisma.pendingIncomingCall.delete({ where: { toUserId } }).catch(() => {});
       return null;
     }
-    return { fromId: row.fromId, roomId: row.roomId, audioOnly: row.audioOnly };
+    return {
+      fromId: row.fromId,
+      roomId: row.roomId,
+      audioOnly: row.audioOnly,
+      pendingSince: row.createdAt.toISOString(),
+    };
   } catch {
     return null;
   }

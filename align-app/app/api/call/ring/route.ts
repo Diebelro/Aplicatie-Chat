@@ -66,6 +66,13 @@ export async function POST(request: NextRequest) {
       await prismaUpsertPendingIncomingCall(toId, me.id, roomId, audioOnly);
     } catch (e) {
       console.error("[api/call/ring] prismaUpsertPendingIncomingCall", e);
+      return NextResponse.json(
+        {
+          error:
+            "Serverul nu a putut înregistra apelul (bază de date). Verifică migrările și DATABASE_URL pe Vercel, apoi reîncearcă.",
+        },
+        { status: 503 }
+      );
     }
   }
 

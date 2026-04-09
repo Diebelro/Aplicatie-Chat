@@ -29,7 +29,7 @@ import {
 import { useWebRtcCall, type RemoteParticipant } from "@/hooks/useWebRtcCall";
 import { getAuthHeaders } from "@/lib/authClient";
 import { isScreenshareFeatureEnabled } from "@/lib/env/webrtcConfig";
-import { markIncomingCallDismissed } from "@/lib/callIncomingDismiss";
+import { clearIncomingRingDismissFilter } from "@/lib/callIncomingDismiss";
 import {
   DEFAULT_AUDIO_SINK,
   applyAudioSinkId,
@@ -215,7 +215,7 @@ export default function CallUI({
     isCaller,
     isConference,
     onAutoEnded: () => {
-      markIncomingCallDismissed(roomId);
+      clearIncomingRingDismissFilter();
       void fetch("/api/call/end", {
         method: "POST",
         headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
@@ -409,7 +409,7 @@ export default function CallUI({
 
   const handleLeave = () => {
     leave();
-    markIncomingCallDismissed(roomId);
+    clearIncomingRingDismissFilter();
     void (async () => {
       try {
         await fetch("/api/call/end", {
