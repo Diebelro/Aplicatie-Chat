@@ -8,7 +8,7 @@ export type RingNotifySnapshot = {
 };
 
 /** Timp scurt ca utilizatorul să vadă avertismentul înainte de navigare către sala de apel. */
-export const RING_PUSH_HINT_DELAY_MS = 650;
+export const RING_PUSH_HINT_DELAY_MS = 250;
 
 /**
  * Mesaj scurt: doar despre **push în fundal**, nu despre WebRTC în sine.
