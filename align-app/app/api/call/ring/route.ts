@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { setPendingCall } from "@/lib/store";
 import { getVideoRoomId } from "@/lib/videoCall";
 import {
-  findUserOrPrisma,
   isPrismaAvailable,
   prismaListFcmTokensForUser,
   prismaListVoipTokensForUser,
   prismaListWebPushSubscriptionsForUser,
   prismaUpsertPendingIncomingCall,
 } from "@/lib/repo-prisma";
+import { callApiCallerUserExists, resolveUserDtoForRing } from "@/lib/callCallerExists";
 import { isApnsVoipConfigured, sendIncomingCallVoipPush } from "@/lib/apnsVoipPush";
 import { isFcmConfigured, sendIncomingCallDataPush } from "@/lib/fcmCallPush";
 import { isWebPushConfigured } from "@/lib/webPushEnv";
@@ -27,8 +27,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Prea multe apeluri. Încearcă mai târziu." }, { status: 429 });
   }
 
-  const me = await findUserOrPrisma(userId);
-  if (!me) {
+  if (!(await callApiCallerUserExists(userId))) {
     return NextResponse.json({ error: "Utilizator negăsit." }, { status: 404 });
   }
 
@@ -42,12 +41,16 @@ export async function POST(request: NextRequest) {
   if (!toId || typeof toId !== "string") {
     return NextResponse.json({ error: "Lipsește toId." }, { status: 400 });
   }
-  const roomId = body.roomId ?? getVideoRoomId(me.id, toId);
-  const audioOnly = Boolean(body.audioOnly);
-  const other = await findUserOrPrisma(toId);
-  if (!other) {
+  const me = await resolveUserDtoForRing(userId);
+  if (!me) {
+    return NextResponse.json({ error: "Utilizator negăsit." }, { status: 404 });
+  }
+  if (!(await callApiCallerUserExists(toId))) {
     return NextResponse.json({ error: "Utilizatorul sunat nu există." }, { status: 404 });
   }
+
+  const roomId = body.roomId ?? getVideoRoomId(me.id, toId);
+  const audioOnly = Boolean(body.audioOnly);
   setPendingCall(toId, { fromId: me.id, roomId, audioOnly });
   let notify:
     | {
