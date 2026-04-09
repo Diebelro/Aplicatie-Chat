@@ -1,0 +1,22 @@
+# On server: set DEPLOY to the directory containing these two files from the repo:
+#   nginx-ws-connection-map.conf
+#   nginx-ws.diebel.ro.conf
+
+export DEPLOY=/root/ws-nginx
+
+sudo install -m 644 "$DEPLOY/nginx-ws-connection-map.conf" /etc/nginx/conf.d/ws-connection-map.conf
+
+sudo rm -f /etc/nginx/sites-enabled/ws.diebel.ro.conf
+sudo rm -f /etc/nginx/sites-enabled/ws.diebel.ro
+sudo rm -f /etc/nginx/sites-available/ws.diebel.ro.conf
+
+sudo install -m 644 "$DEPLOY/nginx-ws.diebel.ro.conf" /etc/nginx/sites-available/ws.diebel.ro
+sudo ln -sf /etc/nginx/sites-available/ws.diebel.ro /etc/nginx/sites-enabled/ws.diebel.ro
+
+# sudo rm -f /etc/nginx/sites-enabled/default
+
+sudo nginx -t && sudo systemctl reload nginx
+
+sudo grep -R 'map $http_upgrade' /etc/nginx
+
+curl -i 'https://ws.diebel.ro/health?ping=1'
