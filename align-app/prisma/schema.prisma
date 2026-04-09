@@ -351,3 +351,9 @@ model PendingIncomingCall {
   audioOnly Boolean  @default(false)
   createdAt DateTime @default(now())
 }
+
+/// Respingere apel (roomId) — persistat pentru Vercel (polling caller pe altă instanță decât reject).
+model RejectedCallRoom {
+  roomId    String   @id
+  createdAt DateTime @default(now())
+}

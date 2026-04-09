@@ -383,7 +383,10 @@ export default function CallUI({
   const showSpeakerToggle = isMobileUi && supportsAudioOutputSelection() && !!speakerSinkIdResolved;
 
   const fetchOutgoingStatus = useCallback(() => {
-    fetch(`/api/call/outgoing-status?roomId=${encodeURIComponent(roomId)}`, { headers: getAuthHeaders() })
+    fetch(`/api/call/outgoing-status?roomId=${encodeURIComponent(roomId)}`, {
+      headers: getAuthHeaders(),
+      credentials: "same-origin",
+    })
       .then((r) => r.json())
       .then((d) => {
         if (d.status === "rejected") setCallRejected(true);

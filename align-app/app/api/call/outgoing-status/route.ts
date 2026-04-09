@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { findUserById, isRoomRejected } from "@/lib/store";
+import { isRoomRejected } from "@/lib/store";
+import { isPrismaAvailable, prismaIsCallRejectedRoom } from "@/lib/repo-prisma";
+import { callApiCallerUserExists } from "@/lib/callCallerExists";
 
 /** Caller polls this to know if the callee rejected. Returns { status: "ringing" | "rejected" }. */
 export async function GET(request: NextRequest) {
@@ -7,13 +9,14 @@ export async function GET(request: NextRequest) {
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   }
-  if (!findUserById(userId)) {
+  if (!(await callApiCallerUserExists(userId))) {
     return NextResponse.json({ error: "Utilizator negăsit." }, { status: 404 });
   }
   const roomId = request.nextUrl.searchParams.get("roomId");
   if (!roomId) {
     return NextResponse.json({ error: "Lipsește roomId." }, { status: 400 });
   }
-  const status = isRoomRejected(roomId) ? "rejected" : "ringing";
+  const rejectedInDb = isPrismaAvailable() && (await prismaIsCallRejectedRoom(roomId));
+  const status = rejectedInDb || isRoomRejected(roomId) ? "rejected" : "ringing";
   return NextResponse.json({ status });
 }

@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { findUserById, addRejectedRoom } from "@/lib/store";
-import { findUserOrPrisma, prismaUserRowExists, isPrismaAvailable } from "@/lib/repo-prisma";
+import {
+  findUserOrPrisma,
+  prismaMarkCallRejectedRoom,
+  prismaUserRowExists,
+  isPrismaAvailable,
+} from "@/lib/repo-prisma";
 import { resolveRequestUserId } from "@/lib/sessionAuth";
 import { getPendingIncomingForCallee, clearPendingIncomingForCallee } from "@/lib/callPending";
 
@@ -17,7 +22,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "User not found." }, { status: 404 });
   }
   const pending = await getPendingIncomingForCallee(userId);
-  if (pending) addRejectedRoom(pending.roomId);
+  if (pending) {
+    addRejectedRoom(pending.roomId);
+    if (isPrismaAvailable()) await prismaMarkCallRejectedRoom(pending.roomId);
+  }
   await clearPendingIncomingForCallee(userId);
   return NextResponse.json({ ok: true });
 }

@@ -8,7 +8,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { normalizeAuthEmail } from "@/lib/auth";
 import { logDevPrismaNoticeOnce } from "@/lib/dev-prisma-notice";
-import { RING_PENDING_MAX_MS } from "@/lib/callRingConstants";
+import { REJECTED_CALL_ROOM_TTL_MS, RING_PENDING_MAX_MS } from "@/lib/callRingConstants";
 import type { User, Match, Message } from "@/lib/store";
 import type { Gender } from "@/lib/store";
 import { PLATFORM_NOTICE_VISIBLE_DAYS } from "@/lib/platformModerationNotice";
@@ -2116,6 +2116,32 @@ export async function prismaDeletePendingIncomingByRoomId(roomId: string): Promi
     await prisma.pendingIncomingCall.deleteMany({ where: { roomId } });
   } catch {
     /* ignore */
+  }
+}
+
+export async function prismaMarkCallRejectedRoom(roomId: string): Promise<void> {
+  try {
+    await prisma.rejectedCallRoom.upsert({
+      where: { roomId },
+      create: { roomId },
+      update: { createdAt: new Date() },
+    });
+  } catch {
+    /* ignore */
+  }
+}
+
+export async function prismaIsCallRejectedRoom(roomId: string): Promise<boolean> {
+  try {
+    const row = await prisma.rejectedCallRoom.findUnique({ where: { roomId } });
+    if (!row) return false;
+    if (Date.now() - row.createdAt.getTime() > REJECTED_CALL_ROOM_TTL_MS) {
+      await prisma.rejectedCallRoom.delete({ where: { roomId } }).catch(() => {});
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
   }
 }
 

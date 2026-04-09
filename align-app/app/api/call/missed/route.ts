@@ -1,17 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  findUserOrPrisma,
-  isPrismaAvailable,
-  prismaUserRowExists,
-} from "@/lib/repo-prisma";
+import { findUserOrPrisma } from "@/lib/repo-prisma";
+import { callApiCallerUserExists } from "@/lib/callCallerExists";
 import { findUserById, getMissedCalls, clearMissedCalls } from "@/lib/store";
-
-async function callerUserExists(userId: string): Promise<boolean> {
-  const user = await findUserOrPrisma(userId);
-  if (user != null) return true;
-  if (isPrismaAvailable()) return prismaUserRowExists(userId);
-  return !!findUserById(userId);
-}
 
 /** Lista apeluri pierdute pentru utilizatorul curent. */
 export async function GET(request: NextRequest) {
@@ -19,7 +9,7 @@ export async function GET(request: NextRequest) {
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   }
-  if (!(await callerUserExists(userId))) {
+  if (!(await callApiCallerUserExists(userId))) {
     return NextResponse.json({ error: "Utilizator negăsit." }, { status: 404 });
   }
   const list = getMissedCalls(userId);
@@ -44,7 +34,7 @@ export async function POST(request: NextRequest) {
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   }
-  if (!(await callerUserExists(userId))) {
+  if (!(await callApiCallerUserExists(userId))) {
     return NextResponse.json({ error: "Utilizator negăsit." }, { status: 404 });
   }
   clearMissedCalls(userId);
