@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getAuthenticatedUserId } from "@/lib/sessionAuth";
 import { isRoomRejected } from "@/lib/store";
 import { isPrismaAvailable, prismaIsCallRejectedRoom } from "@/lib/repo-prisma";
 import { callApiCallerUserExists } from "@/lib/callCallerExists";
 
 /** Caller polls this to know if the callee rejected. Returns { status: "ringing" | "rejected" }. */
 export async function GET(request: NextRequest) {
-  const userId = request.headers.get("x-user-id");
+  let userId = await getAuthenticatedUserId(request);
+  if (!userId) {
+    userId = request.headers.get("x-user-id")?.trim() || null;
+  }
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   }
