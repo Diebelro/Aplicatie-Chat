@@ -211,7 +211,7 @@ export async function POST(request: Request) {
       const errLocal =
         !isPrismaAvailable() && process.env.NODE_ENV !== "production"
           ? "Nu există acest cont în sesiunea locală (npm run dev folosește memorie, nu baza de date). Contul de pe site-ul live nu apare aici. Deschide producția pentru acel cont sau înregistrează-te local."
-          : "Nu există cont cu acest email. Înregistrează-te mai întâi.";
+          : "Nu există cont cu acest email pe acest site. Introdu adresa completă cu care te-ai înregistrat (email, nu @username). Verifică ortografia; la nevoie folosește „Am uitat parola” sau creează cont nou pe /signup — dacă baza de date s-a resetat, conturile vechi nu mai există.";
       return NextResponse.json({ error: errLocal }, { status: 404 });
     }
 

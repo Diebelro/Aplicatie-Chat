@@ -557,7 +557,7 @@
       "errLoginGeneric": "Anmeldefehler",
       "errRateLimit": "Zu viele Versuche — später erneut versuchen.",
       "errUseEmailNotUsername": "Bitte E-Mail, nicht Benutzername.",
-      "errNoAccount": "Kein Konto mit dieser E-Mail. Zuerst registrieren oder Adresse prüfen.",
+      "errNoAccount": "Kein Konto mit dieser E-Mail auf dieser Website. Die E-Mail zur Registrierung nutzen (nicht Nutzername). Rechtschreibung prüfen; „Passwort vergessen“ oder neu anmelden. Nach DB-Reset sind alte Konten weg.",
       "errBadCredentials": "E-Mail oder Passwort falsch.",
       "errRecaptcha": "reCAPTCHA-Überprüfung fehlgeschlagen.",
       "errSuspicious": "Verdächtige Aktivität erkannt.",

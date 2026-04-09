@@ -557,7 +557,7 @@
       "errLoginGeneric": "Sign-in error",
       "errRateLimit": "Too many attempts — try again later.",
       "errUseEmailNotUsername": "Use your email, not username.",
-      "errNoAccount": "No account with this email. Sign up first or check the address.",
+      "errNoAccount": "No account with this email on this site. Use the email you signed up with (not username). Check spelling; try \"Forgot password\" or sign up again. If the database was reset, old accounts are gone.",
       "errBadCredentials": "Incorrect email or password.",
       "errRecaptcha": "reCAPTCHA verification failed.",
       "errSuspicious": "Suspicious activity detected.",

@@ -405,10 +405,32 @@ export async function prismaFindOrCreateOAuthUser(params: {
 export async function prismaFindUserByEmailForLogin(
   email: string
 ): Promise<{ id: string; email: string; isBanned: boolean; role: string } | null> {
-  const user = await prisma.user.findUnique({
-    where: { email: email.trim().toLowerCase() },
-    select: { id: true, email: true, isBanned: true, banUntil: true, role: true },
-  });
+  const em = normalizeAuthEmail(email);
+  if (!em) return null;
+
+  const select = {
+    id: true,
+    email: true,
+    isBanned: true,
+    banUntil: true,
+    role: true,
+  } as const;
+
+  let user =
+    (await prisma.user.findUnique({
+      where: { email: em },
+      select,
+    })) ?? null;
+
+  /** Rânduri vechi cu altă capitalizare / fără NFKC — pe Postgres comparăm insensibil la litere mici-mari. */
+  if (!user) {
+    user =
+      (await prisma.user.findFirst({
+        where: { email: { equals: em, mode: "insensitive" } },
+        select,
+      })) ?? null;
+  }
+
   if (!user) return null;
   await prismaClearBanIfExpired(user.id);
   const fresh = await prisma.user.findUnique({

@@ -557,7 +557,7 @@
       "errLoginGeneric": "Eroare la logare",
       "errRateLimit": "Prea multe încercări, încearcă mai târziu.",
       "errUseEmailNotUsername": "Introdu emailul, nu username-ul.",
-      "errNoAccount": "Nu există cont cu acest email. Înregistrează-te mai întâi sau verifică adresa.",
+      "errNoAccount": "Nu există cont cu acest email pe acest site. Folosește emailul de la înregistrare (nu username). Verifică ortografia; încearcă „Am uitat parola” sau înregistrare nouă. Dacă baza de date s-a golit, vechiul cont nu mai există.",
       "errBadCredentials": "Email sau parolă incorecte.",
       "errRecaptcha": "Verificarea reCAPTCHA a eșuat.",
       "errSuspicious": "Activitate suspectă detectată.",
