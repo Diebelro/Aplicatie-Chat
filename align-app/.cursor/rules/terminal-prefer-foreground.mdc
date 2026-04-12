@@ -1,0 +1,20 @@
+---
+description: Terminal în prim-plan — fără background implicit; timpi de așteptare suficienți și rezumat la final
+alwaysApply: true
+---
+
+# Terminal: preferă prim-plan, nu „run in background”
+
+## Pentru agent (Cursor)
+
+- **Nu** folosi rularea în background pentru Shell/Task **decât dacă utilizatorul cere explicit** (ex. „rulează în fundal”, „porneste dev server și lasă-l”).
+- Pentru comenzi care pot dura mult, setează **`block_until_ms` mare** din start, ca să nu fie întrerupte și mutate în background:
+  - `npm run build`, `next build`: **120000** sau mai mult
+  - `vercel deploy`, `npm ci`, migrări DB: **300000** sau mai mult
+  - `npm test`, `npm run lint`: **120000** dacă proiectul e mare
+- După ce comanda s-a terminat, în răspunsul către utilizator: **rezumat scurt** (exit code, succes/eșec, 1–2 rânduri relevante din output), ca să vadă rezultatul fără să caute în panoul ascuns.
+
+## Pentru utilizator (în Cursor)
+
+- Dacă apare propunerea de **„Run in background”**: e de obicei pentru că execuția a depășit pragul. Poți **refuza** și lăsa comanda în prim-plan, sau mări timpul cerând explicit: „rulează build-ul cu timeout 10 minute”.
+- Regula de mai sus încurajează agentul să evite situația prin `block_until_ms` suficient de mare.

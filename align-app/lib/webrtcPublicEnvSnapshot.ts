@@ -3,7 +3,7 @@
  * Orice `true` aici e doar stratul Vercel — nu înseamnă că VPS/coturn rulează.
  */
 
-import { parseTurnAndSignalingSecrets } from "@/lib/env/webrtcConfig";
+import { getSignalingSecretForWsToken } from "@/lib/env/webrtcConfig";
 
 export type WebrtcPublicEnvSnapshot = {
   nextPublicTurnUrlsParseOk: boolean;
@@ -51,24 +51,25 @@ export function buildWebrtcPublicEnvSnapshot(): WebrtcPublicEnvSnapshot {
   const turnStaticSecretSet = !!process.env.TURN_STATIC_SECRET?.trim();
   const turnAuthSecretSet = !!process.env.TURN_AUTH_SECRET?.trim();
 
-  const sig = parseTurnAndSignalingSecrets();
-  const signalingSecretsOk = sig.ok;
-  const signalingSecretsError = sig.ok ? null : sig.error;
+  const tokenSecrets = getSignalingSecretForWsToken();
+  const signalingSecretsOk = tokenSecrets.ok;
+  const signalingSecretsError = tokenSecrets.ok ? null : tokenSecrets.error;
 
-  const iceApiEnvComplete =
+  /** Coturn complet (relay). Fără asta, `/api/call/ice-config` tot răspunde 200 cu STUN public (fallback). */
+  const fullTurnIce =
     nextPublicTurnUrlsParseOk &&
     nextPublicTurnUrlCount > 0 &&
     turnUrlsHasTurn &&
     turnRealmSet &&
     turnStaticSecretSet;
 
+  const iceApiEnvComplete = fullTurnIce;
+
+  /** Minim pentru încercare apel: URL semnalizare + secret WS (NEXTAUTH / SIGNALING); ICE poate fi doar STUN. */
   const envLayerCompleteForCalls =
     !!process.env.NEXT_PUBLIC_SIGNALING_WS_URL?.trim() &&
-    iceApiEnvComplete &&
-    turnAuthSecretSet &&
     signalingSecretsOk &&
-    turnUrlsHasStun &&
-    turnUrlsHasTurn;
+    nextPublicTurnUrlsParseOk;
 
   return {
     nextPublicTurnUrlsParseOk,

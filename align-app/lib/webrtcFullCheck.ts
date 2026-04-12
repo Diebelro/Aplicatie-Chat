@@ -3,7 +3,7 @@
  */
 
 import { findUserOrPrisma } from "@/lib/repo-prisma";
-import { parseTurnAndSignalingSecrets } from "@/lib/env/webrtcConfig";
+import { getSignalingSecretForWsToken } from "@/lib/env/webrtcConfig";
 import { createSignalingToken } from "@/lib/signalingToken";
 
 const SIGNALING_TOKEN_TTL_MS = 10 * 60 * 1000;
@@ -45,12 +45,12 @@ export async function runSignalingTokenForCheck(userId: string): Promise<Signali
     return { ok: false, status: 404, error: "USER_NOT_FOUND" };
   }
 
-  const secrets = parseTurnAndSignalingSecrets();
+  const secrets = getSignalingSecretForWsToken();
   if (!secrets.ok) {
     return {
       ok: false,
       status: 503,
-      error: "SIGNALING_SECRETS_MISSING",
+      error: secrets.error || "SIGNALING_SECRETS_MISSING",
     };
   }
 
@@ -111,43 +111,37 @@ export async function runIceConfigForCheck(userId: string): Promise<IceConfigChe
   const realm = process.env.TURN_REALM?.trim();
   const secret = process.env.TURN_STATIC_SECRET?.trim();
 
-  if (!Array.isArray(urls) || urls.length === 0) {
+  if (!Array.isArray(urls)) {
     return {
       ok: false,
       status: 500,
-      error: "TURN_URLS_MISSING",
+      error: "TURN_URLS_NOT_ARRAY",
       ...emptyIce,
     };
   }
 
-  if (!realm) {
+  const urlList = urls.filter((x): x is string => typeof x === "string");
+  const { hasStun, hasTurn } = classifyUrls(urlList);
+  const turnReady = urlList.length > 0 && Boolean(realm && secret);
+
+  /** Aliniat cu `/api/call/ice-config`: fără coturn complet → STUN public (apel limitat). */
+  if (!turnReady) {
     return {
-      ok: false,
-      status: 500,
-      error: "TURN_REALM_MISSING",
-      ...emptyIce,
+      ok: true,
+      status: 200,
+      hasTurn: false,
+      hasStun: true,
+      iceServerCount: 2,
     };
   }
-
-  if (!secret) {
-    return {
-      ok: false,
-      status: 500,
-      error: "TURN_STATIC_SECRET_MISSING",
-      ...emptyIce,
-    };
-  }
-
-  const { hasStun, hasTurn } = classifyUrls(urls);
 
   if (!hasTurn) {
     return {
-      ok: false,
-      status: 500,
-      error: "NO_TURN_IN_URLS",
+      ok: true,
+      status: 200,
       hasTurn: false,
       hasStun,
-      iceServerCount: 0,
+      iceServerCount: Math.max(1, urlList.length),
     };
   }
 
@@ -156,6 +150,6 @@ export async function runIceConfigForCheck(userId: string): Promise<IceConfigChe
     status: 200,
     hasTurn: true,
     hasStun,
-    iceServerCount: 1,
+    iceServerCount: Math.max(1, urlList.length),
   };
 }

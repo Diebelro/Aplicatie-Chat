@@ -8,11 +8,7 @@
  * ---------------------------------------------------------------------------------------------
  */
 
-import {
-  getTurnSecretsPresence,
-  runIceConfigForCheck,
-  runSignalingTokenForCheck,
-} from "@/lib/webrtcFullCheck";
+import { runIceConfigForCheck, runSignalingTokenForCheck } from "@/lib/webrtcFullCheck";
 import {
   getPublicSignalingWsBaseUrl,
   getWebrtcPublicConfig,
@@ -77,14 +73,6 @@ export async function buildWebrtcReadyCheck(
     missing.push("WEBRTC_PUBLIC_CONFIG_INVALID");
   }
 
-  const secrets = getTurnSecretsPresence();
-  if (!secrets.turnStaticSecretSet) {
-    missing.push("MISSING_TURN_STATIC_SECRET");
-  }
-  if (!secrets.turnAuthSecretSet) {
-    missing.push("MISSING_TURN_AUTH_SECRET");
-  }
-
   const sig = await runSignalingTokenForCheck(userId);
   if (!sig.ok) {
     missing.push(`SIGNALING_TOKEN:${sig.error}`);
@@ -93,13 +81,6 @@ export async function buildWebrtcReadyCheck(
   const ice = await runIceConfigForCheck(userId);
   if (!ice.ok) {
     missing.push(`ICE_CONFIG:${ice.error}`);
-  } else {
-    if (!ice.hasStun) {
-      missing.push("MISSING_STUN_IN_URLS");
-    }
-    if (!ice.hasTurn) {
-      missing.push("MISSING_TURN_IN_URLS");
-    }
   }
 
   const deduped = [...new Set(missing)];

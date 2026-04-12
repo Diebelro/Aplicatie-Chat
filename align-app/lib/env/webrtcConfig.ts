@@ -95,6 +95,29 @@ export function parseTurnAndSignalingSecrets():
   };
 }
 
+/**
+ * Secret pentru `GET /api/call/signaling-token` (HMAC token WS).
+ * Dacă `parseTurnAndSignalingSecrets` reușește (TURN_AUTH + semnalizare), folosim acel `signalingSecret`.
+ * Altfel: **fallback** cu `SIGNALING_TOKEN_SECRET` sau `NEXTAUTH_SECRET` (≥16) — același secret ca pe
+ * `call-signaling-server.mjs` — ca să meargă semnalizarea înainte/după coturn; ICE poate folosi doar STUN
+ * (vezi `/api/call/ice-config` când lipsește TURN complet).
+ */
+export function getSignalingSecretForWsToken():
+  | { ok: true; signalingSecret: string }
+  | { ok: false; error: string } {
+  const full = parseTurnAndSignalingSecrets();
+  if (full.ok) return { ok: true, signalingSecret: full.signalingSecret };
+
+  const raw = readProcessEnv();
+  const sig = raw.SIGNALING_TOKEN_SECRET?.trim() ?? "";
+  const nav = raw.NEXTAUTH_SECRET?.trim() ?? "";
+  const secret = sig || nav;
+  if (secret.length >= 16) {
+    return { ok: true, signalingSecret: secret };
+  }
+  return { ok: false, error: full.error };
+}
+
 export function isWebrtcConfigured(): boolean {
   const c = getWebrtcPublicConfig();
   return Boolean(c.NEXT_PUBLIC_SIGNALING_WS_URL?.trim()) && c.NEXT_PUBLIC_WEBRTC_ENABLED !== false;

@@ -8,7 +8,7 @@ import {
   isMobileDevice,
 } from "@/lib/webrtc/mediaConstraints";
 import {
-  buildIceServers,
+  iceServersFromIceConfigResponse,
   applyCodecPreferencesIfSupported,
   setMaxBitrate,
   applyVideoDegradationPreference,
@@ -23,12 +23,6 @@ import {
   parseSignalingIncoming,
   coerceSignalingWsBaseForSecureContext,
 } from "@/lib/webrtc/signaling";
-
-/** Cerere explicită receive audio+video la ofertă — aliniat cu `ensurePeer` (conferință); fără asta unele browsere negociază incomplet video 1-la-1. */
-const P2P_OFFER_MEDIA: RTCOfferOptions = {
-  offerToReceiveAudio: true,
-  offerToReceiveVideo: true,
-};
 import {
   getWebrtcPublicConfig,
   getPublicSignalingWsBaseUrl,
@@ -36,11 +30,79 @@ import {
 } from "@/lib/env/webrtcConfig";
 import { getAuthHeaders } from "@/lib/authClient";
 
+/**
+ * Opțiuni pentru `createOffer` după `addTrack`: NU folosi `offerToReceive*` dacă trimitem deja
+ * audio+video — în Unified Plan duce la m-lines / SDP incompatibile și `setRemoteDescription(answer)` eșuează.
+ * Pentru `iceRestart`, suficient `{ iceRestart: true }` când transceiverele există deja.
+ */
+function rtcOfferOptionsWithRecvFallback(
+  pc: RTCPeerConnection,
+  audioOnlyCall: boolean,
+  /** true când am adăugat deja `addTransceiver(video, recvonly)` — altfel `offerToReceiveVideo` dublează m-line-ul. */
+  skipOfferToReceiveVideo?: boolean
+): RTCOfferOptions {
+  const sendsVideo = pc.getSenders().some((s) => s.track?.kind === "video");
+  const sendsAudio = pc.getSenders().some((s) => s.track?.kind === "audio");
+  if (sendsVideo && sendsAudio) return {};
+  const o: RTCOfferOptions = {};
+  if (!sendsAudio) o.offerToReceiveAudio = true;
+  if (!sendsVideo && !audioOnlyCall && !skipOfferToReceiveVideo) o.offerToReceiveVideo = true;
+  return o;
+}
+
+/**
+ * Apel video dar fără track video local (camera refuzată / indisponibilă): fără asta, SDP-ul poate fi
+ * incompatibil → `setRemoteDescription(answer)` eșuează pe ofertant.
+ * Idempotent: nu adaugă al doilea transceiver video dacă există deja (ex. după `setRemoteDescription(offer)`).
+ */
+function ensureRecvOnlyVideoIfNoLocalVideo(
+  pc: RTCPeerConnection,
+  audioOnlyCall: boolean,
+  stream: MediaStream
+): boolean {
+  if (audioOnlyCall) return false;
+  if (stream.getVideoTracks().length > 0) return false;
+  const hasVideoTransceiver = pc.getTransceivers().some((t) => {
+    const k = t.sender.track?.kind ?? t.receiver.track?.kind;
+    return k === "video";
+  });
+  /** După ofertă, browserul mapează de obicei m-line video — nu mai adăugăm recvonly duplicat. */
+  if (hasVideoTransceiver) return true;
+  try {
+    pc.addTransceiver("video", { direction: "recvonly" });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Sufix scurt pentru UI / log — fără SDP. */
+function formatRtcNegotiationErrorSuffix(e: unknown): string {
+  if (e instanceof DOMException) {
+    const m = e.message.replace(/\s+/g, " ").trim().slice(0, 140);
+    return m ? ` (${e.name}: ${m})` : ` (${e.name})`;
+  }
+  if (e instanceof Error) {
+    const m = e.message.replace(/\s+/g, " ").trim().slice(0, 140);
+    return m ? ` (${m})` : "";
+  }
+  return "";
+}
+
 export type RemoteParticipant = {
   id: string;
   displayName: string;
   stream: MediaStream | null;
 };
+
+/** Faze explicite pentru UI (semnalizare / pereche / WebRTC). */
+export type CallConnectionPhase =
+  | null
+  | "signaling_connecting"
+  | "signaling_connected"
+  | "waiting_peer"
+  | "peer_joined"
+  | "negotiating";
 
 type CallState = {
   status: "idle" | "connecting" | "connected" | "left" | "error" | "permission_help";
@@ -56,6 +118,9 @@ type CallState = {
   banner: string | null;
   canSwitchCamera: boolean;
   screenSharing: boolean;
+  /** Semnalizare: ești singur în cameră P2P / fără peers mesh — UI arată „așteptăm celălalt”, nu „se conectează”. */
+  waitingForPeerInRoom: boolean;
+  connectionPhase: CallConnectionPhase;
 };
 
 export type UseWebRtcCallOptions = {
@@ -118,6 +183,8 @@ export function useWebRtcCall({
     banner: null,
     canSwitchCamera: false,
     screenSharing: false,
+    waitingForPeerInRoom: false,
+    connectionPhase: null,
   });
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -149,8 +216,19 @@ export function useWebRtcCall({
   const p2pRemoteStreamRef = useRef<MediaStream | null>(null);
   /** Un singur listener `ended` per track video local (mesh adaugă același track în mai multe PC-uri). */
   const localVideoEndedHandledRef = useRef<WeakSet<MediaStreamTrack>>(new WeakSet());
+  /** Dacă nu vine `session` (P2P) / peers mesh, după timeout arătăm mesaj clar — evită „se conectează” ore întregi. */
+  const connectWatchdogRef = useRef<number | null>(null);
+  /** P2P: după ~20s în `iceConnectionState === checking` arătăm un banner (TURN / rețea). */
+  const p2pIceStuckHintTimerRef = useRef<number | null>(null);
 
   onAutoEndedRef.current = onAutoEnded;
+
+  const clearConnectWatchdog = useCallback(() => {
+    if (connectWatchdogRef.current != null) {
+      clearTimeout(connectWatchdogRef.current);
+      connectWatchdogRef.current = null;
+    }
+  }, []);
 
   const clearStatsMonitor = useCallback(() => {
     if (statsTimerRef.current) {
@@ -160,6 +238,10 @@ export function useWebRtcCall({
   }, []);
 
   const cleanupMedia = useCallback(() => {
+    if (p2pIceStuckHintTimerRef.current != null) {
+      clearTimeout(p2pIceStuckHintTimerRef.current);
+      p2pIceStuckHintTimerRef.current = null;
+    }
     if (disconnectRecoverTimerRef.current) {
       clearTimeout(disconnectRecoverTimerRef.current);
       disconnectRecoverTimerRef.current = null;
@@ -173,6 +255,7 @@ export function useWebRtcCall({
       heartbeatRef.current = null;
     }
     clearStatsMonitor();
+    clearConnectWatchdog();
     negotiateRef.current = null;
     screenStreamRef.current?.getTracks().forEach((t) => {
       try {
@@ -231,7 +314,7 @@ export function useWebRtcCall({
     reconnectAttemptRef.current = 0;
     stableNetworkIntervalsRef.current = 0;
     localVideoEndedHandledRef.current = new WeakSet();
-  }, [clearStatsMonitor]);
+  }, [clearStatsMonitor, clearConnectWatchdog]);
 
   const attachLocalVideoEndedOnce = useCallback(
     (track: MediaStreamTrack) => {
@@ -281,6 +364,8 @@ export function useWebRtcCall({
       canSwitchCamera: false,
       permissionHelp: null,
       cameraSoftFailed: false,
+      waitingForPeerInRoom: false,
+      connectionPhase: null,
     }));
   }, [cleanupMedia]);
 
@@ -297,6 +382,8 @@ export function useWebRtcCall({
       canSwitchCamera: false,
       screenSharing: false,
       cameraSoftFailed: false,
+      waitingForPeerInRoom: false,
+      connectionPhase: null,
     }));
     setPermissionRetryKey((k) => k + 1);
   }, [cleanupMedia]);
@@ -601,6 +688,8 @@ export function useWebRtcCall({
         screenSharing: false,
         remoteParticipants: [],
         cameraSoftFailed: false,
+        waitingForPeerInRoom: false,
+        connectionPhase: null,
       }));
 
       for (const [, b] of peerMapRef.current) {
@@ -682,26 +771,20 @@ export function useWebRtcCall({
             ...s,
             status: "error",
             error: msg,
+            connectionPhase: null,
           }));
         }
         localStream.getTracks().forEach((t) => t.stop());
         return;
       }
       const iceJson = (await iceRes.json()) as {
-        iceServers?: { urls: string[]; username?: string; credential?: string }[];
+        iceServers?: Array<{ urls?: unknown; username?: string; credential?: string }>;
       };
-      const rawServers = iceJson.iceServers;
-      if (!rawServers?.length) {
+      if (!(iceJson.iceServers?.length ?? 0)) {
         console.warn("[WebRTC] iceServers from /api/call/ice-config is empty");
       }
-      const first = rawServers?.[0];
-      const iceServers = first
-        ? buildIceServers(
-            Array.isArray(first.urls) ? first.urls : [String(first.urls)],
-            first.username ?? "",
-            first.credential ?? ""
-          )
-        : [{ urls: "stun:stun.l.google.com:19302" }];
+      const iceServers = iceServersFromIceConfigResponse(iceJson);
+      const rtcPcConfig = buildRtcPeerConnectionConfig(iceServers, { mobileLike: isMobileDevice() });
 
       const tokRes = await fetch("/api/call/signaling-token", {
         headers: getAuthHeaders(),
@@ -717,13 +800,14 @@ export function useWebRtcCall({
         } else if (tokRes.status === 503) {
           msg =
             apiErr ||
-            "Semnalizare neconfigurată pe server: pune TURN_AUTH_SECRET (min 16) și SIGNALING_TOKEN_SECRET sau NEXTAUTH_SECRET pe Vercel (Production).";
+            "Semnalizare neconfigurată: pe server pune SIGNALING_TOKEN_SECRET sau NEXTAUTH_SECRET (min 16), același secret ca pe procesul WS; procesul trebuie să ruleze pe NEXT_PUBLIC_SIGNALING_WS_URL.";
         }
         if (!cancelled) {
           setState((s) => ({
             ...s,
             status: "error",
             error: process.env.NODE_ENV === "development" ? `[${tokRes.status}] ${msg}` : msg,
+            connectionPhase: null,
           }));
         }
         localStream.getTracks().forEach((t) => t.stop());
@@ -731,14 +815,23 @@ export function useWebRtcCall({
       }
       const { token } = (await tokRes.json()) as { token?: string };
       if (!token) {
-        if (!cancelled) setState((s) => ({ ...s, status: "error", error: "Token semnalizare lipsă." }));
+        if (!cancelled) {
+          setState((s) => ({ ...s, status: "error", error: "Token semnalizare lipsă.", connectionPhase: null }));
+        }
         localStream.getTracks().forEach((t) => t.stop());
         return;
       }
 
       const base = signalingBaseUrl.trim();
       if (!base) {
-        if (!cancelled) setState((s) => ({ ...s, status: "error", error: "NEXT_PUBLIC_SIGNALING_WS_URL lipsă." }));
+        if (!cancelled) {
+          setState((s) => ({
+            ...s,
+            status: "error",
+            error: "NEXT_PUBLIC_SIGNALING_WS_URL lipsă.",
+            connectionPhase: null,
+          }));
+        }
         localStream.getTracks().forEach((t) => t.stop());
         return;
       }
@@ -747,9 +840,93 @@ export function useWebRtcCall({
         return;
       }
 
-      const wsUrl = signalingWsConnectUrl(base, token);
-      const ws = new WebSocket(wsUrl);
+      const maxWsAttempts = process.env.NODE_ENV === "development" ? 8 : 2;
+      let ws: WebSocket | null = null;
+      let activeToken = token;
+      for (let attempt = 0; attempt < maxWsAttempts; attempt++) {
+        if (cancelled) {
+          localStream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        if (attempt > 0) {
+          const delay = Math.min(4000, 400 * 2 ** (attempt - 1));
+          console.info("[SIGNALING][mesh] WS reconnect scheduled", { attempt, delayMs: delay });
+          await new Promise((r) => setTimeout(r, delay));
+          const tokRes2 = await fetch("/api/call/signaling-token", {
+            headers: getAuthHeaders(),
+            credentials: "same-origin",
+            cache: "no-store",
+          });
+          if (!tokRes2.ok) break;
+          const j2 = (await tokRes2.json()) as { token?: string };
+          if (!j2.token) break;
+          activeToken = j2.token;
+        }
+        const wsUrl = signalingWsConnectUrl(base, activeToken);
+        try {
+          const u = new URL(wsUrl);
+          u.searchParams.set("token", "<redacted>");
+          console.info("[SIGNALING][mesh] WS connecting", u.toString());
+        } catch {
+          console.info("[SIGNALING][mesh] WS connecting");
+        }
+        try {
+          ws = await new Promise<WebSocket>((resolve, reject) => {
+            const w = new WebSocket(wsUrl);
+            const to = window.setTimeout(() => {
+              try {
+                w.close();
+              } catch {}
+              reject(new Error("WS open timeout"));
+            }, 20_000);
+            w.addEventListener(
+              "open",
+              () => {
+                window.clearTimeout(to);
+                console.info("[SIGNALING][mesh] WS connected");
+                resolve(w);
+              },
+              { once: true }
+            );
+            w.addEventListener(
+              "error",
+              () => {
+                window.clearTimeout(to);
+                reject(new Error("ws error"));
+              },
+              { once: true }
+            );
+          });
+          break;
+        } catch (e) {
+          console.warn("[SIGNALING][mesh] WS connect failed", attempt + 1, e);
+          ws = null;
+          if (attempt === maxWsAttempts - 1) {
+            if (!cancelled) {
+              setState((s) => ({
+                ...s,
+                status: "error",
+                error:
+                  "Nu mă pot conecta la serverul WebSocket de semnalizare. Verifică că rulează `npm run dev:lan`, firewall și NEXT_PUBLIC_SIGNALING_WS_URL (LAN).",
+                connectionPhase: null,
+              }));
+            }
+            localStream.getTracks().forEach((t) => t.stop());
+            return;
+          }
+        }
+      }
+      if (!ws) {
+        localStream.getTracks().forEach((t) => t.stop());
+        return;
+      }
       wsRef.current = ws;
+      ws.addEventListener("close", (ev) => {
+        console.info("[SIGNALING][mesh] WS closed", { code: ev.code, reason: ev.reason });
+      });
+      ws.addEventListener("error", () => {
+        console.info("[SIGNALING][mesh] WS error");
+      });
 
       const flushPeerIce = (bundle: PeerBundle) => {
         const q = bundle.iceQueue;
@@ -762,10 +939,14 @@ export function useWebRtcCall({
       negotiateRef.current = async () => {
         const w = wsRef.current;
         if (!w || w.readyState !== WebSocket.OPEN || cancelled) return;
-        for (const [peerId, { pc }] of peerMapRef.current) {
+        for (const [peerId, bundle] of peerMapRef.current) {
           if (userId >= peerId) continue;
+          const { pc } = bundle;
           try {
-            const offer = await pc.createOffer(P2P_OFFER_MEDIA);
+            const skipRecv = ensureRecvOnlyVideoIfNoLocalVideo(pc, audioOnly, localStream);
+            const offer = await pc.createOffer(
+              rtcOfferOptionsWithRecvFallback(pc, audioOnly, skipRecv)
+            );
             await pc.setLocalDescription(offer);
             w.send(JSON.stringify({ t: "offer", sdp: offer.sdp ?? "", to: peerId }));
           } catch {
@@ -776,8 +957,7 @@ export function useWebRtcCall({
 
       const ensurePeer = async (remoteUserId: string, shouldOffer: boolean) => {
         if (peerMapRef.current.has(remoteUserId)) return;
-        const pc = new RTCPeerConnection(buildRtcPeerConnectionConfig(iceServers));
-        peerMapRef.current.set(remoteUserId, { pc, iceQueue: [] });
+        const pc = new RTCPeerConnection(rtcPcConfig);
         localStream.getTracks().forEach((track) => {
           if (track.kind === "video") {
             try {
@@ -789,7 +969,10 @@ export function useWebRtcCall({
           pc.addTrack(track, localStream);
           attachLocalVideoEndedOnce(track);
         });
-        applyCodecPreferencesIfSupported(pc);
+        peerMapRef.current.set(remoteUserId, {
+          pc,
+          iceQueue: [],
+        });
         void (async () => {
           await setMaxBitrate(pc, maxVideoBps);
           await applyVideoDegradationPreference(pc, "maintain-framerate");
@@ -826,7 +1009,11 @@ export function useWebRtcCall({
 
         if (shouldOffer) {
           try {
-            const offer = await pc.createOffer(P2P_OFFER_MEDIA);
+            applyCodecPreferencesIfSupported(pc);
+            const skipRecv = ensureRecvOnlyVideoIfNoLocalVideo(pc, audioOnly, localStream);
+            const offer = await pc.createOffer(
+              rtcOfferOptionsWithRecvFallback(pc, audioOnly, skipRecv)
+            );
             await pc.setLocalDescription(offer);
             ws.send(JSON.stringify({ t: "offer", sdp: offer.sdp ?? "", to: remoteUserId }));
           } catch {
@@ -863,7 +1050,22 @@ export function useWebRtcCall({
         }
       };
 
-      ws.onopen = () => {
+      /** După `await` pe deschiderea WS, socketul e deja OPEN — `ws.onopen` nu s-ar mai apela. */
+      const onConferenceWsReady = () => {
+        clearConnectWatchdog();
+        connectWatchdogRef.current = window.setTimeout(() => {
+          if (cancelled) return;
+          if (peerMapRef.current.size > 0) return;
+          setState((s) => {
+            if (s.status !== "connecting") return s;
+            return {
+              ...s,
+              waitingForPeerInRoom: true,
+              banner:
+                "Nu s-a alăturat nimeni la conferință. Trimite linkul „Invită” sau asigură-te că ceilalți deschid aceeași cameră. Timer oprit automat ca să nu rămâi blocat.",
+            };
+          });
+        }, 90_000);
         ws.send(JSON.stringify({ t: "join", roomId, userId, isCaller: false }));
         heartbeatRef.current = setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ t: "heartbeat" }));
@@ -880,11 +1082,25 @@ export function useWebRtcCall({
           sdp?: string;
           candidate?: RTCIceCandidateInit;
           from?: string;
-          peers?: Array<{ remoteUserId?: string; shouldOffer?: boolean }>;
+          peers?: Array<{ remoteUserId?: string; shouldOffer?: boolean }> | string[];
         };
 
+        if (m.t === "joined" && Array.isArray(m.peers)) {
+          const raw = m.peers;
+          const idList = raw.length === 0 || typeof raw[0] === "string" ? (raw as string[]) : null;
+          if (idList && !cancelled) {
+            setState((s) => ({ ...s, waitingForPeerInRoom: idList.length < 2 }));
+          }
+          return;
+        }
+
         if (m.t === "mesh-peers" && Array.isArray(m.peers)) {
-          await applyMeshPeers(m.peers);
+          const meshList = m.peers as Array<{ remoteUserId?: string; shouldOffer?: boolean }>;
+          if (meshList.length > 0) clearConnectWatchdog();
+          if (!cancelled) {
+            setState((s) => ({ ...s, waitingForPeerInRoom: meshList.length === 0 }));
+          }
+          await applyMeshPeers(meshList);
           return;
         }
 
@@ -897,14 +1113,18 @@ export function useWebRtcCall({
           if (!bundle || cancelled) return;
           const { pc } = bundle;
           try {
+            void ensureRecvOnlyVideoIfNoLocalVideo(pc, audioOnly, localStream);
             await pc.setRemoteDescription({ type: "offer", sdp: m.sdp });
             flushPeerIce(bundle);
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
             ws.send(JSON.stringify({ t: "answer", sdp: answer.sdp ?? "", to: m.from }));
             setState((s) => ({ ...s, status: "connected" }));
-          } catch {
-            if (!cancelled) setState((s) => ({ ...s, error: "Nu am putut negocia conexiunea (offer)." }));
+          } catch (e) {
+            if (!cancelled) {
+              const detail = formatRtcNegotiationErrorSuffix(e);
+              setState((s) => ({ ...s, error: `Nu am putut negocia conexiunea (offer).${detail}` }));
+            }
           }
           return;
         }
@@ -912,12 +1132,25 @@ export function useWebRtcCall({
         if (m.t === "answer" && typeof m.sdp === "string" && typeof m.from === "string") {
           const bundle = peerMapRef.current.get(m.from);
           if (!bundle) return;
+          const { pc } = bundle;
+          /** Al doilea `answer` (rețea / server) ajunge după ce PC e deja `stable` — îl ignorăm în loc să aruncăm eroare. */
+          if (pc.signalingState === "stable") {
+            console.info("[SIGNALING] mesh: duplicate answer ignored", { from: m.from });
+            return;
+          }
           try {
-            await bundle.pc.setRemoteDescription({ type: "answer", sdp: m.sdp });
+            await pc.setRemoteDescription({ type: "answer", sdp: m.sdp });
             flushPeerIce(bundle);
             setState((s) => ({ ...s, status: "connected" }));
-          } catch {
-            if (!cancelled) setState((s) => ({ ...s, error: "Nu am putut negocia conexiunea (answer)." }));
+          } catch (e) {
+            if (!cancelled) {
+              const detail = formatRtcNegotiationErrorSuffix(e);
+              console.warn("[SIGNALING] mesh: setRemoteDescription(answer) failed", e);
+              setState((s) => ({
+                ...s,
+                error: `Nu am putut negocia conexiunea (answer).${detail}`,
+              }));
+            }
           }
           return;
         }
@@ -951,8 +1184,22 @@ export function useWebRtcCall({
       };
 
       ws.onerror = () => {
-        if (!cancelled) setState((s) => ({ ...s, error: "Eroare WebSocket semnalizare." }));
+        console.info("[SIGNALING][mesh] WS error");
+        clearConnectWatchdog();
+        if (!cancelled) {
+          setState((s) => ({
+            ...s,
+            error: "Eroare WebSocket semnalizare — verifică URL-ul WS și firewall.",
+            connectionPhase: null,
+          }));
+        }
       };
+
+      if (ws.readyState === WebSocket.OPEN) {
+        onConferenceWsReady();
+      } else {
+        ws.addEventListener("open", () => onConferenceWsReady(), { once: true });
+      }
     };
 
     const run = async (signalingBaseUrl: string) => {
@@ -968,6 +1215,8 @@ export function useWebRtcCall({
         canSwitchCamera: false,
         screenSharing: false,
         cameraSoftFailed: false,
+        waitingForPeerInRoom: false,
+        connectionPhase: null,
       }));
 
       let localStream: MediaStream;
@@ -985,6 +1234,7 @@ export function useWebRtcCall({
             error: null,
             permissionHelp: help,
             cameraSoftFailed: false,
+            connectionPhase: null,
           }));
         }
         return;
@@ -1040,30 +1290,24 @@ export function useWebRtcCall({
             ...s,
             status: "error",
             error: msg,
+            connectionPhase: null,
           }));
         }
         localStream.getTracks().forEach((t) => t.stop());
         return;
       }
       const iceJson = (await iceRes.json()) as {
-        iceServers?: { urls: string[]; username?: string; credential?: string }[];
+        iceServers?: Array<{ urls?: unknown; username?: string; credential?: string }>;
       };
-      const rawServers = iceJson.iceServers;
-      if (!rawServers?.length) {
+      if (!(iceJson.iceServers?.length ?? 0)) {
         console.warn("[WebRTC] iceServers from /api/call/ice-config is empty");
       }
-      const first = rawServers?.[0];
-      /** ICE: URL-uri din env (NEXT_PUBLIC_TURN_URLS), credențiale efemere REST (HMAC-SHA1) de la server — vezi docs/webrtc-turn.md */
-      const iceServers = first
-        ? buildIceServers(
-            Array.isArray(first.urls) ? first.urls : [String(first.urls)],
-            first.username ?? "",
-            first.credential ?? ""
-          )
-        : [{ urls: "stun:stun.l.google.com:19302" }];
+      /** ICE: URL-uri din env (NEXT_PUBLIC_TURN_URLS), credențiale efemere REST (HMAC-SHA1) — vezi docs/webrtc-turn.md */
+      const iceServers = iceServersFromIceConfigResponse(iceJson);
+      const rtcPcConfig = buildRtcPeerConnectionConfig(iceServers, { mobileLike: isMobileDevice() });
       console.info("[ICE] ice-config OK", {
         iceServerEntries: iceServers.length,
-        turnUrlsFromApi: rawServers?.length ?? 0,
+        apiIceServerObjects: iceJson.iceServers?.length ?? 0,
       });
 
       const tokRes = await fetch("/api/call/signaling-token", {
@@ -1080,7 +1324,7 @@ export function useWebRtcCall({
         } else if (tokRes.status === 503) {
           msg =
             apiErr ||
-            "Semnalizare neconfigurată pe server: pune TURN_AUTH_SECRET (min 16) și SIGNALING_TOKEN_SECRET sau NEXTAUTH_SECRET pe Vercel (Production).";
+            "Semnalizare neconfigurată: pe server pune SIGNALING_TOKEN_SECRET sau NEXTAUTH_SECRET (min 16), același secret ca pe procesul WS; procesul trebuie să ruleze pe NEXT_PUBLIC_SIGNALING_WS_URL.";
         } else if (tokRes.status === 404) {
           msg = apiErr || "Utilizator negăsit pentru token semnalizare.";
         }
@@ -1090,6 +1334,7 @@ export function useWebRtcCall({
             status: "error",
             error:
               process.env.NODE_ENV === "development" ? `[${tokRes.status}] ${msg}` : msg,
+            connectionPhase: null,
           }));
         }
         localStream.getTracks().forEach((t) => t.stop());
@@ -1097,14 +1342,23 @@ export function useWebRtcCall({
       }
       const { token } = (await tokRes.json()) as { token?: string };
       if (!token) {
-        if (!cancelled) setState((s) => ({ ...s, status: "error", error: "Token semnalizare lipsă." }));
+        if (!cancelled) {
+          setState((s) => ({ ...s, status: "error", error: "Token semnalizare lipsă.", connectionPhase: null }));
+        }
         localStream.getTracks().forEach((t) => t.stop());
         return;
       }
 
       const base = signalingBaseUrl.trim();
       if (!base) {
-        if (!cancelled) setState((s) => ({ ...s, status: "error", error: "NEXT_PUBLIC_SIGNALING_WS_URL lipsă." }));
+        if (!cancelled) {
+          setState((s) => ({
+            ...s,
+            status: "error",
+            error: "NEXT_PUBLIC_SIGNALING_WS_URL lipsă.",
+            connectionPhase: null,
+          }));
+        }
         localStream.getTracks().forEach((t) => t.stop());
         return;
       }
@@ -1114,58 +1368,101 @@ export function useWebRtcCall({
         return;
       }
 
-      const wsUrl = signalingWsConnectUrl(base, token);
-      try {
-        const u = new URL(wsUrl);
-        u.searchParams.set("token", "<redacted>");
-        console.info("[SIGNALING] connecting", u.toString());
-      } catch {
-        console.info("[SIGNALING] connecting (url parse skipped)");
+      if (!cancelled) {
+        setState((s) => ({ ...s, connectionPhase: "signaling_connecting" }));
       }
-      const ws = new WebSocket(wsUrl);
+
+      const maxWsAttempts = process.env.NODE_ENV === "development" ? 8 : 2;
+      let ws: WebSocket | null = null;
+      let activeToken = token;
+      for (let attempt = 0; attempt < maxWsAttempts; attempt++) {
+        if (cancelled) {
+          localStream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        if (attempt > 0) {
+          const delay = Math.min(4000, 400 * 2 ** (attempt - 1));
+          console.info("[SIGNALING] WS reconnect scheduled", { attempt, delayMs: delay });
+          await new Promise((r) => setTimeout(r, delay));
+          const tokRes2 = await fetch("/api/call/signaling-token", {
+            headers: getAuthHeaders(),
+            credentials: "same-origin",
+            cache: "no-store",
+          });
+          if (!tokRes2.ok) break;
+          const j2 = (await tokRes2.json()) as { token?: string };
+          if (!j2.token) break;
+          activeToken = j2.token;
+        }
+        const wsUrl = signalingWsConnectUrl(base, activeToken);
+        try {
+          const u = new URL(wsUrl);
+          u.searchParams.set("token", "<redacted>");
+          console.info("[SIGNALING] WS connecting", u.toString());
+        } catch {
+          console.info("[SIGNALING] WS connecting (url parse skipped)");
+        }
+        try {
+          ws = await new Promise<WebSocket>((resolve, reject) => {
+            const w = new WebSocket(wsUrl);
+            const to = window.setTimeout(() => {
+              try {
+                w.close();
+              } catch {}
+              reject(new Error("WS open timeout"));
+            }, 20_000);
+            w.addEventListener(
+              "open",
+              () => {
+                window.clearTimeout(to);
+                console.info("[SIGNALING] WS connected");
+                resolve(w);
+              },
+              { once: true }
+            );
+            w.addEventListener(
+              "error",
+              () => {
+                window.clearTimeout(to);
+                reject(new Error("ws error"));
+              },
+              { once: true }
+            );
+          });
+          break;
+        } catch (e) {
+          console.warn("[SIGNALING] WS connect failed", attempt + 1, e);
+          ws = null;
+          if (attempt === maxWsAttempts - 1) {
+            if (!cancelled) {
+              setState((s) => ({
+                ...s,
+                status: "error",
+                error:
+                  "Nu mă pot conecta la serverul WebSocket de semnalizare. Verifică `npm run dev:lan`, firewall (3005/4001) și că ambele dispozitive folosesc același URL LAN.",
+                connectionPhase: null,
+              }));
+            }
+            localStream.getTracks().forEach((t) => t.stop());
+            return;
+          }
+        }
+      }
+      if (!ws) {
+        localStream.getTracks().forEach((t) => t.stop());
+        return;
+      }
       wsRef.current = ws;
+      ws.addEventListener("close", (ev) => {
+        console.info("[SIGNALING] WS closed", { code: ev.code, reason: ev.reason });
+      });
 
       p2pRemoteStreamRef.current = null;
-      const pc = new RTCPeerConnection(buildRtcPeerConnectionConfig(iceServers));
-      pcRef.current = pc;
+      pcRef.current = null;
+      negotiateRef.current = null;
       maxVideoBpsCapRef.current = maxVideoBps;
       adaptiveVideoBpsRef.current = maxVideoBps;
       stableNetworkIntervalsRef.current = 0;
-      console.info("[RTC] RTCPeerConnection created");
-      /* Negociere: createOffer → setLocalDescription → WS; remote offer → setRemoteDescription → createAnswer → setLocalDescription;
-       * ICE: onicecandidate trimite candidați prin WS; de la peer → addIceCandidate (coadă până există remoteDescription). */
-
-      localStream.getTracks().forEach((track) => {
-        if (track.kind === "video") {
-          try {
-            track.contentHint = "motion";
-          } catch {
-            /* ignore */
-          }
-        }
-        pc.addTrack(track, localStream);
-        attachLocalVideoEndedOnce(track);
-      });
-      applyCodecPreferencesIfSupported(pc);
-      void (async () => {
-        await setMaxBitrate(pc, adaptiveVideoBpsRef.current);
-        await applyVideoDegradationPreference(pc, "maintain-framerate");
-      })();
-
-      negotiateRef.current = async () => {
-        const p = pcRef.current;
-        const w = wsRef.current;
-        const to = remoteIdRef.current;
-        if (!p || !w || w.readyState !== WebSocket.OPEN || cancelled || !to) return;
-        try {
-          const offer = await p.createOffer(P2P_OFFER_MEDIA);
-          await p.setLocalDescription(offer);
-          console.info("[SIGNALING] outbound offer");
-          w.send(JSON.stringify({ t: "offer", sdp: offer.sdp ?? "", to }));
-        } catch {
-          /* ignore */
-        }
-      };
 
       let lastStatsBytes = 0;
       let lastStatsTime = Date.now();
@@ -1228,37 +1525,8 @@ export function useWebRtcCall({
         }, 10_000);
       };
 
-      pc.ontrack = (ev) => {
-        if (cancelled) return;
-        applyInboundAudioPlayoutHint(ev.receiver);
-        const rid = remoteIdRef.current ?? "remote";
-        const stream = accumulateRemoteMediaStream(p2pRemoteStreamRef.current ?? undefined, ev);
-        p2pRemoteStreamRef.current = stream;
-        setState((s) => ({
-          ...s,
-          status: "connected",
-          remoteParticipants: [
-            {
-              id: rid,
-              displayName: "Interlocutor",
-              stream,
-            },
-          ],
-        }));
-      };
-
-      pc.onicecandidate = (ev) => {
-        const to = remoteIdRef.current;
-        if (ev.candidate && ws.readyState === WebSocket.OPEN && to) {
-          console.info("[ICE] sending local candidate via signaling", {
-            type: ev.candidate.type,
-            protocol: ev.candidate.protocol,
-          });
-          ws.send(JSON.stringify({ t: "ice", candidate: ev.candidate.toJSON(), to }));
-        } else if (!ev.candidate) {
-          console.info("[ICE] local ICE gathering complete (null candidate)");
-        }
-      };
+      /** P2P: după `ensureRecvOnlyVideoIfNoLocalVideo` — nu dublăm `offerToReceiveVideo` la createOffer. */
+      let p2pSkipOfferRecvVideo = false;
 
       const tryReconnectIce = () => {
         if (cancelled) return;
@@ -1272,13 +1540,20 @@ export function useWebRtcCall({
         reconnectAttemptRef.current += 1;
         reconnectTimerRef.current = setTimeout(() => {
           void (async () => {
+            const w = wsRef.current;
             const to = remoteIdRef.current;
-            if (cancelled || ws.readyState !== WebSocket.OPEN || !to) return;
+            const p = pcRef.current;
+            if (cancelled || !p || !w || w.readyState !== WebSocket.OPEN || !to) return;
             try {
-              const offer = await pc.createOffer({ ...P2P_OFFER_MEDIA, iceRestart: true });
-              await pc.setLocalDescription(offer);
+              applyCodecPreferencesIfSupported(p);
+              p2pSkipOfferRecvVideo = ensureRecvOnlyVideoIfNoLocalVideo(p, audioOnly, localStream);
+              const offer = await p.createOffer({
+                ...rtcOfferOptionsWithRecvFallback(p, audioOnly, p2pSkipOfferRecvVideo),
+                iceRestart: true,
+              });
+              await p.setLocalDescription(offer);
               console.info("[SIGNALING] outbound offer (iceRestart)");
-              ws.send(JSON.stringify({ t: "offer", sdp: offer.sdp ?? "", to }));
+              w.send(JSON.stringify({ t: "offer", sdp: offer.sdp ?? "", to }));
             } catch {
               /* ignore */
             }
@@ -1286,43 +1561,164 @@ export function useWebRtcCall({
         }, reconnectAttemptRef.current === 1 ? 500 : 1500);
       };
 
-      pc.onconnectionstatechange = () => {
-        if (cancelled) return;
-        const st = pc.connectionState;
-        console.info("[RTC] connectionState", st);
-        if (st === "failed") {
-          clearStatsMonitor();
-          setState((s) => ({ ...s, banner: "Rețea slabă — încerc reconectare…" }));
-          tryReconnectIce();
-        }
-        if (st === "disconnected") {
-          setState((s) => ({ ...s, banner: "Conexiune întreruptă momentan…" }));
-          if (disconnectRecoverTimerRef.current) clearTimeout(disconnectRecoverTimerRef.current);
-          disconnectRecoverTimerRef.current = setTimeout(() => {
-            disconnectRecoverTimerRef.current = null;
-            if (cancelled || pc.connectionState !== "disconnected") return;
-            setState((s) => ({ ...s, banner: "Reiau legătura (ICE)…" }));
-            tryReconnectIce();
-          }, 2800);
-        }
-        if (st === "connected") {
-          if (disconnectRecoverTimerRef.current) {
-            clearTimeout(disconnectRecoverTimerRef.current);
-            disconnectRecoverTimerRef.current = null;
+      const setupP2pAfterSession = () => {
+        if (pcRef.current) return;
+        const pc = new RTCPeerConnection(rtcPcConfig);
+        pcRef.current = pc;
+        console.info("[RTC] RTCPeerConnection created (după ce amândoi sunteți în cameră)");
+
+        localStream.getTracks().forEach((track) => {
+          if (track.kind === "video") {
+            try {
+              track.contentHint = "motion";
+            } catch {
+              /* ignore */
+            }
           }
-          applyPlayoutHintsForAllReceivers(pc);
-          setState((s) => ({ ...s, banner: null }));
-          reconnectAttemptRef.current = 0;
-          startStatsMonitor();
-        }
+          pc.addTrack(track, localStream);
+          attachLocalVideoEndedOnce(track);
+        });
+        /** `ensureRecvOnlyVideoIfNoLocalVideo`: înainte de fiecare `createOffer` (caller) și după `setRemoteDescription(offer)` (callee) — vezi sendOffer / handler offer. */
+        /** Nu apelăm `applyCodecPreferencesIfSupported` aici: pe cel care răspunde la ofertă, transceiverele
+         *  nu sunt încă aliniate cu SDP-ul distant — ordinea VP8/H264 înainte de `setRemoteDescription(offer)`
+         *  poate duce la `setRemoteDescription(answer)` invalid pe celălalt capăt. Preferințele se aplică
+         *  doar imediat înainte de `createOffer` (inițiator / iceRestart). */
+        void (async () => {
+          await setMaxBitrate(pc, adaptiveVideoBpsRef.current);
+          await applyVideoDegradationPreference(pc, "maintain-framerate");
+        })();
+
+        negotiateRef.current = async () => {
+          const p = pcRef.current;
+          const w = wsRef.current;
+          const to = remoteIdRef.current;
+          if (!p || !w || w.readyState !== WebSocket.OPEN || cancelled || !to) return;
+          try {
+            applyCodecPreferencesIfSupported(p);
+            p2pSkipOfferRecvVideo = ensureRecvOnlyVideoIfNoLocalVideo(p, audioOnly, localStream);
+            const offer = await p.createOffer(rtcOfferOptionsWithRecvFallback(p, audioOnly, p2pSkipOfferRecvVideo));
+            await p.setLocalDescription(offer);
+            console.info("[SIGNALING] outbound offer");
+            w.send(JSON.stringify({ t: "offer", sdp: offer.sdp ?? "", to }));
+          } catch {
+            /* ignore */
+          }
+        };
+
+        pc.ontrack = (ev) => {
+          if (cancelled) return;
+          applyInboundAudioPlayoutHint(ev.receiver);
+          const rid = remoteIdRef.current ?? "remote";
+          const stream = accumulateRemoteMediaStream(p2pRemoteStreamRef.current ?? undefined, ev);
+          p2pRemoteStreamRef.current = stream;
+          setState((s) => ({
+            ...s,
+            status: "connected",
+            connectionPhase: null,
+            remoteParticipants: [
+              {
+                id: rid,
+                displayName: "Interlocutor",
+                stream,
+              },
+            ],
+          }));
+        };
+
+        pc.onicecandidate = (ev) => {
+          const to = remoteIdRef.current;
+          if (ev.candidate && ws.readyState === WebSocket.OPEN && to) {
+            console.info("[ICE] sending local candidate via signaling", {
+              type: ev.candidate.type,
+              protocol: ev.candidate.protocol,
+            });
+            ws.send(JSON.stringify({ t: "ice", candidate: ev.candidate.toJSON(), to }));
+          } else if (!ev.candidate) {
+            console.info("[ICE] local ICE gathering complete (null candidate)");
+          }
+        };
+
+        pc.oniceconnectionstatechange = () => {
+          if (cancelled) return;
+          const pIce = pcRef.current;
+          if (!pIce) return;
+          const ice = pIce.iceConnectionState;
+          console.info("[RTC] iceConnectionState", ice);
+          if (p2pIceStuckHintTimerRef.current != null) {
+            clearTimeout(p2pIceStuckHintTimerRef.current);
+            p2pIceStuckHintTimerRef.current = null;
+          }
+          if (ice === "checking") {
+            p2pIceStuckHintTimerRef.current = window.setTimeout(() => {
+              p2pIceStuckHintTimerRef.current = null;
+              const cur = pcRef.current;
+              if (cancelled || !cur || cur.iceConnectionState !== "checking") return;
+              setState((s) => {
+                if (s.status !== "connecting" && s.status !== "connected") return s;
+                return {
+                  ...s,
+                  banner:
+                    "Conexiunea între dispozitive întârzie (ICE). Pe rețele diferite sau 4G e nevoie de TURN (coturn) și firewall deschis — vezi docs/WEBRTC-IMPREUNA.md",
+                };
+              });
+            }, 20_000);
+          }
+          if (ice === "failed") {
+            setState((s) => ({
+              ...s,
+              banner:
+                "ICE eșuat: nu s-a găsit rută audio/video între browsere. Verifică coturn, porturi UDP și TURN_* / NEXT_PUBLIC_TURN_URLS pe Vercel.",
+            }));
+          }
+        };
+
+        pc.onconnectionstatechange = () => {
+          if (cancelled) return;
+          const pConn = pcRef.current;
+          if (!pConn) return;
+          const st = pConn.connectionState;
+          console.info("[RTC] connectionState", st);
+          if (st === "failed") {
+            clearStatsMonitor();
+            setState((s) => ({ ...s, banner: "Rețea slabă — încerc reconectare…" }));
+            tryReconnectIce();
+          }
+          if (st === "disconnected") {
+            setState((s) => ({ ...s, banner: "Conexiune întreruptă momentan…" }));
+            if (disconnectRecoverTimerRef.current) clearTimeout(disconnectRecoverTimerRef.current);
+            disconnectRecoverTimerRef.current = setTimeout(() => {
+              disconnectRecoverTimerRef.current = null;
+              const cur = pcRef.current;
+              if (cancelled || !cur || cur.connectionState !== "disconnected") return;
+              setState((s) => ({ ...s, banner: "Reiau legătura (ICE)…" }));
+              tryReconnectIce();
+            }, 2800);
+          }
+          if (st === "connected") {
+            if (disconnectRecoverTimerRef.current) {
+              clearTimeout(disconnectRecoverTimerRef.current);
+              disconnectRecoverTimerRef.current = null;
+            }
+            applyPlayoutHintsForAllReceivers(pConn);
+            setState((s) => ({ ...s, banner: null, connectionPhase: null }));
+            reconnectAttemptRef.current = 0;
+            startStatsMonitor();
+          }
+        };
+
+        if (iceQueueRef.current.length) flushIceQueue(pc);
       };
 
       const sendOffer = async () => {
+        if (!ws || ws.readyState !== WebSocket.OPEN) return;
         const to = remoteIdRef.current;
-        if (!to) return;
+        const p = pcRef.current;
+        if (!to || !p) return;
         try {
-          const offer = await pc.createOffer(P2P_OFFER_MEDIA);
-          await pc.setLocalDescription(offer);
+          applyCodecPreferencesIfSupported(p);
+          p2pSkipOfferRecvVideo = ensureRecvOnlyVideoIfNoLocalVideo(p, audioOnly, localStream);
+          const offer = await p.createOffer(rtcOfferOptionsWithRecvFallback(p, audioOnly, p2pSkipOfferRecvVideo));
+          await p.setLocalDescription(offer);
           console.info("[SIGNALING] outbound offer (initial)");
           ws.send(JSON.stringify({ t: "offer", sdp: offer.sdp ?? "", to }));
         } catch {
@@ -1330,8 +1726,27 @@ export function useWebRtcCall({
         }
       };
 
-      ws.onopen = () => {
+      /** După `await` pe deschiderea WS, socketul e deja OPEN — `ws.onopen` nu s-ar mai apela. */
+      const onP2pWsReady = () => {
         console.info("[SIGNALING] WebSocket open, join room", { roomId, isCaller });
+        if (!cancelled) {
+          setState((s) => ({ ...s, connectionPhase: "signaling_connected" }));
+        }
+        clearConnectWatchdog();
+        connectWatchdogRef.current = window.setTimeout(() => {
+          if (cancelled) return;
+          if (remoteIdRef.current) return;
+          setState((s) => {
+            if (s.status !== "connecting") return s;
+            return {
+              ...s,
+              waitingForPeerInRoom: true,
+              connectionPhase: "waiting_peer",
+              banner:
+                "Nu apare al doilea participant în apel (de obicei după ~1 minut înseamnă că nu e nimeni în cameră). Verifică: celălalt a acceptat apelul sau a deschis același apel din chat; folosiți două conturi diferite (același user în două taburi nu formează o pereche); închide Zoom. Ieși și încearcă din nou.",
+            };
+          });
+        }, 70_000);
         ws.send(JSON.stringify({ t: "join", roomId, userId, isCaller }));
         heartbeatRef.current = setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ t: "heartbeat" }));
@@ -1355,8 +1770,37 @@ export function useWebRtcCall({
           console.info("[SIGNALING] inbound", m.t);
         }
 
+        if (m.t === "joined" && Array.isArray((msg as Record<string, unknown>).peers)) {
+          const peersRaw = (msg as Record<string, unknown>).peers;
+          const peers = (Array.isArray(peersRaw) ? peersRaw : []).filter(
+            (x): x is string => typeof x === "string"
+          );
+          if (!cancelled) {
+            const waiting = peers.length < 2;
+            setState((s) => ({
+              ...s,
+              waitingForPeerInRoom: waiting,
+              connectionPhase: waiting ? "waiting_peer" : "peer_joined",
+            }));
+          }
+          return;
+        }
+
         if (m.t === "session") {
+          clearConnectWatchdog();
+          if (pcRef.current) {
+            console.info("[SIGNALING] p2p: duplicate session ignored");
+            return;
+          }
+          if (!cancelled) {
+            setState((s) => ({
+              ...s,
+              waitingForPeerInRoom: false,
+              connectionPhase: "negotiating",
+            }));
+          }
           remoteIdRef.current = typeof m.remoteUserId === "string" ? m.remoteUserId : null;
+          setupP2pAfterSession();
           if (m.shouldOffer) {
             await sendOffer();
           }
@@ -1364,12 +1808,18 @@ export function useWebRtcCall({
         }
 
         if (m.t === "offer" && typeof m.sdp === "string") {
+          const p = pcRef.current;
+          if (!p) {
+            console.warn("[SIGNALING] offer primit înainte de sesiunea P2P — ignorat");
+            return;
+          }
           const answerTo = typeof m.from === "string" ? m.from : remoteIdRef.current;
           try {
-            await pc.setRemoteDescription({ type: "offer", sdp: m.sdp });
-            flushIceQueue(pc);
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
+            void ensureRecvOnlyVideoIfNoLocalVideo(p, audioOnly, localStream);
+            await p.setRemoteDescription({ type: "offer", sdp: m.sdp });
+            flushIceQueue(p);
+            const answer = await p.createAnswer();
+            await p.setLocalDescription(answer);
             console.info("[SIGNALING] outbound answer");
             if (answerTo) {
               ws.send(JSON.stringify({ t: "answer", sdp: answer.sdp ?? "", to: answerTo }));
@@ -1377,31 +1827,53 @@ export function useWebRtcCall({
               ws.send(JSON.stringify({ t: "answer", sdp: answer.sdp ?? "" }));
             }
             setState((s) => ({ ...s, status: "connected" }));
-          } catch {
-            if (!cancelled) setState((s) => ({ ...s, error: "Nu am putut negocia conexiunea (offer)." }));
+          } catch (e) {
+            if (!cancelled) {
+              const detail = formatRtcNegotiationErrorSuffix(e);
+              console.warn("[SIGNALING] p2p: create/set answer after offer failed", e);
+              setState((s) => ({ ...s, error: `Nu am putut negocia conexiunea (offer).${detail}` }));
+            }
           }
           return;
         }
 
         if (m.t === "answer" && typeof m.sdp === "string") {
+          const p = pcRef.current;
+          if (!p) return;
+          if (p.signalingState === "stable") {
+            console.info("[SIGNALING] p2p: duplicate answer ignored");
+            return;
+          }
           try {
-            await pc.setRemoteDescription({ type: "answer", sdp: m.sdp });
-            flushIceQueue(pc);
+            await p.setRemoteDescription({ type: "answer", sdp: m.sdp });
+            flushIceQueue(p);
             setState((s) => ({ ...s, status: "connected" }));
-          } catch {
-            if (!cancelled) setState((s) => ({ ...s, error: "Nu am putut negocia conexiunea (answer)." }));
+          } catch (e) {
+            if (!cancelled) {
+              const detail = formatRtcNegotiationErrorSuffix(e);
+              console.warn("[SIGNALING] p2p: setRemoteDescription(answer) failed", e);
+              setState((s) => ({
+                ...s,
+                error: `Nu am putut negocia conexiunea (answer).${detail}`,
+              }));
+            }
           }
           return;
         }
 
         if (m.t === "ice" && m.candidate) {
           console.info("[ICE] remote candidate received via signaling");
-          if (!pc.remoteDescription) {
+          const p = pcRef.current;
+          if (!p) {
+            iceQueueRef.current.push(m.candidate);
+            return;
+          }
+          if (!p.remoteDescription) {
             iceQueueRef.current.push(m.candidate);
             return;
           }
           try {
-            await pc.addIceCandidate(m.candidate);
+            await p.addIceCandidate(m.candidate);
           } catch {
             /* ignore */
           }
@@ -1421,6 +1893,8 @@ export function useWebRtcCall({
               canSwitchCamera: false,
               permissionHelp: null,
               cameraSoftFailed: false,
+              waitingForPeerInRoom: false,
+              connectionPhase: null,
             }));
             onAutoEndedRef.current?.();
           }
@@ -1428,9 +1902,22 @@ export function useWebRtcCall({
       };
 
       ws.onerror = () => {
-        console.info("[SIGNALING] WebSocket error");
-        if (!cancelled) setState((s) => ({ ...s, error: "Eroare WebSocket semnalizare." }));
+        console.info("[SIGNALING] WS error");
+        clearConnectWatchdog();
+        if (!cancelled) {
+          setState((s) => ({
+            ...s,
+            error: "Eroare WebSocket semnalizare — verifică URL-ul WS, firewall și că serverul de semnalizare rulează.",
+            connectionPhase: null,
+          }));
+        }
       };
+
+      if (ws.readyState === WebSocket.OPEN) {
+        onP2pWsReady();
+      } else {
+        ws.addEventListener("open", () => onP2pWsReady(), { once: true });
+      }
 
       callStartRef.current = Date.now();
     };
@@ -1460,6 +1947,7 @@ export function useWebRtcCall({
                 status: "error",
                 error:
                   "WebRTC este dezactivat sau lipsește URL semnalizare pe server. Verifică Vercel (NEXT_PUBLIC_*).",
+                connectionPhase: null,
               }));
             }
             return;
@@ -1475,6 +1963,7 @@ export function useWebRtcCall({
           status: "error",
           error:
             "WebRTC nu e configurat: setează NEXT_PUBLIC_SIGNALING_WS_URL și rulează serverul de semnalizare (vezi docs/calls.md).",
+          connectionPhase: null,
         }));
         return;
       }
@@ -1507,6 +1996,8 @@ export function useWebRtcCall({
           remoteParticipants: [],
           screenSharing: false,
           cameraSoftFailed: false,
+          waitingForPeerInRoom: false,
+          connectionPhase: null,
         }));
         onAutoEndedRef.current?.();
       }
@@ -1548,5 +2039,7 @@ export function useWebRtcCall({
     switchCamera,
     toggleScreenShare,
     retryPermissions,
+    waitingForPeerInRoom: state.waitingForPeerInRoom,
+    connectionPhase: state.connectionPhase,
   };
 }
