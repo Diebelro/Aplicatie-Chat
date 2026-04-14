@@ -533,7 +533,10 @@ export default function AppLayout({
         )}
       </main>
       {/* Bottom nav: doar pe mobile */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 border-t border-dark-600 bg-dark-900/98 backdrop-blur z-20 flex items-center justify-around safe-area-inset-bottom touch-manipulation" style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))", paddingTop: "0.5rem" }}>
+      <nav
+        className="md:hidden fixed bottom-0 left-0 right-0 z-30 flex items-center justify-around touch-manipulation border-t border-dark-600/90 bg-dark-900 shadow-[0_-10px_28px_-6px_rgba(0,0,0,0.55)] safe-area-inset-bottom"
+        style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom, 0px))", paddingTop: "0.5rem" }}
+      >
         <Link
           href="/app"
           className="flex flex-col items-center justify-center gap-0.5 min-h-[56px] min-w-[64px] py-2 px-3 rounded-lg transition text-dark-400 hover:text-zinc-900 active:bg-dark-800"
