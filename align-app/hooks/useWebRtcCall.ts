@@ -16,6 +16,7 @@ import {
   attachHostileNetworkGuards,
   patchHostileIceCallQualityOverlay,
   clearHostileIceCallQualityOverlay,
+  isHostileIceBannerSuppressedFromUi,
 } from "@/lib/webrtc/hostileNetworkGuards";
 import {
   createNegotiationMutex,
@@ -1072,7 +1073,12 @@ export function useWebRtcCall({
             setState((s) => ({ ...s, error: msg, banner: msg }));
           },
           onBanner: (m) => {
-            if (!cancelled) setState((s) => ({ ...s, banner: m }));
+            if (cancelled) return;
+            if (m != null && isHostileIceBannerSuppressedFromUi(m)) {
+              console.debug("[Align][callBanner suppressed]", m);
+              return;
+            }
+            setState((s) => ({ ...s, banner: m }));
           },
           publishIceRestartOffer: (sdp) => {
             if (ws.readyState === WebSocket.OPEN) {
@@ -1904,7 +1910,12 @@ export function useWebRtcCall({
             localStream.getTracks().forEach((t) => t.stop());
           },
           onBanner: (m) => {
-            if (!cancelled) setState((s) => ({ ...s, banner: m }));
+            if (cancelled) return;
+            if (m != null && isHostileIceBannerSuppressedFromUi(m)) {
+              console.debug("[Align][callBanner suppressed]", m);
+              return;
+            }
+            setState((s) => ({ ...s, banner: m }));
           },
           publishIceRestartOffer: (sdp) => {
             const to = remoteIdRef.current;

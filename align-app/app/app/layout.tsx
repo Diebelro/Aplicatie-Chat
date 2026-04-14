@@ -514,7 +514,8 @@ export default function AppLayout({
       </header>
       <main
         className={
-          "flex-1 flex flex-col min-h-0 max-w-4xl w-full mx-auto px-4 py-4 md:py-6 pb-24 md:pb-6 " +
+          "flex-1 flex flex-col min-h-0 min-w-0 max-w-4xl w-full mx-auto py-4 md:py-6 pb-24 md:pb-6 " +
+          "pl-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))] " +
           (isChatRoute ? "overflow-hidden" : "overflow-y-auto overscroll-y-contain")
         }
       >

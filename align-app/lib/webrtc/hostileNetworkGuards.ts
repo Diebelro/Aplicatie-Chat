@@ -13,6 +13,14 @@ export const HOSTILE_ICE_ERROR = {
   SELECTED_PAIR_NOT_RELAY: "TURN_WARNING: SELECTED_PAIR_NOT_RELAY",
 } as const;
 
+/** Diagnostic TURN/ICE — nu afișăm în CallUI; păstrăm în `console.debug` din hook. */
+export function isHostileIceBannerSuppressedFromUi(message: string | null): boolean {
+  if (message == null) return false;
+  return (
+    message.includes("SELECTED_PAIR_NOT_RELAY") || message.includes("TURN_WARNING")
+  );
+}
+
 export type HostileIceDiag = {
   label: string;
   iceGatheringState: RTCIceGatheringState | string;
