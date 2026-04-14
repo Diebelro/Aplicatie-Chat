@@ -88,6 +88,16 @@ export async function acquireCallMediaStream(audioOnly: boolean): Promise<Acquir
   const prefer1080 = !mobile && typeof window !== "undefined" && window.innerWidth >= 1200;
   const video = getVideoConstraints(prefer1080);
 
+  /** Pe desktop, unele camere / drivere (inclusiv cu Zoom în fundal) pică pe width/height „fixe” — mai întâi lăsăm browserul să aleagă. */
+  if (!mobile) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio, video: true });
+      return { stream, cameraUnavailable: false };
+    } catch {
+      /* continuă la profil explicit 720p/1080p */
+    }
+  }
+
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio, video });
     return { stream, cameraUnavailable: false };

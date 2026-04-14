@@ -28,7 +28,9 @@ enum AlignAPI {
         req.addValue(userId, forHTTPHeaderField: "x-user-id")
         let (data, res) = try await URLSession.shared.data(for: req)
         guard let http = res as? HTTPURLResponse, http.statusCode == 200 else {
-            throw AlignAPIError.badStatus((res as? HTTPURLResponse)?.statusCode ?? 0, "")
+            let code = (res as? HTTPURLResponse)?.statusCode ?? 0
+            let body = String(data: data, encoding: .utf8) ?? ""
+            throw AlignAPIError.badStatus(code, body)
         }
         let obj = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         guard let arr = obj?["iceServers"] as? [[String: Any]] else { throw AlignAPIError.decode }

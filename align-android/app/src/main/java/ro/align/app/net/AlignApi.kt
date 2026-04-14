@@ -89,12 +89,21 @@ class AlignApi(
                     }
                     val user = o.optString("username", "")
                     val pass = o.optString("credential", "")
-                    val builder = PeerConnection.IceServer.builder(urls)
-                    if (user.isNotEmpty() && pass.isNotEmpty()) {
-                        builder.setUsername(user).setPassword(pass)
+                    if (user.isEmpty() || pass.isEmpty()) {
+                        throw ApiException("ice-config: TURN_REQUIRED missing username/credential")
                     }
+                    val relayUrls = urls.filter { u ->
+                        val x = u.trim().lowercase()
+                        x.startsWith("turn:") || x.startsWith("turns:")
+                    }
+                    if (relayUrls.isEmpty()) {
+                        throw ApiException("ice-config: TURN_REQUIRED no turn:/turns: URIs in iceServers")
+                    }
+                    val builder = PeerConnection.IceServer.builder(relayUrls)
+                    builder.setUsername(user).setPassword(pass)
                     out.add(builder.createIceServer())
                 }
+                if (out.isEmpty()) throw ApiException("ice-config: TURN_REQUIRED empty iceServers")
                 return@withContext out
             }
         }

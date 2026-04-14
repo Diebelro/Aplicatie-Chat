@@ -8,11 +8,37 @@ import {
   isMobileDevice,
 } from "@/lib/webrtc/mediaConstraints";
 import {
-  iceServersFromIceConfigResponse,
   applyCodecPreferencesIfSupported,
   setMaxBitrate,
   applyVideoDegradationPreference,
 } from "@/lib/webrtc/connection";
+import {
+  attachHostileNetworkGuards,
+  patchHostileIceCallQualityOverlay,
+  clearHostileIceCallQualityOverlay,
+} from "@/lib/webrtc/hostileNetworkGuards";
+import {
+  createNegotiationMutex,
+  emptyGlareMetrics,
+  resolveOfferGlare,
+  type GlareMetrics,
+} from "@/lib/webrtc/negotiationMutex";
+import {
+  decideQualityAdaptation,
+  DEFAULT_QUALITY_OPTS,
+  type QualityAdaptState,
+} from "@/lib/webrtc/qualityAdaptation";
+import {
+  canApplyQualityStep,
+  QUALITY_POST_ICE_RECOVERY_FREEZE_MS,
+} from "@/lib/webrtc/qualityCooldown";
+import { emptyQualityStatsCursor, sampleQualityFromPeerConnectionStats } from "@/lib/webrtc/sampleCallQuality";
+import { applyLocalVideoSendDownscale } from "@/lib/webrtc/videoSendDownscale";
+import {
+  applyVideoSenderScaleAndBitrate,
+  applyVideoDegradationPreferenceSafe,
+} from "@/lib/webrtc/videoRtpSenderTune";
+import { fetchRtcIceServers } from "@/lib/webrtc/iceFetch";
 import {
   buildRtcPeerConnectionConfig,
   applyInboundAudioPlayoutHint,
@@ -157,6 +183,10 @@ const HEARTBEAT_MS = 25_000;
 type PeerBundle = {
   pc: RTCPeerConnection;
   iceQueue: RTCIceCandidateInit[];
+  detachHostileGuards?: () => void;
+  withNegotiationLock: ReturnType<typeof createNegotiationMutex>;
+  glare: GlareMetrics;
+  deferredRemoteOfferSdp: string | null;
 };
 
 export function useWebRtcCall({
@@ -195,16 +225,14 @@ export function useWebRtcCall({
   const remoteIdRef = useRef<string | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const callStartRef = useRef<number>(0);
-  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const statsTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const maxMinutesRef = useRef(30);
-  const reconnectAttemptRef = useRef(0);
   const disconnectRecoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const p2pHostileDetachRef = useRef<(() => void) | null>(null);
   /** Cap bitrate video trimis: coboară la pierderi mari, urcă treptat când e stabil. */
   const adaptiveVideoBpsRef = useRef(2_500_000);
   const maxVideoBpsCapRef = useRef(2_500_000);
-  const stableNetworkIntervalsRef = useRef(0);
   const onAutoEndedRef = useRef(onAutoEnded);
   const negotiateRef = useRef<null | (() => Promise<void>)>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
@@ -220,6 +248,8 @@ export function useWebRtcCall({
   const connectWatchdogRef = useRef<number | null>(null);
   /** P2P: după ~20s în `iceConnectionState === checking` arătăm un banner (TURN / rețea). */
   const p2pIceStuckHintTimerRef = useRef<number | null>(null);
+  const p2pCursorDcRef = useRef<RTCDataChannel | null>(null);
+  const [cursorDataChannel, setCursorDataChannel] = useState<RTCDataChannel | null>(null);
 
   onAutoEndedRef.current = onAutoEnded;
 
@@ -246,10 +276,6 @@ export function useWebRtcCall({
       clearTimeout(disconnectRecoverTimerRef.current);
       disconnectRecoverTimerRef.current = null;
     }
-    if (reconnectTimerRef.current) {
-      clearTimeout(reconnectTimerRef.current);
-      reconnectTimerRef.current = null;
-    }
     if (heartbeatRef.current) {
       clearInterval(heartbeatRef.current);
       heartbeatRef.current = null;
@@ -266,6 +292,7 @@ export function useWebRtcCall({
 
     for (const [, bundle] of peerMapRef.current) {
       try {
+        bundle.detachHostileGuards?.();
         bundle.pc.getReceivers().forEach((r) => {
           try {
             r.track?.stop();
@@ -283,6 +310,13 @@ export function useWebRtcCall({
 
     const pc = pcRef.current;
     if (pc) {
+      try {
+        p2pCursorDcRef.current?.close();
+      } catch {}
+      p2pCursorDcRef.current = null;
+      setCursorDataChannel(null);
+      p2pHostileDetachRef.current?.();
+      p2pHostileDetachRef.current = null;
       pc.getReceivers().forEach((r) => {
         try {
           r.track?.stop();
@@ -311,10 +345,11 @@ export function useWebRtcCall({
     });
     localStreamRef.current = null;
     callStartRef.current = 0;
-    reconnectAttemptRef.current = 0;
-    stableNetworkIntervalsRef.current = 0;
+    p2pHostileDetachRef.current?.();
+    p2pHostileDetachRef.current = null;
     localVideoEndedHandledRef.current = new WeakSet();
-  }, [clearStatsMonitor, clearConnectWatchdog]);
+    clearHostileIceCallQualityOverlay();
+  }, [clearStatsMonitor, clearConnectWatchdog, setCursorDataChannel]);
 
   const attachLocalVideoEndedOnce = useCallback(
     (track: MediaStreamTrack) => {
@@ -754,37 +789,23 @@ export function useWebRtcCall({
         if (!cancelled) setState((s) => ({ ...s, canSwitchCamera: false }));
       }
 
-      const iceRes = await fetch("/api/call/ice-config", {
-        cache: "no-store",
-        credentials: "same-origin",
-        headers: getAuthHeaders(),
-      });
-      if (!iceRes.ok) {
-        const err = await iceRes.json().catch(() => ({}));
+      let iceServers: RTCIceServer[];
+      try {
+        iceServers = await fetchRtcIceServers(getAuthHeaders);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
         if (!cancelled) {
-          const apiErr = (err as { error?: string }).error?.trim();
-          const msg =
-            iceRes.status === 401
-              ? apiErr || "Trebuie să fii autentificat pentru ICE/TURN."
-              : apiErr || "ICE/TURN indisponibil.";
           setState((s) => ({
             ...s,
             status: "error",
-            error: msg,
+            error: msg.includes("TURN_REQUIRED") ? msg : `TURN_REQUIRED: ${msg}`,
             connectionPhase: null,
           }));
         }
         localStream.getTracks().forEach((t) => t.stop());
         return;
       }
-      const iceJson = (await iceRes.json()) as {
-        iceServers?: Array<{ urls?: unknown; username?: string; credential?: string }>;
-      };
-      if (!(iceJson.iceServers?.length ?? 0)) {
-        console.warn("[WebRTC] iceServers from /api/call/ice-config is empty");
-      }
-      const iceServers = iceServersFromIceConfigResponse(iceJson);
-      const rtcPcConfig = buildRtcPeerConnectionConfig(iceServers, { mobileLike: isMobileDevice() });
+      const rtcPcConfig = buildRtcPeerConnectionConfig(iceServers);
 
       const tokRes = await fetch("/api/call/signaling-token", {
         headers: getAuthHeaders(),
@@ -941,17 +962,19 @@ export function useWebRtcCall({
         if (!w || w.readyState !== WebSocket.OPEN || cancelled) return;
         for (const [peerId, bundle] of peerMapRef.current) {
           if (userId >= peerId) continue;
-          const { pc } = bundle;
-          try {
-            const skipRecv = ensureRecvOnlyVideoIfNoLocalVideo(pc, audioOnly, localStream);
-            const offer = await pc.createOffer(
-              rtcOfferOptionsWithRecvFallback(pc, audioOnly, skipRecv)
-            );
-            await pc.setLocalDescription(offer);
-            w.send(JSON.stringify({ t: "offer", sdp: offer.sdp ?? "", to: peerId }));
-          } catch {
-            /* ignore */
-          }
+          const { pc, withNegotiationLock } = bundle;
+          await withNegotiationLock(async () => {
+            try {
+              const skipRecv = ensureRecvOnlyVideoIfNoLocalVideo(pc, audioOnly, localStream);
+              const offer = await pc.createOffer(
+                rtcOfferOptionsWithRecvFallback(pc, audioOnly, skipRecv)
+              );
+              await pc.setLocalDescription(offer);
+              w.send(JSON.stringify({ t: "offer", sdp: offer.sdp ?? "", to: peerId }));
+            } catch {
+              /* ignore */
+            }
+          });
         }
       };
 
@@ -969,14 +992,45 @@ export function useWebRtcCall({
           pc.addTrack(track, localStream);
           attachLocalVideoEndedOnce(track);
         });
+        const withNegotiationLock = createNegotiationMutex();
+        const glare = emptyGlareMetrics();
         peerMapRef.current.set(remoteUserId, {
           pc,
           iceQueue: [],
+          withNegotiationLock,
+          glare,
+          deferredRemoteOfferSdp: null,
         });
         void (async () => {
           await setMaxBitrate(pc, maxVideoBps);
           await applyVideoDegradationPreference(pc, "maintain-framerate");
         })();
+
+        pc.addEventListener("signalingstatechange", () => {
+          if (pc.signalingState !== "stable") return;
+          const b = peerMapRef.current.get(remoteUserId);
+          const sdpDeferred = b?.deferredRemoteOfferSdp;
+          if (!b || !sdpDeferred || cancelled) return;
+          b.deferredRemoteOfferSdp = null;
+          void b.withNegotiationLock(async () => {
+            try {
+              void ensureRecvOnlyVideoIfNoLocalVideo(b.pc, audioOnly, localStream);
+              await b.pc.setRemoteDescription({ type: "offer", sdp: sdpDeferred });
+              flushPeerIce(b);
+              const answer = await b.pc.createAnswer();
+              await b.pc.setLocalDescription(answer);
+              if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ t: "answer", sdp: answer.sdp ?? "", to: remoteUserId }));
+              }
+              if (!cancelled) setState((s) => ({ ...s, status: "connected" }));
+            } catch (e) {
+              if (!cancelled) {
+                const detail = formatRtcNegotiationErrorSuffix(e);
+                setState((s) => ({ ...s, error: `Nu am putut negocia conexiunea (offer amânat).${detail}` }));
+              }
+            }
+          });
+        });
 
         pc.ontrack = (ev) => {
           if (cancelled) return;
@@ -1007,18 +1061,54 @@ export function useWebRtcCall({
           }
         };
 
+        const detachMesh = attachHostileNetworkGuards({
+          label: `mesh:${remoteUserId}`,
+          pc,
+          getAuthHeaders,
+          isCancelled: () => cancelled,
+          onHardFail: (msg) => {
+            if (cancelled) return;
+            console.error("[HOSTILE_ICE][mesh]", remoteUserId, msg);
+            setState((s) => ({ ...s, error: msg, banner: msg }));
+          },
+          onBanner: (m) => {
+            if (!cancelled) setState((s) => ({ ...s, banner: m }));
+          },
+          publishIceRestartOffer: (sdp) => {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ t: "offer", sdp, to: remoteUserId }));
+            }
+          },
+          createIceRestartOffer: async (p) => {
+            return withNegotiationLock(async () => {
+              applyCodecPreferencesIfSupported(p);
+              const skipRecv = ensureRecvOnlyVideoIfNoLocalVideo(p, audioOnly, localStream);
+              const offer = await p.createOffer({
+                ...rtcOfferOptionsWithRecvFallback(p, audioOnly, skipRecv),
+                iceRestart: true,
+              });
+              await p.setLocalDescription(offer);
+              return offer.sdp ?? null;
+            });
+          },
+        });
+        const meshBundle = peerMapRef.current.get(remoteUserId);
+        if (meshBundle) meshBundle.detachHostileGuards = detachMesh;
+
         if (shouldOffer) {
-          try {
-            applyCodecPreferencesIfSupported(pc);
-            const skipRecv = ensureRecvOnlyVideoIfNoLocalVideo(pc, audioOnly, localStream);
-            const offer = await pc.createOffer(
-              rtcOfferOptionsWithRecvFallback(pc, audioOnly, skipRecv)
-            );
-            await pc.setLocalDescription(offer);
-            ws.send(JSON.stringify({ t: "offer", sdp: offer.sdp ?? "", to: remoteUserId }));
-          } catch {
-            if (!cancelled) setState((s) => ({ ...s, error: "Nu am putut porni oferta WebRTC." }));
-          }
+          void withNegotiationLock(async () => {
+            try {
+              applyCodecPreferencesIfSupported(pc);
+              const skipRecv = ensureRecvOnlyVideoIfNoLocalVideo(pc, audioOnly, localStream);
+              const offer = await pc.createOffer(
+                rtcOfferOptionsWithRecvFallback(pc, audioOnly, skipRecv)
+              );
+              await pc.setLocalDescription(offer);
+              ws.send(JSON.stringify({ t: "offer", sdp: offer.sdp ?? "", to: remoteUserId }));
+            } catch {
+              if (!cancelled) setState((s) => ({ ...s, error: "Nu am putut porni oferta WebRTC." }));
+            }
+          });
         }
       };
 
@@ -1032,7 +1122,9 @@ export function useWebRtcCall({
         const targetIds = new Set(valid.map((p) => p.remoteUserId));
         for (const id of [...peerMapRef.current.keys()]) {
           if (!targetIds.has(id)) {
-            peerMapRef.current.get(id)?.pc.close();
+            const rm = peerMapRef.current.get(id);
+            rm?.detachHostileGuards?.();
+            rm?.pc.close();
             peerMapRef.current.delete(id);
             meshRemoteStreamsRef.current.delete(id);
             if (!cancelled) {
@@ -1105,53 +1197,76 @@ export function useWebRtcCall({
         }
 
         if (m.t === "offer" && typeof m.sdp === "string" && typeof m.from === "string") {
-          let bundle = peerMapRef.current.get(m.from);
+          const offerFrom = m.from;
+          const offerSdp = m.sdp;
+          let bundle = peerMapRef.current.get(offerFrom);
           if (!bundle) {
-            await ensurePeer(m.from, false);
-            bundle = peerMapRef.current.get(m.from);
+            await ensurePeer(offerFrom, false);
+            bundle = peerMapRef.current.get(offerFrom);
           }
           if (!bundle || cancelled) return;
-          const { pc } = bundle;
-          try {
-            void ensureRecvOnlyVideoIfNoLocalVideo(pc, audioOnly, localStream);
-            await pc.setRemoteDescription({ type: "offer", sdp: m.sdp });
-            flushPeerIce(bundle);
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-            ws.send(JSON.stringify({ t: "answer", sdp: answer.sdp ?? "", to: m.from }));
-            setState((s) => ({ ...s, status: "connected" }));
-          } catch (e) {
-            if (!cancelled) {
-              const detail = formatRtcNegotiationErrorSuffix(e);
-              setState((s) => ({ ...s, error: `Nu am putut negocia conexiunea (offer).${detail}` }));
+          const { pc, withNegotiationLock, glare } = bundle;
+          await withNegotiationLock(async () => {
+            try {
+              const polite = userId < offerFrom;
+              const glareRes = await resolveOfferGlare(pc, polite, glare);
+              if (glareRes === "ignore_incoming") return;
+              if (glareRes === "defer_incoming") {
+                bundle.deferredRemoteOfferSdp = offerSdp;
+                patchHostileIceCallQualityOverlay({
+                  glareDetectedCount: glare.glareDetectedCount,
+                  rollbackAttemptedCount: glare.rollbackAttemptedCount,
+                  rollbackFailedCount: glare.rollbackFailedCount,
+                });
+                return;
+              }
+              void ensureRecvOnlyVideoIfNoLocalVideo(pc, audioOnly, localStream);
+              await pc.setRemoteDescription({ type: "offer", sdp: offerSdp });
+              flushPeerIce(bundle);
+              const answer = await pc.createAnswer();
+              await pc.setLocalDescription(answer);
+              ws.send(JSON.stringify({ t: "answer", sdp: answer.sdp ?? "", to: offerFrom }));
+              setState((s) => ({ ...s, status: "connected" }));
+              patchHostileIceCallQualityOverlay({
+                glareDetectedCount: bundle.glare.glareDetectedCount,
+                rollbackAttemptedCount: bundle.glare.rollbackAttemptedCount,
+                rollbackFailedCount: bundle.glare.rollbackFailedCount,
+              });
+            } catch (e) {
+              if (!cancelled) {
+                const detail = formatRtcNegotiationErrorSuffix(e);
+                setState((s) => ({ ...s, error: `Nu am putut negocia conexiunea (offer).${detail}` }));
+              }
             }
-          }
+          });
           return;
         }
 
         if (m.t === "answer" && typeof m.sdp === "string" && typeof m.from === "string") {
           const bundle = peerMapRef.current.get(m.from);
           if (!bundle) return;
-          const { pc } = bundle;
+          const { pc, withNegotiationLock } = bundle;
           /** Al doilea `answer` (rețea / server) ajunge după ce PC e deja `stable` — îl ignorăm în loc să aruncăm eroare. */
           if (pc.signalingState === "stable") {
             console.info("[SIGNALING] mesh: duplicate answer ignored", { from: m.from });
             return;
           }
-          try {
-            await pc.setRemoteDescription({ type: "answer", sdp: m.sdp });
-            flushPeerIce(bundle);
-            setState((s) => ({ ...s, status: "connected" }));
-          } catch (e) {
-            if (!cancelled) {
-              const detail = formatRtcNegotiationErrorSuffix(e);
-              console.warn("[SIGNALING] mesh: setRemoteDescription(answer) failed", e);
-              setState((s) => ({
-                ...s,
-                error: `Nu am putut negocia conexiunea (answer).${detail}`,
-              }));
+          await withNegotiationLock(async () => {
+            try {
+              await pc.setRemoteDescription({ type: "answer", sdp: m.sdp });
+              flushPeerIce(bundle);
+              setState((s) => ({ ...s, status: "connected" }));
+            } catch (e) {
+              if (!cancelled) {
+                const detail = formatRtcNegotiationErrorSuffix(e);
+                console.warn("[SIGNALING] mesh: setRemoteDescription(answer) failed", e);
+                setState((s) => ({
+                  ...s,
+                  error: `Nu am putut negocia conexiunea (answer).${detail}`,
+                }));
+              }
             }
-          }
+          });
           return;
         }
 
@@ -1172,7 +1287,9 @@ export function useWebRtcCall({
         }
 
         if (m.t === "call-end" && typeof m.from === "string" && m.from !== userId) {
-          peerMapRef.current.get(m.from)?.pc.close();
+          const endBundle = peerMapRef.current.get(m.from);
+          endBundle?.detachHostileGuards?.();
+          endBundle?.pc.close();
           peerMapRef.current.delete(m.from);
           meshRemoteStreamsRef.current.delete(m.from);
           setState((s) => ({
@@ -1273,41 +1390,26 @@ export function useWebRtcCall({
         if (!cancelled) setState((s) => ({ ...s, canSwitchCamera: false }));
       }
 
-      const iceRes = await fetch("/api/call/ice-config", {
-        cache: "no-store",
-        credentials: "same-origin",
-        headers: getAuthHeaders(),
-      });
-      if (!iceRes.ok) {
-        const err = await iceRes.json().catch(() => ({}));
+      let iceServers: RTCIceServer[];
+      try {
+        iceServers = await fetchRtcIceServers(getAuthHeaders);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
         if (!cancelled) {
-          const apiErr = (err as { error?: string }).error?.trim();
-          const msg =
-            iceRes.status === 401
-              ? apiErr || "Trebuie să fii autentificat pentru ICE/TURN."
-              : apiErr || "ICE/TURN indisponibil.";
           setState((s) => ({
             ...s,
             status: "error",
-            error: msg,
+            error: msg.includes("TURN_REQUIRED") ? msg : `TURN_REQUIRED: ${msg}`,
             connectionPhase: null,
           }));
         }
         localStream.getTracks().forEach((t) => t.stop());
         return;
       }
-      const iceJson = (await iceRes.json()) as {
-        iceServers?: Array<{ urls?: unknown; username?: string; credential?: string }>;
-      };
-      if (!(iceJson.iceServers?.length ?? 0)) {
-        console.warn("[WebRTC] iceServers from /api/call/ice-config is empty");
-      }
-      /** ICE: URL-uri din env (NEXT_PUBLIC_TURN_URLS), credențiale efemere REST (HMAC-SHA1) — vezi docs/webrtc-turn.md */
-      const iceServers = iceServersFromIceConfigResponse(iceJson);
-      const rtcPcConfig = buildRtcPeerConnectionConfig(iceServers, { mobileLike: isMobileDevice() });
+      const rtcPcConfig = buildRtcPeerConnectionConfig(iceServers);
       console.info("[ICE] ice-config OK", {
         iceServerEntries: iceServers.length,
-        apiIceServerObjects: iceJson.iceServers?.length ?? 0,
+        apiIceServerObjects: iceServers.length,
       });
 
       const tokRes = await fetch("/api/call/signaling-token", {
@@ -1462,110 +1564,181 @@ export function useWebRtcCall({
       negotiateRef.current = null;
       maxVideoBpsCapRef.current = maxVideoBps;
       adaptiveVideoBpsRef.current = maxVideoBps;
-      stableNetworkIntervalsRef.current = 0;
 
-      let lastStatsBytes = 0;
-      let lastStatsTime = Date.now();
-      let lastStatsLost = 0;
+      const withP2pNegotiationLock = createNegotiationMutex();
+      let p2pDeferredRemoteOfferSdp: string | null = null;
+      const p2pGlareMetrics = emptyGlareMetrics();
+      let p2pLastQualityChangeAtMs: number | null = null;
+      let p2pQualityFrozenUntilMs = 0;
+      let p2pQualityState: QualityAdaptState = {
+        badStreak: 0,
+        goodStreak: 0,
+        degradedSteps: 0,
+      };
+      let qualityStatsCursor = emptyQualityStatsCursor();
 
       const startStatsMonitor = () => {
         clearStatsMonitor();
-        lastStatsBytes = 0;
-        lastStatsTime = Date.now();
-        lastStatsLost = 0;
+        qualityStatsCursor = emptyQualityStatsCursor();
+        p2pQualityState = { badStreak: 0, goodStreak: 0, degradedSteps: 0 };
+        p2pLastQualityChangeAtMs = null;
+        p2pQualityFrozenUntilMs = 0;
         statsTimerRef.current = setInterval(() => {
           void (async () => {
             const p = pcRef.current;
             if (cancelled || !p || p.connectionState !== "connected") return;
             try {
               const report = await p.getStats();
-              let vBytes = 0;
-              let vLost = 0;
-              report.forEach((s) => {
-                if (s.type === "inbound-rtp" && "kind" in s && s.kind === "video") {
-                  const st = s as RTCInboundRtpStreamStats;
-                  if (typeof st.bytesReceived === "number") vBytes += st.bytesReceived;
-                  if (typeof st.packetsLost === "number") vLost += st.packetsLost;
-                }
-              });
+              const { sample, next: nextCursor, uplinkBitrateRawBps } =
+                sampleQualityFromPeerConnectionStats(report, qualityStatsCursor);
+              qualityStatsCursor = nextCursor;
               const now = Date.now();
-              const dt = (now - lastStatsTime) / 1000;
-              const bitrate = dt > 0 ? ((vBytes - lastStatsBytes) * 8) / dt : 0;
-              lastStatsBytes = vBytes;
-              lastStatsTime = now;
-              const lostDelta = vLost - lastStatsLost;
-              lastStatsLost = vLost;
+              if (now < p2pQualityFrozenUntilMs) {
+                patchHostileIceCallQualityOverlay({
+                  sampleSource: `${sample.sampleSourceUplink}/${sample.sampleSourceRtt}`,
+                  qualityLevel: p2pQualityState.degradedSteps,
+                  qualityReason: "ice_recovery_freeze",
+                  glareDetectedCount: p2pGlareMetrics.glareDetectedCount,
+                  rollbackAttemptedCount: p2pGlareMetrics.rollbackAttemptedCount,
+                  rollbackFailedCount: p2pGlareMetrics.rollbackFailedCount,
+                  lastQualityChangeAt: p2pLastQualityChangeAtMs,
+                });
+                return;
+              }
+
+              const qo = DEFAULT_QUALITY_OPTS;
+              const minBps = isMobileDevice() ? qo.minBitrateBps : Math.max(qo.minBitrateBps, 180_000);
+              const decision = decideQualityAdaptation(
+                p2pQualityState,
+                sample,
+                adaptiveVideoBpsRef.current,
+                { ...qo, minBitrateBps: minBps }
+              );
               const cap = maxVideoBpsCapRef.current;
-              const minBps = isMobileDevice() ? 120_000 : 180_000;
-              if (lostDelta > 28) {
-                stableNetworkIntervalsRef.current = 0;
-                adaptiveVideoBpsRef.current = Math.max(minBps, Math.floor(adaptiveVideoBpsRef.current * 0.62));
+              const stepBlocked =
+                (decision.action === "degrade" || decision.action === "improve") &&
+                !canApplyQualityStep(now, p2pLastQualityChangeAtMs, p2pQualityFrozenUntilMs);
+
+              if (stepBlocked) {
+                patchHostileIceCallQualityOverlay({
+                  sampleSource: `${sample.sampleSourceUplink}/${sample.sampleSourceRtt}`,
+                  qualityLevel: p2pQualityState.degradedSteps,
+                  qualityReason: "cooldown",
+                  glareDetectedCount: p2pGlareMetrics.glareDetectedCount,
+                  rollbackAttemptedCount: p2pGlareMetrics.rollbackAttemptedCount,
+                  rollbackFailedCount: p2pGlareMetrics.rollbackFailedCount,
+                  lastQualityChangeAt: p2pLastQualityChangeAtMs,
+                });
+                return;
+              }
+
+              p2pQualityState = decision.next;
+              if (decision.action === "degrade" || decision.action === "improve") {
+                p2pLastQualityChangeAtMs = now;
+              }
+
+              if (decision.action === "degrade") {
+                adaptiveVideoBpsRef.current = Math.max(
+                  minBps,
+                  Math.floor(adaptiveVideoBpsRef.current * decision.bitrateMultiplier)
+                );
                 await setMaxBitrate(p, adaptiveVideoBpsRef.current);
-                setState((s) => ({ ...s, banner: "Rețea slabă — reduc debitul video pentru continuitate." }));
-              } else if (lostDelta <= 4 && bitrate > 0) {
-                stableNetworkIntervalsRef.current += 1;
-                if (stableNetworkIntervalsRef.current >= 3 && adaptiveVideoBpsRef.current < cap * 0.98) {
-                  adaptiveVideoBpsRef.current = Math.min(
-                    cap,
-                    Math.floor(adaptiveVideoBpsRef.current * 1.08)
+                if (!audioOnly) {
+                  const ok = await applyVideoSenderScaleAndBitrate(
+                    p,
+                    p2pQualityState.degradedSteps,
+                    adaptiveVideoBpsRef.current
                   );
-                  await setMaxBitrate(p, adaptiveVideoBpsRef.current);
-                  stableNetworkIntervalsRef.current = 0;
+                  if (!ok) {
+                    const vt = localStream.getVideoTracks()[0];
+                    if (vt) await applyLocalVideoSendDownscale(vt, p2pQualityState.degradedSteps);
+                  }
+                  await applyVideoDegradationPreferenceSafe(
+                    p,
+                    p2pQualityState.degradedSteps >= 1 ? "maintain-framerate" : "balanced"
+                  );
+                }
+                setState((s) => ({
+                  ...s,
+                  banner: "Rețea slabă — reduc rezoluția și debitul video pentru continuitate.",
+                }));
+              } else if (decision.action === "improve") {
+                adaptiveVideoBpsRef.current = Math.min(
+                  cap,
+                  Math.floor(adaptiveVideoBpsRef.current * decision.bitrateMultiplier)
+                );
+                await setMaxBitrate(p, adaptiveVideoBpsRef.current);
+                if (!audioOnly) {
+                  const ok = await applyVideoSenderScaleAndBitrate(
+                    p,
+                    p2pQualityState.degradedSteps,
+                    adaptiveVideoBpsRef.current
+                  );
+                  if (!ok) {
+                    const vt = localStream.getVideoTracks()[0];
+                    if (vt) await applyLocalVideoSendDownscale(vt, p2pQualityState.degradedSteps);
+                  }
+                  await applyVideoDegradationPreferenceSafe(
+                    p,
+                    p2pQualityState.degradedSteps >= 1 ? "maintain-framerate" : "balanced"
+                  );
+                }
+                if (adaptiveVideoBpsRef.current >= cap * 0.97 && p2pQualityState.degradedSteps === 0) {
                   setState((s) => ({ ...s, banner: null }));
                 }
-              } else if (lostDelta > 12 && lostDelta <= 28) {
+              } else if (sample.uplinkLostDelta > 12 && sample.uplinkLostDelta <= 28) {
                 setState((s) => ({ ...s, banner: "Rețea variabilă — optimizare conexiune." }));
-              } else if (!isMobileDevice() && bitrate > 0 && bitrate < 70_000) {
+              } else if (!isMobileDevice() && uplinkBitrateRawBps > 0 && uplinkBitrateRawBps < 70_000) {
                 setState((s) => ({ ...s, banner: "Debit video scăzut — verifică rețeaua." }));
               }
+
+              patchHostileIceCallQualityOverlay({
+                sampleSource: `${sample.sampleSourceUplink}/${sample.sampleSourceRtt}`,
+                qualityLevel: p2pQualityState.degradedSteps,
+                qualityReason: decision.reason,
+                glareDetectedCount: p2pGlareMetrics.glareDetectedCount,
+                rollbackAttemptedCount: p2pGlareMetrics.rollbackAttemptedCount,
+                rollbackFailedCount: p2pGlareMetrics.rollbackFailedCount,
+                lastQualityChangeAt: p2pLastQualityChangeAtMs,
+              });
             } catch {
               /* ignore */
             }
           })();
-        }, 10_000);
+        }, 6_000);
       };
 
       /** P2P: după `ensureRecvOnlyVideoIfNoLocalVideo` — nu dublăm `offerToReceiveVideo` la createOffer. */
       let p2pSkipOfferRecvVideo = false;
 
-      const tryReconnectIce = () => {
-        if (cancelled) return;
-        const remote = remoteIdRef.current;
-        const iSend = remote ? isCaller || userId < remote : isCaller;
-        if (!iSend) return;
-        if (reconnectAttemptRef.current >= 2) {
-          if (!cancelled) setState((s) => ({ ...s, banner: "Rețea instabilă — încearcă să reîncarci pagina." }));
-          return;
-        }
-        reconnectAttemptRef.current += 1;
-        reconnectTimerRef.current = setTimeout(() => {
-          void (async () => {
-            const w = wsRef.current;
-            const to = remoteIdRef.current;
-            const p = pcRef.current;
-            if (cancelled || !p || !w || w.readyState !== WebSocket.OPEN || !to) return;
-            try {
-              applyCodecPreferencesIfSupported(p);
-              p2pSkipOfferRecvVideo = ensureRecvOnlyVideoIfNoLocalVideo(p, audioOnly, localStream);
-              const offer = await p.createOffer({
-                ...rtcOfferOptionsWithRecvFallback(p, audioOnly, p2pSkipOfferRecvVideo),
-                iceRestart: true,
-              });
-              await p.setLocalDescription(offer);
-              console.info("[SIGNALING] outbound offer (iceRestart)");
-              w.send(JSON.stringify({ t: "offer", sdp: offer.sdp ?? "", to }));
-            } catch {
-              /* ignore */
-            }
-          })();
-        }, reconnectAttemptRef.current === 1 ? 500 : 1500);
-      };
-
-      const setupP2pAfterSession = () => {
+      const setupP2pAfterSession = (cursorChannelOfferer: boolean) => {
         if (pcRef.current) return;
         const pc = new RTCPeerConnection(rtcPcConfig);
         pcRef.current = pc;
         console.info("[RTC] RTCPeerConnection created (după ce amândoi sunteți în cameră)");
+
+        const bindCursorDc = (dc: RTCDataChannel) => {
+          p2pCursorDcRef.current = dc;
+          const markOpen = () => {
+            if (dc.readyState === "open") setCursorDataChannel(dc);
+          };
+          dc.addEventListener("open", markOpen);
+          markOpen();
+        };
+
+        if (cursorChannelOfferer) {
+          try {
+            const cdc = pc.createDataChannel("align-cursor", { ordered: false });
+            bindCursorDc(cdc);
+          } catch (e) {
+            console.warn("[RTC] align-cursor DataChannel create failed", e);
+          }
+        } else {
+          pc.ondatachannel = (ev: RTCDataChannelEvent) => {
+            if (ev.channel.label !== "align-cursor") return;
+            bindCursorDc(ev.channel);
+          };
+        }
 
         localStream.getTracks().forEach((track) => {
           if (track.kind === "video") {
@@ -1588,21 +1761,53 @@ export function useWebRtcCall({
           await applyVideoDegradationPreference(pc, "maintain-framerate");
         })();
 
+        pc.addEventListener("signalingstatechange", () => {
+          if (pc.signalingState !== "stable") return;
+          if (!p2pDeferredRemoteOfferSdp) return;
+          void withP2pNegotiationLock(async () => {
+            if (cancelled || pcRef.current !== pc) return;
+            const sdp = p2pDeferredRemoteOfferSdp;
+            if (!sdp || pc.signalingState !== "stable") return;
+            p2pDeferredRemoteOfferSdp = null;
+            const answerTo = typeof remoteIdRef.current === "string" ? remoteIdRef.current : null;
+            try {
+              void ensureRecvOnlyVideoIfNoLocalVideo(pc, audioOnly, localStream);
+              await pc.setRemoteDescription({ type: "offer", sdp });
+              flushIceQueue(pc);
+              const answer = await pc.createAnswer();
+              await pc.setLocalDescription(answer);
+              if (answerTo && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ t: "answer", sdp: answer.sdp ?? "", to: answerTo }));
+              } else if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ t: "answer", sdp: answer.sdp ?? "" }));
+              }
+              if (!cancelled) setState((s) => ({ ...s, status: "connected" }));
+            } catch (e) {
+              if (!cancelled) {
+                const detail = formatRtcNegotiationErrorSuffix(e);
+                setState((s) => ({ ...s, error: `Nu am putut negocia conexiunea (offer amânat).${detail}` }));
+              }
+            }
+          });
+        });
+
         negotiateRef.current = async () => {
           const p = pcRef.current;
           const w = wsRef.current;
           const to = remoteIdRef.current;
           if (!p || !w || w.readyState !== WebSocket.OPEN || cancelled || !to) return;
-          try {
-            applyCodecPreferencesIfSupported(p);
-            p2pSkipOfferRecvVideo = ensureRecvOnlyVideoIfNoLocalVideo(p, audioOnly, localStream);
-            const offer = await p.createOffer(rtcOfferOptionsWithRecvFallback(p, audioOnly, p2pSkipOfferRecvVideo));
-            await p.setLocalDescription(offer);
-            console.info("[SIGNALING] outbound offer");
-            w.send(JSON.stringify({ t: "offer", sdp: offer.sdp ?? "", to }));
-          } catch {
-            /* ignore */
-          }
+          await withP2pNegotiationLock(async () => {
+            try {
+              applyCodecPreferencesIfSupported(p);
+              p2pSkipOfferRecvVideo = ensureRecvOnlyVideoIfNoLocalVideo(p, audioOnly, localStream);
+              const offer = await p.createOffer(rtcOfferOptionsWithRecvFallback(p, audioOnly, p2pSkipOfferRecvVideo));
+              await p.setLocalDescription(offer);
+              console.info("[SIGNALING] outbound offer");
+              w.send(JSON.stringify({ t: "offer", sdp: offer.sdp ?? "", to }));
+            } catch {
+              /* ignore */
+            }
+          });
         };
 
         pc.ontrack = (ev) => {
@@ -1658,17 +1863,10 @@ export function useWebRtcCall({
                 return {
                   ...s,
                   banner:
-                    "Conexiunea între dispozitive întârzie (ICE). Pe rețele diferite sau 4G e nevoie de TURN (coturn) și firewall deschis — vezi docs/WEBRTC-IMPREUNA.md",
+                    "TURN_REQUIRED: ICE încă în verificare — pe 4G / Wi‑Fi corporativ verifică coturn, porturi și NEXT_PUBLIC_TURN_URLS. PHYSICAL NETWORK LIMITATION – NOT FIXABLE IN CODE dacă tot traficul UDP/TLS e blocat la nivel de rețea.",
                 };
               });
             }, 20_000);
-          }
-          if (ice === "failed") {
-            setState((s) => ({
-              ...s,
-              banner:
-                "ICE eșuat: nu s-a găsit rută audio/video între browsere. Verifică coturn, porturi UDP și TURN_* / NEXT_PUBLIC_TURN_URLS pe Vercel.",
-            }));
           }
         };
 
@@ -1678,22 +1876,6 @@ export function useWebRtcCall({
           if (!pConn) return;
           const st = pConn.connectionState;
           console.info("[RTC] connectionState", st);
-          if (st === "failed") {
-            clearStatsMonitor();
-            setState((s) => ({ ...s, banner: "Rețea slabă — încerc reconectare…" }));
-            tryReconnectIce();
-          }
-          if (st === "disconnected") {
-            setState((s) => ({ ...s, banner: "Conexiune întreruptă momentan…" }));
-            if (disconnectRecoverTimerRef.current) clearTimeout(disconnectRecoverTimerRef.current);
-            disconnectRecoverTimerRef.current = setTimeout(() => {
-              disconnectRecoverTimerRef.current = null;
-              const cur = pcRef.current;
-              if (cancelled || !cur || cur.connectionState !== "disconnected") return;
-              setState((s) => ({ ...s, banner: "Reiau legătura (ICE)…" }));
-              tryReconnectIce();
-            }, 2800);
-          }
           if (st === "connected") {
             if (disconnectRecoverTimerRef.current) {
               clearTimeout(disconnectRecoverTimerRef.current);
@@ -1701,10 +1883,51 @@ export function useWebRtcCall({
             }
             applyPlayoutHintsForAllReceivers(pConn);
             setState((s) => ({ ...s, banner: null, connectionPhase: null }));
-            reconnectAttemptRef.current = 0;
             startStatsMonitor();
           }
         };
+
+        p2pHostileDetachRef.current?.();
+        p2pHostileDetachRef.current = attachHostileNetworkGuards({
+          label: "p2p",
+          pc,
+          getAuthHeaders,
+          isCancelled: () => cancelled,
+          onHardFail: (msg) => {
+            if (cancelled) return;
+            setState((s) => ({
+              ...s,
+              status: "error",
+              error: msg,
+              connectionPhase: null,
+            }));
+            localStream.getTracks().forEach((t) => t.stop());
+          },
+          onBanner: (m) => {
+            if (!cancelled) setState((s) => ({ ...s, banner: m }));
+          },
+          publishIceRestartOffer: (sdp) => {
+            const to = remoteIdRef.current;
+            if (ws.readyState === WebSocket.OPEN && to) {
+              ws.send(JSON.stringify({ t: "offer", sdp, to }));
+            }
+          },
+          createIceRestartOffer: async (p) => {
+            return withP2pNegotiationLock(async () => {
+              applyCodecPreferencesIfSupported(p);
+              p2pSkipOfferRecvVideo = ensureRecvOnlyVideoIfNoLocalVideo(p, audioOnly, localStream);
+              const offer = await p.createOffer({
+                ...rtcOfferOptionsWithRecvFallback(p, audioOnly, p2pSkipOfferRecvVideo),
+                iceRestart: true,
+              });
+              await p.setLocalDescription(offer);
+              return offer.sdp ?? null;
+            });
+          },
+          onRecoveryPublished: () => {
+            p2pQualityFrozenUntilMs = Date.now() + QUALITY_POST_ICE_RECOVERY_FREEZE_MS;
+          },
+        });
 
         if (iceQueueRef.current.length) flushIceQueue(pc);
       };
@@ -1714,16 +1937,18 @@ export function useWebRtcCall({
         const to = remoteIdRef.current;
         const p = pcRef.current;
         if (!to || !p) return;
-        try {
-          applyCodecPreferencesIfSupported(p);
-          p2pSkipOfferRecvVideo = ensureRecvOnlyVideoIfNoLocalVideo(p, audioOnly, localStream);
-          const offer = await p.createOffer(rtcOfferOptionsWithRecvFallback(p, audioOnly, p2pSkipOfferRecvVideo));
-          await p.setLocalDescription(offer);
-          console.info("[SIGNALING] outbound offer (initial)");
-          ws.send(JSON.stringify({ t: "offer", sdp: offer.sdp ?? "", to }));
-        } catch {
-          if (!cancelled) setState((s) => ({ ...s, error: "Nu am putut porni oferta WebRTC." }));
-        }
+        await withP2pNegotiationLock(async () => {
+          try {
+            applyCodecPreferencesIfSupported(p);
+            p2pSkipOfferRecvVideo = ensureRecvOnlyVideoIfNoLocalVideo(p, audioOnly, localStream);
+            const offer = await p.createOffer(rtcOfferOptionsWithRecvFallback(p, audioOnly, p2pSkipOfferRecvVideo));
+            await p.setLocalDescription(offer);
+            console.info("[SIGNALING] outbound offer (initial)");
+            ws.send(JSON.stringify({ t: "offer", sdp: offer.sdp ?? "", to }));
+          } catch {
+            if (!cancelled) setState((s) => ({ ...s, error: "Nu am putut porni oferta WebRTC." }));
+          }
+        });
       };
 
       /** După `await` pe deschiderea WS, socketul e deja OPEN — `ws.onopen` nu s-ar mai apela. */
@@ -1800,7 +2025,7 @@ export function useWebRtcCall({
             }));
           }
           remoteIdRef.current = typeof m.remoteUserId === "string" ? m.remoteUserId : null;
-          setupP2pAfterSession();
+          setupP2pAfterSession(Boolean(m.shouldOffer));
           if (m.shouldOffer) {
             await sendOffer();
           }
@@ -1808,32 +2033,53 @@ export function useWebRtcCall({
         }
 
         if (m.t === "offer" && typeof m.sdp === "string") {
+          const offerSdp = m.sdp;
           const p = pcRef.current;
           if (!p) {
             console.warn("[SIGNALING] offer primit înainte de sesiunea P2P — ignorat");
             return;
           }
           const answerTo = typeof m.from === "string" ? m.from : remoteIdRef.current;
-          try {
-            void ensureRecvOnlyVideoIfNoLocalVideo(p, audioOnly, localStream);
-            await p.setRemoteDescription({ type: "offer", sdp: m.sdp });
-            flushIceQueue(p);
-            const answer = await p.createAnswer();
-            await p.setLocalDescription(answer);
-            console.info("[SIGNALING] outbound answer");
-            if (answerTo) {
-              ws.send(JSON.stringify({ t: "answer", sdp: answer.sdp ?? "", to: answerTo }));
-            } else {
-              ws.send(JSON.stringify({ t: "answer", sdp: answer.sdp ?? "" }));
+          const remotePeer = answerTo ?? "";
+          await withP2pNegotiationLock(async () => {
+            try {
+              const polite = remotePeer.length > 0 && userId < remotePeer;
+              const glareRes = await resolveOfferGlare(p, polite, p2pGlareMetrics);
+              if (glareRes === "ignore_incoming") return;
+              if (glareRes === "defer_incoming") {
+                p2pDeferredRemoteOfferSdp = offerSdp;
+                patchHostileIceCallQualityOverlay({
+                  glareDetectedCount: p2pGlareMetrics.glareDetectedCount,
+                  rollbackAttemptedCount: p2pGlareMetrics.rollbackAttemptedCount,
+                  rollbackFailedCount: p2pGlareMetrics.rollbackFailedCount,
+                });
+                return;
+              }
+              void ensureRecvOnlyVideoIfNoLocalVideo(p, audioOnly, localStream);
+              await p.setRemoteDescription({ type: "offer", sdp: offerSdp });
+              flushIceQueue(p);
+              const answer = await p.createAnswer();
+              await p.setLocalDescription(answer);
+              console.info("[SIGNALING] outbound answer");
+              if (answerTo) {
+                ws.send(JSON.stringify({ t: "answer", sdp: answer.sdp ?? "", to: answerTo }));
+              } else {
+                ws.send(JSON.stringify({ t: "answer", sdp: answer.sdp ?? "" }));
+              }
+              setState((s) => ({ ...s, status: "connected" }));
+              patchHostileIceCallQualityOverlay({
+                glareDetectedCount: p2pGlareMetrics.glareDetectedCount,
+                rollbackAttemptedCount: p2pGlareMetrics.rollbackAttemptedCount,
+                rollbackFailedCount: p2pGlareMetrics.rollbackFailedCount,
+              });
+            } catch (e) {
+              if (!cancelled) {
+                const detail = formatRtcNegotiationErrorSuffix(e);
+                console.warn("[SIGNALING] p2p: create/set answer after offer failed", e);
+                setState((s) => ({ ...s, error: `Nu am putut negocia conexiunea (offer).${detail}` }));
+              }
             }
-            setState((s) => ({ ...s, status: "connected" }));
-          } catch (e) {
-            if (!cancelled) {
-              const detail = formatRtcNegotiationErrorSuffix(e);
-              console.warn("[SIGNALING] p2p: create/set answer after offer failed", e);
-              setState((s) => ({ ...s, error: `Nu am putut negocia conexiunea (offer).${detail}` }));
-            }
-          }
+          });
           return;
         }
 
@@ -1844,20 +2090,22 @@ export function useWebRtcCall({
             console.info("[SIGNALING] p2p: duplicate answer ignored");
             return;
           }
-          try {
-            await p.setRemoteDescription({ type: "answer", sdp: m.sdp });
-            flushIceQueue(p);
-            setState((s) => ({ ...s, status: "connected" }));
-          } catch (e) {
-            if (!cancelled) {
-              const detail = formatRtcNegotiationErrorSuffix(e);
-              console.warn("[SIGNALING] p2p: setRemoteDescription(answer) failed", e);
-              setState((s) => ({
-                ...s,
-                error: `Nu am putut negocia conexiunea (answer).${detail}`,
-              }));
+          await withP2pNegotiationLock(async () => {
+            try {
+              await p.setRemoteDescription({ type: "answer", sdp: m.sdp });
+              flushIceQueue(p);
+              setState((s) => ({ ...s, status: "connected" }));
+            } catch (e) {
+              if (!cancelled) {
+                const detail = formatRtcNegotiationErrorSuffix(e);
+                console.warn("[SIGNALING] p2p: setRemoteDescription(answer) failed", e);
+                setState((s) => ({
+                  ...s,
+                  error: `Nu am putut negocia conexiunea (answer).${detail}`,
+                }));
+              }
             }
-          }
+          });
           return;
         }
 
@@ -2041,5 +2289,6 @@ export function useWebRtcCall({
     retryPermissions,
     waitingForPeerInRoom: state.waitingForPeerInRoom,
     connectionPhase: state.connectionPhase,
+    cursorDataChannel,
   };
 }

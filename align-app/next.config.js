@@ -88,6 +88,18 @@ function resolveNextAuthUrlForBundle() {
   return "";
 }
 
+/** Dev: URL WS local dacă lipsește din `.env` — aliniat cu `npm run dev` care pornește și semnalizarea pe 4001. */
+function resolveNextPublicSignalingWsUrl() {
+  const w = process.env.NEXT_PUBLIC_SIGNALING_WS_URL?.trim();
+  if (w) return w;
+  if (process.env.NODE_ENV !== "production") {
+    return "ws://127.0.0.1:4001";
+  }
+  return undefined;
+}
+
+const devSignalingWsUrl = resolveNextPublicSignalingWsUrl();
+
 const nextConfig = {
   /** Dev: permite HMR când deschizi site-ul pe 127.0.0.1 vs localhost (altfel Next blochează /_next/webpack-hmr). */
   allowedDevOrigins: ["127.0.0.1", "localhost"],
@@ -108,6 +120,7 @@ const nextConfig = {
   env: {
     NEXT_PUBLIC_BUILD_HASH: buildHash,
     NEXTAUTH_URL: resolveNextAuthUrlForBundle(),
+    ...(devSignalingWsUrl ? { NEXT_PUBLIC_SIGNALING_WS_URL: devSignalingWsUrl } : {}),
   },
   compiler: {
     removeConsole: process.env.NODE_ENV === "production" ? { exclude: ["error", "warn"] } : false,

@@ -1,17 +1,10 @@
 import { z } from "zod";
+import { parseNextPublicTurnUrls } from "@/lib/webrtc/turnEnv";
 
-const jsonStringArray = z
+const turnUrlsFromEnv = z
   .string()
   .optional()
-  .transform((s) => {
-    if (!s?.trim()) return [] as string[];
-    try {
-      const v = JSON.parse(s) as unknown;
-      return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
-    } catch {
-      return [] as string[];
-    }
-  });
+  .transform((s) => parseNextPublicTurnUrls(s));
 
 const wsUrlOptional = z
   .string()
@@ -21,7 +14,7 @@ const wsUrlOptional = z
 
 /** Variabile publice (browser + server unde e nevoie). */
 export const webrtcPublicEnvSchema = z.object({
-  NEXT_PUBLIC_TURN_URLS: jsonStringArray,
+  NEXT_PUBLIC_TURN_URLS: turnUrlsFromEnv,
   NEXT_PUBLIC_SIGNALING_WS_URL: wsUrlOptional,
   /** Dacă lipsește din .env → considerăm activ (când există URL semnalizare). */
   NEXT_PUBLIC_WEBRTC_ENABLED: z
@@ -99,8 +92,7 @@ export function parseTurnAndSignalingSecrets():
  * Secret pentru `GET /api/call/signaling-token` (HMAC token WS).
  * Dacă `parseTurnAndSignalingSecrets` reușește (TURN_AUTH + semnalizare), folosim acel `signalingSecret`.
  * Altfel: **fallback** cu `SIGNALING_TOKEN_SECRET` sau `NEXTAUTH_SECRET` (≥16) — același secret ca pe
- * `call-signaling-server.mjs` — ca să meargă semnalizarea înainte/după coturn; ICE poate folosi doar STUN
- * (vezi `/api/call/ice-config` când lipsește TURN complet).
+ * `call-signaling-server.mjs`.
  */
 export function getSignalingSecretForWsToken():
   | { ok: true; signalingSecret: string }

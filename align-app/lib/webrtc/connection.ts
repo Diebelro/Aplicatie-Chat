@@ -3,10 +3,36 @@
  * Nu logăm SDP/ICE în producție din acest modul.
  */
 
+import { uriIsRelayIce } from "@/lib/webrtc/iceUrlScheme";
+import { sortRelayUrlsHostileNetworkOrder } from "@/lib/webrtc/relayUrlOrder";
+
 /** Construiește `iceServers` pentru `new RTCPeerConnection({ iceServers })` — același format ca exemplul TURN multi-URL din spec. */
 export function buildIceServers(urls: string[], username: string, credential: string): RTCIceServer[] {
-  if (!urls.length) return [{ urls: "stun:stun.l.google.com:19302" }];
+  if (!urls.length) return [];
   return [{ urls, username, credential }];
+}
+
+export function iceServersFromIceConfigResponse(iceJson: {
+  iceServers?: Array<{ urls?: unknown; username?: string; credential?: string }>;
+}): RTCIceServer[] {
+  const raw = iceJson.iceServers ?? [];
+  const out: RTCIceServer[] = [];
+  for (const s of raw) {
+    const u0 = s.urls;
+    const urls = Array.isArray(u0)
+      ? u0.filter((x): x is string => typeof x === "string" && x.trim().length > 0)
+      : typeof u0 === "string" && u0.trim().length > 0
+        ? [u0.trim()]
+        : [];
+    if (!urls.length) continue;
+    const user = (s.username ?? "").trim();
+    const cred = (s.credential ?? "").trim();
+    if (!user || !cred) continue;
+    const relayOnly = sortRelayUrlsHostileNetworkOrder(urls.filter((u) => uriIsRelayIce(u)));
+    if (!relayOnly.length) continue;
+    out.push({ urls: relayOnly, username: user, credential: cred });
+  }
+  return out;
 }
 
 /** Preferă Opus audio; video VP8 apoi H264 (Safari) apoi VP9. */

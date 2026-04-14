@@ -35,17 +35,17 @@ NEXT_PUBLIC_TURN_URLS=["stun:turn.diebel.ro:3478","turn:turn.diebel.ro:3478?tran
 ## Endpoint `GET /api/call/ice-config`
 
 - Citește `NEXT_PUBLIC_TURN_URLS`, `TURN_REALM`, `TURN_STATIC_SECRET`.
-- Răspunde JSON: `{ iceServers: [{ urls, username, credential }], ttl, realm }`.
+- Răspunde JSON: `{ iceServers: [...], ttl, realm }` — de obicei **două intrări**: STUN (`urls` fără credențiale) + TURN (`urls` + `username` / `credential` REST).
 - `ttl` = secunde până la expirarea username-ului (în implementarea curentă: **180**).
 - Header `cache-control: no-store`.
 
-Clientul (`hooks/useWebRtcCall.ts`) face `fetch("/api/call/ice-config", { cache: "no-store" })` și construiește `RTCPeerConnection({ iceServers })` prin helperul `buildIceServers`.
+Clientul (`hooks/useWebRtcCall.ts`) face `fetch("/api/call/ice-config", { cache: "no-store" })` și normalizează lista cu `iceServersFromIceConfigResponse` din `lib/webrtc/connection.ts` (toate intrările, nu doar prima).
 
 ## Cum verifici
 
 1. **Browser:** `chrome://webrtc-internals` în timpul unui apel — caută **ICE candidates** de tip **relay** (TURN).
 2. **Blocare UDP:** dacă forțezi traficul prin **TURNS** (TCP/TLS), ar trebui să vezi candidați relay pe portul TLS al TURN.
-3. **Răspuns API:** în DevTools → Network → `ice-config` → body cu `iceServers[0].username` / `credential` (fără a expune `TURN_STATIC_SECRET`).
+3. **Răspuns API:** în DevTools → Network → `ice-config` → intrarea TURN are `username` / `credential` (fără a expune `TURN_STATIC_SECRET`).
 
 ## 404 pe `/api/call/ice-config` în producție
 

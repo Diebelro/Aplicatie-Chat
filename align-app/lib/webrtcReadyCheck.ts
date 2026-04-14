@@ -31,8 +31,7 @@ export type WebrtcReadyCheckJson = {
   summary: WebrtcReadySummary;
   /** Non-secret hints; doar pentru UI / script. */
   diagnostics?: {
-    hasStunInUrls: boolean;
-    hasTurnInUrls: boolean;
+    turnRelayConfigured: boolean;
     signalingWsConfigured: boolean;
     webrtcPublicEnabled: boolean;
   };
@@ -92,8 +91,7 @@ export async function buildWebrtcReadyCheck(
     missingFromApp: deduped,
     summary: readyFromApp ? "APP_READY_WAITING_FOR_VPS" : "APP_NOT_READY",
     diagnostics: {
-      hasStunInUrls: ice.hasStun,
-      hasTurnInUrls: ice.hasTurn,
+      turnRelayConfigured: ice.ok && ice.hasTurn,
       signalingWsConfigured: Boolean(signalingUrl),
       webrtcPublicEnabled,
     },

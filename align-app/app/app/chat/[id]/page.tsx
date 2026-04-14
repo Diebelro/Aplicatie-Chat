@@ -548,7 +548,11 @@ export default function ChatPage() {
     });
   }, [callerId, loading, messages.length, scrollMessagesToBottom]);
 
-  /** Deschidere: scroll instant în panoul mesaje. După: doar dacă tu trimiți (sau încă pending), fără scroll pe tot documentul. */
+  /**
+   * Deschidere: scroll instant în panoul mesaje.
+   * După: la mesaj trimis de tine → smooth. La mesaj primit: dacă erai deja lipit de jos (ca în WhatsApp),
+   * derulăm instant ca să nu rămână sub bara de scris; dacă ai urcat în istoric, nu te tragem în jos.
+   */
   useLayoutEffect(() => {
     if (loading || messages.length === 0) return;
     const last = messages[messages.length - 1];
@@ -568,8 +572,30 @@ export default function ChatPage() {
       });
       return;
     }
-    if (grew && (last?.clientPending || lastIsMine)) {
+
+    if (!grew) return;
+
+    const el = messagesScrollRef.current;
+    const distanceFromBottom =
+      el != null ? el.scrollHeight - el.scrollTop - el.clientHeight : Number.POSITIVE_INFINITY;
+    /** Sub această distanță față de fund = lipit de jos (inclusiv după un mesaj înalt cu imagine). */
+    const NEAR_BOTTOM_PX = 420;
+
+    const shouldStickToIncoming =
+      !lastIsMine && !last?.clientPending && distanceFromBottom < NEAR_BOTTOM_PX;
+
+    if (last?.clientPending || lastIsMine) {
       scrollMessagesToBottom("smooth");
+      return;
+    }
+
+    if (shouldStickToIncoming) {
+      scrollMessagesToBottom("auto");
+      pinListToBottomUntilRef.current = Math.max(pinListToBottomUntilRef.current, Date.now() + 2400);
+      requestAnimationFrame(() => {
+        scrollMessagesToBottom("auto");
+        requestAnimationFrame(() => scrollMessagesToBottom("auto"));
+      });
     }
   }, [messages, loading, callerId, scrollMessagesToBottom]);
 
@@ -1155,7 +1181,7 @@ export default function ChatPage() {
 
       <div
         ref={messagesScrollRef}
-        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden py-4 space-y-3 overscroll-contain"
+        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pt-4 pb-10 space-y-3 overscroll-contain"
       >
         {fetchError && (
           <p className="text-amber-400 text-sm px-2 py-1 rounded bg-amber-500/10" role="alert">

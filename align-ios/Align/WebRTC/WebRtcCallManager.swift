@@ -71,6 +71,10 @@ final class WebRtcCallManager: NSObject, RTCPeerConnectionDelegate {
                 return
             }
             let servers = mapIce(json: iceJson)
+            guard !servers.isEmpty else {
+                await MainActor.run { onError?("TURN_REQUIRED: ice-config returned no usable TURN relay servers") }
+                return
+            }
             await MainActor.run {
                 self.bootstrapPeer(iceServers: servers)
                 self.signaling.connect(url: wsURL)
@@ -87,11 +91,14 @@ final class WebRtcCallManager: NSObject, RTCPeerConnectionDelegate {
             if let s = urlsAny as? String { urlStrings = [s] }
             else if let a = urlsAny as? [String] { urlStrings = a }
             else { return nil }
-            return RTCIceServer(
-                urlStrings: urlStrings,
-                username: o["username"] as? String,
-                credential: o["credential"] as? String
-            )
+            let relay = urlStrings.filter { raw in
+                let u = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                return u.hasPrefix("turn:") || u.hasPrefix("turns:")
+            }
+            guard !relay.isEmpty else { return nil }
+            guard let username = o["username"] as? String, !username.isEmpty,
+                  let credential = o["credential"] as? String, !credential.isEmpty else { return nil }
+            return RTCIceServer(urlStrings: relay, username: username, credential: credential)
         }
     }
 

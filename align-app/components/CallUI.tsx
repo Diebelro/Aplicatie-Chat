@@ -9,6 +9,8 @@ import {
   useCallback,
   useMemo,
   type ReactNode,
+  type RefObject,
+  type Ref,
 } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -25,8 +27,14 @@ import {
   VolumeX,
   Smartphone,
   Headphones,
+  AlertCircle,
+  ServerCog,
 } from "lucide-react";
-import { useWebRtcCall, type RemoteParticipant } from "@/hooks/useWebRtcCall";
+import {
+  useWebRtcCall,
+  type RemoteParticipant,
+  type CallConnectionPhase,
+} from "@/hooks/useWebRtcCall";
 import { getAuthHeaders } from "@/lib/authClient";
 import { isScreenshareFeatureEnabled } from "@/lib/env/webrtcConfig";
 import { clearIncomingRingDismissFilter } from "@/lib/callIncomingDismiss";
@@ -38,6 +46,35 @@ import {
   supportsAudioOutputSelection,
 } from "@/lib/webrtc/audioOutput";
 import { isMobileDevice } from "@/lib/webrtc/mediaConstraints";
+import {
+  attachCursorReceiver,
+  attachCursorSender,
+  setCursorEnabled,
+} from "@/lib/webrtc/cursorOverlay";
+
+function p2pConnectingSubtitle(
+  phase: CallConnectionPhase | null,
+  waitingPeer: boolean,
+  status: string
+): string {
+  switch (phase) {
+    case "signaling_connecting":
+      return "Ne conectăm la serverul de semnalizare…";
+    case "signaling_connected":
+      return "Semnalizare activă — intrăm în cameră…";
+    case "negotiating":
+      return "Negociem conexiunea audio/video…";
+    case "peer_joined":
+      return "Al doilea participant e în cameră…";
+    case "waiting_peer":
+      return "Așteptăm celălalt participant…";
+    default:
+      break;
+  }
+  if (waitingPeer) return "Așteptăm celălalt participant…";
+  if (status === "connecting") return "Se pregătește camera și microfonul…";
+  return "Se conectează…";
+}
 
 /** Ieșire audio pentru stream-ul remot + opțiune „nu aud pe aici” (confidențialitate). */
 type RemoteAudioPlayback = {
@@ -86,26 +123,58 @@ function RemoteAudio({ stream }: { stream: MediaStream }) {
   return <audio ref={ref} autoPlay playsInline className="hidden" />;
 }
 
+/** Track video „live” dar fără RTP încă = `muted` pe track; tot montăm <video> și reapelăm play() la `unmute`. */
+function remoteStreamShowsVideoSlot(stream: MediaStream | null | undefined): boolean {
+  return stream?.getVideoTracks().some((t) => t.readyState !== "ended") ?? false;
+}
+
+function useRemoteVideoElement(ref: RefObject<HTMLVideoElement | null>, stream: MediaStream | null | undefined) {
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !stream) return;
+    el.srcObject = stream;
+    const tryPlay = () => {
+      void el.play().catch(() => {
+        /* autoplay / gesture */
+      });
+    };
+    tryPlay();
+    const vtracks = stream.getVideoTracks();
+    for (const t of vtracks) {
+      t.addEventListener("unmute", tryPlay);
+      t.addEventListener("mute", tryPlay);
+      t.addEventListener("ended", tryPlay);
+    }
+    return () => {
+      for (const t of vtracks) {
+        t.removeEventListener("unmute", tryPlay);
+        t.removeEventListener("mute", tryPlay);
+        t.removeEventListener("ended", tryPlay);
+      }
+      el.srcObject = null;
+    };
+    // ref e stabil; reatașăm când se schimbă stream-ul (inclusiv noul MediaStream după al doilea ontrack).
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ref e RefObject stabil; depindem doar de stream
+  }, [stream]);
+}
+
 /** Card mic (conferință / layout clasic). */
 function RemoteVideoCard({ participant }: { participant: RemoteParticipant }) {
   const ref = useRef<HTMLVideoElement>(null);
-  useEffect(() => {
-    const el = ref.current;
-    const stream = participant.stream;
-    if (!el) return;
-    el.srcObject = stream;
-    return () => {
-      el.srcObject = null;
-    };
-  }, [participant.stream]);
+  useRemoteVideoElement(ref, participant.stream);
 
-  const hasLiveVideo =
-    participant.stream?.getVideoTracks().some((t) => t.readyState === "live" && t.enabled) ?? false;
+  const hasLiveVideo = remoteStreamShowsVideoSlot(participant.stream);
 
   return (
     <div className="relative rounded-2xl overflow-hidden bg-night-800 border border-white/10 aspect-video shadow-xl">
       {hasLiveVideo ? (
-        <video ref={ref} autoPlay playsInline className="w-full h-full object-cover" />
+        <video
+          ref={ref}
+          autoPlay
+          playsInline
+          muted
+          className="w-full h-full object-cover"
+        />
       ) : (
         <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-night-800 to-night-950 text-night-400 gap-2">
           <span className="text-3xl font-semibold text-white/40">
@@ -123,28 +192,27 @@ function RemoteVideoCard({ participant }: { participant: RemoteParticipant }) {
 }
 
 /** Remote pe tot ecranul (apel 1-la-1 video). */
-function RemoteVideoStage({ participant }: { participant: RemoteParticipant }) {
+function RemoteVideoStage({
+  participant,
+  overlayHostRef,
+}: {
+  participant: RemoteParticipant;
+  overlayHostRef?: Ref<HTMLDivElement>;
+}) {
   const ref = useRef<HTMLVideoElement>(null);
-  useEffect(() => {
-    const el = ref.current;
-    const stream = participant.stream;
-    if (!el) return;
-    el.srcObject = stream;
-    return () => {
-      el.srcObject = null;
-    };
-  }, [participant.stream]);
+  useRemoteVideoElement(ref, participant.stream);
 
-  const hasLiveVideo =
-    participant.stream?.getVideoTracks().some((t) => t.readyState === "live" && t.enabled) ?? false;
+  const hasLiveVideo = remoteStreamShowsVideoSlot(participant.stream);
 
   return (
-    <>
+    <div id="remoteShareWrapper" ref={overlayHostRef} className="absolute inset-0 h-full w-full">
       {hasLiveVideo ? (
         <video
+          id="remoteShareVideo"
           ref={ref}
           autoPlay
           playsInline
+          muted
           className="absolute inset-0 h-full w-full object-cover"
         />
       ) : (
@@ -156,7 +224,7 @@ function RemoteVideoStage({ participant }: { participant: RemoteParticipant }) {
         </div>
       )}
       {participant.stream?.getAudioTracks().length ? <RemoteAudio stream={participant.stream} /> : null}
-    </>
+    </div>
   );
 }
 
@@ -199,6 +267,7 @@ export default function CallUI({
     setMuted,
     videoMuted,
     setVideoMuted,
+    cameraSoftFailed,
     leave,
     localStream,
     banner,
@@ -207,6 +276,9 @@ export default function CallUI({
     switchCamera,
     toggleScreenShare,
     retryPermissions,
+    waitingForPeerInRoom,
+    connectionPhase,
+    cursorDataChannel,
   } = useWebRtcCall({
     roomId,
     userId,
@@ -231,6 +303,10 @@ export default function CallUI({
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const localAudioRef = useRef<HTMLAudioElement>(null);
+  /** Partajare ecran: trimitere cursor normalizat (P2P DataChannel). */
+  const localCursorSendRef = useRef<HTMLDivElement>(null);
+  /** Suprapunere cursor primit peste video-ul celuilalt. */
+  const remoteCursorOverlayRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const v = localVideoRef.current;
@@ -426,6 +502,56 @@ export default function CallUI({
   };
 
   const remote = remoteParticipants[0];
+  /** Cursor partajare ecran (P2P + DataChannel `align-cursor`). */
+  useEffect(() => {
+    if (isConference || !screenshareAllowed || audioOnly) return;
+    const dc = cursorDataChannel;
+    if (!dc || dc.readyState !== "open" || status !== "connected") return;
+
+    let detachReceiver: (() => void) | undefined;
+    let detachSender: (() => void) | undefined;
+    const t = window.setTimeout(() => {
+      const isScreenShareActive = screenSharing;
+      setCursorEnabled(isScreenShareActive);
+
+      const remoteEl = remoteCursorOverlayRef.current;
+      if (remoteEl) {
+        detachReceiver = attachCursorReceiver({
+          dc,
+          overlayHostEl: remoteEl,
+          defaultLabel: "Prezentator",
+        });
+      }
+      if (isScreenShareActive) {
+        const localEl = localCursorSendRef.current;
+        if (localEl) {
+          detachSender = attachCursorSender({
+            dc,
+            containerEl: localEl,
+            label: displayName.trim() || undefined,
+          });
+        }
+      }
+    }, 0);
+
+    return () => {
+      window.clearTimeout(t);
+      setCursorEnabled(false);
+      detachReceiver?.();
+      detachSender?.();
+    };
+  }, [
+    isConference,
+    screenshareAllowed,
+    audioOnly,
+    cursorDataChannel,
+    status,
+    screenSharing,
+    displayName,
+    videoLayoutSwapped,
+    remote?.id,
+  ]);
+
   const immersiveVideo = !isConference && !audioOnly;
   const immersiveAudio = !isConference && audioOnly;
 
@@ -536,24 +662,112 @@ export default function CallUI({
   }
 
   if (error) {
+    const errNorm = typeof error === "string" ? error.normalize("NFKC") : "";
+    /** Erori SDP / createAnswer / setRemoteDescription — nu sunt „lipsesc variabile pe Vercel”. */
+    const negotiationFail =
+      typeof error === "string" &&
+      (/\(answer\)|\(offer\)/i.test(errNorm) ||
+        /Nu\s+am\s+putut\s+negocia/i.test(errNorm) ||
+        /negocia\s+conexiunea/i.test(errNorm) ||
+        /ofert[aă]?\s*WebRTC/i.test(errNorm));
+    const infraHint =
+      typeof error === "string" &&
+      /NEXT_PUBLIC|TURN_|ICE\/TURN|semnalizare|Token semnalizare|WebRTC nu e configurat|WebRTC este dezactivat|Eroare WebSocket|Neautorizat la token|\blips[aă]\b/i.test(
+        error
+      );
+
     return (
       <RemotePlaybackContext.Provider value={remotePlayback}>
-        <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4 px-4 text-center">
-          <p className="text-red-400 font-medium">{error}</p>
-          <p className="text-night-500 text-sm max-w-md">
-            Pe Vercel aceste valori sunt în Settings → Environment Variables; local pune-le în{" "}
-            <code className="text-night-400">.env.local</code> (ex.{" "}
-            <code className="text-night-400">npm run env:pull-production</code> după{" "}
-            <code className="text-night-400">vercel link</code>). Vezi{" "}
-            <code className="text-night-400">docs/calls.md</code>:{" "}
-            <code className="text-night-400">NEXT_PUBLIC_SIGNALING_WS_URL</code>,{" "}
-            <code className="text-night-400">NEXT_PUBLIC_TURN_URLS</code>,{" "}
-            <code className="text-night-400">TURN_REALM</code>, <code className="text-night-400">TURN_STATIC_SECRET</code>,{" "}
-            <code className="text-night-400">TURN_AUTH_SECRET</code>.
-          </p>
-          <Link href="/app/messages" className="text-brand-400 hover:underline mt-2">
-            Înapoi la mesaje
-          </Link>
+        <div className="flex min-h-[50vh] items-center justify-center bg-night-950 px-4 py-10">
+          <div
+            className={`w-full max-w-lg rounded-2xl border px-6 py-8 shadow-xl ${
+              negotiationFail
+                ? "border-amber-500/35 bg-amber-500/[0.07]"
+                : "border-red-500/25 bg-red-500/[0.06]"
+            }`}
+          >
+            <div className="flex flex-col items-center text-center gap-2">
+              {negotiationFail ? (
+                <AlertCircle className="h-12 w-12 text-amber-400/90" aria-hidden />
+              ) : (
+                <ServerCog className="h-12 w-12 text-red-400/85" aria-hidden />
+              )}
+              <h2 className="text-lg font-semibold text-white tracking-tight">
+                {negotiationFail ? "Conexiunea nu s-a legat între browsere" : "Apelurile nu pot porni pe acest mediu"}
+              </h2>
+              <p className="text-sm text-night-300/95 font-medium">{error}</p>
+            </div>
+
+            {negotiationFail ? (
+              <div className="mt-6 text-left text-sm text-amber-100/85 space-y-3 leading-relaxed border-t border-amber-500/20 pt-5">
+                <p>
+                  Protocolul WebRTC a respins răspunsul tehnic (SDP). Cel mai des apare când mesajul de confirmare
+                  ajunge de două ori sau rețeaua a întrerupt negocierea — nu înseamnă neapărat că lipsește TURN de pe
+                  server.
+                </p>
+                <ul className="list-disc pl-5 space-y-2">
+                  <li>
+                    Apasă <span className="font-semibold text-amber-50">Reîncearcă</span> mai jos, apoi intră din nou
+                    în cameră.
+                  </li>
+                  <li>Asigură-te că ambele persoane au deschis același tip de apel (audio / video).</li>
+                  <li>Evită două tab-uri cu același cont în aceeași cameră de conferință.</li>
+                  <li>Dacă ești pe rețea strictă sau VPN, încearcă fără VPN sau de pe date mobile.</li>
+                </ul>
+              </div>
+            ) : (
+              <div className="mt-6 text-left text-sm text-night-400 space-y-4 leading-relaxed border-t border-red-500/15 pt-5">
+                {infraHint ? (
+                  <>
+                    <p>
+                      Serverul nu are (încă) toate variabilele pentru semnalizare WebSocket și TURN. Pe{" "}
+                      <span className="font-semibold text-night-200">Vercel</span>: Settings → Environment Variables
+                      (Production și Preview). Local: fișierul <code className="text-brand-300/90">.env.local</code> din{" "}
+                      <code className="text-brand-300/90">align-app</code> — vezi{" "}
+                      <code className="text-brand-300/90">docs/calls.md</code>.
+                    </p>
+                    <p className="text-xs text-night-500 uppercase tracking-wide">Variabile esențiale</p>
+                    <ul className="font-mono text-[11px] sm:text-xs text-brand-200/90 bg-night-900/80 rounded-lg px-3 py-3 space-y-1 border border-night-700/60">
+                      <li>NEXT_PUBLIC_SIGNALING_WS_URL</li>
+                      <li>NEXT_PUBLIC_TURN_URLS</li>
+                      <li>TURN_REALM · TURN_STATIC_SECRET · TURN_AUTH_SECRET</li>
+                    </ul>
+                    <p className="text-xs text-night-500">
+                      Dev local: pornește{" "}
+                      <code className="text-night-400">npm run signaling:dev</code>,{" "}
+                      <code className="text-night-400">NEXT_PUBLIC_SIGNALING_WS_URL=ws://127.0.0.1:4001</code>, și
+                      coturn + <code className="text-night-400">NEXT_PUBLIC_TURN_URLS</code> cu{" "}
+                      <code className="text-night-400">turn:</code>/<code className="text-night-400">turns:</code>,{" "}
+                      <code className="text-night-400">TURN_REALM</code>, <code className="text-night-400">TURN_STATIC_SECRET</code>{" "}
+                      — fără ele, <code className="text-night-400">/api/call/ice-config</code> răspunde 500 (TURN obligatoriu).
+                    </p>
+                  </>
+                ) : (
+                  <p>
+                    A apărut o problemă la apel. Poți încerca din nou; dacă se repetă, verifică documentația din{" "}
+                    <code className="text-brand-300/90">docs/calls.md</code> sau contactează administratorul.
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center items-stretch sm:items-center">
+              <button
+                type="button"
+                onClick={() => retryPermissions()}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-500 px-5 py-3 text-night-900 font-semibold hover:bg-brand-400 transition active:scale-[0.98]"
+              >
+                <RefreshCw className="w-5 h-5 shrink-0" aria-hidden />
+                Reîncearcă conexiunea
+              </button>
+              <Link
+                href="/app/messages"
+                className="inline-flex items-center justify-center rounded-xl border border-white/15 px-5 py-3 text-white/90 font-medium hover:bg-white/5 transition"
+              >
+                Înapoi la mesaje
+              </Link>
+            </div>
+          </div>
         </div>
       </RemotePlaybackContext.Provider>
     );
@@ -608,13 +822,19 @@ export default function CallUI({
                 }
                 aria-label={canSwapVideoLayout ? "Atinge pentru a te vedea mare în colț" : undefined}
               >
-                <RemoteVideoStage participant={remote} />
+                <RemoteVideoStage participant={remote} overlayHostRef={remoteCursorOverlayRef} />
               </div>
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-zinc-900 to-black">
                 <div className="h-16 w-16 border-2 border-white/20 border-t-brand-400 rounded-full animate-spin mb-6" />
-                <p className="text-white/60 text-sm">
-                  {status === "connecting" ? "Se conectează…" : "Așteptăm celălalt participant…"}
+                <p className="text-white/60 text-sm text-center max-w-[min(92vw,22rem)] leading-snug px-3">
+                  {!isConference && status === "connecting"
+                    ? p2pConnectingSubtitle(connectionPhase, waitingForPeerInRoom, status)
+                    : waitingForPeerInRoom
+                      ? "Ești singur în cameră. Celălalt trebuie să accepte apelul sau să deschidă același apel din chat (alt cont / alt dispozitiv)."
+                      : status === "connecting"
+                        ? "Se conectează…"
+                        : "Așteptăm celălalt participant…"}
                 </p>
               </div>
             )
@@ -637,13 +857,16 @@ export default function CallUI({
               aria-label={canSwapVideoLayout ? "Atinge pentru a vedea din nou celălalt mare" : undefined}
             >
               {localStream && !videoMuted ? (
-                <video
-                  ref={localVideoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="absolute inset-0 h-full w-full object-cover scale-x-[-1]"
-                />
+                <div id="localShareWrapper" ref={localCursorSendRef} className="absolute inset-0 h-full w-full">
+                  <video
+                    id="localShareVideo"
+                    ref={localVideoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="absolute inset-0 h-full w-full object-cover scale-x-[-1]"
+                  />
+                </div>
               ) : localStream && videoMuted ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-zinc-900 via-black to-zinc-950">
                   <div className="h-28 w-28 rounded-full bg-white/10 flex items-center justify-center ring-2 ring-white/15">
@@ -679,7 +902,15 @@ export default function CallUI({
               {remote?.displayName || "Apel video"}
             </span>
             <span className="text-xs text-white/55 tabular-nums">
-              {status === "connected" ? fmtCallDuration(elapsedSec) : status === "connecting" ? "Se conectează…" : ""}
+              {status === "connected"
+                ? fmtCallDuration(elapsedSec)
+                : !isConference && status === "connecting"
+                  ? p2pConnectingSubtitle(connectionPhase, waitingForPeerInRoom, status)
+                  : waitingForPeerInRoom
+                    ? "Așteptăm partenerul…"
+                    : status === "connecting"
+                      ? "Se conectează…"
+                      : ""}
             </span>
           </div>
           <div className="w-11 shrink-0" aria-hidden />
@@ -697,6 +928,8 @@ export default function CallUI({
         {/* PiP: implicit tu mic; după swap — celălalt mic. Atinge mare sau mic pentru a comuta. */}
         {!videoLayoutSwapped && localStream && !videoMuted && (
           <div
+            id="localShareWrapper"
+            ref={localCursorSendRef}
             className={pipFrameClass}
             onClick={canSwapVideoLayout ? toggleVideoLayout : undefined}
             role={canSwapVideoLayout ? "button" : undefined}
@@ -704,6 +937,7 @@ export default function CallUI({
             aria-label={canSwapVideoLayout ? "Atinge pentru a te vedea mare pe ecran" : undefined}
           >
             <video
+              id="localShareVideo"
               ref={localVideoRef}
               autoPlay
               playsInline
@@ -712,14 +946,17 @@ export default function CallUI({
             />
           </div>
         )}
-        {!videoLayoutSwapped && localStream && videoMuted && isMobileUi && (
+        {!videoLayoutSwapped && localStream && videoMuted && (
           <div
-            className={`${pipFrameClass} flex items-center justify-center bg-zinc-800/95 ring-white/15`}
+            className={`${pipFrameClass} flex flex-col items-center justify-center gap-1 bg-zinc-800/95 ring-white/15 px-1`}
             onClick={canSwapVideoLayout ? toggleVideoLayout : undefined}
             role={canSwapVideoLayout ? "button" : undefined}
             aria-label={canSwapVideoLayout ? "Atinge pentru a te vedea mare pe ecran" : undefined}
           >
-            <VideoOff className="h-8 w-8 text-white/35" />
+            <VideoOff className={isMobileUi ? "h-8 w-8 text-white/35" : "h-7 w-7 text-white/35"} />
+            <span className="text-[9px] leading-tight text-center text-white/50 px-0.5">
+              {cameraSoftFailed ? "Fără cameră" : "Oprită"}
+            </span>
           </div>
         )}
         {videoLayoutSwapped && remote && (
@@ -731,7 +968,7 @@ export default function CallUI({
             aria-label={canSwapVideoLayout ? "Atinge pentru a vedea din nou celălalt mare" : undefined}
           >
             <div className="relative h-full w-full">
-              <RemoteVideoStage participant={remote} />
+              <RemoteVideoStage participant={remote} overlayHostRef={remoteCursorOverlayRef} />
             </div>
             <span className="pointer-events-none absolute bottom-1.5 left-2 right-2 truncate text-[10px] font-medium uppercase tracking-wider text-white/80 bg-black/50 px-1.5 py-0.5 rounded max-w-[calc(100%-0.5rem)]">
               {remote.displayName || "Participant"}
@@ -867,7 +1104,13 @@ export default function CallUI({
           <div className="text-center min-w-0 px-2">
             <p className="font-semibold text-lg truncate">{remote?.displayName || "Apel audio"}</p>
             <p className="text-xs text-white/50 tabular-nums">
-              {status === "connected" ? fmtCallDuration(elapsedSec) : "Se conectează…"}
+              {status === "connected"
+                ? fmtCallDuration(elapsedSec)
+                : !isConference && status === "connecting"
+                  ? p2pConnectingSubtitle(connectionPhase, waitingForPeerInRoom, status)
+                  : waitingForPeerInRoom
+                    ? "Așteptăm partenerul…"
+                    : "Se conectează…"}
             </p>
           </div>
           <div className="w-11" />
@@ -983,7 +1226,12 @@ export default function CallUI({
           ← Mesaje
         </Link>
         <span className="text-night-500 text-sm">
-          {status === "connecting" && "Se conectează…"}
+          {status === "connecting" &&
+            (!isConference
+              ? p2pConnectingSubtitle(connectionPhase, waitingForPeerInRoom, status)
+              : waitingForPeerInRoom
+                ? "Așteptăm participanții…"
+                : "Se conectează…")}
           {status === "connected" && (isConference ? "Conferință" : "Apel")}
           {status === "left" && "Apel încheiat"}
         </span>

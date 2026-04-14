@@ -5,6 +5,11 @@
 import { findUserOrPrisma } from "@/lib/repo-prisma";
 import { getSignalingSecretForWsToken } from "@/lib/env/webrtcConfig";
 import { createSignalingToken } from "@/lib/signalingToken";
+import { iceUrlScheme, isNonRelayIceScheme } from "@/lib/webrtc/iceUrlScheme";
+import {
+  parseNextPublicTurnUrlsStrict,
+  validateTurnUrlsForIceConfig,
+} from "@/lib/webrtc/turnEnv";
 
 const SIGNALING_TOKEN_TTL_MS = 10 * 60 * 1000;
 
@@ -22,15 +27,13 @@ export function getTurnSecretsPresence(): {
   };
 }
 
-function classifyUrls(urls: unknown): { hasStun: boolean; hasTurn: boolean } {
+function classifyUrls(urls: string[]): { hasStun: boolean; hasTurn: boolean } {
   let hasStun = false;
   let hasTurn = false;
-  if (!Array.isArray(urls)) return { hasStun, hasTurn };
   for (const u of urls) {
-    if (typeof u !== "string") continue;
-    const lower = u.trim().toLowerCase();
-    if (lower.startsWith("stun:")) hasStun = true;
-    if (lower.startsWith("turn:") || lower.startsWith("turns:")) hasTurn = true;
+    const sch = iceUrlScheme(u);
+    if (isNonRelayIceScheme(sch)) hasStun = true;
+    if (sch === "turn" || sch === "turns") hasTurn = true;
   }
   return { hasStun, hasTurn };
 }
@@ -96,52 +99,43 @@ export async function runIceConfigForCheck(userId: string): Promise<IceConfigChe
     };
   }
 
-  let urls: unknown;
-  try {
-    urls = JSON.parse(process.env.NEXT_PUBLIC_TURN_URLS || "[]");
-  } catch {
-    return {
-      ok: false,
-      status: 500,
-      error: "TURN_URLS_JSON_INVALID",
-      ...emptyIce,
-    };
-  }
+  const parsed = parseNextPublicTurnUrlsStrict(process.env.NEXT_PUBLIC_TURN_URLS);
+  const urlList = parsed.ok ? parsed.urls : [];
+  const { hasStun } = classifyUrls(urlList);
 
   const realm = process.env.TURN_REALM?.trim();
   const secret = process.env.TURN_STATIC_SECRET?.trim();
 
-  if (!Array.isArray(urls)) {
+  if (!realm) {
     return {
       ok: false,
       status: 500,
-      error: "TURN_URLS_NOT_ARRAY",
-      ...emptyIce,
-    };
-  }
-
-  const urlList = urls.filter((x): x is string => typeof x === "string");
-  const { hasStun, hasTurn } = classifyUrls(urlList);
-  const turnReady = urlList.length > 0 && Boolean(realm && secret);
-
-  /** Aliniat cu `/api/call/ice-config`: fără coturn complet → STUN public (apel limitat). */
-  if (!turnReady) {
-    return {
-      ok: true,
-      status: 200,
-      hasTurn: false,
-      hasStun: true,
-      iceServerCount: 2,
-    };
-  }
-
-  if (!hasTurn) {
-    return {
-      ok: true,
-      status: 200,
+      error: "TURN_REQUIRED: TURN_REALM is missing.",
       hasTurn: false,
       hasStun,
-      iceServerCount: Math.max(1, urlList.length),
+      iceServerCount: 0,
+    };
+  }
+  if (!secret) {
+    return {
+      ok: false,
+      status: 500,
+      error: "TURN_REQUIRED: TURN_STATIC_SECRET is missing.",
+      hasTurn: false,
+      hasStun,
+      iceServerCount: 0,
+    };
+  }
+
+  const urlsV = validateTurnUrlsForIceConfig(process.env.NEXT_PUBLIC_TURN_URLS);
+  if (!urlsV.ok) {
+    return {
+      ok: false,
+      status: 500,
+      error: urlsV.error,
+      hasTurn: false,
+      hasStun,
+      iceServerCount: 0,
     };
   }
 
@@ -150,6 +144,6 @@ export async function runIceConfigForCheck(userId: string): Promise<IceConfigChe
     status: 200,
     hasTurn: true,
     hasStun,
-    iceServerCount: Math.max(1, urlList.length),
+    iceServerCount: 1,
   };
 }

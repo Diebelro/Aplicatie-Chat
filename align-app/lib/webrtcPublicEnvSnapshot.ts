@@ -4,6 +4,11 @@
  */
 
 import { getSignalingSecretForWsToken } from "@/lib/env/webrtcConfig";
+import { iceUrlScheme, isNonRelayIceScheme } from "@/lib/webrtc/iceUrlScheme";
+import {
+  parseNextPublicTurnUrlsStrict,
+  validateTurnUrlsForIceConfig,
+} from "@/lib/webrtc/turnEnv";
 
 export type WebrtcPublicEnvSnapshot = {
   nextPublicTurnUrlsParseOk: boolean;
@@ -15,36 +20,21 @@ export type WebrtcPublicEnvSnapshot = {
   turnAuthSecretSet: boolean;
   signalingSecretsOk: boolean;
   signalingSecretsError: string | null;
-  /** Minim pentru ca `GET /api/call/ice-config` să poată răspunde 200 (fără a testa coturn live). */
   iceApiEnvComplete: boolean;
-  /**
-   * true dacă env-ul public + secretele obligatorii par complete pentru un apel.
-   * Nu include: WebSocket VPS, coturn pornit, firewall.
-   */
   envLayerCompleteForCalls: boolean;
+  turnRequiredOk: boolean;
+  turnRequiredError: string | null;
 };
 
 export function buildWebrtcPublicEnvSnapshot(): WebrtcPublicEnvSnapshot {
-  let nextPublicTurnUrlsParseOk = false;
-  let nextPublicTurnUrlCount = 0;
+  const parsed = parseNextPublicTurnUrlsStrict(process.env.NEXT_PUBLIC_TURN_URLS);
+  const urlList = parsed.ok ? parsed.urls : [];
   let turnUrlsHasStun = false;
   let turnUrlsHasTurn = false;
-
-  try {
-    const raw = process.env.NEXT_PUBLIC_TURN_URLS || "[]";
-    const arr = JSON.parse(raw) as unknown;
-    if (Array.isArray(arr)) {
-      nextPublicTurnUrlsParseOk = true;
-      nextPublicTurnUrlCount = arr.length;
-      for (const u of arr) {
-        if (typeof u !== "string") continue;
-        const l = u.trim().toLowerCase();
-        if (l.startsWith("stun:")) turnUrlsHasStun = true;
-        if (l.startsWith("turn:") || l.startsWith("turns:")) turnUrlsHasTurn = true;
-      }
-    }
-  } catch {
-    nextPublicTurnUrlsParseOk = false;
+  for (const u of urlList) {
+    const sch = iceUrlScheme(u);
+    if (isNonRelayIceScheme(sch)) turnUrlsHasStun = true;
+    if (sch === "turn" || sch === "turns") turnUrlsHasTurn = true;
   }
 
   const turnRealmSet = !!process.env.TURN_REALM?.trim();
@@ -55,21 +45,24 @@ export function buildWebrtcPublicEnvSnapshot(): WebrtcPublicEnvSnapshot {
   const signalingSecretsOk = tokenSecrets.ok;
   const signalingSecretsError = tokenSecrets.ok ? null : tokenSecrets.error;
 
-  /** Coturn complet (relay). Fără asta, `/api/call/ice-config` tot răspunde 200 cu STUN public (fallback). */
-  const fullTurnIce =
-    nextPublicTurnUrlsParseOk &&
-    nextPublicTurnUrlCount > 0 &&
-    turnUrlsHasTurn &&
-    turnRealmSet &&
-    turnStaticSecretSet;
+  const urlsV = validateTurnUrlsForIceConfig(process.env.NEXT_PUBLIC_TURN_URLS);
+  const nextPublicTurnUrlsParseOk = parsed.ok && urlList.length > 0;
+  const nextPublicTurnUrlCount = urlsV.ok ? urlsV.relayUrls.length : 0;
 
-  const iceApiEnvComplete = fullTurnIce;
+  const turnRequiredError = (() => {
+    if (!urlsV.ok) return urlsV.error;
+    if (!turnRealmSet) return "TURN_REQUIRED: TURN_REALM is missing.";
+    if (!turnStaticSecretSet) return "TURN_REQUIRED: TURN_STATIC_SECRET is missing.";
+    return null;
+  })();
+  const turnRequiredOk = turnRequiredError === null;
 
-  /** Minim pentru încercare apel: URL semnalizare + secret WS (NEXTAUTH / SIGNALING); ICE poate fi doar STUN. */
+  const iceApiEnvComplete = turnRequiredOk;
+
   const envLayerCompleteForCalls =
     !!process.env.NEXT_PUBLIC_SIGNALING_WS_URL?.trim() &&
     signalingSecretsOk &&
-    nextPublicTurnUrlsParseOk;
+    iceApiEnvComplete;
 
   return {
     nextPublicTurnUrlsParseOk,
@@ -83,5 +76,7 @@ export function buildWebrtcPublicEnvSnapshot(): WebrtcPublicEnvSnapshot {
     signalingSecretsError,
     iceApiEnvComplete,
     envLayerCompleteForCalls,
+    turnRequiredOk,
+    turnRequiredError,
   };
 }

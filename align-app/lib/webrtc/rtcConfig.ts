@@ -1,18 +1,31 @@
 /**
- * Configurare RTCPeerConnection orientată spre stabilitate pe rețele mobile / NAT / pierderi.
- * Nu înlocuiește TURN bun — doar optimizează modul în care browserul folosește ICE.
+ * RTCPeerConnection pentru rețele ostile: TURN relay, bundling strict, pool ICE suficient.
+ * PHYSICAL NETWORK LIMITATION – NOT FIXABLE IN CODE: pierdere totală de rută sau DPI care blochează TLS nu se rezolvă din browser.
  */
 
-export function buildRtcPeerConnectionConfig(iceServers: RTCIceServer[]): RTCConfiguration {
-  return {
+export type RtcPeerConnectionConfigOptions = {
+  /** @deprecated ignorat — folosim mereu același profil ostil */
+  mobileLike?: boolean;
+};
+
+export function buildRtcPeerConnectionConfig(
+  iceServers: RTCIceServer[],
+  _opts?: RtcPeerConnectionConfigOptions
+): RTCConfiguration {
+  const pool = Math.max(6, 8);
+  const base: RTCConfiguration = {
     iceServers,
-    /** Pregătește candidați ICE înainte de start — conectare mai rapidă după ofertă (Chromium, Firefox). */
-    iceCandidatePoolSize: 10,
-    /** Un singur transport pentru toate mediile — mai puține găuri în firewall, mai stabil. */
+    iceTransportPolicy: "all",
+    iceCandidatePoolSize: pool,
     bundlePolicy: "max-bundle",
-    /** RTCP multiplexat pe același port ca RTP — standard modern, evită probleme pe rețele stricte. */
     rtcpMuxPolicy: "require",
   };
+  return {
+    ...base,
+    ...({
+      continualGatheringPolicy: "gather_continually",
+    } as Partial<RTCConfiguration>),
+  } as RTCConfiguration;
 }
 
 /**

@@ -131,7 +131,9 @@ Validare: `lib/env/webrtcConfig.ts` (Zod).
 3. Implicit: `npm run dev` → **`http://localhost:3005`** (port fix). Dacă vrei port auto: `npm run dev:auto`.
 4. Oprește procese `node` vechi dacă portul rămâne blocat.
 
-Semnalizare dev: `npm run signaling:dev` + `NEXT_PUBLIC_SIGNALING_WS_URL=ws://127.0.0.1:4001`.
+Semnalizare dev: `npm run dev` pornește automat semnalizarea pe **4001**; la fel **`npm run dev:quiet`** și **`npm run dev:lan`** (fără deschidere browser / `next dev -H 0.0.0.0`). Separat: `npm run signaling:dev`. URL WS implicit în dev: `ws://127.0.0.1:4001` (din `next.config.js` dacă lipsește din `.env`). Fără semnalizare automată: `ALIGN_DEV_NO_SIGNALING=1`.
+
+În **`next dev`** (`NODE_ENV=development`), dacă lipsește `NEXT_PUBLIC_TURN_URLS` sau `TURN_REALM` / `TURN_STATIC_SECRET`, **`GET /api/call/ice-config`** răspunde cu STUN public (Google) — util pentru teste în aceeași rețea **fără** coturn local. Pentru internet / CGNAT rămâne obligatoriu TURN self-hosted ca în secțiunea D.
 
 ---
 

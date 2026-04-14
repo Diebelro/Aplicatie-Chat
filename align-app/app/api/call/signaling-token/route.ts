@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSignalingToken } from "@/lib/signalingToken";
-import { parseTurnAndSignalingSecrets } from "@/lib/env/webrtcConfig";
+import { getSignalingSecretForWsToken } from "@/lib/env/webrtcConfig";
 import { rateLimitAllow } from "@/lib/callRateLimit";
 import { findUserOrPrisma } from "@/lib/repo-prisma";
 import { resolveRequestUserId } from "@/lib/sessionAuth";
@@ -24,9 +24,15 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Utilizator negăsit." }, { status: 404 });
   }
 
-  const secrets = parseTurnAndSignalingSecrets();
+  const secrets = getSignalingSecretForWsToken();
   if (!secrets.ok) {
-    return NextResponse.json({ error: "Semnalizare neconfigurată." }, { status: 503 });
+    return NextResponse.json(
+      {
+        error: "Semnalizare neconfigurată.",
+        ...(process.env.NODE_ENV === "development" ? { detail: secrets.error } : {}),
+      },
+      { status: 503 }
+    );
   }
 
   const token = createSignalingToken(userId, secrets.signalingSecret, TOKEN_TTL_MS);

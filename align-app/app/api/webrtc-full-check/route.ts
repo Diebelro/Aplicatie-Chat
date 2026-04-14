@@ -120,7 +120,7 @@ export async function GET(request: NextRequest) {
             : step === "signaling-token"
               ? "Verify TURN_AUTH_SECRET (min 16) and SIGNALING_TOKEN_SECRET or NEXTAUTH_SECRET (min 16) on Vercel Production."
               : step === "ice-config"
-                ? "Verify NEXT_PUBLIC_TURN_URLS (JSON array with at least one turn:/turns: URI), TURN_REALM, and TURN_STATIC_SECRET."
+                ? "TURN_REQUIRED: set NEXT_PUBLIC_TURN_URLS (comma-separated or JSON array) with at least one turn:/turns: URI, plus TURN_REALM and TURN_STATIC_SECRET (coturn static-auth-secret). STUN-only is rejected."
                 : undefined,
         note:
           "This check validates Vercel/Next configuration only — it does not verify that coturn or the signaling VPS process are running or reachable.",

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Users, PhoneMissed } from "lucide-react";
+import { Users, PhoneMissed, MessageCircle } from "lucide-react";
 import type { User } from "@/lib/store";
 import type { Message } from "@/lib/store";
 import { SilhouetteAvatar } from "@/components/SilhouetteAvatar";
@@ -196,6 +196,12 @@ export default function MessagesPage() {
                   href={`/app/chat/${f.id}`}
                   className="flex flex-1 items-center gap-2 px-3 py-2 min-w-0 touch-manipulation"
                 >
+                  <span
+                    className="flex shrink-0 items-center justify-center w-8 h-8 min-w-[32px] min-h-[32px] rounded-lg bg-brand-500/15 text-brand-400 border border-brand-500/35"
+                    aria-hidden
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                  </span>
                   <div className="relative w-8 h-8 rounded-full overflow-hidden bg-[#4DA6FF]/20 shrink-0">
                     <SilhouetteAvatar
                       photoUrl={f.photos?.[0]}
@@ -277,6 +283,16 @@ export default function MessagesPage() {
                       </span>
                     )}
                   </div>
+                </Link>
+                <Link
+                  href={`/app/chat/${otherUser.id}`}
+                  title={tStr("pages.messages.openChatButtonTitle")}
+                  aria-label={formatTpl(tStr("pages.messages.openChatAria"), { name: otherLabel })}
+                  className="flex shrink-0 items-center justify-center py-3 px-2 sm:py-4 sm:px-2.5 border-l border-dark-600 bg-dark-800 hover:bg-dark-700/50 active:bg-dark-700/70 transition touch-manipulation"
+                >
+                  <span className="flex items-center justify-center w-9 h-9 min-w-[36px] min-h-[36px] rounded-lg bg-brand-500/15 text-brand-400 border border-brand-500/35">
+                    <MessageCircle className="w-4 h-4" aria-hidden />
+                  </span>
                 </Link>
                 <Link
                   href={`/app/chat/${otherUser.id}`}

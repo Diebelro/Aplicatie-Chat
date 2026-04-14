@@ -34,6 +34,9 @@ const MAX_CONFERENCE_PEERS = Math.min(
   Math.max(2, Number(process.env.SIGNALING_MAX_CONFERENCE_PEERS || 6))
 );
 
+/** Dev LAN: `ALIGN_DEV_LAN=1` (setat de `dev-stack` cu `--host=…`). Prod: override cu `SIGNALING_BIND_ADDRESS`. */
+const LISTEN_HOST = process.env.SIGNALING_BIND_ADDRESS?.trim() || (process.env.ALIGN_DEV_LAN === "1" ? "0.0.0.0" : undefined);
+
 function logWarn(msg) {
   if (IS_PROD) console.warn(`[signaling] ${msg}`);
   else console.warn(`[signaling] ${msg}`);
@@ -200,11 +203,41 @@ function decIp(ip) {
   else ipConnCount.set(ip, n);
 }
 
+const DEV_LAN_SUMMARY = !IS_PROD && process.env.ALIGN_DEV_LAN === "1";
+
 const server = createServer((req, res) => {
   if (req.url === "/health" || req.url?.startsWith("/health?")) {
     res.writeHead(200, { "Content-Type": "text/plain" });
     res.end("ok");
     return;
+  }
+  if (DEV_LAN_SUMMARY) {
+    try {
+      const u = new URL(req.url || "/", "http://127.0.0.1");
+      if (u.pathname === "/__align-dev/room-summary") {
+        res.setHeader("Content-Type", "application/json; charset=utf-8");
+        const roomId = u.searchParams.get("roomId");
+        if (!roomId) {
+          const summary = [...rooms.entries()].map(([id, m]) => ({ roomId: id, peerCount: m.size }));
+          res.writeHead(200);
+          res.end(JSON.stringify({ ok: true, rooms: summary }));
+          return;
+        }
+        const r = rooms.get(roomKey(roomId));
+        res.writeHead(200);
+        res.end(
+          JSON.stringify({
+            ok: true,
+            roomId,
+            peerCount: r?.size ?? 0,
+            peerUserIds: r ? [...r.keys()] : [],
+          })
+        );
+        return;
+      }
+    } catch {
+      /* fall through */
+    }
   }
   res.writeHead(404);
   res.end();
@@ -356,9 +389,60 @@ setInterval(() => {
   }
 }, 30_000);
 
-server.listen(PORT, () => {
+function shutdownSignaling(code = 0) {
+  try {
+    wss.clients.forEach((c) => {
+      try {
+        c.close();
+      } catch {}
+    });
+  } catch {}
+  try {
+    wss.close();
+  } catch {}
+  try {
+    server.close(() => process.exit(code));
+  } catch {
+    process.exit(code);
+  }
+  setTimeout(() => process.exit(code), 2500).unref();
+}
+
+if (!IS_PROD) {
+  process.once("SIGINT", () => shutdownSignaling(130));
+  process.once("SIGTERM", () => shutdownSignaling(143));
+}
+
+server.once("error", (err) => {
+  if (err && err.code === "EADDRINUSE") {
+    logErr(
+      `Port ${PORT} este deja folosit (alt proces de semnalizare sau dev vechi). Oprește-l sau schimbă SIGNALING_PORT în .env. Pe Windows: netstat -ano | findstr :${PORT} apoi taskkill /PID <pid> /F`
+    );
+    process.exit(1);
+  }
+  logErr(String(err?.message || err));
+  process.exit(1);
+});
+
+server.listen(PORT, LISTEN_HOST, () => {
   if (!IS_PROD) {
-    logWarn(`WS pe ws://localhost:${PORT}/ws (dev) — folosește http:// în browser, nu https:// către Next dev`);
+    const lanIp = process.env.ALIGN_DEV_LAN_PRIMARY_IP?.trim() || "127.0.0.1";
+    const appBase = process.env.ALIGN_DEV_LAN_APP_BASE?.trim() || `http://${lanIp}:3005`;
+    const wsPublic = `ws://${lanIp}:${PORT}/ws`;
+    if (process.env.ALIGN_DEV_LAN === "1") {
+      console.log("\n┌── Semnalizare WebRTC (dev LAN) ──────────────────────────────────────────────");
+      console.log(`│ Host LAN:     ${lanIp}`);
+      console.log(`│ WebSocket:    ${wsPublic}`);
+      console.log(`│ App Next.js:  ${appBase}`);
+      console.log(`│ Ascult pe:    ${LISTEN_HOST ?? "implicit"}:${PORT}`);
+      console.log("└──────────────────────────────────────────────────────────────────────────────\n");
+    } else {
+      const bindNote =
+        LISTEN_HOST === "0.0.0.0"
+          ? ` ascultă pe toate interfețele (LAN OK); în browser pe alt PC: ws://<IP-LAN>:${PORT}`
+          : "";
+      logWarn(`WS pe ws://localhost:${PORT}/ws (dev)${bindNote} — folosește http:// în browser, nu https:// către Next dev`);
+    }
   } else {
     logWarn(`WS pornit pe port ${PORT} (TLS la reverse proxy: wss://ws.diebel.ro → 127.0.0.1:${PORT}/ws)`);
   }
