@@ -455,9 +455,9 @@ export default function AppDiscoverPage() {
   const profilesRemaining = feedItems.filter((i) => i.type === "profile").length;
 
   return (
-    <div className="flex flex-col items-center w-full">
+    <div className="flex flex-col items-center w-full min-w-0 max-w-full">
       {matchModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setMatchModal(null)}>
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 p-4" onClick={() => setMatchModal(null)}>
           <div className="bg-dark-800 border border-dark-600 rounded-2xl p-6 max-w-sm w-full shadow-xl text-center" onClick={(e) => e.stopPropagation()}>
             <p className="text-lg font-semibold text-zinc-900 mb-1">{tStr("pages.reviewSwipes.matchTitle")}</p>
             <p className="text-dark-300 mb-6">

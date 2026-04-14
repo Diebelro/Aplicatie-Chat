@@ -370,8 +370,8 @@ export default function AppLayout({
 
   return (
     <div className="h-dvh min-h-0 bg-dark-900 flex flex-col overflow-hidden">
-      <header className="border-b border-dark-600 shrink-0 sticky top-0 bg-dark-900/95 backdrop-blur z-20 safe-area-inset-top">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
+      <header className="border-b border-dark-600 shrink-0 sticky top-0 z-20 bg-dark-900 safe-area-inset-top">
+        <div className="max-w-4xl mx-auto py-3 flex items-center justify-between gap-2 pl-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))]">
           <Link href="/app" className="text-lg font-bold gradient-text shrink-0">
             Align
           </Link>
@@ -607,7 +607,7 @@ function MatchToast({
   return (
     <div
       role="alert"
-      className="fixed bottom-24 md:bottom-6 left-4 right-4 max-w-md mx-auto z-50 rounded-xl bg-brand-500/95 text-dark-900 shadow-lg border border-brand-400 p-4 flex items-center justify-between gap-3"
+      className="fixed bottom-24 md:bottom-6 left-4 right-4 max-w-md mx-auto z-[105] rounded-xl bg-brand-500 text-dark-900 shadow-lg border border-brand-400 p-4 flex items-center justify-between gap-3"
     >
       <p className="font-medium">
         {tStr("appNav.matchWithBefore")}

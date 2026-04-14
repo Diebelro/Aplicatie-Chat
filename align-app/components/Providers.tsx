@@ -14,6 +14,7 @@ import { InLucruBanner } from "@/components/InLucruBanner";
 function SiteFooter() {
   const pathname = usePathname();
   if (pathname?.startsWith("/admin")) return null;
+  if (pathname?.startsWith("/app")) return null;
   return <Footer />;
 }
 

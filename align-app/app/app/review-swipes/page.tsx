@@ -132,7 +132,7 @@ export default function ReviewSwipesPage() {
     <div className="flex flex-col items-center w-full max-w-md mx-auto">
       {matchModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 p-4"
           onClick={() => setMatchModal(null)}
         >
           <div

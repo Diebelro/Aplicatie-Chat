@@ -71,7 +71,7 @@ export function LanguageSwitcher({
       </button>
       {open && others.length > 0 && (
         <ul
-          className={`absolute ${menuPosition} z-[100] flex flex-col items-center gap-2 p-0`}
+          className={`absolute ${menuPosition} z-[120] flex flex-col items-center gap-2 p-0`}
           role="listbox"
           aria-label={tStr("common.labels.language")}
         >

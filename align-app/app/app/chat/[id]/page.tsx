@@ -955,7 +955,7 @@ export default function ChatPage() {
     <div className="flex flex-col flex-1 min-h-0 w-full min-w-0 max-w-full">
       {locationShareConfirmOpen && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-[2px]"
+          className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/40 backdrop-blur-[2px]"
           role="presentation"
           onClick={(e) => {
             if (e.target === e.currentTarget) cancelLocationShare();

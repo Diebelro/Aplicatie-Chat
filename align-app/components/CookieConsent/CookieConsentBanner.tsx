@@ -7,8 +7,14 @@ import { useCookieConsent, DEFAULT_CONSENT } from "@/contexts/CookieConsentConte
 import { CookieConsentModal } from "./CookieConsentModal";
 
 export function CookieConsentBanner() {
+  const pathname = usePathname();
   const { t } = useI18n();
   const { consent, setConsent, hasConsented } = useCookieConsent();
+  /** Pe mobil în `/app`, bara de nav e fixă jos — ridicăm bannerul ca să nu o acopere (md+: nav ascuns). */
+  const cookieBottomClass =
+    pathname?.startsWith("/app") === true
+      ? "bottom-[calc(0.5rem+56px+max(0.5rem,env(safe-area-inset-bottom,0px)))] md:bottom-0"
+      : "bottom-0";
   const bannerText = t("cookieConsent.bannerText") as string;
   const acceptLabel = t("cookieConsent.accept") as string;
   const refuseLabel = t("cookieConsent.refuse") as string;
@@ -37,7 +43,7 @@ export function CookieConsentBanner() {
 
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 z-[100] isolate border-t border-white/[0.08] bg-dark-900/98 backdrop-blur-lg shadow-[0_-8px_32px_rgba(0,0,0,0.35)]"
+      className={`fixed left-0 right-0 z-[100] isolate border-t border-dark-600 bg-dark-900 shadow-[0_-8px_32px_rgba(0,0,0,0.35)] ${cookieBottomClass}`}
       role="region"
       aria-label="Cookie consent"
     >
