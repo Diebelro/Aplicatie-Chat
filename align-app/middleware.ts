@@ -55,5 +55,5 @@ export function middleware(request: NextRequest) {
 
 /** Fără /api și asset-uri Next — evită efecte colaterale pe cereri API. */
 export const config = {
-  matcher: ["/((?!api/|_next/static|_next/image|favicon.ico|manifest.webmanifest|robots.txt|sitemap.xml).*)"],
+  matcher: ["/((?!api/|_next/static|_next/image|favicon.ico|manifest.webmanifest|manifest.json|sw.js|robots.txt|sitemap.xml).*)"],
 };

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
 import { DisableDevTools } from "@/components/DisableDevTools";
+import { PwaServiceWorkerRegister } from "@/components/PwaServiceWorkerRegister";
 import { getPublicAppUrl } from "@/lib/appUrl";
 
 const siteUrlRaw = getPublicAppUrl();
@@ -17,6 +18,7 @@ const defaultDescription =
   "Alege intenția ta. Vezi doar oameni care vor același lucru. Fără confuzie, fără timp irosit.";
 
 export const metadata: Metadata = {
+  manifest: "/manifest.json",
   metadataBase: new URL(`${metadataBaseUrl}/`),
   title: {
     default: defaultTitle,
@@ -44,7 +46,7 @@ export const viewport: Viewport = {
   maximumScale: 5,
   userScalable: true,
   viewportFit: "cover",
-  themeColor: [{ media: "(prefers-color-scheme: light)", color: "#f6f6f7" }],
+  themeColor: "#000000",
 };
 
 export default function RootLayout({
@@ -62,6 +64,7 @@ export default function RootLayout({
           color: "var(--text, #18181b)",
         }}
       >
+        <PwaServiceWorkerRegister />
         <DisableDevTools />
         <Providers>{children}</Providers>
       </body>

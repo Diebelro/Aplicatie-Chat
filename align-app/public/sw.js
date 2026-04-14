@@ -12,6 +12,9 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(self.clients.claim());
 });
 
+/** Passthrough — cerut de unele audituri PWA; nu interceptăm rețeaua aici. */
+self.addEventListener("fetch", () => {});
+
 function parsePushPayload(event) {
   const fallback = {
     type: "unknown",
