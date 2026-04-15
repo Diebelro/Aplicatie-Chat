@@ -46,7 +46,6 @@ const LOGIN_PROVIDER_KEYS: Record<string, string> = {
   apple: "pages.login.providerApple",
   microsoft: "pages.login.providerMicrosoft",
   facebook: "pages.login.providerFacebook",
-  phone: "pages.login.providerPhone",
   yahoo: "pages.login.providerYahoo",
 };
 

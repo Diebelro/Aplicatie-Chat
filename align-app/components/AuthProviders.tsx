@@ -5,11 +5,10 @@ import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useI18n } from "@/lib/i18n/context";
 
-/** Esențiale: Google, Apple, Email, Telefon. Recomandate: Microsoft, Facebook, Yahoo. */
+/** Social: Google, Apple, Microsoft, Facebook, Yahoo (fără telefon/SMS în UI). */
 const PROVIDERS = [
   { id: "google", label: "Continue with Google", essential: true, nextAuthId: "google" as const },
   { id: "apple", label: "Continue with Apple", essential: true, nextAuthId: "apple" as const },
-  { id: "phone", label: "Continue with Phone Number (SMS)", essential: true },
   { id: "microsoft", label: "Continue with Microsoft", essential: false, nextAuthId: "azure-ad" as const },
   { id: "facebook", label: "Continue with Facebook", essential: false, nextAuthId: "facebook" as const },
   { id: "yahoo", label: "Continue with Yahoo Mail", essential: false },
@@ -31,12 +30,10 @@ function cfgKey(providerId: string): keyof SocialCfg | null {
   return null;
 }
 
-const LOGIN_HERO_IDS = ["google", "phone"] as const;
-
 interface AuthProvidersProps {
   /** Pagina Creează cont: butoane compacte (44px, icon 20px, gap-2). Fără wrapper cu py/min-h/h-full. */
   compact?: boolean;
-  /** Login: doar Google + telefon, ordine și stiluri primary/secondary. */
+  /** Login: doar Google (fără telefon), apoi email/parolă. */
   variant?: "default" | "loginHero";
 }
 
@@ -88,7 +85,7 @@ export default function AuthProviders({ compact, variant = "default" }: AuthProv
   }, []);
 
   const handleClick = (p: (typeof PROVIDERS)[number]) => {
-    if (p.id === "phone" || p.id === "yahoo") {
+    if (p.id === "yahoo") {
       router.push(`/login?soon=1&auth=${encodeURIComponent(p.id)}`);
       return;
     }
@@ -108,17 +105,17 @@ export default function AuthProviders({ compact, variant = "default" }: AuthProv
 
   const cfgReady = socialCfg !== null;
 
+  const googleProvider = PROVIDERS.find((p) => p.id === "google");
   const list =
     variant === "loginHero"
-      ? LOGIN_HERO_IDS.map((id) => PROVIDERS.find((p) => p.id === id)).filter(
-          (p): p is (typeof PROVIDERS)[number] => p != null
-        )
+      ? googleProvider != null
+        ? [googleProvider]
+        : []
       : [...PROVIDERS];
 
   const heroLabel = (p: (typeof PROVIDERS)[number]) => {
     if (variant !== "loginHero") return p.label;
     if (p.id === "google") return tStr("pages.login.btnGoogle");
-    if (p.id === "phone") return tStr("pages.login.btnPhone");
     return p.label;
   };
 
@@ -131,10 +128,7 @@ export default function AuthProviders({ compact, variant = "default" }: AuthProv
         (disabled ? " opacity-45 cursor-not-allowed" : "")
       );
     }
-    if (p.id === "google") {
-      return `${base} border border-neutral-200/90 bg-white text-neutral-900 shadow-sm hover:bg-neutral-50 hover:border-neutral-300`;
-    }
-    return `${base} border border-dark-500 bg-dark-800 text-zinc-100 hover:bg-dark-700 hover:border-dark-400`;
+    return `${base} border border-neutral-200/90 bg-white text-neutral-900 shadow-sm hover:bg-neutral-50 hover:border-neutral-300`;
   };
 
   return (
@@ -198,12 +192,6 @@ function ProviderIcon({ id, compact }: { id: string; compact?: boolean }) {
       return (
         <svg className={c} viewBox="0 0 24 24" fill="#1877F2" aria-hidden>
           <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-        </svg>
-      );
-    case "phone":
-      return (
-        <svg className={c} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
         </svg>
       );
     case "yahoo":
