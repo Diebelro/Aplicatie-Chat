@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Phone, PhoneOff } from "lucide-react";
 import { getAuthHeaders, fetchWithAuthRetry } from "@/lib/authClient";
 import { markIncomingCallDismissed, shouldIgnorePolledIncoming } from "@/lib/callIncomingDismiss";
+import { closeIncomingCallPushNotifications } from "@/lib/closeIncomingCallPushNotifications";
 import { startIncomingRingtone, stopIncomingRingtone } from "@/lib/callRingtone";
 import { isBrowserPushPrimaryPath } from "@/lib/browserPushConstants";
 
@@ -178,6 +179,11 @@ export default function IncomingCall() {
       window.removeEventListener("online", bumpIncoming);
     };
   }, [fetchIncoming, onCallPage, cancelScheduledClearIncoming]);
+
+  useEffect(() => {
+    if (!incoming?.roomId) return;
+    closeIncomingCallPushNotifications(incoming.roomId);
+  }, [incoming?.roomId]);
 
   useEffect(() => {
     if (onCallPage || !incoming) {

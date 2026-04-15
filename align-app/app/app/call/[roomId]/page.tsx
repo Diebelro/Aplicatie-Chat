@@ -7,6 +7,7 @@ import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
 import { getAuthHeaders, fetchWithAuthRetry } from "@/lib/authClient";
 import { clearIncomingRingDismissFilter } from "@/lib/callIncomingDismiss";
+import { closeIncomingCallPushNotifications } from "@/lib/closeIncomingCallPushNotifications";
 import { canAccessRoom, isConferenceRoomId } from "@/lib/videoCall";
 import { displayName } from "@/lib/displayName";
 import CallUI from "@/components/CallUI";
@@ -143,6 +144,12 @@ export default function CallPage() {
       document.removeEventListener("visibilitychange", onVis);
     };
   }, [fromPush, callStarted, fetchIncomingHint]);
+
+  /** Scoate notificarea din tray când ești pe ecranul din push (inclusiv înainte de Răspunde). */
+  useEffect(() => {
+    if (!fromPush || !roomId) return;
+    closeIncomingCallPushNotifications(roomId);
+  }, [fromPush, roomId, callStarted]);
 
   /**
    * Ieșire cu Back browser / navigare fără butonul din CallUI: curățăm pending pe server.
@@ -297,7 +304,10 @@ export default function CallPage() {
   if (fromPush && !callStarted) {
     const labelAudio = incomingHint?.audioOnly ?? audioOnly;
     return (
-      <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-gradient-to-b from-zinc-900 to-black px-6 text-center text-white">
+      <div
+        className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-gradient-to-b from-zinc-900 to-black px-6 text-center text-white"
+        onPointerDown={() => closeIncomingCallPushNotifications(roomId)}
+      >
         <p className="text-white/50 text-sm mb-2">
           {labelAudio ? tStr("pages.callRoom.pushIncomingAudio") : tStr("pages.callRoom.pushIncomingVideo")}
         </p>

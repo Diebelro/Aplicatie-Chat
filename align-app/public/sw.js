@@ -61,7 +61,8 @@ self.addEventListener("push", (event) => {
     },
     tag: roomId ? "align-incoming-call:" + roomId : "align-notification",
     renotify: true,
-    requireInteraction: true,
+    /** false = notificarea se poate retrage singură din bară când deschizi app-ul (închidem și din client). */
+    requireInteraction: false,
   };
   event.waitUntil(self.registration.showNotification(title, options));
 });
