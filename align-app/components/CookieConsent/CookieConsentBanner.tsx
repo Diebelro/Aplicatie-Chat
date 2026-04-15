@@ -40,6 +40,7 @@ export function CookieConsentBanner() {
   };
 
   if (hasConsented) return null;
+  if (pathname === "/privacy" || pathname === "/privacy-policy") return null;
 
   return (
     <div

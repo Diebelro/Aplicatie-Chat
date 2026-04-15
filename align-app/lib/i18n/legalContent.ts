@@ -204,6 +204,16 @@ const termsDE: LegalSection[] = [
 
 const privacyRO: LegalSection[] = [
   {
+    title: "Pe scurt (Align, magazine de aplicații)",
+    content: [
+      "Align este o aplicație de chat și apeluri pentru adulți: mesaje, descoperire de persoane și convorbiri audio sau video. Această secțiune rezumă, pentru magazine precum Google Play, ce categorii de date pot fi implicate.",
+      "Pot fi prelucrate, printre altele: date de cont (adresă de email; dacă te autentifici cu Google, și informațiile furnizate de Google, de exemplu identificator și email; dacă folosești fluxuri cu SMS sau telefon — numărul de telefon asociat acelui flux), conținutul mesajelor trimise în serviciu, date tehnice necesare funcționării (de exemplu dispozitiv, rețea) și informații pentru notificări push (tokenuri), folosite pentru alerte (mesaje noi, apeluri etc.) când permiți notificările pe dispozitiv.",
+      "Nu vindem și nu închiriem datele tale personale către terți în scopuri comerciale ale acestora.",
+      "Folosim datele pentru a furniza și securiza serviciul (autentificare, profil, chat, apeluri, notificări), îmbunătățiri rezonabile ale produsului și conformitate cu Termenii și legea aplicabilă.",
+      "Pentru întrebări despre date sau exercitarea drepturilor: contact@diebel.ro. Detaliile complete urmează mai jos.",
+    ],
+  },
+  {
     title: "1. Responsabil pentru date",
     content: [
       "Operatorul serviciului Align este responsabil pentru prelucrarea datelor cu caracter personal („Responsabil”). Datele sunt prelucrate în conformitate cu Regulamentul (UE) 2016/679 (GDPR) și legislația națională aplicabilă.",
@@ -290,6 +300,16 @@ const privacyRO: LegalSection[] = [
 
 const privacyEN: LegalSection[] = [
   {
+    title: "In short (Align & app stores)",
+    content: [
+      "Align is a chat and calling app for adults: messaging, meeting people, and voice or video conversations. This section summarises, for app stores such as Google Play, which types of data may be involved.",
+      "We may process, among other things: account data (email address; if you sign in with Google, information from Google such as identifier and email; if you use SMS or phone flows — the phone number used in that flow), the content of messages you send through the service, technical data needed to operate the service (for example device and network information), and data used for push notifications (tokens), to alert you (new messages, calls, etc.) when you allow notifications on your device.",
+      "We do not sell or rent your personal data to third parties for their own marketing.",
+      "We use data to provide and secure the service (account, profile, chat, calls, notifications), make reasonable product improvements, and comply with our Terms and applicable law.",
+      "For privacy questions or to exercise your rights: contact@diebel.ro. Full details follow below.",
+    ],
+  },
+  {
     title: "1. Data controller",
     content: [
       "The operator of the Align service is the controller of your personal data (\"Controller\"). Data is processed in accordance with Regulation (EU) 2016/679 (GDPR) and applicable national law.",
@@ -375,6 +395,16 @@ const privacyEN: LegalSection[] = [
 ];
 
 const privacyDE: LegalSection[] = [
+  {
+    title: "Kurz gefasst (Align & App Stores)",
+    content: [
+      "Align ist eine Chat- und Anruf-App für Erwachsene: Nachrichten, Kennenlernen sowie Sprach- oder Videoanrufe. Dieser Abschnitt fasst für App Stores wie Google Play zusammen, welche Arten von Daten betroffen sein können.",
+      "Verarbeitet werden können unter anderem: Kontodaten (E-Mail-Adresse; bei Anmeldung mit Google auch von Google bereitgestellte Informationen wie Kennung und E-Mail; bei SMS- oder Telefon-Flows die dort verwendete Telefonnummer), Inhalte von Nachrichten, die du über den Dienst sendest, technische Daten für den Betrieb (z. B. Gerät, Netzwerk) sowie Daten für Push-Benachrichtigungen (Tokens), um dich zu informieren (neue Nachrichten, Anrufe usw.), wenn du Benachrichtigungen auf dem Gerät erlaubst.",
+      "Wir verkaufen oder vermieten deine personenbezogenen Daten nicht an Dritte zu deren eigenen Marketingzwecken.",
+      "Wir nutzen Daten, um den Dienst bereitzustellen und abzusichern (Konto, Profil, Chat, Anrufe, Benachrichtigungen), das Produkt angemessen zu verbessern und unsere Nutzungsbedingungen sowie geltendes Recht einzuhalten.",
+      "Fragen zum Datenschutz oder zur Ausübung deiner Rechte: contact@diebel.ro. Ausführliche Informationen folgen unten.",
+    ],
+  },
   {
     title: "1. Verantwortlicher",
     content: [

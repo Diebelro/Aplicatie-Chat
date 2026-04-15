@@ -14,7 +14,7 @@ export default function PrivacyPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-dark-900">
-      <header className="border-b border-dark-600 sticky top-0 bg-dark-900/95 backdrop-blur z-10">
+      <header className="border-b border-dark-600 sticky top-0 z-10 bg-dark-900 pt-[env(safe-area-inset-top,0px)]">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link href="/" className="text-lg font-bold text-brand-400 hover:text-brand-300">
             Align
@@ -33,11 +33,11 @@ export default function PrivacyPage() {
             {String(t("legal.links.cookies"))}
           </Link>
         </p>
-        <h1 className="text-2xl font-semibold text-zinc-900 mb-8">{legal.privacyTitle}</h1>
+        <h1 className="text-2xl font-semibold text-zinc-100 mb-8">{legal.privacyTitle}</h1>
         <div className="prose prose-invert max-w-none space-y-8">
           {sections.map((section, i) => (
             <section key={i}>
-              <h2 className="text-lg font-semibold text-zinc-900 mb-3">{section.title}</h2>
+              <h2 className="text-lg font-semibold text-zinc-100 mb-3">{section.title}</h2>
               {section.content.map((para, j) => (
                 <p key={j} className="text-dark-300 text-sm leading-relaxed mb-3">
                   {para}

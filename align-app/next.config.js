@@ -129,6 +129,9 @@ const nextConfig = {
     return [
       { source: "/termeni", destination: "/terms", permanent: true },
       { source: "/confidentialitate", destination: "/privacy", permanent: true },
+      /** Google Play / linkuri externe: alias canonic către politica publică. */
+      { source: "/privacy-policy", destination: "/privacy", permanent: true },
+      { source: "/privacy-policy/", destination: "/privacy", permanent: true },
       /** Fără acestea /api/auth/:provider clădea /api/auth/session (NextAuth). */
       { source: "/api/auth/google", destination: "/api/auth/legacy/google", permanent: false },
       { source: "/api/auth/apple", destination: "/api/auth/legacy/apple", permanent: false },

@@ -521,7 +521,13 @@ export default function AppLayout({
       >
         {children}
         {isChatRoute ? (
-          <div className="shrink-0 flex justify-center pt-3 pb-1 border-t border-dark-700/70 mt-auto">
+          <div className="shrink-0 flex flex-col items-center gap-2 pt-3 pb-1 border-t border-dark-700/70 mt-auto">
+            <Link
+              href="/privacy"
+              className="text-xs font-medium text-brand-400 hover:text-brand-300 hover:underline"
+            >
+              Privacy Policy
+            </Link>
             <LanguageSwitcher compact />
           </div>
         ) : (

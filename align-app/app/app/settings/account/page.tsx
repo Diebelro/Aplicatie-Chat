@@ -228,7 +228,7 @@ export default function AccountSettingsPage() {
   }
 
   return (
-    <div className="max-w-xl mx-auto space-y-10">
+    <div className="max-w-xl mx-auto space-y-10 px-4 pb-[max(1.5rem,env(safe-area-inset-bottom,0px))]">
       <div className="flex items-center gap-4">
         <Link href="/app/profile" className="text-dark-400 hover:text-zinc-900 transition text-sm">
           {tStr("pages.account.backToProfile")}
@@ -450,7 +450,7 @@ export default function AccountSettingsPage() {
 
       <section className="mt-10 pt-6 border-t border-dark-600">
         <h3 className="text-sm font-medium text-dark-400 mb-3">{tStr("pages.account.legalDocs")}</h3>
-        <LegalDocLinks />
+        <LegalDocLinks privacyLinkLabel="Privacy Policy" />
       </section>
 
       {deleteConfirmOpen && (

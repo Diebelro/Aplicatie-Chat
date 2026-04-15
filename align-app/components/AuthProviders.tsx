@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SessionProvider, signIn } from "next-auth/react";
+import { useI18n } from "@/lib/i18n/context";
 
 /** Esențiale: Google, Apple, Email, Telefon. Recomandate: Microsoft, Facebook, Yahoo. */
 const PROVIDERS = [
@@ -30,9 +31,13 @@ function cfgKey(providerId: string): keyof SocialCfg | null {
   return null;
 }
 
+const LOGIN_HERO_IDS = ["google", "phone"] as const;
+
 interface AuthProvidersProps {
   /** Pagina Creează cont: butoane compacte (44px, icon 20px, gap-2). Fără wrapper cu py/min-h/h-full. */
   compact?: boolean;
+  /** Login: doar Google + telefon, ordine și stiluri primary/secondary. */
+  variant?: "default" | "loginHero";
 }
 
 const compactButtonClass = `
@@ -54,8 +59,9 @@ const compactButtonClass = `
   !py-0
 `.replace(/\s+/g, " ").trim();
 
-export default function AuthProviders({ compact }: AuthProvidersProps) {
+export default function AuthProviders({ compact, variant = "default" }: AuthProvidersProps) {
   const router = useRouter();
+  const { tStr } = useI18n();
   const [socialCfg, setSocialCfg] = useState<SocialCfg | null>(null);
 
   useEffect(() => {
@@ -102,10 +108,39 @@ export default function AuthProviders({ compact }: AuthProvidersProps) {
 
   const cfgReady = socialCfg !== null;
 
+  const list =
+    variant === "loginHero"
+      ? LOGIN_HERO_IDS.map((id) => PROVIDERS.find((p) => p.id === id)).filter(
+          (p): p is (typeof PROVIDERS)[number] => p != null
+        )
+      : [...PROVIDERS];
+
+  const heroLabel = (p: (typeof PROVIDERS)[number]) => {
+    if (variant !== "loginHero") return p.label;
+    if (p.id === "google") return tStr("pages.login.btnGoogle");
+    if (p.id === "phone") return tStr("pages.login.btnPhone");
+    return p.label;
+  };
+
+  const heroButtonClass = (p: (typeof PROVIDERS)[number], disabled: boolean) => {
+    const base =
+      "w-full min-h-[48px] shrink-0 flex items-center justify-center gap-2.5 rounded-xl px-4 text-sm font-semibold transition touch-manipulation active:scale-[0.99] disabled:opacity-45 disabled:cursor-not-allowed disabled:active:scale-100";
+    if (variant !== "loginHero") {
+      return (
+        (compact ? compactButtonClass : "w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-dark-600 bg-dark-800 text-zinc-900 hover:bg-dark-700 transition font-medium text-sm") +
+        (disabled ? " opacity-45 cursor-not-allowed" : "")
+      );
+    }
+    if (p.id === "google") {
+      return `${base} border border-neutral-200/90 bg-white text-neutral-900 shadow-sm hover:bg-neutral-50 hover:border-neutral-300`;
+    }
+    return `${base} border border-dark-500 bg-dark-800 text-zinc-100 hover:bg-dark-700 hover:border-dark-400`;
+  };
+
   return (
     <SessionProvider basePath="/api/auth" refetchOnWindowFocus={false} refetchInterval={0}>
-      <div className={compact ? "flex flex-col gap-2" : "space-y-2"}>
-        {PROVIDERS.map((p) => {
+      <div className={variant === "loginHero" ? "flex w-full flex-col gap-3" : compact ? "flex flex-col gap-2" : "space-y-2"}>
+        {list.map((p) => {
           const key = cfgKey(p.id);
           const oauthConfigured = key == null ? true : !cfgReady || socialCfg![key];
           const disabled = !oauthConfigured;
@@ -120,15 +155,10 @@ export default function AuthProviders({ compact }: AuthProvidersProps) {
               title={title}
               disabled={disabled}
               onClick={() => handleClick(p)}
-              className={
-                (compact
-                  ? compactButtonClass
-                  : "w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-dark-600 bg-dark-800 text-zinc-900 hover:bg-dark-700 transition font-medium text-sm") +
-                (disabled ? " opacity-45 cursor-not-allowed" : "")
-              }
+              className={heroButtonClass(p, disabled)}
             >
-              <ProviderIcon id={p.id} compact={compact} />
-              <span>{p.label}</span>
+              <ProviderIcon id={p.id} compact={variant === "loginHero" || compact} />
+              <span>{heroLabel(p)}</span>
             </button>
           );
         })}

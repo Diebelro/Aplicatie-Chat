@@ -262,32 +262,43 @@ function LoginContent() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-8 bg-dark-900">
-      <div className="max-w-sm mx-auto px-4 flex flex-col w-full">
-        <Link href="/" className="inline-block text-brand-400 font-bold mt-4">
+    <div className="flex min-h-dvh flex-col bg-dark-900">
+      <div className="shrink-0 px-4 pt-[max(0.75rem,env(safe-area-inset-top,0px))]">
+        <Link
+          href="/"
+          className="inline-flex text-sm font-semibold text-brand-400 hover:text-brand-300 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded"
+        >
           {tStr("pages.login.backBrand")}
         </Link>
-        <h1 className="text-2xl font-semibold text-zinc-900 mt-4">{tStr("pages.login.title")}</h1>
-        <p className="text-sm text-dark-300 mt-2">
-          {tStr("pages.login.intro")}{" "}
-          <Link href="/signup" className="text-brand-400 hover:underline">
-            {tStr("home.signup")}
-          </Link>
-          .
-        </p>
+      </div>
 
-        {soonMessage && (
-          <p className="text-amber-400 text-sm mt-2 bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2">
-            {soonMessage}
-          </p>
-        )}
+      <div className="flex flex-1 flex-col items-center justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))] min-h-0">
+        <div className="w-full max-w-sm mx-auto flex flex-col gap-5 min-w-0">
+          <header className="text-center space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-brand-400/90">Align</p>
+            <h1 className="text-2xl font-semibold text-zinc-100 tracking-tight">{tStr("pages.login.title")}</h1>
+            <p className="text-sm text-dark-300 leading-relaxed">{tStr("pages.login.introHero")}</p>
+          </header>
 
-        <div className="mt-6">
-          <AuthProviders compact />
-        </div>
-        <p className="text-xs text-dark-400 text-center mt-2">{tStr("pages.login.socialSoon")}</p>
+          {soonMessage && (
+            <p className="text-amber-400 text-sm bg-amber-500/10 border border-amber-500/30 rounded-xl px-3 py-2.5 text-center">
+              {soonMessage}
+            </p>
+          )}
 
-        <form onSubmit={handleSubmit} className="space-y-4 mt-3">
+          <div className="w-full min-w-0 mx-auto shrink-0">
+            <AuthProviders variant="loginHero" />
+          </div>
+
+          <div className="flex items-center gap-3 py-0.5" aria-hidden>
+            <span className="h-px flex-1 bg-dark-600 min-w-0" />
+            <span className="text-[11px] font-medium uppercase tracking-wide text-dark-500 shrink-0">
+              {tStr("pages.login.dividerEmail")}
+            </span>
+            <span className="h-px flex-1 bg-dark-600 min-w-0" />
+          </div>
+
+        <form onSubmit={handleSubmit} className="space-y-3">
           <label htmlFor="login-email" className="block text-sm font-medium text-dark-300">
             {tStr("pages.login.emailLabel")}
           </label>
@@ -362,7 +373,7 @@ function LoginContent() {
           <button
             type="submit"
             disabled={loading || retryAfterSeconds > 0}
-            className="w-full !h-11 !min-h-[44px] !max-h-[44px] !py-0 px-4 rounded-xl bg-brand-500 hover:bg-brand-400 text-dark-900 font-medium text-sm transition disabled:opacity-50"
+            className="w-full min-h-[48px] px-4 rounded-xl bg-brand-500 hover:bg-brand-400 active:bg-brand-500/90 text-dark-900 font-semibold text-sm transition disabled:opacity-50 disabled:pointer-events-none touch-manipulation"
           >
             {loading
               ? tStr("pages.login.btnConnecting")
@@ -372,30 +383,38 @@ function LoginContent() {
           </button>
         </form>
 
-        <p className="mt-6 text-center text-dark-500 text-sm">
-          {tStr("pages.login.noAccount")}{" "}
-          <Link href="/signup" className="text-brand-400 hover:underline">
-            {tStr("home.signup")}
-          </Link>
-        </p>
-        <p className="mt-2 text-center text-dark-500 text-sm">
-          <Link href="/forgot-password" className="text-brand-400 hover:underline">
-            {tStr("pages.login.forgotPassword")}
-          </Link>
-        </p>
-        <p className="mt-6 text-center text-dark-600 text-[11px] leading-relaxed px-2">
-          <Link href="/terms" className="text-brand-400/80 hover:underline">
-            {tStr("pages.login.footerTerms")}
-          </Link>
-          {" · "}
-          <Link href="/privacy" className="text-brand-400/80 hover:underline">
-            {tStr("pages.login.footerPrivacy")}
-          </Link>
-          {" · "}
-          <Link href="/cookies" className="text-brand-400/80 hover:underline">
-            {tStr("pages.login.footerCookies")}
-          </Link>
-        </p>
+          <p className="text-center text-dark-400 text-sm">
+            {tStr("pages.login.noAccount")}{" "}
+            <Link href="/signup" className="font-medium text-brand-400 hover:text-brand-300 hover:underline">
+              {tStr("home.signup")}
+            </Link>
+          </p>
+          <p className="text-center text-sm">
+            <Link href="/forgot-password" className="text-brand-400/90 hover:text-brand-300 hover:underline">
+              {tStr("pages.login.forgotPassword")}
+            </Link>
+          </p>
+
+          <nav className="flex flex-col items-center gap-3 pt-1" aria-label="Legal">
+            <Link
+              href="/privacy"
+              className="text-sm font-semibold text-brand-400 hover:text-brand-300 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded px-1"
+            >
+              Privacy Policy
+            </Link>
+            <p className="text-center text-dark-600 text-[11px] leading-relaxed flex flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5">
+              <Link href="/terms" className="text-brand-400/80 hover:underline">
+                {tStr("pages.login.footerTerms")}
+              </Link>
+              <span className="text-dark-600 select-none" aria-hidden>
+                ·
+              </span>
+              <Link href="/cookies" className="text-brand-400/80 hover:underline">
+                {tStr("pages.login.footerCookies")}
+              </Link>
+            </p>
+          </nav>
+        </div>
       </div>
     </div>
   );
