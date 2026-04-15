@@ -27,12 +27,16 @@ export function stopIncomingRingtone(): void {
     loopTimer = null;
   }
   if (audioCtx) {
-    try {
-      void audioCtx.close();
-    } catch {
-      /* ignore */
-    }
+    const ctx = audioCtx;
     audioCtx = null;
+    /** Închidem contextul după o scurtă pauză ca ultimul beep să nu fie tăiat brusc (mai natural la respingere/răspuns). */
+    window.setTimeout(() => {
+      try {
+        void ctx.close();
+      } catch {
+        /* ignore */
+      }
+    }, 100);
   }
 }
 

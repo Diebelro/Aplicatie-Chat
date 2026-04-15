@@ -12,6 +12,8 @@ import { canAccessRoom, isConferenceRoomId } from "@/lib/videoCall";
 import { displayName } from "@/lib/displayName";
 import CallUI from "@/components/CallUI";
 import { useI18n } from "@/lib/i18n/context";
+import { shouldSkipDuplicateCallEnd } from "@/lib/callEndDedup";
+import { RING_PUSH_HINT_SESSION_KEY } from "@/lib/callRingNotifySnapshot";
 
 function getStoredUser(): User | null {
   if (typeof window === "undefined") return null;
@@ -40,6 +42,7 @@ export default function CallPage() {
   const [pushGateError, setPushGateError] = useState<string | null>(null);
   const [pushGateLoading, setPushGateLoading] = useState(false);
   const [incomingHint, setIncomingHint] = useState<{ fromName: string; audioOnly: boolean } | null>(null);
+  const [transientRingNotify, setTransientRingNotify] = useState<string | null>(null);
   const callSessionStartedRef = useRef(!fromPush);
 
   useEffect(() => {
@@ -131,6 +134,21 @@ export default function CallPage() {
   }, [roomId]);
 
   useEffect(() => {
+    try {
+      const h = sessionStorage.getItem(RING_PUSH_HINT_SESSION_KEY);
+      if (h) {
+        sessionStorage.removeItem(RING_PUSH_HINT_SESSION_KEY);
+        setTransientRingNotify(h);
+        const tid = window.setTimeout(() => setTransientRingNotify(null), 12_000);
+        return () => clearTimeout(tid);
+      }
+    } catch {
+      /* ignore */
+    }
+    return;
+  }, [roomId]);
+
+  useEffect(() => {
     if (!fromPush || callStarted) return;
     fetchIncomingHint();
     const onFocus = () => fetchIncomingHint();
@@ -165,6 +183,7 @@ export default function CallPage() {
       window.clearTimeout(tid);
       if (!armed) return;
       clearIncomingRingDismissFilter();
+      if (shouldSkipDuplicateCallEnd(roomId)) return;
       if (!callSessionStartedRef.current) {
         void fetch("/api/call/end", {
           method: "POST",
@@ -194,6 +213,7 @@ export default function CallPage() {
     const body = JSON.stringify({ roomId });
     const flush = () => {
       clearIncomingRingDismissFilter();
+      if (shouldSkipDuplicateCallEnd(roomId)) return;
       if (!callSessionStartedRef.current) {
         try {
           void fetch("/api/call/end", {
@@ -353,6 +373,7 @@ export default function CallPage() {
       audioOnly={resolvedAudioOnly}
       isConference={isConferenceRoomId(roomId)}
       isCaller={fromPush ? false : isCaller}
+      transientRingNotify={transientRingNotify}
     />
   );
 }

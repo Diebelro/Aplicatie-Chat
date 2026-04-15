@@ -7,8 +7,11 @@ export type RingNotifySnapshot = {
   webPush: { server: boolean; calleeSubscriptions: number };
 };
 
-/** Timp scurt ca utilizatorul să vadă avertismentul înainte de navigare către sala de apel. */
+/** Folosit în alte ecrane (ex. chat) care încă afișează hint înainte de navigare. */
 export const RING_PUSH_HINT_DELAY_MS = 250;
+
+/** Hint scurt despre push salvat înainte de navigare spre camera de apel (fără pauză pe lista de mesaje). */
+export const RING_PUSH_HINT_SESSION_KEY = "align_ring_push_hint";
 
 /**
  * Mesaj scurt: doar despre **push în fundal**, nu despre WebRTC în sine.
@@ -21,7 +24,7 @@ export function formatRingNotifyHint(n: RingNotifySnapshot | null | undefined): 
   if (hasCallee) return null;
   const anyServer = n.fcm.server || n.voip.server || n.webPush.server;
   if (!anyServer) {
-    return "Notificări în fundal: pe Vercel nu sunt setate FCM, APNs VoIP sau Web Push — celălalt nu primește alertă dacă nu are Diebel deschis. Apelul merge în continuare dacă amândoi sunteți în app; configurează push pentru sunat când e în altă aplicație.";
+    return "Fără push configurat pe server, celălalt poate să nu primească alertă în fundal. Cu aplicația deschisă, apelul merge.";
   }
-  return "Destinatarul nu are dispozitiv înregistrat pentru notificări — poate să nu vadă apelul cu app în fundal. Cu chat deschis merge fără push. Android: FCM. Browser: notificări + Web Push.";
+  return "Destinatarul nu are notificări înregistrate — cu app în fundal poate să nu vadă apelul. Cu chat deschis merge.";
 }

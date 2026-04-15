@@ -52,6 +52,7 @@ import {
   attachCursorSender,
   setCursorEnabled,
 } from "@/lib/webrtc/cursorOverlay";
+import { markCallEndPosted } from "@/lib/callEndDedup";
 
 function p2pConnectingSubtitle(
   phase: CallConnectionPhase | null,
@@ -290,6 +291,8 @@ type CallUIProps = {
   audioOnly: boolean;
   isConference: boolean;
   isCaller?: boolean;
+  /** Afișat o dată după sunare (ex. limitări push), fără să blocheze navigarea. */
+  transientRingNotify?: string | null;
 };
 
 export default function CallUI({
@@ -299,6 +302,7 @@ export default function CallUI({
   audioOnly,
   isConference,
   isCaller: isCallerProp,
+  transientRingNotify = null,
 }: CallUIProps) {
   const { tStr } = useI18n();
   const router = useRouter();
@@ -340,6 +344,7 @@ export default function CallUI({
     isCaller,
     isConference,
     onAutoEnded: () => {
+      markCallEndPosted(roomId);
       clearIncomingRingDismissFilter();
       void fetch("/api/call/end", {
         method: "POST",
@@ -555,7 +560,7 @@ export default function CallUI({
 
   useEffect(() => {
     if (!outgoingTerminal) return;
-    const t = setTimeout(() => router.push("/app/messages"), 2500);
+    const t = setTimeout(() => router.push("/app/messages"), 1800);
     return () => clearTimeout(t);
   }, [outgoingTerminal, router]);
 
@@ -568,6 +573,7 @@ export default function CallUI({
   }, [outgoingTerminal, status, remoteParticipants.length]);
 
   const handleLeave = () => {
+    markCallEndPosted(roomId);
     leave();
     clearIncomingRingDismissFilter();
     void fetch("/api/call/end", {
@@ -1018,6 +1024,14 @@ export default function CallUI({
             {banner}
           </div>
         ) : null}
+        {transientRingNotify ? (
+          <div
+            className={`relative z-20 mx-3 mt-1 rounded-xl border border-sky-400/30 bg-sky-500/15 px-3 py-2 text-xs text-sky-50/95 backdrop-blur-sm transition-all duration-300 ease-out ${chromeTopClass}`}
+            role="status"
+          >
+            {transientRingNotify}
+          </div>
+        ) : null}
         {remotePlaybackHintBanner}
 
         {/* PiP: implicit tu mic; după swap — celălalt mic. Atinge mare sau mic pentru a comuta. */}
@@ -1211,6 +1225,15 @@ export default function CallUI({
           <div className="w-11" />
         </header>
 
+        {transientRingNotify ? (
+          <div
+            className={`relative z-10 mx-4 mt-1 rounded-xl border border-sky-400/30 bg-sky-500/15 px-3 py-2 text-xs text-sky-50/95 transition-all duration-300 ease-out ${chromeTopClass}`}
+            role="status"
+          >
+            {transientRingNotify}
+          </div>
+        ) : null}
+
         <div className="flex flex-1 flex-col items-center justify-center px-6 -mt-8">
           <div className="relative mb-8">
             <div className="absolute inset-0 rounded-full bg-brand-500/20 blur-3xl scale-150" />
@@ -1351,6 +1374,14 @@ export default function CallUI({
       {banner ? (
         <div className="mx-4 mt-2 rounded-lg bg-amber-500/15 border border-amber-500/40 px-3 py-2 text-sm text-amber-100">
           {banner}
+        </div>
+      ) : null}
+      {transientRingNotify ? (
+        <div
+          className="mx-4 mt-2 rounded-lg border border-sky-400/30 bg-sky-500/10 px-3 py-2 text-sm text-sky-100/90"
+          role="status"
+        >
+          {transientRingNotify}
         </div>
       ) : null}
       {remotePlaybackHintBanner}

@@ -8,7 +8,7 @@ import { getStoredUserRaw } from "@/lib/store";
 import { fetchWithAuthRetry } from "@/lib/authClient";
 import { getVideoRoomId } from "@/lib/videoCall";
 import type { RingNotifySnapshot } from "@/lib/callRingNotifySnapshot";
-import { RING_PUSH_HINT_DELAY_MS, formatRingNotifyHint } from "@/lib/callRingNotifySnapshot";
+import { RING_PUSH_HINT_SESSION_KEY, formatRingNotifyHint } from "@/lib/callRingNotifySnapshot";
 
 async function resolveMyIdForCall(): Promise<string | null> {
   const raw = getStoredUserRaw();
@@ -53,6 +53,7 @@ export function QuickCallButtons({ toUserId, size = "md", className = "" }: Quic
       return;
     }
     setBusy(true);
+    let keepBusyUntilUnmount = false;
     try {
       const res = await fetchWithAuthRetry("/api/call/ring", {
         method: "POST",
@@ -68,14 +69,18 @@ export function QuickCallButtons({ toUserId, size = "md", className = "" }: Quic
       const j = (await res.json().catch(() => ({}))) as { notify?: RingNotifySnapshot };
       const pushHint = formatRingNotifyHint(j.notify);
       if (pushHint) {
-        setCallHint(pushHint);
-        await new Promise((r) => setTimeout(r, RING_PUSH_HINT_DELAY_MS));
+        try {
+          sessionStorage.setItem(RING_PUSH_HINT_SESSION_KEY, pushHint);
+        } catch {
+          /* ignore */
+        }
       }
+      keepBusyUntilUnmount = true;
       router.push(`/app/call/${getVideoRoomId(myId, toUserId)}${audioOnly ? "?audio=1&from=ring" : "?from=ring"}`);
     } catch {
       setCallHint("Eroare rețea. Verifică conexiunea.");
     } finally {
-      setBusy(false);
+      if (!keepBusyUntilUnmount) setBusy(false);
     }
   };
 
