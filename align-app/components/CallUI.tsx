@@ -476,19 +476,35 @@ export default function CallUI({
   /** Doar pe mobil: pe desktop lăsăm ieșirea implicită (boxe/căști după OS). */
   const showSpeakerToggle = isMobileUi && supportsAudioOutputSelection() && !!speakerSinkIdResolved;
 
+  /**
+   * Ignoră primele `unreachable` de la poll: apar des din cursă (ring încă nu e în DB) sau cold start
+   * serverless — altfel apelantul vedea „indisponibil” și pierdea UI-ul video înainte de WebRTC.
+   */
+  const unreachableGraceUntilRef = useRef(0);
+  useEffect(() => {
+    if (!isCaller) {
+      unreachableGraceUntilRef.current = 0;
+      return;
+    }
+    unreachableGraceUntilRef.current = Date.now() + 5000;
+  }, [isCaller, roomId]);
+
   const fetchOutgoingStatus = useCallback(() => {
     fetch(`/api/call/outgoing-status?roomId=${encodeURIComponent(roomId)}`, {
       headers: getAuthHeaders(),
       credentials: "same-origin",
     })
-      .then((r) => r.json())
-      .then((d) => {
+      .then(async (r) => {
+        const d = (await r.json().catch(() => ({}))) as { status?: string };
+        if (!r.ok) return;
         if (d?.status === "ringing") {
+          unreachableGraceUntilRef.current = 0;
           setOutgoingTerminal(null);
           return;
         }
         if (d?.status === "rejected") setOutgoingTerminal("rejected");
         else if (d?.status === "unreachable") {
+          if (Date.now() < unreachableGraceUntilRef.current) return;
           setOutgoingTerminal((prev) => (prev === "rejected" ? "rejected" : "unreachable"));
         }
       })
@@ -507,6 +523,14 @@ export default function CallUI({
     const t = setTimeout(() => router.push("/app/messages"), 2500);
     return () => clearTimeout(t);
   }, [outgoingTerminal, router]);
+
+  /** Dacă am arătat din greșeală „unreachable”, dar WebRTC s-a legat — revino la UI-ul de apel. */
+  useEffect(() => {
+    if (outgoingTerminal !== "unreachable") return;
+    if (status === "connected" || remoteParticipants.length > 0) {
+      setOutgoingTerminal(null);
+    }
+  }, [outgoingTerminal, status, remoteParticipants.length]);
 
   const handleLeave = () => {
     leave();
