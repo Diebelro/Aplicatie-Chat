@@ -53,6 +53,15 @@
     "subhead": "Alege intenția ta. Vezi doar oameni care vor același lucru. Fără confuzie, fără timp irosit.",
     "cta": "Începe acum"
   },
+  "diebelPromo": {
+    "tagline": "Cea mai simplă aplicație de chat",
+    "title": "DIEBEL",
+    "subtitle": "Mesaje rapide. Conexiuni reale.",
+    "emotional": "Două inimi. O singură vibrație.",
+    "cta": "Intră acum — chat rapid, fără bătăi de cap.",
+    "carouselTablistAria": "Bannere promoționale Diebel",
+    "dotAria": "Banner Diebel, diapozitiv {{current}} din {{total}}"
+  },
   "legal": {
     "links": {
       "terms": "Termeni și Condiții",
@@ -90,7 +99,9 @@
     "matchWithAfter": "!",
     "openChat": "Deschide chat",
     "legalNavAria": "Documente legale",
-    "anonymousUser": "Cineva"
+    "anonymousUser": "Cineva",
+    "ariaChangeProfilePhoto": "Schimbă poza de profil",
+    "ariaMyProfile": "Profilul meu"
   },
   "pages": {
     "matches": {
@@ -893,6 +904,11 @@
       "badgePhoto": "Cu poză",
       "badgeBio": "Cu descriere",
       "previewMe": "Profilul meu",
+      "photoPage": {
+        "title": "Poza de profil",
+        "subtitle": "Adaugă, șterge sau alege ce imagine apare ca poză de profil.",
+        "backLink": "← Profil complet"
+      },
       "summaryTitle": "Rezumat profil",
       "lblFirstName": "Prenume:",
       "lblGender": "Sex:",

@@ -53,6 +53,15 @@
     "subhead": "Wähle deine Absicht. Sieh nur Menschen, die dasselbe wollen. Kein Durcheinander, keine verschwendete Zeit.",
     "cta": "Jetzt starten"
   },
+  "diebelPromo": {
+    "tagline": "Die einfachste Chat-App",
+    "title": "DIEBEL",
+    "subtitle": "Schnelle Nachrichten. Echte Verbindungen.",
+    "emotional": "Zwei Herzen. Ein Rhythmus.",
+    "cta": "Jetzt rein — schneller Chat, kein Stress.",
+    "carouselTablistAria": "Diebel-Werbebanner",
+    "dotAria": "Diebel-Banner, Folie {{current}} von {{total}}"
+  },
   "legal": {
     "links": {
       "terms": "Allgemeine Geschäftsbedingungen",
@@ -90,7 +99,9 @@
     "matchWithAfter": "!",
     "openChat": "Chat öffnen",
     "legalNavAria": "Rechtliche Dokumente",
-    "anonymousUser": "Jemand"
+    "anonymousUser": "Jemand",
+    "ariaChangeProfilePhoto": "Profilfoto ändern",
+    "ariaMyProfile": "Mein Profil"
   },
   "pages": {
     "matches": {
@@ -893,6 +904,11 @@
       "badgePhoto": "Mit Foto",
       "badgeBio": "Mit Beschreibung",
       "previewMe": "Mein Profil",
+      "photoPage": {
+        "title": "Profilfoto",
+        "subtitle": "Fotos hinzufügen, entfernen oder das angezeigte Profilbild festlegen.",
+        "backLink": "← Vollständiges Profil"
+      },
       "summaryTitle": "Profilüberblick",
       "lblFirstName": "Vorname:",
       "lblGender": "Geschlecht:",

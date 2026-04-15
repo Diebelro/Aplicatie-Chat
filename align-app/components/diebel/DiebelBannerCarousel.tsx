@@ -1,14 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useI18n } from "@/lib/i18n/context";
+import { formatTpl } from "@/lib/i18n/formatTpl";
 import { DiebelBannerPulse } from "./DiebelBannerPulse";
 import { DiebelBannerFlash } from "./DiebelBannerFlash";
 import { DiebelBannerNextWave } from "./DiebelBannerNextWave";
 
 const SLIDES = [
-  { id: "pulse", Component: DiebelBannerPulse, label: "Diebel — slide 1 din 3" },
-  { id: "flash", Component: DiebelBannerFlash, label: "Diebel — slide 2 din 3" },
-  { id: "nextwave", Component: DiebelBannerNextWave, label: "Diebel — slide 3 din 3" },
+  { id: "pulse", Component: DiebelBannerPulse },
+  { id: "flash", Component: DiebelBannerFlash },
+  { id: "nextwave", Component: DiebelBannerNextWave },
 ] as const;
 
 export type DiebelBannerCarouselProps = {
@@ -30,6 +32,7 @@ export function DiebelBannerCarousel({
   compact = false,
   className = "",
 }: DiebelBannerCarouselProps) {
+  const { tStr } = useI18n();
   const [index, setIndex] = useState(0);
   const [reducedMotion, setReducedMotion] = useState(false);
   const touchX = useRef<number | null>(null);
@@ -99,7 +102,7 @@ export function DiebelBannerCarousel({
         </div>
       </div>
       {showDots && (
-        <div className="mt-2 flex justify-center gap-2.5" role="tablist" aria-label="Bannere DIEBEL">
+        <div className="mt-2 flex justify-center gap-2.5" role="tablist" aria-label={tStr("diebelPromo.carouselTablistAria")}>
           {SLIDES.map((s, d) => {
             const active =
               d === index
@@ -115,7 +118,7 @@ export function DiebelBannerCarousel({
                 type="button"
                 role="tab"
                 aria-selected={d === index}
-                aria-label={`${s.label}, slide ${d + 1}`}
+                aria-label={formatTpl(tStr("diebelPromo.dotAria"), { current: d + 1, total: SLIDES.length })}
                 className={`h-1.5 rounded-full transition-all duration-300 ${active}`}
                 onClick={() => setIndex(d)}
               />

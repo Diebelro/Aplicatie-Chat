@@ -26,6 +26,17 @@ export interface CommonTranslations {
   wipBanner: string;
 }
 
+export interface DiebelPromoTranslations {
+  tagline: string;
+  title: string;
+  subtitle: string;
+  emotional: string;
+  cta: string;
+  carouselTablistAria: string;
+  /** Placeholders: {{current}}, {{total}} */
+  dotAria: string;
+}
+
 export interface HomeTranslations {
   login: string;
   signup: string;
@@ -95,6 +106,7 @@ export interface Translations {
   common: CommonTranslations;
   legal: LegalTranslations;
   home: HomeTranslations;
+  diebelPromo: DiebelPromoTranslations;
   appNav: AppNavTranslations;
   pages: PagesTranslations;
 }

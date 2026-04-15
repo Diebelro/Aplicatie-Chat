@@ -53,6 +53,15 @@
     "subhead": "Choose your intent. See only people who want the same thing. No confusion, no wasted time.",
     "cta": "Get started"
   },
+  "diebelPromo": {
+    "tagline": "The simplest chat app",
+    "title": "DIEBEL",
+    "subtitle": "Fast messages. Real connections.",
+    "emotional": "Two hearts. One vibe.",
+    "cta": "Jump in — quick chat, zero hassle.",
+    "carouselTablistAria": "Diebel promotional banners",
+    "dotAria": "Diebel banner, slide {{current}} of {{total}}"
+  },
   "legal": {
     "links": {
       "terms": "Terms and Conditions",
@@ -90,7 +99,9 @@
     "matchWithAfter": "!",
     "openChat": "Open chat",
     "legalNavAria": "Legal documents",
-    "anonymousUser": "Someone"
+    "anonymousUser": "Someone",
+    "ariaChangeProfilePhoto": "Change profile photo",
+    "ariaMyProfile": "My profile"
   },
   "pages": {
     "matches": {
@@ -893,6 +904,11 @@
       "badgePhoto": "Has photo",
       "badgeBio": "Has bio",
       "previewMe": "My profile",
+      "photoPage": {
+        "title": "Profile photo",
+        "subtitle": "Add, remove, or choose which image is shown as your profile picture.",
+        "backLink": "← Full profile"
+      },
       "summaryTitle": "Profile summary",
       "lblFirstName": "First name:",
       "lblGender": "Gender:",
