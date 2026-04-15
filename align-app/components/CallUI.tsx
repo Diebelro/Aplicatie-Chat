@@ -108,16 +108,23 @@ function RemoteAudio({ stream }: { stream: MediaStream }) {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    el.srcObject = stream;
-    el.volume = remoteMuted ? 0 : 1;
-    void applyAudioSinkId(el, sinkId);
-    const p = el.play();
-    if (p !== undefined && typeof (p as Promise<void>).catch === "function") {
-      void (p as Promise<void>).catch(() => {
-        onRemotePlayBlocked?.();
-      });
-    }
+    const flush = () => {
+      el.srcObject = stream;
+      el.volume = remoteMuted ? 0 : 1;
+      void applyAudioSinkId(el, sinkId);
+      const p = el.play();
+      if (p !== undefined && typeof (p as Promise<void>).catch === "function") {
+        void (p as Promise<void>).catch(() => {
+          onRemotePlayBlocked?.();
+        });
+      }
+    };
+    flush();
+    stream.addEventListener("addtrack", flush);
+    stream.addEventListener("removetrack", flush);
     return () => {
+      stream.removeEventListener("addtrack", flush);
+      stream.removeEventListener("removetrack", flush);
       el.srcObject = null;
     };
   }, [stream, sinkId, remoteMuted, playbackUnlockKey, onRemotePlayBlocked]);
@@ -140,13 +147,41 @@ function useRemoteVideoElement(ref: RefObject<HTMLVideoElement | null>, stream: 
       });
     };
     tryPlay();
-    const vtracks = stream.getVideoTracks();
-    for (const t of vtracks) {
-      t.addEventListener("unmute", tryPlay);
-      t.addEventListener("mute", tryPlay);
-      t.addEventListener("ended", tryPlay);
-    }
+    const bindTrackListeners = () => {
+      const vtracks = stream.getVideoTracks();
+      for (const t of vtracks) {
+        t.addEventListener("unmute", tryPlay);
+        t.addEventListener("mute", tryPlay);
+        t.addEventListener("ended", tryPlay);
+      }
+      return vtracks;
+    };
+    let vtracks = bindTrackListeners();
+    const onStreamTracksChanged = () => {
+      const next = stream.getVideoTracks();
+      for (const t of next) {
+        if (!vtracks.includes(t)) {
+          t.addEventListener("unmute", tryPlay);
+          t.addEventListener("mute", tryPlay);
+          t.addEventListener("ended", tryPlay);
+        }
+      }
+      for (const t of vtracks) {
+        if (!next.includes(t)) {
+          t.removeEventListener("unmute", tryPlay);
+          t.removeEventListener("mute", tryPlay);
+          t.removeEventListener("ended", tryPlay);
+        }
+      }
+      vtracks = next;
+      if (el.srcObject !== stream) el.srcObject = stream;
+      tryPlay();
+    };
+    stream.addEventListener("addtrack", onStreamTracksChanged);
+    stream.addEventListener("removetrack", onStreamTracksChanged);
     return () => {
+      stream.removeEventListener("addtrack", onStreamTracksChanged);
+      stream.removeEventListener("removetrack", onStreamTracksChanged);
       for (const t of vtracks) {
         t.removeEventListener("unmute", tryPlay);
         t.removeEventListener("mute", tryPlay);
@@ -154,7 +189,7 @@ function useRemoteVideoElement(ref: RefObject<HTMLVideoElement | null>, stream: 
       }
       el.srcObject = null;
     };
-    // ref e stabil; reatașăm când se schimbă stream-ul (inclusiv noul MediaStream după al doilea ontrack).
+    // ref e stabil; stream stabil între ontrack-uri — addtrack/removetrack reîmprospătează fără să „șteargă” imaginea inutil.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- ref e RefObject stabil; depindem doar de stream
   }, [stream]);
 }
@@ -539,7 +574,10 @@ export default function CallUI({
       method: "POST",
       headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
       credentials: "same-origin",
-      body: JSON.stringify({ roomId }),
+      body: JSON.stringify({
+        roomId,
+        ...(isCaller && status !== "connected" ? { recordMissedForCallee: true } : {}),
+      }),
     }).catch(() => {});
     router.push("/app/messages");
   };

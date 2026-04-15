@@ -162,20 +162,46 @@ export type UseWebRtcCallOptions = {
 };
 
 /**
- * Multe browsere emit `ontrack` separat pentru audio și video, uneori pe MediaStream-uri diferite.
- * Dacă înlocuim tot `stream`-ul la fiecare eveniment cu un singur track, pierdem celălalt.
- * Returnăm mereu un MediaStream **nou** (referință nouă) ca React să refacă srcObject pe <audio>/<video>.
+ * Multe browsere emit `ontrack` separat pentru audio și video.
+ * Păstrăm **aceeași** instanță MediaStream și adăugăm track-uri — altfel React vede referință nouă
+ * la fiecare ontrack, `useRemoteVideoElement` curăță `srcObject` și imaginea „licăre” secunde întregi.
  */
-function accumulateRemoteMediaStream(prev: MediaStream | undefined, ev: RTCTrackEvent): MediaStream {
+function mergeRemoteTrackIntoMediaStream(prev: MediaStream | undefined, ev: RTCTrackEvent): MediaStream {
+  const out = prev ?? new MediaStream();
   const t = ev.track;
-  const byId = new Map<string, MediaStreamTrack>();
-  for (const x of prev?.getTracks() ?? []) byId.set(x.id, x);
+  const sameId = out.getTracks().find((x) => x.id === t.id);
+  if (sameId && sameId !== t) {
+    try {
+      out.removeTrack(sameId);
+    } catch {
+      /* ignore */
+    }
+    try {
+      sameId.stop();
+    } catch {
+      /* ignore */
+    }
+  }
+  if (!out.getTracks().some((x) => x === t)) {
+    try {
+      out.addTrack(t);
+    } catch {
+      /* duplicate / ended */
+    }
+  }
   const s0 = ev.streams[0];
   if (s0) {
-    for (const x of s0.getTracks()) byId.set(x.id, x);
+    for (const x of s0.getTracks()) {
+      if (x === t) continue;
+      if (out.getTracks().some((y) => y.id === x.id)) continue;
+      try {
+        out.addTrack(x);
+      } catch {
+        /* ignore */
+      }
+    }
   }
-  byId.set(t.id, t);
-  return new MediaStream([...byId.values()]);
+  return out;
 }
 
 /** Heartbeat client 15–30s (server TTL ~75s implicit). */
@@ -241,9 +267,9 @@ export function useWebRtcCall({
   const screenStreamRef = useRef<MediaStream | null>(null);
   /** Pe mobil: ultima față folosită pentru comutare user ↔ environment. */
   const facingModeRef = useRef<"user" | "environment">("user");
-  /** Conferință: stream combinat per participant distant (vezi accumulateRemoteMediaStream). */
+  /** Conferință: stream combinat per participant distant (mergeRemoteTrackIntoMediaStream). */
   const meshRemoteStreamsRef = useRef<Map<string, MediaStream>>(new Map());
-  /** 1-la-1: același lucru când audio și video nu vin în același eveniment ontrack. */
+  /** 1-la-1: același stream stabil când audio și video nu vin în același eveniment ontrack. */
   const p2pRemoteStreamRef = useRef<MediaStream | null>(null);
   /** Un singur listener `ended` per track video local (mesh adaugă același track în mai multe PC-uri). */
   const localVideoEndedHandledRef = useRef<WeakSet<MediaStreamTrack>>(new WeakSet());
@@ -1054,7 +1080,7 @@ export function useWebRtcCall({
           if (cancelled) return;
           applyInboundAudioPlayoutHint(ev.receiver);
           const prev = meshRemoteStreamsRef.current.get(remoteUserId);
-          const stream = accumulateRemoteMediaStream(prev, ev);
+          const stream = mergeRemoteTrackIntoMediaStream(prev, ev);
           meshRemoteStreamsRef.current.set(remoteUserId, stream);
           setState((s) => {
             const others = s.remoteParticipants.filter((p) => p.id !== remoteUserId);
@@ -1855,7 +1881,7 @@ export function useWebRtcCall({
           if (cancelled) return;
           applyInboundAudioPlayoutHint(ev.receiver);
           const rid = remoteIdRef.current ?? "remote";
-          const stream = accumulateRemoteMediaStream(p2pRemoteStreamRef.current ?? undefined, ev);
+          const stream = mergeRemoteTrackIntoMediaStream(p2pRemoteStreamRef.current ?? undefined, ev);
           p2pRemoteStreamRef.current = stream;
           setState((s) => ({
             ...s,

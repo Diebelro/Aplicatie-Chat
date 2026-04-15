@@ -22,15 +22,19 @@ export async function POST(request: NextRequest) {
   if (!okUser) {
     return NextResponse.json({ error: "Utilizator negăsit." }, { status: 404 });
   }
-  let body: { roomId?: string } = {};
+  let body: { roomId?: string; recordMissedForCallee?: boolean } = {};
   try {
     body = await request.json();
   } catch {
     /* fără corp e ok */
   }
   const roomId = typeof body.roomId === "string" ? body.roomId.trim() : "";
+  const recordMissedForCallee = body.recordMissedForCallee === true;
   if (roomId && canAccessRoom(roomId, userId)) {
-    await clearPendingIncomingForRoom(roomId);
+    await clearPendingIncomingForRoom(roomId, {
+      endedByUserId: userId,
+      recordMissedIfCaller: recordMissedForCallee,
+    });
     clearAnsweredCallRoom(roomId);
     if (isPrismaAvailable()) await prismaClearAnsweredCallRoom(roomId);
   }

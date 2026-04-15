@@ -2119,6 +2119,51 @@ export async function prismaUpsertPendingIncomingCall(
   });
 }
 
+async function prismaUpsertMissedCallForPendingRow(
+  db: Prisma.TransactionClient | typeof prisma,
+  row: { roomId: string; toUserId: string; fromId: string; audioOnly: boolean; createdAt: Date }
+): Promise<void> {
+  await db.missedCall.upsert({
+    where: { roomId: row.roomId },
+    create: {
+      roomId: row.roomId,
+      toUserId: row.toUserId,
+      fromId: row.fromId,
+      audioOnly: row.audioOnly,
+      ringAt: row.createdAt,
+    },
+    update: { toUserId: row.toUserId },
+  });
+}
+
+export async function prismaListMissedCallsForUser(
+  userId: string,
+  take = 50
+): Promise<Array<{ fromId: string; at: string; audioOnly: boolean }>> {
+  try {
+    const rows = await prisma.missedCall.findMany({
+      where: { toUserId: userId },
+      orderBy: { ringAt: "desc" },
+      take,
+    });
+    return rows.map((r) => ({
+      fromId: r.fromId,
+      at: r.ringAt.toISOString(),
+      audioOnly: r.audioOnly,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+export async function prismaClearMissedCallsForUser(userId: string): Promise<void> {
+  try {
+    await prisma.missedCall.deleteMany({ where: { toUserId: userId } });
+  } catch {
+    /* ignore */
+  }
+}
+
 export async function prismaGetPendingIncomingCall(
   toUserId: string
 ): Promise<{ fromId: string; roomId: string; audioOnly: boolean; pendingSince: string } | null> {
@@ -2126,7 +2171,14 @@ export async function prismaGetPendingIncomingCall(
     const row = await prisma.pendingIncomingCall.findUnique({ where: { toUserId } });
     if (!row) return null;
     if (Date.now() - row.createdAt.getTime() > RING_PENDING_MAX_MS) {
-      await prisma.pendingIncomingCall.delete({ where: { toUserId } }).catch(() => {});
+      try {
+        await prisma.$transaction(async (tx) => {
+          await prismaUpsertMissedCallForPendingRow(tx, row);
+          await tx.pendingIncomingCall.delete({ where: { toUserId } });
+        });
+      } catch {
+        await prisma.pendingIncomingCall.delete({ where: { toUserId } }).catch(() => {});
+      }
       return null;
     }
     return {
@@ -2149,9 +2201,23 @@ export async function prismaDeletePendingIncomingCall(toUserId: string): Promise
 }
 
 /** Caller închide / anulează — nu mai arăta „apel primit” pentru acel room. */
-export async function prismaDeletePendingIncomingByRoomId(roomId: string): Promise<void> {
+export async function prismaDeletePendingIncomingByRoomId(
+  roomId: string,
+  opts?: { endedByUserId?: string; recordMissedIfCaller?: boolean }
+): Promise<void> {
   try {
-    await prisma.pendingIncomingCall.deleteMany({ where: { roomId } });
+    const endedBy = opts?.endedByUserId;
+    await prisma.$transaction(async (tx) => {
+      const rows = await tx.pendingIncomingCall.findMany({ where: { roomId } });
+      const recordMissed =
+        Boolean(opts?.recordMissedIfCaller && endedBy) && rows.some((r) => r.fromId === endedBy);
+      if (recordMissed && endedBy) {
+        for (const row of rows) {
+          if (row.fromId === endedBy) await prismaUpsertMissedCallForPendingRow(tx, row);
+        }
+      }
+      await tx.pendingIncomingCall.deleteMany({ where: { roomId } });
+    });
   } catch {
     /* ignore */
   }

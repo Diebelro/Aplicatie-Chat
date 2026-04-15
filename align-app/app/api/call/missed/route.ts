@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { findUserOrPrisma } from "@/lib/repo-prisma";
+import {
+  findUserOrPrisma,
+  isPrismaAvailable,
+  prismaListMissedCallsForUser,
+  prismaClearMissedCallsForUser,
+} from "@/lib/repo-prisma";
 import { callApiCallerUserExists } from "@/lib/callCallerExists";
 import { findUserById, getMissedCalls, clearMissedCalls } from "@/lib/store";
 
@@ -12,7 +17,9 @@ export async function GET(request: NextRequest) {
   if (!(await callApiCallerUserExists(userId))) {
     return NextResponse.json({ error: "Utilizator negăsit." }, { status: 404 });
   }
-  const list = getMissedCalls(userId);
+  const list = isPrismaAvailable()
+    ? await prismaListMissedCallsForUser(userId)
+    : getMissedCalls(userId);
   const missed = await Promise.all(
     list.map(async (m) => {
       const from = await findUserOrPrisma(m.fromId);
@@ -38,5 +45,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Utilizator negăsit." }, { status: 404 });
   }
   clearMissedCalls(userId);
+  if (isPrismaAvailable()) await prismaClearMissedCallsForUser(userId);
   return NextResponse.json({ ok: true });
 }

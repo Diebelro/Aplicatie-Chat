@@ -33,9 +33,19 @@ export async function clearPendingIncomingForCallee(toUserId: string): Promise<v
   if (isPrismaAvailable()) await prismaDeletePendingIncomingCall(toUserId);
 }
 
-/** Orice parte a apelului închide — golește inelul pentru acel room (callee nu mai vede apel fictiv). */
-export async function clearPendingIncomingForRoom(roomId: string): Promise<void> {
+/**
+ * Orice parte a apelului închide — golește inelul pentru acel room (callee nu mai vede apel fictiv).
+ * `recordMissedIfCaller` + `endedByUserId`: doar dacă cel care a închis e apelantul (fromId), înregistrăm apel pierdut pentru callee (nu la dismiss callee / back).
+ */
+export async function clearPendingIncomingForRoom(
+  roomId: string,
+  opts?: { endedByUserId?: string; recordMissedIfCaller?: boolean }
+): Promise<void> {
   const { clearPendingCallByRoomId } = await import("@/lib/store");
-  clearPendingCallByRoomId(roomId);
-  if (isPrismaAvailable()) await prismaDeletePendingIncomingByRoomId(roomId);
+  const fromId =
+    opts?.recordMissedIfCaller && opts?.endedByUserId && !isPrismaAvailable()
+      ? opts.endedByUserId
+      : undefined;
+  clearPendingCallByRoomId(roomId, fromId ? { recordMissedIfFromUserId: fromId } : undefined);
+  if (isPrismaAvailable()) await prismaDeletePendingIncomingByRoomId(roomId, opts);
 }

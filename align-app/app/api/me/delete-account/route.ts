@@ -161,6 +161,14 @@ export async function POST(request: NextRequest) {
       console.error("[delete-account] pendingIncomingCall.deleteMany", err);
     }
 
+    try {
+      await prisma.missedCall.deleteMany({
+        where: { OR: [{ toUserId: userId }, { fromId: userId }] },
+      });
+    } catch (err) {
+      console.error("[delete-account] missedCall.deleteMany", err);
+    }
+
     await deleteUserOwnedStorageMediaBestEffort(userId);
 
     try {

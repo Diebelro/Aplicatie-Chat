@@ -45,6 +45,7 @@ model User {
   sessions   UserSession[]
   pushDevices UserPushDevice[]
   webPushSubscriptions WebPushSubscription[]
+  missedCallsReceived MissedCall[]
 }
 
 /// Push API (VAPID) — notificări apel în browser; fără WebRTC în Service Worker.
@@ -362,4 +363,18 @@ model RejectedCallRoom {
 model AnsweredCallRoom {
   roomId    String   @id
   createdAt DateTime @default(now())
+}
+
+/// Apel pierdut (callee nu a răspuns): TTL pending expirat sau apelant a închis înainte de răspuns.
+model MissedCall {
+  id        String   @id @default(cuid())
+  /// Dedupe între TTL și ștergere pending la room (aceeași cameră = același apel).
+  roomId    String   @unique
+  toUserId  String
+  fromId    String
+  audioOnly Boolean  @default(false)
+  ringAt    DateTime /// Când a început soneria (PendingIncomingCall.createdAt).
+  toUser    User     @relation(fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@index([toUserId, ringAt])
 }

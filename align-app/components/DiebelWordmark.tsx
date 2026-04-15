@@ -38,7 +38,7 @@ export function DiebelWordmark({
         : `inline-flex min-w-0 items-center gap-2.5 ${className}`.trim();
     return (
       <span className={rowClass}>
-        <span className="inline-flex shrink-0 text-brand-400 transition-colors duration-150 group-hover:text-brand-300 drop-shadow-[0_0_10px_rgba(244,114,182,0.25)]">
+        <span className="inline-flex shrink-0 text-brand-400 transition-colors duration-150 group-hover:text-brand-300">
           <DiebelHeaderMark className={markClass} />
         </span>
         {text}

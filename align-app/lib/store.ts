@@ -885,9 +885,18 @@ export function clearPendingCall(toId: string): void {
 }
 
 /** Șterge apelul în așteptare pentru orice utilizator al cărui roomId se potrivește (ex. caller închide înainte să răspundă). */
-export function clearPendingCallByRoomId(roomId: string): void {
+export function clearPendingCallByRoomId(
+  roomId: string,
+  opts?: { recordMissedIfFromUserId?: string }
+): void {
   for (const [toId, p] of pendingCallByToId) {
-    if (p.roomId === roomId) pendingCallByToId.delete(toId);
+    if (p.roomId !== roomId) continue;
+    if (opts?.recordMissedIfFromUserId && p.fromId === opts.recordMissedIfFromUserId) {
+      const list = missedCallsByUserId.get(toId) ?? [];
+      list.push({ fromId: p.fromId, at: p.at, audioOnly: p.audioOnly });
+      missedCallsByUserId.set(toId, list);
+    }
+    pendingCallByToId.delete(toId);
   }
 }
 
