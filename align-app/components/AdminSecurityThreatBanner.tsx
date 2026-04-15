@@ -38,31 +38,26 @@ export function AdminSecurityThreatBanner() {
 
   return (
     <div
-      className={
-        "mb-0 border-b-2 border-red-500 bg-red-950/95 px-4 py-3 text-red-50 shadow-[0_0_24px_rgba(239,68,68,0.35)] " +
-        "animate-pulse motion-reduce:animate-none"
-      }
+      className="mb-0 border-b border-red-200 bg-red-50/90 px-4 py-2.5 text-zinc-800"
       role="alert"
     >
-      <div className="max-w-6xl mx-auto flex flex-wrap items-center gap-3">
-        <ShieldAlert className="w-6 h-6 shrink-0 text-red-300" aria-hidden />
+      <div className="max-w-6xl mx-auto flex flex-wrap items-center gap-2 sm:gap-3">
+        <ShieldAlert className="w-5 h-5 shrink-0 text-red-600" aria-hidden />
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-red-100 text-sm sm:text-base">
-            Avertisment securitate: activitate suspectă sau abuz detectat
+          <p className="font-medium text-sm text-zinc-900">
+            Securitate: semnale ridicate în ultimele {snap.windowMinutes ?? 15} min
           </p>
-          <p className="text-red-200/90 text-xs sm:text-sm mt-0.5">
-            Ridicate: <strong>{snap.highCount}</strong> · medii: <strong>{snap.mediumCount}</strong> · minore:{" "}
-            <strong>{snap.lowCount}</strong>
-            {snap.windowMinutes != null ? (
-              <span className="text-red-300/80"> (ultimele {snap.windowMinutes} min, pe acest server)</span>
-            ) : null}
+          <p className="text-zinc-600 text-xs mt-0.5">
+            Ridicate: <strong className="text-zinc-800">{snap.highCount}</strong> · medii:{" "}
+            <strong className="text-zinc-800">{snap.mediumCount}</strong> · minore:{" "}
+            <strong className="text-zinc-800">{snap.lowCount}</strong>
           </p>
         </div>
         <Link
           href="/admin/security"
-          className="shrink-0 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-medium border border-red-400/50"
+          className="shrink-0 text-sm font-medium text-red-700 hover:text-red-800 underline underline-offset-2"
         >
-          Vezi detalii
+          Detalii
         </Link>
       </div>
     </div>

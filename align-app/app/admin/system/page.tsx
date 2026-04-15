@@ -14,9 +14,7 @@ import {
   Server,
   Phone,
   MessageSquare,
-  ClipboardList,
 } from "lucide-react";
-import { PRODUCTION_UX_GAPS } from "@/lib/productionGaps";
 
 type ServerError = { at: string; source: string; message: string; stack?: string };
 
@@ -86,11 +84,11 @@ function Card({
 }) {
   const border =
     ok === true
-      ? "border-emerald-800/60 bg-emerald-950/30"
+      ? "border-dark-600 bg-dark-800/50 border-l-2 border-l-emerald-600/50"
       : ok === false && !warn
-        ? "border-red-800/60 bg-red-950/25"
+        ? "border-dark-600 bg-dark-800/50 border-l-2 border-l-red-600/50"
         : warn
-          ? "border-amber-800/60 bg-amber-950/25"
+          ? "border-dark-600 bg-dark-800/50 border-l-2 border-l-amber-500/50"
           : "border-dark-600 bg-dark-800/60";
   return (
     <div className={`rounded-xl border p-4 ${border}`}>
@@ -174,55 +172,31 @@ export default function AdminSystemDashboardPage() {
       </div>
 
       <p className="text-dark-500 text-sm">
-        Indicatori din <strong className="text-dark-400">acest server</strong> (memorie, DB, erori neprinse, semnale
-        securitate, viteze raportate din browser). Secțiunea{" "}
-        <strong className="text-dark-400">Apeluri &amp; mesaje</strong> aliniază cu ce trebuie să meargă în app:
-        variabile WebRTC/TURN, reachability semnalizare (HTTP /health), citire ultim mesaj din DB. Pentru „a picat
-        tot” din exterior, folosește și un monitor care lovește{" "}
-        <code className="text-dark-400">GET /api/health</code>. Alerte automate opționale:{" "}
-        <code className="text-dark-400">OPS_CRITICAL_WEBHOOK_URL</code> (vezi cod) la stare critică (ex. DB down).
+        Indicatori din <strong className="text-dark-400">acest server</strong> (memorie, DB, erori, securitate,
+        vitals). <strong className="text-dark-400">Apeluri &amp; mesaje</strong>: env WebRTC/TURN, semnalizare
+        <code className="text-dark-500"> /health</code>, ultim mesaj în DB. Monitor extern:{" "}
+        <code className="text-dark-500">GET /api/health</code>.
       </p>
 
-      <div
-        className={`rounded-xl border p-4 flex flex-wrap items-center gap-3 ${
-          snap.overall === "critical"
-            ? "border-red-600 bg-red-950/40 text-red-100"
-            : snap.overall === "warn"
-              ? "border-amber-600 bg-amber-950/35 text-amber-50"
-              : "border-emerald-700 bg-emerald-950/30 text-emerald-50"
-        }`}
-      >
-        <Activity className="w-8 h-8 shrink-0" />
-        <div>
-          <p className="font-semibold">
-            Stare generală:{" "}
-            {snap.overall === "ok" ? "în regulă" : snap.overall === "warn" ? "atenție" : "critică"}
-          </p>
-          {snap.overallReasons.length > 0 ? (
-            <p className="text-sm opacity-90 mt-1">{snap.overallReasons.join(" · ")}</p>
-          ) : (
-            <p className="text-sm opacity-80 mt-1">Nu sunt motive de alertă din parametrii actuali.</p>
-          )}
-        </div>
+      <p className="text-sm text-dark-400 border-l-2 border-dark-600 pl-3 py-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+        <Activity className="w-4 h-4 shrink-0 text-dark-500 inline" aria-hidden />
+        <span className="font-medium text-dark-300">Stare:</span>
+        <span>
+          {snap.overall === "ok" ? "în regulă" : snap.overall === "warn" ? "atenție" : "critică"}
+        </span>
+        {snap.overallReasons.length > 0 ? (
+          <span className="text-dark-500">— {snap.overallReasons.join(" · ")}</span>
+        ) : null}
         {pingMs != null && (
-          <span className="text-xs ml-auto opacity-80">
-            Latenta cerere: {pingMs} ms · {new Date(snap.generatedAt).toLocaleString("ro-RO")}
+          <span className="text-dark-600 text-xs">
+            ({pingMs} ms · {new Date(snap.generatedAt).toLocaleString("ro-RO")})
           </span>
         )}
-      </div>
+      </p>
 
       <h2 className="text-sm font-medium text-dark-300 uppercase tracking-wide">
-        Apeluri &amp; mesaje (aliniat cu app)
+        Apeluri &amp; mesaje
       </h2>
-      <div className="rounded-xl border border-dark-600 bg-dark-900/40 px-4 py-3 text-sm text-dark-300">
-        <p className="font-mono text-xs text-dark-200 break-all">{snap.product.shortStrip}</p>
-        <p className="text-dark-500 text-xs mt-2">
-          Dacă <strong className="text-dark-400">Semnalizare FAIL</strong>: verifică VPS + Nginx pentru URL-ul de
-          mai jos, procesul <code className="text-dark-500">call-signaling</code>, firewall. Poți seta explicit{" "}
-          <code className="text-dark-500">SIGNALING_HEALTH_URL</code> (ex. <code className="text-dark-500">https://ws.diebel.ro/health</code>
-          ) dacă derivarea din <code className="text-dark-500">NEXT_PUBLIC_SIGNALING_WS_URL</code> nu e potrivită.
-        </p>
-      </div>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <Card
@@ -378,24 +352,6 @@ export default function AdminSystemDashboardPage() {
           <strong className="text-dark-400">Uptime extern:</strong> configurează un serviciu care apelează la interval{" "}
           <code className="text-dark-400">/api/health</code> — răspuns HTTP 503 = problemă DB configurată.
         </p>
-      </div>
-
-      <div className="rounded-xl border border-dark-600/80 bg-dark-900/30 p-4">
-        <h2 className="text-sm font-medium text-dark-300 uppercase tracking-wide mb-2 flex items-center gap-2">
-          <ClipboardList className="w-4 h-4 text-dark-500 shrink-0" aria-hidden />
-          Limite cunoscute (QA)
-        </h2>
-        <p className="text-dark-500 text-xs mb-3">
-          Nu sunt bug-uri neapărat — zone unde încă nu există automatizare completă sau depind de infrastructură
-          exterioară. Actualizează lista în cod: <code className="text-dark-400">lib/productionGaps.ts</code>.
-        </p>
-        <ul className="list-disc pl-5 space-y-2 text-xs text-dark-300">
-          {PRODUCTION_UX_GAPS.map((line) => (
-            <li key={line} className="leading-relaxed">
-              {line}
-            </li>
-          ))}
-        </ul>
       </div>
 
       {snap.errors.recent.length > 0 && (

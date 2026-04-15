@@ -13,7 +13,6 @@ type Snap = {
   memory: { heapUsedMb: number };
   vitals: { avgLcpLast20: number | null };
   generatedAt: string;
-  product?: { shortStrip: string };
 };
 
 export function AdminSystemStrip() {
@@ -43,12 +42,13 @@ export function AdminSystemStrip() {
 
   if (!snap) return null;
 
+  /** Bara e informativă, nu „alarmă” vizuală — detalii pe /admin/system */
   const palette =
     snap.overall === "critical"
-      ? "bg-red-950/95 border-red-600 text-red-100 animate-pulse motion-reduce:animate-none shadow-[0_0_20px_rgba(220,38,38,0.35)]"
+      ? "bg-zinc-100 border-b border-red-200 text-zinc-800"
       : snap.overall === "warn"
-        ? "bg-amber-950/90 border-amber-700 text-amber-50"
-        : "bg-emerald-950/85 border-emerald-800/80 text-emerald-100";
+        ? "bg-zinc-100 border-b border-amber-200 text-zinc-800"
+        : "bg-zinc-50 border-b border-zinc-200 text-zinc-700";
 
   const dbLabel =
     snap.db.status === "up"
@@ -82,14 +82,6 @@ export function AdminSystemStrip() {
             <span>LCP mediu ~{snap.vitals.avgLcpLast20} ms</span>
           </>
         )}
-        {snap.product?.shortStrip && (
-          <>
-            <span className="opacity-90">·</span>
-            <span className="max-w-[min(100%,52rem)] truncate" title={snap.product.shortStrip}>
-              {snap.product.shortStrip}
-            </span>
-          </>
-        )}
         {pingMs != null && (
           <>
             <span className="opacity-90">·</span>
@@ -97,13 +89,13 @@ export function AdminSystemStrip() {
           </>
         )}
         {snap.overallReasons.length > 0 && (
-          <span className="w-full sm:w-auto text-[11px] opacity-95 mt-0.5 sm:mt-0">
+          <span className="w-full sm:w-auto text-[11px] text-zinc-600 mt-0.5 sm:mt-0 line-clamp-2 sm:line-clamp-none">
             {snap.overallReasons.join(" · ")}
           </span>
         )}
         <Link
           href="/admin/system"
-          className="ml-auto inline-flex items-center gap-0.5 font-medium underline-offset-2 hover:underline shrink-0"
+          className="ml-auto inline-flex items-center gap-0.5 font-medium text-brand-700 underline-offset-2 hover:underline shrink-0"
         >
           Vezi detalii <ChevronRight className="w-3.5 h-3.5" />
         </Link>

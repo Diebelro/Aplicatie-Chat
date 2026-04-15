@@ -281,9 +281,7 @@ function LoginContent() {
           </header>
 
           {soonMessage && (
-            <p className="text-amber-400 text-sm bg-amber-500/10 border border-amber-500/30 rounded-xl px-3 py-2.5 text-center">
-              {soonMessage}
-            </p>
+            <p className="text-amber-300/95 text-sm text-center leading-snug">{soonMessage}</p>
           )}
 
           <div className="w-full min-w-0 mx-auto shrink-0">
@@ -333,10 +331,7 @@ function LoginContent() {
             </button>
           </div>
           {error && (
-            <p
-              className="text-red-300 text-sm rounded-lg border border-red-500/25 bg-red-500/10 px-3 py-2.5 break-words"
-              role="alert"
-            >
+            <p className="text-red-400 text-sm break-words" role="alert">
               {error}
             </p>
           )}

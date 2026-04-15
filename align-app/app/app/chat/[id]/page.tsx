@@ -1057,7 +1057,7 @@ export default function ChatPage() {
               </>
             )}
             {calling && (
-              <p className="w-full basis-full text-sm text-brand-400/95 font-medium" role="status" aria-live="polite">
+              <p className="w-full basis-full text-xs text-dark-500" role="status" aria-live="polite">
                 {tStr("pages.chat.callingInProgress")}
               </p>
             )}
@@ -1358,7 +1358,7 @@ export default function ChatPage() {
         className="flex flex-col gap-2 pt-4 shrink-0 w-full min-w-0 max-w-full pb-[max(0.5rem,env(safe-area-inset-bottom,0))]"
       >
         {calling && (
-          <p className="text-sm text-brand-400/95 font-medium" role="status" aria-live="polite">
+          <p className="text-xs text-dark-500" role="status" aria-live="polite">
             {tStr("pages.chat.callingInProgress")}
           </p>
         )}
@@ -1369,7 +1369,7 @@ export default function ChatPage() {
         )}
         {sendError && (
           <div className="flex flex-col gap-2">
-            <p className="text-red-300 text-sm rounded-lg border border-red-500/20 bg-red-500/5 px-3 py-2 break-words" role="alert">
+            <p className="text-red-400 text-sm break-words" role="alert">
               {sendError}
             </p>
             {isPaywallError && (
