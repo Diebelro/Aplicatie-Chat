@@ -162,9 +162,9 @@ export function CoupleIllustrationNeon({ className = "" }: { className?: string 
         <circle cx="160" cy="44" r="16" />
         <path d="M96,88,Q120,68,144,88" strokeWidth="2.5" opacity="0.85" />
       </g>
-      <circle cx="120" cy="96" r="6" fill="#22d3ee" opacity="0.85" className="animate-diebelParticles" />
-      <circle cx="108" cy="108" r="3" fill="#e879f9" opacity="0.9" className="animate-diebelParticles" style={{ animationDelay: "0.4s" }} />
-      <circle cx="134" cy="104" r="2.5" fill="#a855f7" opacity="0.8" className="animate-diebelParticles" style={{ animationDelay: "0.8s" }} />
+      <circle cx="120" cy="96" r="6" fill="#22d3ee" opacity="0.5" className="motion-reduce:animate-none animate-diebelParticles" />
+      <circle cx="108" cy="108" r="3" fill="#e879f9" opacity="0.45" className="motion-reduce:animate-none animate-diebelParticles" style={{ animationDelay: "0.4s" }} />
+      <circle cx="134" cy="104" r="2.5" fill="#a855f7" opacity="0.4" className="motion-reduce:animate-none animate-diebelParticles" style={{ animationDelay: "0.8s" }} />
     </svg>
   );
 }

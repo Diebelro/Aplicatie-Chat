@@ -71,7 +71,7 @@ export function DiebelBannerCarousel({
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
-      <div className="relative w-full overflow-hidden rounded-xl ring-1 ring-white/20 shadow-2xl shadow-black/60 sm:rounded-2xl">
+      <div className="relative w-full overflow-hidden rounded-xl border border-zinc-800/80 bg-zinc-950/30 shadow-md shadow-black/50 sm:rounded-2xl">
         <div className={`relative w-full ${stripH}`}>
           {SLIDES.map(({ id, Component }, idx) => (
             <div
@@ -104,11 +104,11 @@ export function DiebelBannerCarousel({
             const active =
               d === index
                 ? d === 0
-                  ? "w-7 bg-gradient-to-r from-amber-200 via-rose-300 to-fuchsia-400 shadow-[0_0_14px_rgba(251,113,133,0.55)]"
+                  ? "w-6 bg-amber-200/85"
                   : d === 1
-                    ? "w-7 bg-gradient-to-r from-orange-300 via-red-400 to-amber-400 shadow-[0_0_14px_rgba(255,120,60,0.55)]"
-                    : "w-7 bg-gradient-to-r from-cyan-300 via-fuchsia-400 to-violet-500 shadow-[0_0_14px_rgba(34,211,238,0.45)]"
-                : "w-1.5 bg-white/25 hover:bg-white/45";
+                    ? "w-6 bg-orange-300/85"
+                    : "w-6 bg-violet-300/80"
+                : "w-1.5 bg-zinc-600/60 hover:bg-zinc-500/70";
             return (
               <button
                 key={s.id}
