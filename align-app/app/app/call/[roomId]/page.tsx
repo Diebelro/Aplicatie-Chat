@@ -10,6 +10,7 @@ import { clearIncomingRingDismissFilter } from "@/lib/callIncomingDismiss";
 import { canAccessRoom, isConferenceRoomId } from "@/lib/videoCall";
 import { displayName } from "@/lib/displayName";
 import CallUI from "@/components/CallUI";
+import { useI18n } from "@/lib/i18n/context";
 
 function getStoredUser(): User | null {
   if (typeof window === "undefined") return null;
@@ -23,6 +24,7 @@ function getStoredUser(): User | null {
 }
 
 export default function CallPage() {
+  const { tStr } = useI18n();
   const params = useParams();
   const searchParams = useSearchParams();
   const roomId = (params?.roomId as string) ?? "";
@@ -231,7 +233,7 @@ export default function CallPage() {
     return (
       <div className="fixed inset-0 z-[190] flex flex-col items-center justify-center bg-black text-white">
         <div className="h-12 w-12 border-2 border-white/20 border-t-brand-400 rounded-full animate-spin mb-4" aria-hidden />
-        <span className="text-sm text-white/50">Se deschide apelul…</span>
+        <span className="text-sm text-white/50">{tStr("pages.callRoom.opening")}</span>
       </div>
     );
   }
@@ -239,9 +241,9 @@ export default function CallPage() {
   if (!allowed) {
     return (
       <div className="fixed inset-0 z-[190] flex flex-col items-center justify-center bg-black px-4 text-center">
-        <p className="text-white/70 mb-4">Nu ai acces la acest apel.</p>
+        <p className="text-white/70 mb-4">{tStr("pages.callRoom.noAccess")}</p>
         <Link href="/app/messages" className="text-brand-400 hover:underline">
-          Înapoi la mesaje
+          {tStr("pages.callRoom.backMessages")}
         </Link>
       </div>
     );
@@ -258,12 +260,12 @@ export default function CallPage() {
       .then(async (r) => {
         const d = await r.json().catch(() => ({}));
         if (!r.ok) {
-          setPushGateError((d.error as string) || "Nu s-a putut răspunde. Apelul poate fi expirat.");
+          setPushGateError((d.error as string) || tStr("pages.callRoom.pushAnswerExpired"));
           return;
         }
         const accRoom = d.roomId as string | undefined;
         if (accRoom && accRoom !== roomId) {
-          setPushGateError("Camera apelului nu se potrivește. Deschide din nou din notificare.");
+          setPushGateError(tStr("pages.callRoom.pushRoomMismatch"));
           return;
         }
         if (typeof d.audioOnly === "boolean") {
@@ -272,7 +274,7 @@ export default function CallPage() {
         clearIncomingRingDismissFilter();
         setCallStarted(true);
       })
-      .catch(() => setPushGateError("Eroare rețea. Încearcă din nou."))
+      .catch(() => setPushGateError(tStr("pages.callRoom.pushNetworkError")))
       .finally(() => setPushGateLoading(false));
   };
 
@@ -294,13 +296,13 @@ export default function CallPage() {
     const labelAudio = incomingHint?.audioOnly ?? audioOnly;
     return (
       <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-gradient-to-b from-zinc-900 to-black px-6 text-center text-white">
-        <p className="text-white/50 text-sm mb-2">{labelAudio ? "Apel audio" : "Apel video"}</p>
+        <p className="text-white/50 text-sm mb-2">
+          {labelAudio ? tStr("pages.callRoom.pushIncomingAudio") : tStr("pages.callRoom.pushIncomingVideo")}
+        </p>
         <p className="text-2xl font-semibold mb-2">
-          {incomingHint?.fromName ? incomingHint.fromName : "Apel primit"}
+          {incomingHint?.fromName ? incomingHint.fromName : tStr("pages.callRoom.pushIncomingFallback")}
         </p>
-        <p className="text-white/60 text-sm mb-8 max-w-sm">
-          Din browser, apelul pornește doar după ce alegi să răspunzi — vei fi întrebat de microfon/cameră la pasul următor.
-        </p>
+        <p className="text-white/60 text-sm mb-8 max-w-sm">{tStr("pages.callRoom.pushBody")}</p>
         {pushGateError ? (
           <p className="text-amber-400 text-sm mb-6 max-w-sm" role="alert">
             {pushGateError}
@@ -313,7 +315,7 @@ export default function CallPage() {
             disabled={pushGateLoading}
             className="flex-1 rounded-xl border border-white/20 py-4 text-white/80 hover:bg-white/10 transition disabled:opacity-50"
           >
-            Respinge
+            {tStr("pages.callRoom.decline")}
           </button>
           <button
             type="button"
@@ -321,11 +323,11 @@ export default function CallPage() {
             disabled={pushGateLoading}
             className="flex-1 rounded-xl bg-green-500/90 text-white font-semibold py-4 hover:bg-green-500 transition disabled:opacity-50"
           >
-            {pushGateLoading ? "Se deschide…" : "Atinge pentru a răspunde"}
+            {pushGateLoading ? tStr("pages.callRoom.answerLoading") : tStr("pages.callRoom.answer")}
           </button>
         </div>
         <Link href="/app/messages" className="mt-10 text-sm text-white/40 hover:text-brand-400 underline">
-          Înapoi la mesaje
+          {tStr("pages.callRoom.backMessages")}
         </Link>
       </div>
     );
@@ -335,7 +337,7 @@ export default function CallPage() {
     <CallUI
       roomId={roomId}
       userId={String(user.id)}
-      displayName={displayName((user.username ?? user.name) || "Utilizator")}
+      displayName={displayName((user.username ?? user.name) || tStr("pages.callRoom.fallbackUserName"))}
       audioOnly={resolvedAudioOnly}
       isConference={isConferenceRoomId(roomId)}
       isCaller={fromPush ? false : isCaller}

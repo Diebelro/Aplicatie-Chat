@@ -263,7 +263,7 @@ function LoginContent() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-dark-900">
-      <div className="shrink-0 px-4 pt-[max(0.75rem,env(safe-area-inset-top,0px))]">
+      <div className="shrink-0 pl-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))] pt-[max(0.75rem,env(safe-area-inset-top,0px))]">
         <Link
           href="/"
           className="inline-flex text-sm font-semibold text-brand-400 hover:text-brand-300 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded"
@@ -272,8 +272,8 @@ function LoginContent() {
         </Link>
       </div>
 
-      <div className="flex flex-1 flex-col items-center justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))] min-h-0">
-        <div className="w-full max-w-sm mx-auto flex flex-col gap-5 min-w-0">
+      <div className="flex flex-1 flex-col items-center justify-center px-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))] pb-[max(1rem,env(safe-area-inset-bottom,0px))] min-h-0 min-w-0">
+        <div className="w-full max-w-[min(100%,24rem)] mx-auto flex flex-col gap-4 sm:gap-5 min-w-0">
           <header className="text-center space-y-2">
             <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-brand-400/90">Align</p>
             <h1 className="text-2xl font-semibold text-zinc-100 tracking-tight">{tStr("pages.login.title")}</h1>
@@ -311,7 +311,7 @@ function LoginContent() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-zinc-900 placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+            className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-zinc-100 placeholder:text-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
           />
           <div className="relative">
             <input
@@ -321,7 +321,7 @@ function LoginContent() {
               onChange={(e) => setPassword(e.target.value)}
               required
               autoComplete="current-password"
-              className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 pr-12 text-zinc-900 placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 pr-12 text-zinc-100 placeholder:text-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
             <button
               type="button"
@@ -333,7 +333,12 @@ function LoginContent() {
             </button>
           </div>
           {error && (
-            <p className="text-red-400 text-sm">{error}</p>
+            <p
+              className="text-red-300 text-sm rounded-lg border border-red-500/25 bg-red-500/10 px-3 py-2.5 break-words"
+              role="alert"
+            >
+              {error}
+            </p>
           )}
           {retryAfterSeconds > 0 && (
             <p className="text-dark-500 text-sm">{formatTpl(tStr("pages.login.retryIn"), { n: retryAfterSeconds })}</p>

@@ -993,11 +993,11 @@ export default function ChatPage() {
           </div>
         </div>
       )}
-      <div className="flex flex-col gap-3 pb-4 border-b border-dark-600 shrink-0">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-3 pb-4 border-b border-dark-600 shrink-0 min-w-0 w-full">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <Link
             href="/app/profiles"
-            className="min-h-[44px] min-w-[44px] flex items-center justify-center -ml-2 text-dark-500 hover:text-zinc-900 active:text-zinc-900 transition shrink-0 touch-manipulation"
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-dark-500 hover:text-zinc-100 hover:bg-dark-800/80 active:bg-dark-800 transition shrink-0 touch-manipulation"
             aria-label={tStr("pages.chat.backAria")}
           >
             ←
@@ -1026,7 +1026,7 @@ export default function ChatPage() {
           </div>
         </div>
         {otherUser && (
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 min-w-0">
             <span className="text-xs text-dark-500 shrink-0">{tStr("pages.chat.callLabel")}</span>
             {!callerId ? (
               <span className="text-xs text-amber-400/90 max-w-[min(100%,220px)]">
@@ -1038,23 +1038,28 @@ export default function ChatPage() {
                   type="button"
                   disabled={!!calling}
                   onClick={() => void ringAndGoCall(false)}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand-500/25 text-brand-400 hover:bg-brand-500/35 border border-brand-500/40 transition disabled:opacity-50"
+                  className="flex min-h-[44px] items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl bg-brand-500/25 text-brand-400 hover:bg-brand-500/35 border border-brand-500/40 transition disabled:opacity-50 touch-manipulation shrink-0"
                   title={tStr("pages.chat.videoCallTitle")}
                 >
-                  <Video className="w-5 h-5" />
-                  <span className="text-sm font-medium">{tStr("pages.chat.video")}</span>
+                  <Video className="w-5 h-5 shrink-0" />
+                  <span className="text-sm font-medium whitespace-nowrap">{tStr("pages.chat.video")}</span>
                 </button>
                 <button
                   type="button"
                   disabled={!!calling}
                   onClick={() => void ringAndGoCall(true)}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-sky-500/15 text-sky-600 hover:bg-sky-500/25 border border-sky-500/40 transition disabled:opacity-50"
+                  className="flex min-h-[44px] items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl bg-sky-500/15 text-sky-400 hover:bg-sky-500/25 border border-sky-500/40 transition disabled:opacity-50 touch-manipulation shrink-0"
                   title={tStr("pages.chat.audioCallTitle")}
                 >
-                  <Phone className="w-5 h-5" />
-                  <span className="text-sm font-medium">{tStr("pages.chat.audio")}</span>
+                  <Phone className="w-5 h-5 shrink-0" />
+                  <span className="text-sm font-medium whitespace-nowrap">{tStr("pages.chat.audio")}</span>
                 </button>
               </>
+            )}
+            {calling && (
+              <p className="w-full basis-full text-sm text-brand-400/95 font-medium" role="status" aria-live="polite">
+                {tStr("pages.chat.callingInProgress")}
+              </p>
             )}
             {ringPushHint && (
               <p className="w-full text-xs text-amber-400/95 leading-snug mt-1" role="status">
@@ -1352,6 +1357,11 @@ export default function ChatPage() {
         onSubmit={sendMessage}
         className="flex flex-col gap-2 pt-4 shrink-0 w-full min-w-0 max-w-full pb-[max(0.5rem,env(safe-area-inset-bottom,0))]"
       >
+        {calling && (
+          <p className="text-sm text-brand-400/95 font-medium" role="status" aria-live="polite">
+            {tStr("pages.chat.callingInProgress")}
+          </p>
+        )}
         {ringPushHint && (
           <p className="text-xs text-amber-400/95 leading-snug" role="status">
             {ringPushHint}
@@ -1359,7 +1369,7 @@ export default function ChatPage() {
         )}
         {sendError && (
           <div className="flex flex-col gap-2">
-            <p className="text-red-400 text-sm" role="alert">
+            <p className="text-red-300 text-sm rounded-lg border border-red-500/20 bg-red-500/5 px-3 py-2 break-words" role="alert">
               {sendError}
             </p>
             {isPaywallError && (
@@ -1485,7 +1495,7 @@ export default function ChatPage() {
                 setSendError(null);
               }}
               placeholder={tStr("pages.chat.placeholder")}
-              className="min-w-0 flex-1 min-h-[44px] text-base bg-dark-800 border border-dark-600 rounded-xl px-3 sm:px-4 py-3 text-zinc-900 placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500 touch-manipulation"
+              className="min-w-0 flex-1 min-h-[44px] text-base bg-dark-800 border border-dark-600 rounded-xl px-3 sm:px-4 py-3 text-zinc-100 placeholder:text-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500 touch-manipulation"
               autoComplete="off"
               enterKeyHint="send"
             />

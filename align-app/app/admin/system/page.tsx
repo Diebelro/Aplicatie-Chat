@@ -14,7 +14,9 @@ import {
   Server,
   Phone,
   MessageSquare,
+  ClipboardList,
 } from "lucide-react";
+import { PRODUCTION_UX_GAPS } from "@/lib/productionGaps";
 
 type ServerError = { at: string; source: string; message: string; stack?: string };
 
@@ -376,6 +378,24 @@ export default function AdminSystemDashboardPage() {
           <strong className="text-dark-400">Uptime extern:</strong> configurează un serviciu care apelează la interval{" "}
           <code className="text-dark-400">/api/health</code> — răspuns HTTP 503 = problemă DB configurată.
         </p>
+      </div>
+
+      <div className="rounded-xl border border-dark-600/80 bg-dark-900/30 p-4">
+        <h2 className="text-sm font-medium text-dark-300 uppercase tracking-wide mb-2 flex items-center gap-2">
+          <ClipboardList className="w-4 h-4 text-dark-500 shrink-0" aria-hidden />
+          Limite cunoscute (QA)
+        </h2>
+        <p className="text-dark-500 text-xs mb-3">
+          Nu sunt bug-uri neapărat — zone unde încă nu există automatizare completă sau depind de infrastructură
+          exterioară. Actualizează lista în cod: <code className="text-dark-400">lib/productionGaps.ts</code>.
+        </p>
+        <ul className="list-disc pl-5 space-y-2 text-xs text-dark-300">
+          {PRODUCTION_UX_GAPS.map((line) => (
+            <li key={line} className="leading-relaxed">
+              {line}
+            </li>
+          ))}
+        </ul>
       </div>
 
       {snap.errors.recent.length > 0 && (
