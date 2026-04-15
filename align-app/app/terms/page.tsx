@@ -19,7 +19,8 @@ export default function TermsPage() {
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link
             href="/"
-            className="rounded-md outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-brand-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-dark-900"
+            className="group inline-flex items-center min-h-[44px] min-w-[44px] -ml-1 pl-1 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-dark-900"
+            aria-label="Diebel"
           >
             <DiebelWordmark variant="header" />
           </Link>

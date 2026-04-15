@@ -1,6 +1,6 @@
 import { signOut } from "next-auth/react";
 
-/** Închide sesiunea Align + NextAuth și golește storage-ul client; apoi navigare hard la landing. */
+/** Închide sesiunea Diebel (cookie) + NextAuth și golește storage-ul client; apoi navigare hard la landing. */
 export async function performClientLogout(): Promise<void> {
   try {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" });

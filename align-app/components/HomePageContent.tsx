@@ -33,8 +33,14 @@ export function HomePageContent() {
   return (
     <div className="min-h-screen flex flex-col bg-dark-900 text-zinc-900">
       <header className="border-b border-dark-600 bg-dark-900/95 backdrop-blur-sm sticky top-0 z-10 supports-[backdrop-filter]:bg-dark-900/80">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-          <DiebelWordmark variant="hero" />
+        <div className="max-w-6xl mx-auto px-4 py-3 sm:py-4 flex items-center justify-between gap-3">
+          <Link
+            href="/"
+            className="group inline-flex items-center min-h-[44px] min-w-[44px] -ml-1 pl-1 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-dark-900"
+            aria-label="Diebel"
+          >
+            <DiebelWordmark variant="hero" />
+          </Link>
           <nav className="flex items-center gap-4 sm:gap-6">
             <Link href="/login" className="text-sm font-medium text-dark-500 hover:text-zinc-900 transition">
               {s("home.login")}

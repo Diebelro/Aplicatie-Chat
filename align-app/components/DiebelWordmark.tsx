@@ -1,20 +1,22 @@
 /**
- * Wordmark minimalist „Diebel” — fără gradient animat, fără iconițe.
- * Folosit în header / login / pagini legale.
+ * Wordmark „Diebel” — text simplu (fără inimi), culoare teal din paleta `brand`.
+ * Font: system-ui (stack-ul sans al aplicației), lizibil pe ecrane mici.
  */
 export function DiebelWordmark({
   className = "",
   variant = "header",
 }: {
   className?: string;
-  /** header: nav app/landing; hero: titlu mare landing; kicker: subtitlu login */
+  /** header: bara de sus app / legal; hero: landing; kicker: deasupra titlului login */
   variant?: "header" | "hero" | "kicker";
 }) {
+  const root =
+    "font-sans font-semibold tracking-tight antialiased text-brand-400 transition-colors duration-150 hover:text-brand-300 group-hover:text-brand-300";
   const byVariant =
     variant === "hero"
-      ? "text-xl font-semibold tracking-tight text-zinc-100 sm:text-2xl"
+      ? "text-[1.25rem] leading-tight sm:text-2xl md:text-[1.75rem]"
       : variant === "kicker"
-        ? "text-xs font-medium tracking-tight text-zinc-500"
-        : "text-lg font-semibold tracking-tight text-zinc-100 sm:text-[1.125rem]";
-  return <span className={`${byVariant} ${className}`.trim()}>Diebel</span>;
+        ? "text-sm leading-snug font-medium text-brand-400/95"
+        : "text-[1.125rem] leading-tight sm:text-xl";
+  return <span className={`${root} ${byVariant} ${className}`.trim()}>Diebel</span>;
 }

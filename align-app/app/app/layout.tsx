@@ -368,7 +368,8 @@ export default function AppLayout({
         <div className="max-w-4xl mx-auto py-3 flex items-center justify-between gap-2 pl-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))]">
           <Link
             href="/app"
-            className="shrink-0 min-w-0 rounded-md outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-brand-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-dark-900"
+            className="group shrink-0 min-w-0 inline-flex items-center min-h-[44px] -ml-1 pl-1 pr-2 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-dark-900"
+            aria-label="Diebel"
           >
             <DiebelWordmark variant="header" />
           </Link>
