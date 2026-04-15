@@ -267,11 +267,11 @@ function SignUpContent() {
         <Link href="/" className="inline-block text-brand-400 font-bold mt-4">
           {tStr("pages.signup.backBrand")}
         </Link>
-        <h1 className="text-2xl font-semibold text-zinc-900 mt-4">{tStr("pages.signup.title")}</h1>
-        <p className="text-sm text-dark-300 mt-2">
+        <h1 className="ui-page-title text-2xl mt-4">{tStr("pages.signup.title")}</h1>
+        <p className="ui-subtitle text-sm mt-2">
           {searchParams?.get("email") ? (
             <>
-              <span className="text-brand-400/90">{tStr("pages.signup.introPrefillTag")}</span>{" "}
+              <span className="text-brand-700 font-medium">{tStr("pages.signup.introPrefillTag")}</span>{" "}
               {tStr("pages.signup.introPrefillBody")}
             </>
           ) : (
@@ -282,11 +282,11 @@ function SignUpContent() {
         <div className="mt-6">
           <AuthProviders compact />
         </div>
-        <p className="text-xs text-dark-400 text-center mt-2">{tStr("pages.signup.socialSoon")}</p>
+        <p className="ui-helper-text text-center mt-2">{tStr("pages.signup.socialSoon")}</p>
 
         <form onSubmit={handleSubmit} className="space-y-4 mt-3">
           <div>
-            <label htmlFor="signup-email" className="block text-xs text-dark-400 mb-1">
+            <label htmlFor="signup-email" className="ui-form-label block text-xs mb-1">
               {tStr("pages.signup.emailLabel")}
             </label>
             <input
@@ -297,7 +297,7 @@ function SignUpContent() {
               onChange={(e) => setEmail(e.target.value)}
               required
               autoComplete="email"
-              className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-zinc-900 placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-zinc-900 placeholder:text-dark-400 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
             {emailCheck === "available" && (
               <p className="text-green-400 text-xs mt-1">{tStr("pages.signup.emailFree")}</p>
@@ -313,7 +313,7 @@ function SignUpContent() {
             )}
           </div>
           <div>
-            <label htmlFor="signup-username" className="block text-xs text-dark-400 mb-1">
+            <label htmlFor="signup-username" className="ui-form-label block text-xs mb-1">
               {tStr("pages.signup.usernameLabel")}
             </label>
             <input
@@ -326,7 +326,7 @@ function SignUpContent() {
               minLength={2}
               maxLength={30}
               autoComplete="username"
-              className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-zinc-900 placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-zinc-900 placeholder:text-dark-400 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
             <p className="text-dark-500 text-xs mt-1">{tStr("pages.signup.usernameHelp")}</p>
             {usernameCheck === "available" && (
@@ -349,7 +349,7 @@ function SignUpContent() {
               required
               minLength={6}
               autoComplete={rememberDevice ? "on" : "off"}
-              className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 pr-12 text-zinc-900 placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 pr-12 text-zinc-900 placeholder:text-dark-400 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
             <button
               type="button"
@@ -369,7 +369,7 @@ function SignUpContent() {
               required
               minLength={6}
               autoComplete={rememberDevice ? "on" : "off"}
-              className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 pr-12 text-zinc-900 placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 pr-12 text-zinc-900 placeholder:text-dark-400 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
             <button
               type="button"
@@ -383,7 +383,7 @@ function SignUpContent() {
             </button>
           </div>
           <div>
-            <label className="block text-dark-500 text-sm mb-1">{tStr("pages.signup.birthdateLabel")}</label>
+            <label className="ui-form-label block text-sm mb-1">{tStr("pages.signup.birthdateLabel")}</label>
             <div className="grid grid-cols-3 gap-2">
               <div>
                 <label className="sr-only">{tStr("common.day")}</label>
@@ -440,7 +440,7 @@ function SignUpContent() {
             <p className="text-dark-500 text-xs mt-1">{tStr("pages.signup.birthdateHint")}</p>
           </div>
           <div>
-            <label className="block text-dark-500 text-sm mb-1">{tStr("pages.signup.genderLabel")}</label>
+            <label className="ui-form-label block text-sm mb-1">{tStr("pages.signup.genderLabel")}</label>
             <select
               value={gender}
               onChange={(e) => setGender(e.target.value)}

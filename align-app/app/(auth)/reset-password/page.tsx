@@ -100,7 +100,7 @@ function ResetPasswordContent() {
             {tStr("pages.resetPassword.backBrand")}
           </Link>
           <h1 className="text-2xl font-semibold text-zinc-900 mt-4">{tStr("pages.resetPassword.invalidTitle")}</h1>
-          <p className="text-sm text-dark-300 mt-2">
+          <p className="ui-subtitle text-sm mt-2">
             {tStr("pages.resetPassword.invalidBody")}
           </p>
           <div className="mt-6">
@@ -129,10 +129,10 @@ function ResetPasswordContent() {
             {tStr("pages.resetPassword.backBrand")}
           </Link>
           <h1 className="text-2xl font-semibold text-zinc-900 mt-4">{tStr("pages.resetPassword.successTitle")}</h1>
-          <p className="text-sm text-dark-300 mt-2">
+          <p className="ui-subtitle text-sm mt-2">
             {tStr("pages.resetPassword.successP1")}
           </p>
-          <p className="text-sm text-dark-300 mt-2">
+          <p className="ui-subtitle text-sm mt-2">
             {tStr("pages.resetPassword.successP2")}
           </p>
           <div className="mt-6">
@@ -160,10 +160,10 @@ function ResetPasswordContent() {
           {tStr("pages.resetPassword.backBrand")}
         </Link>
         <h1 className="text-2xl font-semibold text-zinc-900 mt-4">{tStr("pages.resetPassword.title")}</h1>
-        <p className="text-sm text-dark-300 mt-2">
+        <p className="ui-subtitle text-sm mt-2">
           {tStr("pages.resetPassword.intro1")}
         </p>
-        <p className="text-sm text-dark-300 mt-2">
+        <p className="ui-subtitle text-sm mt-2">
           {tStr("pages.resetPassword.intro2")}
         </p>
 

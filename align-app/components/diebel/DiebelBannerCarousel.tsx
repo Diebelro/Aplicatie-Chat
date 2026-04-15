@@ -6,9 +6,9 @@ import { DiebelBannerFlash } from "./DiebelBannerFlash";
 import { DiebelBannerNextWave } from "./DiebelBannerNextWave";
 
 const SLIDES = [
-  { id: "pulse", Component: DiebelBannerPulse, label: "Pulse Media" },
-  { id: "flash", Component: DiebelBannerFlash, label: "FlashVision" },
-  { id: "nextwave", Component: DiebelBannerNextWave, label: "NextWave Digital" },
+  { id: "pulse", Component: DiebelBannerPulse, label: "Diebel — slide 1 din 3" },
+  { id: "flash", Component: DiebelBannerFlash, label: "Diebel — slide 2 din 3" },
+  { id: "nextwave", Component: DiebelBannerNextWave, label: "Diebel — slide 3 din 3" },
 ] as const;
 
 export type DiebelBannerCarouselProps = {

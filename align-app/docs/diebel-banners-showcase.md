@@ -11,9 +11,9 @@
 
 ## Componente (`components/diebel/`)
 
-- `DiebelBannerPulse` — Pulse Media  
-- `DiebelBannerFlash` — FlashVision  
-- `DiebelBannerNextWave` — NextWave Digital  
+- `DiebelBannerPulse` — varianta 1 (roz / violet)
+- `DiebelBannerFlash` — varianta 2 (ember / portocaliu)
+- `DiebelBannerNextWave` — varianta 3 (violet spectral)
 - `DiebelBannerCarousel` — le rotește (fade 400ms, 4s, dots, swipe)  
 - `DiebelAppPromoCarousel` — wrapper pentru app: ascunde dacă user **Premium** (`hideIfPremium`, implicit true)
 

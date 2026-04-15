@@ -7,8 +7,13 @@
   --card: #ffffff;
   --border: #e4e4e7;
   --text: #18181b;
-  --muted: #71717a;
+  --muted: #6b7280;
   --accent: #14b8a6;
+  /* Design system — text activ: fără opacity; culori solide (fundal deschis). */
+  --ui-text-title: #1f2937;
+  --ui-text-body: #111827;
+  --ui-text-muted: #6b7280;
+  --ui-text-label: #374151;
 }
 
 * {
@@ -48,12 +53,36 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Aliniat cu tema light: utilitare pentru clase text-dark-* din Tailwind + fallback */
-.text-dark-500 {
-  color: #71717a;
-}
-.text-dark-400 {
-  color: #a1a1aa;
+/**
+ * Aliniat cu tailwind `dark.*` pentru suprafețe deschise.
+ * (Evită duplicate învechite față de theme — lăsăm single source în tailwind.config.)
+ */
+
+@layer components {
+  /** Titluri pagină / hero — fără opacity, greutate vizibilă. */
+  .ui-page-title,
+  .page-title {
+    color: var(--ui-text-title);
+    font-weight: 600;
+    opacity: 1;
+  }
+  .ui-subtitle,
+  .subtitle {
+    color: var(--ui-text-muted);
+    opacity: 1;
+  }
+  .ui-form-label {
+    color: var(--ui-text-label);
+    font-weight: 500;
+    opacity: 1;
+  }
+  .ui-helper-text,
+  .helper-text {
+    color: var(--ui-text-muted);
+    font-size: 0.875rem;
+    line-height: 1.5;
+    opacity: 1;
+  }
 }
 
 @layer utilities {

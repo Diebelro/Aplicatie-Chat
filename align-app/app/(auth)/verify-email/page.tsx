@@ -67,11 +67,11 @@ function VerifyEmailContent() {
           <Link href="/login" className="inline-block text-brand-400 font-bold">
             {tStr("pages.verifyEmail.backBrand")}
           </Link>
-          <h1 className="text-2xl font-semibold text-zinc-900 mt-4">{tStr("pages.verifyEmail.verifiedTitle")}</h1>
-          <p className="text-sm text-dark-300 mt-2">
+          <h1 className="ui-page-title text-2xl mt-4">{tStr("pages.verifyEmail.verifiedTitle")}</h1>
+          <p className="ui-subtitle text-sm mt-2">
             {tStr("pages.verifyEmail.verifiedP1")}
           </p>
-          <p className="text-sm text-dark-300 mt-2">
+          <p className="ui-subtitle text-sm mt-2">
             {tStr("pages.verifyEmail.verifiedP2")}
           </p>
           <div className="mt-6">
@@ -98,11 +98,11 @@ function VerifyEmailContent() {
         <Link href="/login" className="inline-block text-brand-400 font-bold">
           {tStr("pages.verifyEmail.backBrand")}
         </Link>
-        <h1 className="text-2xl font-semibold text-zinc-900 mt-4">{tStr("pages.verifyEmail.title")}</h1>
-        <p className="text-sm text-dark-300 mt-2">
+        <h1 className="ui-page-title text-2xl mt-4">{tStr("pages.verifyEmail.title")}</h1>
+        <p className="ui-subtitle text-sm mt-2">
           {tStr("pages.verifyEmail.intro1")}
         </p>
-        <p className="text-sm text-dark-300 mt-2">
+        <p className="ui-subtitle text-sm mt-2">
           {tStr("pages.verifyEmail.intro2")}
         </p>
 
@@ -119,7 +119,7 @@ function VerifyEmailContent() {
           </button>
         </form>
 
-        <p className="text-sm text-dark-300 opacity-70 text-center mt-4">
+        <p className="ui-helper-text text-center mt-4">
           {tStr("pages.verifyEmail.or")}
         </p>
 

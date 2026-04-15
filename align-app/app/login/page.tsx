@@ -287,12 +287,12 @@ function LoginContent() {
         <div className="w-full max-w-[min(100%,24rem)] mx-auto flex flex-col gap-4 sm:gap-5 min-w-0">
           <header className="text-center space-y-2">
             <DiebelWordmark variant="kicker" className="block text-center" />
-            <h1 className="text-2xl font-semibold text-zinc-100 tracking-tight">{tStr("pages.login.title")}</h1>
-            <p className="text-sm text-dark-300 leading-relaxed">{tStr("pages.login.introHero")}</p>
+            <h1 className="ui-page-title text-2xl tracking-tight">{tStr("pages.login.title")}</h1>
+            <p className="ui-subtitle text-sm leading-relaxed">{tStr("pages.login.introHero")}</p>
           </header>
 
           {soonMessage && (
-            <p className="text-amber-300/95 text-sm text-center leading-snug">{soonMessage}</p>
+            <p className="text-amber-900 text-sm text-center font-medium leading-snug">{soonMessage}</p>
           )}
 
           <div className="w-full min-w-0 mx-auto shrink-0">
@@ -308,7 +308,7 @@ function LoginContent() {
           </div>
 
         <form onSubmit={handleSubmit} className="space-y-3">
-          <label htmlFor="login-email" className="block text-sm font-medium text-dark-300">
+          <label htmlFor="login-email" className="ui-form-label block text-sm">
             {tStr("pages.login.emailLabel")}
           </label>
           <input
@@ -320,7 +320,7 @@ function LoginContent() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-zinc-100 placeholder:text-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+            className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-zinc-900 placeholder:text-dark-400 focus:outline-none focus:ring-2 focus:ring-brand-500"
           />
           <div className="relative">
             <input
@@ -330,7 +330,7 @@ function LoginContent() {
               onChange={(e) => setPassword(e.target.value)}
               required
               autoComplete="current-password"
-              className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 pr-12 text-zinc-100 placeholder:text-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 pr-12 text-zinc-900 placeholder:text-dark-400 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
             <button
               type="button"
@@ -384,7 +384,7 @@ function LoginContent() {
           <button
             type="submit"
             disabled={loading || retryAfterSeconds > 0}
-            className="w-full min-h-[48px] px-4 rounded-xl bg-brand-500 hover:bg-brand-400 active:bg-brand-500/90 text-dark-900 font-semibold text-sm transition disabled:opacity-50 disabled:pointer-events-none touch-manipulation"
+            className="w-full min-h-[48px] px-4 rounded-xl bg-brand-500 hover:bg-brand-400 active:bg-brand-600 text-dark-900 font-semibold text-sm transition disabled:opacity-50 disabled:pointer-events-none touch-manipulation"
           >
             {loading
               ? tStr("pages.login.btnConnecting")
@@ -401,7 +401,7 @@ function LoginContent() {
             </Link>
           </p>
           <p className="text-center text-sm">
-            <Link href="/forgot-password" className="text-brand-400/90 hover:text-brand-300 hover:underline">
+            <Link href="/forgot-password" className="text-brand-700 hover:text-brand-600 hover:underline font-medium">
               {tStr("pages.login.forgotPassword")}
             </Link>
           </p>
@@ -414,13 +414,13 @@ function LoginContent() {
               Privacy Policy
             </Link>
             <p className="text-center text-dark-600 text-[11px] leading-relaxed flex flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5">
-              <Link href="/terms" className="text-brand-400/80 hover:underline">
+              <Link href="/terms" className="text-brand-700 hover:text-brand-600 hover:underline">
                 {tStr("pages.login.footerTerms")}
               </Link>
               <span className="text-dark-600 select-none" aria-hidden>
                 ·
               </span>
-              <Link href="/cookies" className="text-brand-400/80 hover:underline">
+              <Link href="/cookies" className="text-brand-700 hover:text-brand-600 hover:underline">
                 {tStr("pages.login.footerCookies")}
               </Link>
             </p>
@@ -434,7 +434,7 @@ function LoginContent() {
 function LoginSuspenseFallback() {
   const { tStr } = useI18n();
   return (
-    <div className="min-h-screen flex items-center justify-center bg-dark-900 text-dark-400">
+    <div className="min-h-screen flex items-center justify-center bg-dark-900 text-dark-500 font-medium">
       {tStr("pages.login.loading")}
     </div>
   );

@@ -28,9 +28,10 @@ const config: Config = {
           800: "#ffffff",
           700: "#f4f4f5",
           600: "#e4e4e7",
-          500: "#71717a",
-          400: "#a1a1aa",
-          300: "#d4d4d8",
+          /** Text pe fundal deschis: contrast suficient, fără „look disabled”. */
+          500: "#475569",
+          400: "#64748b",
+          300: "#6b7280",
         },
         /** UI apeluri / overlay întunecat (valorile vechi dark). */
         night: {

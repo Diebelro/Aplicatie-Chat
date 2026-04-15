@@ -997,7 +997,7 @@ export default function ChatPage() {
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <Link
             href="/app/profiles"
-            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-dark-500 hover:text-zinc-100 hover:bg-dark-800/80 active:bg-dark-800 transition shrink-0 touch-manipulation"
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-dark-500 hover:text-zinc-900 hover:bg-dark-800/80 active:bg-dark-800 transition shrink-0 touch-manipulation"
             aria-label={tStr("pages.chat.backAria")}
           >
             ←
@@ -1495,7 +1495,7 @@ export default function ChatPage() {
                 setSendError(null);
               }}
               placeholder={tStr("pages.chat.placeholder")}
-              className="min-w-0 flex-1 min-h-[44px] text-base bg-dark-800 border border-dark-600 rounded-xl px-3 sm:px-4 py-3 text-zinc-100 placeholder:text-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500 touch-manipulation"
+              className="min-w-0 flex-1 min-h-[44px] text-base bg-dark-800 border border-dark-600 rounded-xl px-3 sm:px-4 py-3 text-zinc-900 placeholder:text-dark-400 focus:outline-none focus:ring-2 focus:ring-brand-500 touch-manipulation"
               autoComplete="off"
               enterKeyHint="send"
             />

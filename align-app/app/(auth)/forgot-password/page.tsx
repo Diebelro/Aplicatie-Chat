@@ -128,10 +128,10 @@ export default function ForgotPasswordPage() {
             {tStr("pages.forgotPassword.backBrand")}
           </Link>
           <h1 className="text-2xl font-semibold text-zinc-900 mt-4">{tStr("pages.forgotPassword.emailSentTitle")}</h1>
-          <p className="text-sm text-dark-300 mt-2">
+          <p className="ui-subtitle text-sm mt-2">
             {formatTpl(tStr("pages.forgotPassword.emailSentLine1"), { email })}
           </p>
-          <p className="text-sm text-dark-300 mt-2">
+          <p className="ui-subtitle text-sm mt-2">
             {tStr("pages.forgotPassword.emailSentLine2")}
           </p>
           {devResetLink && (
@@ -192,7 +192,7 @@ export default function ForgotPasswordPage() {
             {tStr("pages.forgotPassword.backBrand")}
           </Link>
           <h1 className="text-2xl font-semibold text-zinc-900 mt-4">{tStr("pages.forgotPassword.scanTitle")}</h1>
-          <p className="text-sm text-dark-300 mt-2">
+          <p className="ui-subtitle text-sm mt-2">
             {tStr("pages.forgotPassword.scanIntro")}
           </p>
           <div className="mt-6 flex justify-center">
@@ -219,7 +219,7 @@ export default function ForgotPasswordPage() {
               {tStr("pages.forgotPassword.scanWarnP2")}
             </p>
           </div>
-          <p className="text-sm text-dark-300 mt-4 text-center">
+          <p className="ui-subtitle text-sm mt-4 text-center">
             {tStr("pages.forgotPassword.scanWaiting")}
           </p>
           {error && (
@@ -251,10 +251,10 @@ export default function ForgotPasswordPage() {
             {tStr("pages.forgotPassword.emailBackOptions")}
           </button>
           <h1 className="text-2xl font-semibold text-zinc-900 mt-4">{tStr("pages.forgotPassword.emailTitle")}</h1>
-          <p className="text-sm text-dark-300 mt-2">
+          <p className="ui-subtitle text-sm mt-2">
             {tStr("pages.forgotPassword.emailIntro1")}
           </p>
-          <p className="text-sm text-dark-300 mt-2">
+          <p className="ui-subtitle text-sm mt-2">
             {tStr("pages.forgotPassword.emailIntro2")}
           </p>
 
@@ -297,7 +297,7 @@ export default function ForgotPasswordPage() {
           {tStr("pages.forgotPassword.backBrand")}
         </Link>
         <h1 className="text-2xl font-semibold text-zinc-900 mt-4">{tStr("pages.forgotPassword.title")}</h1>
-        <p className="text-sm text-dark-300 mt-2">
+        <p className="ui-subtitle text-sm mt-2">
           {tStr("pages.forgotPassword.chooseIntro")}
         </p>
 

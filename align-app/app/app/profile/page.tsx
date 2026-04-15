@@ -2,48 +2,15 @@
 
 import { useEffect, useState, useRef, useMemo } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Plus, X } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
 import { fetchWithAuthRetry, getAuthHeaders } from "@/lib/authClient";
-import { OptimizedImage } from "@/components/OptimizedImage";
 import { useI18n } from "@/lib/i18n/context";
 import { formatTpl } from "@/lib/i18n/formatTpl";
 import { translateApiErrorMessage } from "@/lib/i18n/translateApiError";
-
-const MAX_PHOTOS = 5;
-/** Latura lungă maximă după resize (înainte era 400px → foarte neclar pe carduri/retina). */
-const PHOTO_MAX_SIZE = 1600;
-
-function resizeImageAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      const canvas = document.createElement("canvas");
-      let { width, height } = img;
-      if (width > PHOTO_MAX_SIZE || height > PHOTO_MAX_SIZE) {
-        if (width > height) {
-          height = (height * PHOTO_MAX_SIZE) / width;
-          width = PHOTO_MAX_SIZE;
-        } else {
-          width = (width * PHOTO_MAX_SIZE) / height;
-          height = PHOTO_MAX_SIZE;
-        }
-      }
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) { reject(new Error("canvas")); return; }
-      ctx.drawImage(img, 0, 0, width, height);
-      resolve(canvas.toDataURL("image/jpeg", 0.88));
-    };
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("load")); };
-    img.src = url;
-  });
-}
+import { MAX_PHOTOS, resizeImageAsDataUrl } from "@/lib/profilePhotoUtils";
+import { ProfilePhotosGallery } from "@/components/profile/ProfilePhotosGallery";
 
 function getStoredUser(): User | null {
   if (typeof window === "undefined") return null;
@@ -75,7 +42,7 @@ function trOpt(tStr: (path: string) => string, group: ProfileOptGroup, value: st
 }
 
 const inputClass = "w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-zinc-900 placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500";
-const labelClass = "block text-dark-500 text-sm mb-1";
+const labelClass = "block ui-form-label text-sm mb-1";
 
 function parseBirthDate(s: string): { day: string; month: string; year: string } {
   if (!s || s.length < 10) return { day: "", month: "", year: "" };
@@ -213,8 +180,8 @@ export default function ProfilePage() {
   const [errorDetail, setErrorDetail] = useState<string>("");
   const [serverHasUser, setServerHasUser] = useState(true);
   const [logoutAllLoading, setLogoutAllLoading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const hasUnsavedChanges = useRef(false);
   const initialFormDone = useRef(false);
   /** După ce /api/me înlocuiește formularul, nu porni autosave (evită PATCH în cursă cu sesiunea proaspătă de la login). */
@@ -272,6 +239,14 @@ export default function ProfilePage() {
       }
     })();
   }, []);
+
+  useEffect(() => {
+    if (searchParams?.get("focus") !== "photo") return;
+    const t = requestAnimationFrame(() => {
+      document.getElementById("profile-photos")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    return () => cancelAnimationFrame(t);
+  }, [searchParams]);
 
   type SaveProfileOpts = { reason?: "photos"; skipNameValidation?: boolean; photosOverride?: string[] };
   const saveProfileRef = useRef<(opts?: SaveProfileOpts) => Promise<void>>(() => Promise.resolve());
@@ -408,21 +383,20 @@ export default function ProfilePage() {
     };
   }, []);
 
-  const handlePhotoAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files?.length || photos.length >= MAX_PHOTOS) return;
-    const file = files[0];
+  const handlePhotoPick = (file: File) => {
+    if (photos.length >= MAX_PHOTOS) return;
     if (!file.type.startsWith("image/")) return;
-    resizeImageAsDataUrl(file).then((dataUrl) => {
-      const newPhotos = [...photos.slice(0, MAX_PHOTOS - 1), dataUrl];
-      setPhotos(newPhotos);
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-        saveTimeoutRef.current = null;
-      }
-      saveProfileRef.current({ reason: "photos", skipNameValidation: true, photosOverride: newPhotos });
-    }).catch(() => {});
-    e.target.value = "";
+    resizeImageAsDataUrl(file)
+      .then((dataUrl) => {
+        const newPhotos = [...photos.slice(0, MAX_PHOTOS - 1), dataUrl];
+        setPhotos(newPhotos);
+        if (saveTimeoutRef.current) {
+          clearTimeout(saveTimeoutRef.current);
+          saveTimeoutRef.current = null;
+        }
+        saveProfileRef.current({ reason: "photos", skipNameValidation: true, photosOverride: newPhotos });
+      })
+      .catch(() => {});
   };
 
   const handlePhotoRemove = (index: number) => {
@@ -475,17 +449,17 @@ export default function ProfilePage() {
 
   return (
     <div>
-      <h2 className="text-2xl font-semibold text-zinc-900 mt-4">{tStr("pages.profile.title")}</h2>
+      <h2 className="ui-page-title text-2xl mt-4">{tStr("pages.profile.title")}</h2>
 
       {!serverHasUser && (
-        <div className="mt-4 p-4 rounded-xl bg-amber-500/10 border border-amber-500/40 text-amber-200 text-sm">
+        <div className="mt-4 p-4 rounded-xl bg-amber-500/10 border border-amber-500/40 text-amber-950 text-sm">
           <strong>{tStr("pages.profile.serverMissingBold")}</strong> {tStr("pages.profile.serverMissingLine")}{" "}
           <Link href="/login" className="underline">{tStr("pages.profile.serverMissingLogout")}</Link> {tStr("pages.profile.serverMissingMid")}{" "}
           <Link href="/signup" className="underline">{tStr("pages.profile.serverMissingSignup")}</Link> {tStr("pages.profile.serverMissingEnd")}
         </div>
       )}
 
-      <p className="text-sm text-dark-300 mt-2">
+      <p className="ui-subtitle text-sm mt-2">
         {tStr("pages.profile.introMin")}
       </p>
 
@@ -592,45 +566,13 @@ export default function ProfilePage() {
 
       <form onSubmit={handleSubmit} className="space-y-8 max-w-2xl">
         <div>
-          <label className={labelClass}>{formatTpl(tStr("pages.profile.photosLabel"), { max: MAX_PHOTOS })}</label>
-          <p className="text-xs text-dark-500 mb-2">{tStr("pages.profile.photosHint")}</p>
-          <div className="flex flex-wrap gap-3 items-start">
-            {photos.map((src, i) => (
-              <div key={i} className="relative group flex flex-col items-center">
-                <div className="relative">
-                  <OptimizedImage src={src} alt="" width={96} height={96} className="w-24 h-24 object-cover rounded-xl border border-dark-600" />
-                  <button
-                    type="button"
-                    onClick={() => handlePhotoRemove(i)}
-                    className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center opacity-90 hover:opacity-100"
-                    aria-label={tStr("pages.profile.delPhotoAria")}
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-                <label className="mt-1.5 flex items-center gap-1.5 cursor-pointer text-xs text-dark-400 hover:text-brand-400 transition">
-                  <input
-                    type="radio"
-                    name="profilePhoto"
-                    checked={i === 0}
-                    onChange={() => setProfilePhoto(i)}
-                    className="rounded-full border-dark-500 text-brand-500 focus:ring-brand-500"
-                  />
-                  <span>{i === 0 ? tStr("pages.profile.radioProfilePhoto") : tStr("pages.profile.radioSetProfilePhoto")}</span>
-                </label>
-              </div>
-            ))}
-            {photos.length < MAX_PHOTOS && (
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="w-24 h-24 rounded-xl border-2 border-dashed border-dark-600 flex items-center justify-center text-dark-500 hover:border-brand-500 hover:text-brand-400 transition"
-              >
-                <Plus className="w-8 h-8" />
-              </button>
-            )}
-            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoAdd} />
-          </div>
+          <ProfilePhotosGallery
+            photos={photos}
+            onPickFile={handlePhotoPick}
+            onRemove={handlePhotoRemove}
+            onSetMain={setProfilePhoto}
+            tStr={tStr}
+          />
         </div>
 
         {/* 1. Date personale */}

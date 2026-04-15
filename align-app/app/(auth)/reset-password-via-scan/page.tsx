@@ -68,7 +68,7 @@ function ResetPasswordViaScanContent() {
             {tStr("pages.resetPasswordViaScan.backBrand")}
           </Link>
           <h1 className="text-2xl font-semibold text-zinc-900 mt-4">{tStr("pages.resetPasswordViaScan.invalidTitle")}</h1>
-          <p className="text-sm text-dark-300 mt-2">
+          <p className="ui-subtitle text-sm mt-2">
             {tStr("pages.resetPasswordViaScan.invalidBody")}
           </p>
           <Link href="/forgot-password" className="mt-6 text-brand-400 hover:underline">
@@ -86,7 +86,7 @@ function ResetPasswordViaScanContent() {
           {tStr("pages.resetPasswordViaScan.backBrand")}
         </Link>
         <h1 className="text-2xl font-semibold text-zinc-900 mt-4">{tStr("pages.resetPasswordViaScan.title")}</h1>
-        <p className="text-sm text-dark-300 mt-2">
+        <p className="ui-subtitle text-sm mt-2">
           {tStr("pages.resetPasswordViaScan.intro")}
         </p>
 

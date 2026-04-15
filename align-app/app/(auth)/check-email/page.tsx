@@ -19,12 +19,12 @@ function CheckEmailContent() {
           {tStr("pages.checkEmail.backBrand")}
         </Link>
         <h1 className="text-2xl font-semibold text-zinc-900 mt-4">{tStr("pages.checkEmail.title")}</h1>
-        <p className="text-sm text-dark-300 mt-2">
+        <p className="ui-subtitle text-sm mt-2">
           {email
             ? formatTpl(tStr("pages.checkEmail.sentTo"), { email })
             : tStr("pages.checkEmail.sentGeneric")}
         </p>
-        <p className="text-sm text-dark-300 mt-2">
+        <p className="ui-subtitle text-sm mt-2">
           {tStr("pages.checkEmail.inboxHint")}
         </p>
 

@@ -211,7 +211,7 @@ export default function AccountSettingsPage() {
   };
 
   const inputClass = "w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-zinc-900 placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500";
-  const labelClass = "block text-dark-500 text-sm mb-1";
+  const labelClass = "block ui-form-label text-sm mb-1";
 
   const subscriptionPlanLabel =
     subscriptionPlan === "lifetime"
@@ -429,7 +429,7 @@ export default function AccountSettingsPage() {
         <button
           type="button"
           onClick={() => void performClientLogout()}
-          className="px-4 py-2.5 rounded-xl border border-dark-600 text-sm font-medium text-dark-300 hover:bg-dark-700 transition"
+          className="px-4 py-2.5 rounded-xl border border-dark-600 text-sm font-medium text-dark-500 hover:bg-dark-700 transition"
         >
           {tStr("appNav.logout")}
         </button>
@@ -442,7 +442,7 @@ export default function AccountSettingsPage() {
           <div>
             <button
               type="button"
-              className="px-4 py-2 rounded-lg bg-dark-700 text-dark-300 border border-dark-600 hover:bg-dark-600 transition text-sm"
+              className="px-4 py-2 rounded-lg bg-dark-700 text-dark-500 border border-dark-600 hover:bg-dark-600 transition text-sm"
             >
               {tStr("pages.account.exportData")}
             </button>

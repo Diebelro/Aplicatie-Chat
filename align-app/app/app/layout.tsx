@@ -442,11 +442,23 @@ export default function AppLayout({
             <Link href="/app/settings/account" className="text-dark-400 hover:text-zinc-900 transition text-sm">
               {tStr("appNav.accountSettings")}
             </Link>
-            <div className="flex items-center gap-2 border-l border-dark-600 pl-3 shrink-0">
-              <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 bg-dark-700">
+            <div className="flex items-center gap-1 border-l border-dark-600 pl-3 shrink-0">
+              <Link
+                href="/app/profile/photo"
+                aria-label={tStr("appNav.ariaChangeProfilePhoto")}
+                title={tStr("appNav.ariaChangeProfilePhoto")}
+                className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full overflow-hidden bg-dark-700 cursor-pointer transition hover:bg-dark-600 hover:ring-2 hover:ring-brand-500/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+              >
                 <SilhouetteAvatar photoUrl={getProfileImageUrl(user) ?? undefined} gender={user.gender} name={user.name} className="w-full h-full" imgClassName="w-full h-full object-cover object-center" />
-              </div>
-              <span className="text-dark-400 text-sm truncate max-w-[10rem] lg:max-w-[14rem]">{displayName(user.username ?? user.name)}</span>
+              </Link>
+              <Link
+                href="/app/profile"
+                aria-label={tStr("appNav.ariaMyProfile")}
+                title={tStr("appNav.ariaMyProfile")}
+                className="inline-flex min-h-11 max-w-[10rem] lg:max-w-[14rem] items-center rounded-lg px-2 py-1.5 text-sm text-dark-500 truncate cursor-pointer transition hover:text-zinc-900 hover:bg-dark-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+              >
+                {displayName(user.username ?? user.name)}
+              </Link>
             </div>
             <button onClick={logout} className="text-dark-400 hover:text-red-400 text-sm transition">
               {tStr("appNav.logout")}
@@ -454,7 +466,12 @@ export default function AppLayout({
           </nav>
           {/* Mobile: menu toggle + avatar */}
           <div className="flex md:hidden items-center gap-2">
-            <Link href="/app/profile" className="w-9 h-9 rounded-full overflow-hidden shrink-0 bg-dark-700 flex items-center justify-center">
+            <Link
+              href="/app/profile/photo"
+              aria-label={tStr("appNav.ariaChangeProfilePhoto")}
+              title={tStr("appNav.ariaChangeProfilePhoto")}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full overflow-hidden bg-dark-700 cursor-pointer transition hover:ring-2 hover:ring-brand-500/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+            >
               <SilhouetteAvatar photoUrl={getProfileImageUrl(user) ?? undefined} gender={user.gender} name={user.name} className="w-full h-full" imgClassName="w-full h-full object-cover object-center" />
             </Link>
             <button

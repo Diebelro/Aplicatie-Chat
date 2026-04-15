@@ -121,11 +121,11 @@ export default function AuthProviders({ compact, variant = "default" }: AuthProv
 
   const heroButtonClass = (p: (typeof PROVIDERS)[number], disabled: boolean) => {
     const base =
-      "w-full min-h-[48px] shrink-0 flex items-center justify-center gap-2.5 rounded-xl px-4 text-sm font-semibold transition touch-manipulation active:scale-[0.99] disabled:opacity-45 disabled:cursor-not-allowed disabled:active:scale-100";
+      "w-full min-h-[48px] shrink-0 flex items-center justify-center gap-2.5 rounded-xl px-4 text-sm font-semibold transition touch-manipulation active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100";
     if (variant !== "loginHero") {
       return (
         (compact ? compactButtonClass : "w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-dark-600 bg-dark-800 text-zinc-900 hover:bg-dark-700 transition font-medium text-sm") +
-        (disabled ? " opacity-45 cursor-not-allowed" : "")
+        (disabled ? " opacity-50 cursor-not-allowed" : "")
       );
     }
     return `${base} border border-neutral-200/90 bg-white text-neutral-900 shadow-sm hover:bg-neutral-50 hover:border-neutral-300`;
