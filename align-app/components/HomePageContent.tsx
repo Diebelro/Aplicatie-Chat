@@ -1,12 +1,33 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n/context";
+import { getStoredUserRaw } from "@/lib/store";
 
 /** Landing: aceleași secțiuni ca în app/page.tsx, texte din mesaje (ro / en / de). */
 export function HomePageContent() {
   const { t } = useI18n();
   const s = (key: string) => t(key) as string;
+  const [ctaHref, setCtaHref] = useState("/signup");
+
+  useEffect(() => {
+    let cancelled = false;
+    if (getStoredUserRaw()) {
+      setCtaHref("/app");
+      return;
+    }
+    void fetch("/api/me", { credentials: "include" })
+      .then((r) => (cancelled || !r.ok ? null : r.json()))
+      .then((data) => {
+        if (cancelled || !data?.user) return;
+        setCtaHref("/app");
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col bg-dark-900 text-zinc-900">
@@ -35,7 +56,7 @@ export function HomePageContent() {
         <p className="text-lg sm:text-xl text-dark-500 text-center max-w-xl mb-12 leading-relaxed">{s("home.subhead")}</p>
 
         <Link
-          href="/signup"
+          href={ctaHref}
           className="bg-brand-500 hover:bg-brand-400 text-zinc-900 font-semibold px-8 py-4 rounded-xl text-lg border border-teal-600/25 shadow-sm transition"
         >
           {s("home.cta")}

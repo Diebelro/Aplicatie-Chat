@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { SessionProvider, signIn } from "next-auth/react";
+import { signIn } from "next-auth/react";
 import { useI18n } from "@/lib/i18n/context";
 
 /** Esențiale: Google, Apple, Email, Telefon. Recomandate: Microsoft, Facebook, Yahoo. */
@@ -138,7 +138,6 @@ export default function AuthProviders({ compact, variant = "default" }: AuthProv
   };
 
   return (
-    <SessionProvider basePath="/api/auth" refetchOnWindowFocus={false} refetchInterval={0}>
       <div className={variant === "loginHero" ? "flex w-full flex-col gap-3" : compact ? "flex flex-col gap-2" : "space-y-2"}>
         {list.map((p) => {
           const key = cfgKey(p.id);
@@ -163,7 +162,6 @@ export default function AuthProviders({ compact, variant = "default" }: AuthProv
           );
         })}
       </div>
-    </SessionProvider>
   );
 }
 

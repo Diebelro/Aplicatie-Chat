@@ -117,6 +117,17 @@ function LoginContent() {
   }, [email]);
 
   useEffect(() => {
+    const nextAuthErr = searchParams?.get("error");
+    if (nextAuthErr) {
+      if (nextAuthErr === "Configuration") {
+        setError(tStr("pages.login.errNextAuthConfiguration"));
+      } else {
+        setError(tStr("pages.login.loginFailedShort"));
+      }
+    }
+  }, [searchParams, tStr]);
+
+  useEffect(() => {
     const auth = searchParams?.get("auth");
     const soon = searchParams?.get("soon");
     const reason = searchParams?.get("reason");

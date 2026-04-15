@@ -9,6 +9,7 @@ import { LegalDocLinks } from "@/components/LegalDocLinks";
 import { useI18n } from "@/lib/i18n/context";
 import { formatTpl } from "@/lib/i18n/formatTpl";
 import { translateApiErrorMessage } from "@/lib/i18n/translateApiError";
+import { performClientLogout } from "@/lib/clientLogout";
 
 export default function AccountSettingsPage() {
   const { tStr } = useI18n();
@@ -420,6 +421,18 @@ export default function AccountSettingsPage() {
             </label>
           </div>
         )}
+      </section>
+
+      <section className="p-6 rounded-2xl bg-dark-800 border border-dark-600">
+        <h2 className="text-lg font-medium text-zinc-900 mb-2">{tStr("pages.account.sessionTitle")}</h2>
+        <p className="text-dark-500 text-sm mb-4">{tStr("pages.account.sessionHint")}</p>
+        <button
+          type="button"
+          onClick={() => void performClientLogout()}
+          className="px-4 py-2.5 rounded-xl border border-dark-600 text-sm font-medium text-dark-300 hover:bg-dark-700 transition"
+        >
+          {tStr("appNav.logout")}
+        </button>
       </section>
 
       {/* D) GDPR */}

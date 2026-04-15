@@ -16,6 +16,7 @@ import { displayName } from "@/lib/displayName";
 import { LegalDocLinks } from "@/components/LegalDocLinks";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useI18n } from "@/lib/i18n/context";
+import { performClientLogout } from "@/lib/clientLogout";
 
 export default function AppLayout({
   children,
@@ -27,7 +28,6 @@ export default function AppLayout({
   const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [storageRetry, setStorageRetry] = useState(0);
   const [totalUnread, setTotalUnread] = useState(0);
   const [missedCallsCount, setMissedCallsCount] = useState(0);
   const [newMatchToast, setNewMatchToast] = useState<{ id: string; name: string } | null>(null);
@@ -63,46 +63,55 @@ export default function AppLayout({
 
   useEffect(() => {
     const raw = typeof window !== "undefined" ? getStoredUserRaw() : null;
+
+    const redirectToLogin = () => {
+      const redirect = pathnameRef.current ? `/login?redirect=${encodeURIComponent(pathnameRef.current)}` : "/login";
+      router.replace(redirect);
+    };
+
+    /** OAuth / cookie-only: fără delay — cookie `align_sid` e deja setată la redirect din align-bridge. */
     if (!raw) {
-      if (storageRetry > 0) {
-        let cancelled = false;
-        (async () => {
-          try {
-            const res = await fetch("/api/me", { credentials: "include" });
+      let cancelled = false;
+      void (async () => {
+        try {
+          let res = await fetch("/api/me", { credentials: "include" });
+          if (cancelled) return;
+          if (res.status === 401) {
+            await new Promise((r) => setTimeout(r, 400));
             if (cancelled) return;
-            if (res.ok) {
-              const data = await res.json();
-              const serverUser = data?.user as (User & { isBanned?: boolean }) | undefined;
-              if (serverUser?.isBanned) {
-                router.replace("/cont-blocat");
-                setLoading(false);
-                return;
-              }
-              if (serverUser && typeof window !== "undefined") {
-                sessionStorage.setItem("align_user", JSON.stringify(serverUser));
-                setUser(serverUser as User);
-                setLoading(false);
-                return;
-              }
+            res = await fetch("/api/me", { credentials: "include" });
+          }
+          if (cancelled) return;
+          if (res.ok) {
+            const data = await res.json();
+            const serverUser = data?.user as (User & { isBanned?: boolean }) | undefined;
+            if (serverUser?.isBanned) {
+              router.replace("/cont-blocat");
+              setLoading(false);
+              return;
             }
-          } catch {
-            /* fall through */
+            if (serverUser && typeof window !== "undefined") {
+              sessionStorage.setItem("align_user", JSON.stringify(serverUser));
+              setUser(serverUser as User);
+              setLoading(false);
+              return;
+            }
           }
-          if (!cancelled) {
-            const redirect = pathnameRef.current ? `/login?redirect=${encodeURIComponent(pathnameRef.current)}` : "/login";
-            router.replace(redirect);
-            setLoading(false);
-          }
-        })();
-        return () => {
-          cancelled = true;
-        };
-      }
-      const t = setTimeout(() => setStorageRetry((r) => r + 1), 100);
-      return () => clearTimeout(t);
+        } catch {
+          /* fall through */
+        }
+        if (!cancelled) {
+          redirectToLogin();
+          setLoading(false);
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
     }
+
     let cancelled = false;
-    (async () => {
+    void (async () => {
       try {
         const u = JSON.parse(raw) as User & { isBanned?: boolean };
         if (u.isBanned) {
@@ -143,16 +152,17 @@ export default function AppLayout({
             const u = JSON.parse(raw) as User;
             setUser(u);
           } catch {
-            const redirect = pathnameRef.current ? `/login?redirect=${encodeURIComponent(pathnameRef.current)}` : "/login";
-            router.replace(redirect);
+            redirectToLogin();
           }
         }
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => { cancelled = true; };
-  }, [router, storageRetry]);
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
   // Dacă userul din state nu are poze (ex. după login cu răspuns minimal), refetch /api/me pentru avatar
   useEffect(() => {
@@ -336,33 +346,16 @@ export default function AppLayout({
   }, [user?.id, tStr]);
 
   const logout = () => {
-    localStorage.removeItem("align_user");
-    sessionStorage.removeItem("align_user");
-    localStorage.removeItem("align_session_token");
-    localStorage.removeItem("align_device_id");
-    localStorage.removeItem("align_device_fingerprint");
-    sessionStorage.removeItem("align_session_token");
-    sessionStorage.removeItem("align_device_id");
-    sessionStorage.removeItem("align_device_fingerprint");
-    localStorage.removeItem("align_last_email");
-    sessionStorage.removeItem("align_last_email");
-    ["username", "identifier", "align_username", "align_identifier"].forEach((k) => {
-      localStorage.removeItem(k);
-      sessionStorage.removeItem(k);
-    });
-    router.replace("/");
-    router.refresh();
+    void performClientLogout();
   };
 
-  if (loading) {
+  if (loading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-dark-900">
         <div className="text-dark-500">{tStr("appNav.loading")}</div>
       </div>
     );
   }
-
-  if (!user) return null;
 
   const isAdmin = user.role === "ADMIN" || user.role === "SUPERADMIN";
 

@@ -2,6 +2,7 @@
 
 import React from "react";
 import { usePathname } from "next/navigation";
+import { SessionProvider } from "next-auth/react";
 import { I18nProvider } from "@/lib/i18n/context";
 import { CookieConsentProvider } from "@/contexts/CookieConsentContext";
 import { CookieConsentBanner } from "@/components/CookieConsent/CookieConsentBanner";
@@ -19,21 +20,22 @@ function SiteFooter() {
 }
 
 /**
- * Fără SessionProvider aici: NextAuth face fetch la /api/auth/session pe tot site-ul și în dev apare
- * CLIENT_FETCH_ERROR (zgomot + confuzie) chiar pentru utilizatorii doar cu login parolă (ex. hartă).
- * SessionProvider e doar în AuthProviders (login/signup).
+ * SessionProvider la root: `signOut()` din /app, cookie JWT NextAuth, fără refetch agresiv.
+ * (refetchInterval 0 + refetchOnWindowFocus false limitează cererile la /api/auth/session.)
  */
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <I18nProvider>
       <CookieConsentProvider>
-        {process.env.NEXT_PUBLIC_SHOW_WIP_BANNER === "true" ? <InLucruBanner /> : null}
-        <AppWebVitalsBeacon />
-        {children}
-        <CookieConsentBanner />
-        <CookieConsentFloatingButton />
-        <TrackingScripts />
-        <SiteFooter />
+        <SessionProvider basePath="/api/auth" refetchOnWindowFocus={false} refetchInterval={0}>
+          {process.env.NEXT_PUBLIC_SHOW_WIP_BANNER === "true" ? <InLucruBanner /> : null}
+          <AppWebVitalsBeacon />
+          {children}
+          <CookieConsentBanner />
+          <CookieConsentFloatingButton />
+          <TrackingScripts />
+          <SiteFooter />
+        </SessionProvider>
       </CookieConsentProvider>
     </I18nProvider>
   );
