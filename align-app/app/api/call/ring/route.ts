@@ -59,16 +59,11 @@ export async function POST(request: NextRequest) {
     await prismaClearRejectedCallRoom(roomId);
     await prismaClearAnsweredCallRoom(roomId);
   }
-  setPendingCall(toId, { fromId: me.id, roomId, audioOnly });
-  let notify:
-    | {
-        prisma: boolean;
-        fcm: { server: boolean; calleeDevices: number };
-        voip: { server: boolean; calleeDevices: number };
-        webPush: { server: boolean; calleeSubscriptions: number };
-      }
-    | undefined;
-
+  /**
+   * Pe serverless, poll-ul „incoming” citește din Prisma pe altă instanță — trebuie să reușească upsert-ul
+   * înainte de `setPendingCall` (memorie doar pe această instanță). Altfel apelantul primea 200 dar
+   * cel sunat nu vedea nimic.
+   */
   if (isPrismaAvailable()) {
     try {
       await prismaUpsertPendingIncomingCall(toId, me.id, roomId, audioOnly);
@@ -83,6 +78,15 @@ export async function POST(request: NextRequest) {
       );
     }
   }
+  setPendingCall(toId, { fromId: me.id, roomId, audioOnly });
+  let notify:
+    | {
+        prisma: boolean;
+        fcm: { server: boolean; calleeDevices: number };
+        voip: { server: boolean; calleeDevices: number };
+        webPush: { server: boolean; calleeSubscriptions: number };
+      }
+    | undefined;
 
   /** Android: FCM. iOS: APNs VoIP. Browser: Web Push (VAPID) + fallback la poll /api/call/incoming. */
   if (isPrismaAvailable()) {
