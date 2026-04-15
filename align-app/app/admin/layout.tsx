@@ -109,7 +109,7 @@ export default function AdminLayout({
         <Link href="/admin/security" className="text-zinc-600 hover:text-red-600">
           Securitate
         </Link>
-        <Link href="/admin/system" className="text-zinc-600 hover:text-emerald-700">
+        <Link href="/admin/system" className="text-zinc-600 hover:text-emerald-700" title="DB, apeluri, mesaje, erori">
           Bord sistem
         </Link>
         <Link href="/app" className="text-dark-500 ml-auto hover:text-zinc-900">

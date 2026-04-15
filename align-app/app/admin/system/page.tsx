@@ -12,6 +12,8 @@ import {
   Shield,
   Clock,
   Server,
+  Phone,
+  MessageSquare,
 } from "lucide-react";
 
 type ServerError = { at: string; source: string; message: string; stack?: string };
@@ -39,6 +41,32 @@ type FullSnap = {
   rateLimitBucketsApprox: number;
   overall: "ok" | "warn" | "critical";
   overallReasons: string[];
+  product: {
+    shortStrip: string;
+    webrtc: {
+      envLayerCompleteForCalls: boolean;
+      turnRequiredOk: boolean;
+      turnRequiredError: string | null;
+      signalingSecretsOk: boolean;
+      signalingSecretsError: string | null;
+      nextPublicTurnUrlCount: number;
+      summaryOk: boolean;
+    };
+    signalingHealth: {
+      checked: boolean;
+      url: string | null;
+      ok: boolean | null;
+      httpStatus: number | null;
+      latencyMs: number | null;
+      error: string | null;
+    };
+    messages: {
+      ok: boolean;
+      skipped: boolean;
+      error: string | null;
+      lastMessageAt: string | null;
+    };
+  };
 };
 
 function Card({
@@ -145,8 +173,12 @@ export default function AdminSystemDashboardPage() {
 
       <p className="text-dark-500 text-sm">
         Indicatori din <strong className="text-dark-400">acest server</strong> (memorie, DB, erori neprinse, semnale
-        securitate, viteze raportate din browser). Pentru „a picat tot” din exterior, folosește și un monitor care
-        lovește <code className="text-dark-400">GET /api/health</code>.
+        securitate, viteze raportate din browser). Secțiunea{" "}
+        <strong className="text-dark-400">Apeluri &amp; mesaje</strong> aliniază cu ce trebuie să meargă în app:
+        variabile WebRTC/TURN, reachability semnalizare (HTTP /health), citire ultim mesaj din DB. Pentru „a picat
+        tot” din exterior, folosește și un monitor care lovește{" "}
+        <code className="text-dark-400">GET /api/health</code>. Alerte automate opționale:{" "}
+        <code className="text-dark-400">OPS_CRITICAL_WEBHOOK_URL</code> (vezi cod) la stare critică (ex. DB down).
       </p>
 
       <div
@@ -177,6 +209,107 @@ export default function AdminSystemDashboardPage() {
         )}
       </div>
 
+      <h2 className="text-sm font-medium text-dark-300 uppercase tracking-wide">
+        Apeluri &amp; mesaje (aliniat cu app)
+      </h2>
+      <div className="rounded-xl border border-dark-600 bg-dark-900/40 px-4 py-3 text-sm text-dark-300">
+        <p className="font-mono text-xs text-dark-200 break-all">{snap.product.shortStrip}</p>
+        <p className="text-dark-500 text-xs mt-2">
+          Dacă <strong className="text-dark-400">Semnalizare FAIL</strong>: verifică VPS + Nginx pentru URL-ul de
+          mai jos, procesul <code className="text-dark-500">call-signaling</code>, firewall. Poți seta explicit{" "}
+          <code className="text-dark-500">SIGNALING_HEALTH_URL</code> (ex. <code className="text-dark-500">https://ws.diebel.ro/health</code>
+          ) dacă derivarea din <code className="text-dark-500">NEXT_PUBLIC_SIGNALING_WS_URL</code> nu e potrivită.
+        </p>
+      </div>
+
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <Card
+          title="WebRTC / TURN (env)"
+          icon={Phone}
+          ok={snap.product.webrtc.summaryOk}
+          warn={!snap.product.webrtc.summaryOk}
+        >
+          <ul className="text-xs text-dark-300 space-y-1.5">
+            <li>
+              Strat complet pentru apeluri:{" "}
+              <strong className="text-zinc-900">{snap.product.webrtc.envLayerCompleteForCalls ? "da" : "nu"}</strong>
+            </li>
+            <li>TURN valid: {snap.product.webrtc.turnRequiredOk ? "da" : "nu"}</li>
+            {snap.product.webrtc.turnRequiredError && (
+              <li className="text-red-300/90 break-words">{snap.product.webrtc.turnRequiredError}</li>
+            )}
+            <li>Secret semnalizare: {snap.product.webrtc.signalingSecretsOk ? "OK" : "lipsește"}</li>
+            {snap.product.webrtc.signalingSecretsError && (
+              <li className="text-amber-200/90 break-words">{snap.product.webrtc.signalingSecretsError}</li>
+            )}
+            <li>URL-uri TURN (număr): {snap.product.webrtc.nextPublicTurnUrlCount}</li>
+          </ul>
+        </Card>
+
+        <Card
+          title="Semnalizare (HTTP health)"
+          icon={Server}
+          ok={!snap.product.signalingHealth.checked ? undefined : snap.product.signalingHealth.ok === true}
+          warn={snap.product.signalingHealth.checked && snap.product.signalingHealth.ok === false}
+        >
+          {!snap.product.signalingHealth.checked ? (
+            <p className="text-dark-400 text-xs">
+              Nu am URL de verificat (lipsește <code className="text-dark-500">NEXT_PUBLIC_SIGNALING_WS_URL</code> sau{" "}
+              <code className="text-dark-500">SIGNALING_HEALTH_URL</code>).
+            </p>
+          ) : (
+            <ul className="text-xs text-dark-300 space-y-1.5">
+              <li className="break-all font-mono text-[11px] text-dark-200">{snap.product.signalingHealth.url}</li>
+              <li>
+                Răspuns:{" "}
+                <strong className="text-zinc-900">
+                  {snap.product.signalingHealth.ok === true
+                    ? "OK"
+                    : snap.product.signalingHealth.ok === false
+                      ? "eșuat"
+                      : "—"}
+                </strong>
+                {snap.product.signalingHealth.httpStatus != null && (
+                  <> · HTTP {snap.product.signalingHealth.httpStatus}</>
+                )}
+                {snap.product.signalingHealth.latencyMs != null && <> · {snap.product.signalingHealth.latencyMs} ms</>}
+              </li>
+              {snap.product.signalingHealth.error && (
+                <li className="text-red-300/90 break-words">{snap.product.signalingHealth.error}</li>
+              )}
+            </ul>
+          )}
+        </Card>
+
+        <Card
+          title="Mesaje (DB)"
+          icon={MessageSquare}
+          ok={snap.product.messages.skipped ? undefined : snap.product.messages.ok}
+          warn={!snap.product.messages.skipped && !snap.product.messages.ok}
+        >
+          {snap.product.messages.skipped ? (
+            <p className="text-dark-400 text-xs">Sărit — baza de date nu e „up” în acest snapshot.</p>
+          ) : (
+            <ul className="text-xs text-dark-300 space-y-1.5">
+              <li>
+                Citire ultim mesaj:{" "}
+                <strong className="text-zinc-900">{snap.product.messages.ok ? "OK" : "eșuat"}</strong>
+              </li>
+              {snap.product.messages.lastMessageAt && (
+                <li>Ultim mesaj (createdAt): {new Date(snap.product.messages.lastMessageAt).toLocaleString("ro-RO")}</li>
+              )}
+              {!snap.product.messages.lastMessageAt && snap.product.messages.ok && (
+                <li className="text-dark-500">Încă niciun mesaj în DB (normal la început).</li>
+              )}
+              {snap.product.messages.error && (
+                <li className="text-red-300/90 break-words">{snap.product.messages.error}</li>
+              )}
+            </ul>
+          )}
+        </Card>
+      </div>
+
+      <h2 className="text-sm font-medium text-dark-300 uppercase tracking-wide pt-2">Infrastructură proces</h2>
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <Card title="Baza de date" icon={Database} ok={dbOk} warn={dbSkip && !dbOk}>
           <p className="text-lg font-medium text-zinc-900 capitalize">{snap.db.status}</p>

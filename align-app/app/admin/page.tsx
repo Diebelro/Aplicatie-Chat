@@ -227,7 +227,7 @@ export default function AdminDashboardPage() {
         </li>
         <li>
           <Link href="/admin/system" className="text-brand-400 hover:underline">
-            Bord sistem — DB, erori, memorie, fluiditate (LCP)
+            Bord sistem — DB, erori, memorie, LCP, plus apeluri (WebRTC/semnalizare) și pipeline mesaje
           </Link>
         </li>
       </ul>

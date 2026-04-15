@@ -13,6 +13,7 @@ type Snap = {
   memory: { heapUsedMb: number };
   vitals: { avgLcpLast20: number | null };
   generatedAt: string;
+  product?: { shortStrip: string };
 };
 
 export function AdminSystemStrip() {
@@ -79,6 +80,14 @@ export function AdminSystemStrip() {
           <>
             <span className="opacity-90">·</span>
             <span>LCP mediu ~{snap.vitals.avgLcpLast20} ms</span>
+          </>
+        )}
+        {snap.product?.shortStrip && (
+          <>
+            <span className="opacity-90">·</span>
+            <span className="max-w-[min(100%,52rem)] truncate" title={snap.product.shortStrip}>
+              {snap.product.shortStrip}
+            </span>
           </>
         )}
         {pingMs != null && (

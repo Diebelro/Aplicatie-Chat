@@ -4,6 +4,7 @@
 
 import { prisma } from "@/lib/db";
 import { isPrismaAvailable } from "@/lib/repo-prisma";
+import { getAdminProductHealth, productHealthShortStrip } from "@/lib/adminProductHealth";
 import { getSecurityThreatsSnapshot } from "@/lib/securityThreats";
 import { getServerErrorStats } from "@/lib/serverErrorRing";
 import { getLatestVitals } from "@/lib/vitalsStore";
@@ -26,6 +27,8 @@ export async function getAdminSystemSnapshot(): Promise<{
   errors1h: { count: number };
   vitals: ReturnType<typeof getLatestVitals>;
   rateLimitBucketsApprox: number;
+  /** Apeluri (WebRTC), semnalizare /health, mesaje în DB */
+  product: Awaited<ReturnType<typeof getAdminProductHealth>> & { shortStrip: string };
   /** Rezumat pentru UI: verde / galben / roșu */
   overall: "ok" | "warn" | "critical";
   overallReasons: string[];
@@ -91,6 +94,25 @@ export async function getAdminSystemSnapshot(): Promise<{
     reasons.push("LCP mediu lent (experiență în browser)");
   }
 
+  const dbUp = db.status === "up";
+  const product = await getAdminProductHealth({ dbUp });
+  const shortStrip = productHealthShortStrip(product);
+
+  if (!product.webrtc.envLayerCompleteForCalls) {
+    overall = bump(overall, "warn");
+    reasons.push("Apeluri (video/voce): variabile lipsă sau incomplete — vezi bord „Apeluri & mesaje”");
+  }
+  if (product.signalingHealth.checked && product.signalingHealth.ok === false) {
+    overall = bump(overall, "warn");
+    reasons.push(
+      `Semnalizare apeluri: ${product.signalingHealth.error ?? "fără răspuns"} (${product.signalingHealth.url ?? "?"})`
+    );
+  }
+  if (!product.messages.skipped && !product.messages.ok) {
+    overall = bump(overall, "critical");
+    reasons.push("Mesaje: citire din baza de date eșuată");
+  }
+
   maybeNotifyOpsCritical({
     overall,
     overallReasons: reasons,
@@ -114,6 +136,7 @@ export async function getAdminSystemSnapshot(): Promise<{
     errors1h: { count: errors1h.count },
     vitals,
     rateLimitBucketsApprox: getRateLimitBucketApproxSize(),
+    product: { ...product, shortStrip },
     overall,
     overallReasons: reasons,
   };
