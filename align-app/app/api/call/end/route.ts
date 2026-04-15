@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { findUserById } from "@/lib/store";
-import { findUserOrPrisma, prismaUserRowExists, isPrismaAvailable } from "@/lib/repo-prisma";
+import { findUserById, clearAnsweredCallRoom } from "@/lib/store";
+import {
+  findUserOrPrisma,
+  prismaUserRowExists,
+  isPrismaAvailable,
+  prismaClearAnsweredCallRoom,
+} from "@/lib/repo-prisma";
 import { resolveRequestUserId } from "@/lib/sessionAuth";
 import { clearPendingIncomingForCallee, clearPendingIncomingForRoom } from "@/lib/callPending";
 import { canAccessRoom } from "@/lib/videoCall";
@@ -26,6 +31,8 @@ export async function POST(request: NextRequest) {
   const roomId = typeof body.roomId === "string" ? body.roomId.trim() : "";
   if (roomId && canAccessRoom(roomId, userId)) {
     await clearPendingIncomingForRoom(roomId);
+    clearAnsweredCallRoom(roomId);
+    if (isPrismaAvailable()) await prismaClearAnsweredCallRoom(roomId);
   }
   await clearPendingIncomingForCallee(userId);
   return NextResponse.json({ ok: true });

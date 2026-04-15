@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { findUserById } from "@/lib/store";
-import { findUserOrPrisma, prismaUserRowExists, isPrismaAvailable } from "@/lib/repo-prisma";
+import { findUserById, markAnsweredCallRoom } from "@/lib/store";
+import {
+  findUserOrPrisma,
+  prismaUserRowExists,
+  isPrismaAvailable,
+  prismaMarkAnsweredCallRoom,
+} from "@/lib/repo-prisma";
 import { resolveRequestUserId } from "@/lib/sessionAuth";
 import { getPendingIncomingForCallee, clearPendingIncomingForCallee } from "@/lib/callPending";
 
@@ -20,9 +25,12 @@ export async function POST(request: NextRequest) {
   if (!pending) {
     return NextResponse.json({ error: "No incoming call." }, { status: 404 });
   }
+  const rid = pending.roomId;
+  markAnsweredCallRoom(rid);
+  if (isPrismaAvailable()) await prismaMarkAnsweredCallRoom(rid);
   await clearPendingIncomingForCallee(userId);
   return NextResponse.json({
-    roomId: pending.roomId,
+    roomId: rid,
     audioOnly: pending.audioOnly,
   });
 }

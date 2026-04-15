@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { setPendingCall } from "@/lib/store";
+import { setPendingCall, clearRejectedRoom, clearAnsweredCallRoom } from "@/lib/store";
 import { getVideoRoomId } from "@/lib/videoCall";
 import {
   isPrismaAvailable,
@@ -7,6 +7,8 @@ import {
   prismaListVoipTokensForUser,
   prismaListWebPushSubscriptionsForUser,
   prismaUpsertPendingIncomingCall,
+  prismaClearRejectedCallRoom,
+  prismaClearAnsweredCallRoom,
 } from "@/lib/repo-prisma";
 import { callApiCallerUserExists, resolveUserDtoForRing } from "@/lib/callCallerExists";
 import { isApnsVoipConfigured, sendIncomingCallVoipPush } from "@/lib/apnsVoipPush";
@@ -51,6 +53,12 @@ export async function POST(request: NextRequest) {
 
   const roomId = body.roomId ?? getVideoRoomId(me.id, toId);
   const audioOnly = Boolean(body.audioOnly);
+  clearRejectedRoom(roomId);
+  clearAnsweredCallRoom(roomId);
+  if (isPrismaAvailable()) {
+    await prismaClearRejectedCallRoom(roomId);
+    await prismaClearAnsweredCallRoom(roomId);
+  }
   setPendingCall(toId, { fromId: me.id, roomId, audioOnly });
   let notify:
     | {

@@ -49,7 +49,15 @@ export function ProfilePhotosGallery({
         {photos.map((src, i) => (
           <div key={i} className="relative group flex flex-col items-center">
             <div className="relative">
-              <OptimizedImage src={src} alt="" width={96} height={96} className="w-24 h-24 object-cover rounded-xl border border-dark-600" />
+              <OptimizedImage
+                src={src}
+                alt=""
+                width={128}
+                height={128}
+                className="h-28 w-28 sm:h-32 sm:w-32 object-cover object-[center_12%] rounded-xl border border-dark-600"
+                sizes="(max-width: 640px) 112px, 128px"
+                quality={86}
+              />
               <button
                 type="button"
                 onClick={() => onRemove(i)}
@@ -75,7 +83,7 @@ export function ProfilePhotosGallery({
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="w-24 h-24 min-h-[44px] min-w-[44px] rounded-xl border-2 border-dashed border-dark-600 flex items-center justify-center text-dark-500 hover:border-brand-500 hover:text-brand-400 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+            className="h-28 w-28 sm:h-32 sm:w-32 min-h-[44px] min-w-[44px] rounded-xl border-2 border-dashed border-dark-600 flex items-center justify-center text-dark-500 hover:border-brand-500 hover:text-brand-400 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
           >
             <Plus className="w-8 h-8" />
           </button>

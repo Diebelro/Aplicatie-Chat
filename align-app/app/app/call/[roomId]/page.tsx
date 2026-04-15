@@ -145,9 +145,9 @@ export default function CallPage() {
   }, [fromPush, callStarted, fetchIncomingHint]);
 
   /**
-   * Ieșire cu Back browser / navigare fără butonul din CallUI: tot trebuie să curățăm pending pe server,
-   * altfel poll-ul „incoming” crede că încă sună. Întârziere scurtă evită dublarea în React Strict Mode (dev).
-   * Din push, înainte de accept: respingem ca să primească apelantul feedback, nu `/end` de apel activ.
+   * Ieșire cu Back browser / navigare fără butonul din CallUI: curățăm pending pe server.
+   * Înainte de accept: `/api/call/end` cu roomId (nu `/reject`) — apelantul vede „indisponibil”, nu „respins”.
+   * După ce apelul a pornit: `/end` pentru apel activ.
    */
   useEffect(() => {
     let armed = false;
@@ -159,11 +159,12 @@ export default function CallPage() {
       if (!armed) return;
       clearIncomingRingDismissFilter();
       if (!callSessionStartedRef.current) {
-        void fetch("/api/call/reject", {
+        void fetch("/api/call/end", {
           method: "POST",
-          headers: getAuthHeaders(),
+          headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
           credentials: "same-origin",
           keepalive: true,
+          body: JSON.stringify({ roomId }),
         }).catch(() => {});
         return;
       }
@@ -188,11 +189,12 @@ export default function CallPage() {
       clearIncomingRingDismissFilter();
       if (!callSessionStartedRef.current) {
         try {
-          void fetch("/api/call/reject", {
+          void fetch("/api/call/end", {
             method: "POST",
-            headers: getAuthHeaders(),
+            headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
             credentials: "same-origin",
             keepalive: true,
+            body: JSON.stringify({ roomId }),
           });
         } catch {
           /* ignore */

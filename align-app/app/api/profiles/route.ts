@@ -31,6 +31,7 @@ import {
 } from "@/lib/repo-prisma";
 import { resolveRequestUserId } from "@/lib/sessionAuth";
 import { parseMaxDistanceKmQuery } from "@/lib/profileSearchConstants";
+import { normalizeProfileSortBy, sortProfileCandidates } from "@/lib/profileSort";
 
 function parseFilters(searchParams: URLSearchParams): {
   gender?: Gender | "";
@@ -107,18 +108,10 @@ export async function GET(request: NextRequest) {
       const candidates = await prismaGetFeedCandidates(userId, filters, { includeSwiped: true });
       const myLoc = await prismaGetMyLocation(userId);
       const matchPartnerIds = await prismaGetMutualMatchPartnerIds(userId);
-      const sortBy = request.nextUrl.searchParams.get("sortBy") ?? "";
-      let sorted = [...candidates];
-      if (sortBy === "distance" && myLoc) {
-        sorted = sorted.sort((a, b) => {
-          const la = a.latitude != null && a.longitude != null ? distanceHaversine(myLoc!.lat, myLoc!.lng, a.latitude, a.longitude) : null;
-          const lb = b.latitude != null && b.longitude != null ? distanceHaversine(myLoc!.lat, myLoc!.lng, b.latitude, b.longitude) : null;
-          if (la == null && lb == null) return 0;
-          if (la == null) return 1;
-          if (lb == null) return -1;
-          return la - lb;
-        });
-      }
+      const sortKey = normalizeProfileSortBy(request.nextUrl.searchParams.get("sortBy"));
+      const sorted = sortProfileCandidates(candidates, sortKey, {
+        myLoc: myLoc ? { lat: myLoc.lat, lng: myLoc.lng } : null,
+      });
       const otherIds = sorted.map((u) => u.id);
       const [messageFlags, visitFlags] = await Promise.all([
         prismaGetMessageFlagsForProfiles(userId, otherIds),
@@ -151,23 +144,6 @@ export async function GET(request: NextRequest) {
           match: matchPartnerIds.has(u.id),
         };
       });
-      if (sortBy !== "distance") {
-        profilesWithOnline.sort((a, b) => {
-          const hasMessages = (u: typeof a) => u.sentMessage || u.receivedMessage || u.messageSeen;
-          const tier = (u: typeof a) => {
-            if (u.isNew) return 0;
-            if (hasMessages(u)) return 1;
-            if (u.online) return 2;
-            return 3;
-          };
-          const ta = tier(a);
-          const tb = tier(b);
-          if (ta !== tb) return ta - tb;
-          const lastA = a.last_active ?? 0;
-          const lastB = b.last_active ?? 0;
-          return lastB - lastA;
-        });
-      }
       return NextResponse.json({
         profiles: profilesWithOnline,
         myLocationEnabled: !!myLoc,
@@ -182,20 +158,12 @@ export async function GET(request: NextRequest) {
   const dislikedIds = getDislikedUserIds(userId);
   const allExceptDisliked = all.filter((u) => !dislikedIds.has(u.id));
   const filters = parseFilters(request.nextUrl.searchParams);
-  const sortBy = request.nextUrl.searchParams.get("sortBy") ?? "";
+  const sortKey = normalizeProfileSortBy(request.nextUrl.searchParams.get("sortBy"));
   let filtered = filterUsers(allExceptDisliked, userId, filters);
-  if (sortBy === "distance") {
-    filtered = [...filtered].sort((a, b) => {
-      const da = getDistanceKm(userId, a.id);
-      const db = getDistanceKm(userId, b.id);
-      if (da == null && db == null) return 0;
-      if (da == null) return 1;
-      if (db == null) return -1;
-      return da - db;
-    });
-  } else if (sortBy === "trust") {
-    filtered = [...filtered].sort((a, b) => getTrustScore(b) - getTrustScore(a));
-  }
+  filtered = sortProfileCandidates(filtered, sortKey, {
+    myLoc: null,
+    viewerDistanceKm: (u) => getDistanceKm(userId, u.id),
+  });
   const me = findUserById(userId);
   const profilesWithOnline = filtered.map((u) => {
     const distanceKm = getDistanceKmForDisplay(userId, u.id);
@@ -218,23 +186,6 @@ export async function GET(request: NextRequest) {
       match: isMutualMatch(userId, u.id),
     };
   });
-  if (sortBy !== "distance" && sortBy !== "trust") {
-    profilesWithOnline.sort((a, b) => {
-      const hasMessages = (u: typeof a) => u.sentMessage || u.receivedMessage || u.messageSeen;
-      const tier = (u: typeof a) => {
-        if (u.isNew) return 0;
-        if (hasMessages(u)) return 1;
-        if (u.online) return 2;
-        return 3;
-      };
-      const ta = tier(a);
-      const tb = tier(b);
-      if (ta !== tb) return ta - tb;
-      const lastA = a.last_active ?? 0;
-      const lastB = b.last_active ?? 0;
-      return lastB - lastA;
-    });
-  }
   return NextResponse.json({
     profiles: profilesWithOnline,
     myLocationEnabled: me?.location_enabled ?? false,

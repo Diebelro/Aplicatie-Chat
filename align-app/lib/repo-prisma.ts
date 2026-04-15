@@ -63,7 +63,15 @@ function profileToUserDTO(
     completedAt: Date | null;
     lastActiveAt: Date | null;
     createdAt: Date;
-    user: { id: string; email: string; createdAt: Date; role?: string; isBanned?: boolean; banUntil?: Date | null };
+    user: {
+      id: string;
+      email: string;
+      createdAt: Date;
+      role?: string;
+      isBanned?: boolean;
+      banUntil?: Date | null;
+      emailVerified?: Date | null;
+    };
     photos: { url: string; order: number }[];
     userLoc?: { latitude: number; longitude: number } | null;
   }
@@ -125,6 +133,9 @@ function profileToUserDTO(
     subscription_status: null,
     subscription_current_period_end: null,
     trust_score: null,
+    ...("emailVerified" in p.user
+      ? { email_verified: p.user.emailVerified != null }
+      : {}),
     role: p.user.role ?? "USER",
     isBanned: accessBlocked,
     banUntil: until ? until.toISOString() : null,
@@ -2169,6 +2180,50 @@ export async function prismaIsCallRejectedRoom(roomId: string): Promise<boolean>
     return true;
   } catch {
     return false;
+  }
+}
+
+const ANSWERED_CALL_ROOM_TTL_MS = 30 * 60 * 1000;
+
+export async function prismaClearRejectedCallRoom(roomId: string): Promise<void> {
+  try {
+    await prisma.rejectedCallRoom.delete({ where: { roomId } }).catch(() => {});
+  } catch {
+    /* ignore */
+  }
+}
+
+export async function prismaMarkAnsweredCallRoom(roomId: string): Promise<void> {
+  try {
+    await prisma.answeredCallRoom.upsert({
+      where: { roomId },
+      create: { roomId },
+      update: { createdAt: new Date() },
+    });
+  } catch {
+    /* ignore */
+  }
+}
+
+export async function prismaIsCallAnsweredRoom(roomId: string): Promise<boolean> {
+  try {
+    const row = await prisma.answeredCallRoom.findUnique({ where: { roomId } });
+    if (!row) return false;
+    if (Date.now() - row.createdAt.getTime() > ANSWERED_CALL_ROOM_TTL_MS) {
+      await prisma.answeredCallRoom.delete({ where: { roomId } }).catch(() => {});
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function prismaClearAnsweredCallRoom(roomId: string): Promise<void> {
+  try {
+    await prisma.answeredCallRoom.delete({ where: { roomId } }).catch(() => {});
+  } catch {
+    /* ignore */
   }
 }
 

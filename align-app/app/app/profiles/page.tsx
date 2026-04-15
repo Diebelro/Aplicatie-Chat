@@ -8,6 +8,7 @@ import { QuickCallButtons } from "@/components/QuickCallButtons";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
 import { useSearchFilters, type SearchFilters } from "@/lib/useSearchFilters";
+import { SEARCH_CITY_HINTS } from "@/lib/localeSearchDefaults";
 import { DiebelAppPromoCarousel } from "@/components/diebel/DiebelAppPromoCarousel";
 import { SilhouetteAvatar } from "@/components/SilhouetteAvatar";
 import { AddFriendButton } from "@/components/AddFriendButton";
@@ -98,7 +99,7 @@ function buildQuery(f: SearchFilters): string {
 }
 
 export default function ProfilesPage() {
-  const { tStr } = useI18n();
+  const { tStr, locale } = useI18n();
   const getDistanceDisplay = useCallback(
     (u: ProfileWithOnline): string => {
       if (u.distanceHidden || u.distanceKm == null) return tStr("pages.matches.distanceHidden");
@@ -113,7 +114,7 @@ export default function ProfilesPage() {
   const [profiles, setProfiles] = useState<ProfileWithOnline[]>([]);
   const [loading, setLoading] = useState(true);
   const [myLocationEnabled, setMyLocationEnabled] = useState(false);
-  const [filters, setFilters] = useSearchFilters();
+  const [filters, setFilters] = useSearchFilters(locale);
 
   const enableLocation = () => {
     if (!navigator.geolocation) return;
@@ -346,9 +347,9 @@ export default function ProfilesPage() {
               onChange={(e) => setFilters((f) => ({ ...f, sortBy: e.target.value }))}
               className="bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             >
-              <option value="">{tStr("pages.profiles.sortDefault")}</option>
+              <option value="online">{tStr("pages.profiles.sortOnline")}</option>
+              <option value="recommended">{tStr("pages.profiles.sortRecommended")}</option>
               <option value="distance">{tStr("pages.profiles.sortDistance")}</option>
-              <option value="trust">{tStr("pages.profiles.sortTrust")}</option>
             </select>
           </div>
           <div>
@@ -365,11 +366,17 @@ export default function ProfilesPage() {
             <label className="block text-xs text-dark-500 mb-1">{tStr("pages.discover.cityLabel")}</label>
             <input
               type="text"
+              list={`search-city-hints-${locale}`}
               placeholder={tStr("pages.discover.cityPlaceholder")}
               value={filters.city}
               onChange={(e) => setFilters((f) => ({ ...f, city: e.target.value }))}
               className="w-36 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 text-sm placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
+            <datalist id={`search-city-hints-${locale}`}>
+              {SEARCH_CITY_HINTS[locale].map((c) => (
+                <option key={c} value={c} />
+              ))}
+            </datalist>
           </div>
         </div>
       </div>

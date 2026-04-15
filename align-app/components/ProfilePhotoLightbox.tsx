@@ -145,14 +145,15 @@ export function ProfilePhotoLightbox({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[215] flex flex-col bg-black max-h-[100dvh] h-[100dvh] overflow-hidden overscroll-none"
+      className="fixed inset-0 z-[215] flex flex-col bg-zinc-950 max-h-[100dvh] h-[100dvh] overflow-hidden overscroll-none touch-none"
       role="dialog"
       aria-modal="true"
       aria-label={tStr("pages.userPublic.galleryAria")}
     >
       <div
-        className={`shrink-0 flex flex-wrap items-center gap-x-2 gap-y-1 px-2 bg-black border-b border-white/10
-          pt-[max(0.5rem,env(safe-area-inset-top))] pb-2`}
+        className="shrink-0 flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-white/10 bg-zinc-950/90 px-2 backdrop-blur-md supports-[backdrop-filter]:bg-zinc-950/75
+          pt-[max(0.5rem,env(safe-area-inset-top))] pb-2
+          pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))]"
       >
         <button
           type="button"
@@ -164,39 +165,43 @@ export function ProfilePhotoLightbox({
           <span className="text-sm font-medium">{tStr("pages.userPublic.photoLightboxBack")}</span>
         </button>
         {photos.length > 1 && (
-          <span className="ml-auto text-white/60 text-sm tabular-nums pr-2">
+          <span className="ml-auto text-white/60 text-sm tabular-nums pr-1">
             {index + 1} / {photos.length}
           </span>
         )}
       </div>
 
-      <div className="flex-1 min-h-0 relative overflow-hidden">
+      <div className="flex-1 min-h-0 min-w-0 relative">
         {photos.length > 1 && (
           <>
             <button
               type="button"
-              className="absolute left-1 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/60 text-white border border-white/15 disabled:opacity-25"
+              className="absolute z-20 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full border border-white/15 bg-black/55 text-white shadow-lg backdrop-blur-sm transition hover:bg-black/70 disabled:opacity-25 sm:left-3
+                left-[max(0.35rem,env(safe-area-inset-left,0px))]
+                top-1/2 -translate-y-1/2"
               aria-label={tStr("pages.userPublic.prevPhoto")}
               disabled={index <= 0}
               onClick={() => setIndex(index > 0 ? index - 1 : index)}
             >
-              <ChevronLeft className="w-8 h-8" />
+              <ChevronLeft className="w-7 h-7 sm:w-8 sm:h-8" />
             </button>
             <button
               type="button"
-              className="absolute right-1 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/60 text-white border border-white/15 disabled:opacity-25"
+              className="absolute z-20 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full border border-white/15 bg-black/55 text-white shadow-lg backdrop-blur-sm transition hover:bg-black/70 disabled:opacity-25 sm:right-3
+                right-[max(0.35rem,env(safe-area-inset-right,0px))]
+                top-1/2 -translate-y-1/2"
               aria-label={tStr("pages.userPublic.nextPhoto")}
               disabled={index >= photos.length - 1}
               onClick={() => setIndex(index < photos.length - 1 ? index + 1 : index)}
             >
-              <ChevronRight className="w-8 h-8" />
+              <ChevronRight className="w-7 h-7 sm:w-8 sm:h-8" />
             </button>
           </>
         )}
 
         <div
           ref={viewportRef}
-          className={`absolute inset-x-0 top-0 bottom-0 px-1 sm:px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] select-none ${
+          className={`absolute inset-0 flex items-center justify-center px-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 select-none ${
             scale > 1.02 ? "cursor-grab active:cursor-grabbing" : "cursor-default"
           }`}
           onTouchStart={onTouchStart}
@@ -207,19 +212,21 @@ export function ProfilePhotoLightbox({
           onDoubleClick={onDoubleClickPane}
         >
           <div
-            className="w-full h-full flex items-start justify-center overflow-visible"
+            className="relative flex h-full w-full max-h-full max-w-full items-center justify-center"
             style={{
               transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
-              transformOrigin: "top center",
+              transformOrigin: "center center",
+              willChange: scale > 1.02 || pan.x !== 0 || pan.y !== 0 ? "transform" : "auto",
             }}
           >
-            <div className="relative h-full w-full min-h-0">
+            <div className="relative mx-auto flex h-full w-full max-h-full max-w-[min(100dvw,100dvh)] items-center justify-center">
               <OptimizedImage
                 src={src}
                 alt=""
                 fill
-                className="object-contain object-top pointer-events-none"
-                sizes="100vw"
+                className="object-contain object-center pointer-events-none"
+                sizes="(max-width: 1280px) 100vw, 1280px"
+                quality={92}
                 priority
               />
             </div>

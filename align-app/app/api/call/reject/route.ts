@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { findUserById, addRejectedRoom } from "@/lib/store";
+import { findUserById, addRejectedRoom, clearAnsweredCallRoom } from "@/lib/store";
 import {
   findUserOrPrisma,
   prismaMarkCallRejectedRoom,
   prismaUserRowExists,
   isPrismaAvailable,
+  prismaClearAnsweredCallRoom,
 } from "@/lib/repo-prisma";
 import { resolveRequestUserId } from "@/lib/sessionAuth";
 import { getPendingIncomingForCallee, clearPendingIncomingForCallee } from "@/lib/callPending";
@@ -23,8 +24,11 @@ export async function POST(request: NextRequest) {
   }
   const pending = await getPendingIncomingForCallee(userId);
   if (pending) {
-    addRejectedRoom(pending.roomId);
-    if (isPrismaAvailable()) await prismaMarkCallRejectedRoom(pending.roomId);
+    const rid = pending.roomId;
+    clearAnsweredCallRoom(rid);
+    if (isPrismaAvailable()) await prismaClearAnsweredCallRoom(rid);
+    addRejectedRoom(rid);
+    if (isPrismaAvailable()) await prismaMarkCallRejectedRoom(rid);
   }
   await clearPendingIncomingForCallee(userId);
   return NextResponse.json({ ok: true });

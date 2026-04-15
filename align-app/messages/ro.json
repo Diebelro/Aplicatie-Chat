@@ -382,9 +382,9 @@
       "enableLocationBtn": "Activează locația",
       "filterHint": "Filtrează după gen, vârstă, distanță, locație, online, nume",
       "sortLabel": "Sortare",
-      "sortDefault": "Implicit",
+      "sortOnline": "Online",
+      "sortRecommended": "Recomandați",
       "sortDistance": "Distanță",
-      "sortTrust": "Trust",
       "maxDistLabel": "Distanță max:",
       "loading": "Se încarcă profilurile...",
       "empty": "Nu există alte profiluri.",
@@ -478,7 +478,11 @@
       "decline": "Respinge",
       "answer": "Atinge pentru a răspunde",
       "answerLoading": "Se deschide…",
-      "fallbackUserName": "Utilizator"
+      "fallbackUserName": "Utilizator",
+      "outgoingRejectedTitle": "Apel respins",
+      "outgoingRejectedBody": "Celălalt utilizator a refuzat explicit apelul. Redirecționare la mesaje…",
+      "outgoingUnreachableTitle": "Nu s-a putut stabili apelul",
+      "outgoingUnreachableBody": "Celălalt nu pare disponibil sau nu a răspuns (aplicație închisă, fără rețea sau apel anulat). Nu înseamnă neapărat că ți-a respins apelul. Redirecționare la mesaje…"
     },
     "feedback": {
       "backToAccount": "← Setări cont",

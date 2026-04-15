@@ -8,7 +8,6 @@ import {
   isUserOnlineVisible,
   getDistanceKmForDisplay,
   getDistanceKm,
-  getTrustScore,
   hasVisited,
   hasBeenVisitedBy,
   hasSentMessageTo,
@@ -41,6 +40,7 @@ import {
 } from "@/lib/repo-prisma";
 import { resolveRequestUserId } from "@/lib/sessionAuth";
 import { parseMaxDistanceKmQuery } from "@/lib/profileSearchConstants";
+import { normalizeProfileSortBy, sortProfileCandidates } from "@/lib/profileSort";
 
 function getClientIp(req: NextRequest): string {
   const xff = req.headers.get("x-forwarded-for");
@@ -153,18 +153,10 @@ export async function GET(request: NextRequest) {
       const premium = me ? await prismaIsPremium(userId) : false;
       const internalAds = getInternalAdsForCountry(me?.country ?? undefined);
 
-      let sorted = [...candidates];
-      const sortBy = request.nextUrl.searchParams.get("sortBy") ?? "";
-      if (sortBy === "distance" && myLoc) {
-        sorted = sorted.sort((a, b) => {
-          const la = a.latitude != null && a.longitude != null ? distanceHaversine(myLoc!.lat, myLoc!.lng, a.latitude, a.longitude) : null;
-          const lb = b.latitude != null && b.longitude != null ? distanceHaversine(myLoc!.lat, myLoc!.lng, b.latitude, b.longitude) : null;
-          if (la == null && lb == null) return 0;
-          if (la == null) return 1;
-          if (lb == null) return -1;
-          return la - lb;
-        });
-      }
+      const sortKey = normalizeProfileSortBy(request.nextUrl.searchParams.get("sortBy"));
+      const sorted = sortProfileCandidates(candidates, sortKey, {
+        myLoc: myLoc ? { lat: myLoc.lat, lng: myLoc.lng } : null,
+      });
 
       let profiles = sorted.map((u) => {
         const hasLocation = u.latitude != null && u.longitude != null;
@@ -235,19 +227,11 @@ export async function GET(request: NextRequest) {
   const dislikedIds = getDislikedUserIds(userId);
   const toFilter = all.filter((u) => !dislikedIds.has(u.id));
   let filtered = filterUsers(toFilter, userId, filters);
-  const sortBy = request.nextUrl.searchParams.get("sortBy") ?? "";
-  if (sortBy === "distance") {
-    filtered = [...filtered].sort((a, b) => {
-      const da = getDistanceKm(userId, a.id);
-      const db = getDistanceKm(userId, b.id);
-      if (da == null && db == null) return 0;
-      if (da == null) return 1;
-      if (db == null) return -1;
-      return da - db;
-    });
-  } else if (sortBy === "trust") {
-    filtered = [...filtered].sort((a, b) => getTrustScore(b) - getTrustScore(a));
-  }
+  const sortKey = normalizeProfileSortBy(request.nextUrl.searchParams.get("sortBy"));
+  filtered = sortProfileCandidates(filtered, sortKey, {
+    myLoc: null,
+    viewerDistanceKm: (u) => getDistanceKm(userId, u.id),
+  });
 
   const me = findUserById(userId);
   const premium = me ? isPremium(me) : false;

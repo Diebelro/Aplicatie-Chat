@@ -8,7 +8,6 @@ import {
   isUserOnlineVisible,
   getDistanceKmForDisplay,
   getDistanceKm,
-  getTrustScore,
   hasVisited,
   hasBeenVisitedBy,
   hasSentMessageTo,
@@ -23,6 +22,7 @@ import {
 } from "@/lib/store";
 import { resolveRequestUserId } from "@/lib/sessionAuth";
 import { parseMaxDistanceKmQuery } from "@/lib/profileSearchConstants";
+import { normalizeProfileSortBy, sortProfileCandidates } from "@/lib/profileSort";
 
 function parseFilters(searchParams: URLSearchParams): {
   gender?: Gender | "";
@@ -75,19 +75,11 @@ export async function GET(request: NextRequest) {
   const notSwiped = all.filter((u) => !hasSwiped(userId, u.id));
   const filters = parseFilters(request.nextUrl.searchParams);
   let filtered = filterUsers(notSwiped, userId, filters);
-  const sortBy = request.nextUrl.searchParams.get("sortBy") ?? "";
-  if (sortBy === "distance") {
-    filtered = [...filtered].sort((a, b) => {
-      const da = getDistanceKm(userId, a.id);
-      const db = getDistanceKm(userId, b.id);
-      if (da == null && db == null) return 0;
-      if (da == null) return 1;
-      if (db == null) return -1;
-      return da - db;
-    });
-  } else if (sortBy === "trust") {
-    filtered = [...filtered].sort((a, b) => getTrustScore(b) - getTrustScore(a));
-  }
+  const sortKey = normalizeProfileSortBy(request.nextUrl.searchParams.get("sortBy"));
+  filtered = sortProfileCandidates(filtered, sortKey, {
+    myLoc: null,
+    viewerDistanceKm: (u) => getDistanceKm(userId, u.id),
+  });
   const me = findUserById(userId);
   const usersWithMeta = filtered.map((u) => {
     const distanceKm = getDistanceKmForDisplay(userId, u.id);

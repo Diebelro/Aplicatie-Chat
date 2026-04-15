@@ -54,7 +54,7 @@ export function SilhouetteAvatar({
   gender,
   name,
   className = "",
-  imgClassName = "w-full h-full object-cover",
+  imgClassName = "w-full h-full object-cover object-center",
   shape = "circle",
   imageSizes,
 }: SilhouetteAvatarProps) {
@@ -68,7 +68,7 @@ export function SilhouetteAvatar({
       imageSizes ?? (shape === "rectangle" ? DEFAULT_SIZES_RECT : DEFAULT_SIZES_CIRCLE);
     return (
       <div className={`relative w-full h-full overflow-hidden ${radiusClass} ${className}`.trim()}>
-        <OptimizedImage src={src} alt="" fill sizes={fillSizes} className="object-cover object-center" />
+        <OptimizedImage src={src} alt="" fill sizes={fillSizes} className={imgClassName} />
       </div>
     );
   }

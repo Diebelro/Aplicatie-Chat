@@ -26,7 +26,7 @@ import {
   Volume2,
   VolumeX,
   Smartphone,
-  Headphones,
+  EarOff,
   AlertCircle,
   ServerCog,
 } from "lucide-react";
@@ -46,6 +46,7 @@ import {
   supportsAudioOutputSelection,
 } from "@/lib/webrtc/audioOutput";
 import { isMobileDevice } from "@/lib/webrtc/mediaConstraints";
+import { useI18n } from "@/lib/i18n/context";
 import {
   attachCursorReceiver,
   attachCursorSender,
@@ -228,9 +229,24 @@ function RemoteVideoStage({
   );
 }
 
-const OUTGOING_POLL_MS = 1000;
+const OUTGOING_POLL_MS = 550;
 /** După conectare, ascundem bara de controale ca să nu stea peste imagine; tap / mișcare mouse reafișează. */
 const CHROME_AUTO_HIDE_MS = 4500;
+
+/** Mod discret: fără căști (se confundă cu difuzor); Volume2 = sunet activ, EarOff = lângă butonul Difuzor fără dublură. */
+function PrivacyQuietIcon({
+  active,
+  showSpeakerToggle,
+  className,
+}: {
+  active: boolean;
+  showSpeakerToggle: boolean;
+  className: string;
+}) {
+  if (active) return <VolumeX className={className} />;
+  if (showSpeakerToggle) return <EarOff className={className} />;
+  return <Volume2 className={className} />;
+}
 
 type CallUIProps = {
   roomId: string;
@@ -249,8 +265,10 @@ export default function CallUI({
   isConference,
   isCaller: isCallerProp,
 }: CallUIProps) {
+  const { tStr } = useI18n();
   const router = useRouter();
-  const [callRejected, setCallRejected] = useState(false);
+  /** Doar apelant: „respins” explicit vs „nu e disponibil / nu răspunde” (fără respingere explicită). */
+  const [outgoingTerminal, setOutgoingTerminal] = useState<null | "rejected" | "unreachable">(null);
   const [elapsedSec, setElapsedSec] = useState(0);
   /** false = celălalt pe tot ecranul, tu în colț; true = invers */
   const [videoLayoutSwapped, setVideoLayoutSwapped] = useState(false);
@@ -465,40 +483,41 @@ export default function CallUI({
     })
       .then((r) => r.json())
       .then((d) => {
-        if (d.status === "rejected") setCallRejected(true);
+        if (d?.status === "ringing") {
+          setOutgoingTerminal(null);
+          return;
+        }
+        if (d?.status === "rejected") setOutgoingTerminal("rejected");
+        else if (d?.status === "unreachable") {
+          setOutgoingTerminal((prev) => (prev === "rejected" ? "rejected" : "unreachable"));
+        }
       })
       .catch(() => {});
   }, [roomId]);
 
   useEffect(() => {
-    if (!isCaller) return;
+    if (!isCaller || status === "connected") return;
     fetchOutgoingStatus();
     const t = setInterval(fetchOutgoingStatus, OUTGOING_POLL_MS);
     return () => clearInterval(t);
-  }, [isCaller, fetchOutgoingStatus]);
+  }, [isCaller, status, fetchOutgoingStatus]);
 
   useEffect(() => {
-    if (!callRejected) return;
+    if (!outgoingTerminal) return;
     const t = setTimeout(() => router.push("/app/messages"), 2500);
     return () => clearTimeout(t);
-  }, [callRejected, router]);
+  }, [outgoingTerminal, router]);
 
   const handleLeave = () => {
     leave();
     clearIncomingRingDismissFilter();
-    void (async () => {
-      try {
-        await fetch("/api/call/end", {
-          method: "POST",
-          headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
-          credentials: "same-origin",
-          body: JSON.stringify({ roomId }),
-        });
-      } catch {
-        /* ignore */
-      }
-      router.push("/app/messages");
-    })();
+    void fetch("/api/call/end", {
+      method: "POST",
+      headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ roomId }),
+    }).catch(() => {});
+    router.push("/app/messages");
   };
 
   const remote = remoteParticipants[0];
@@ -610,14 +629,28 @@ export default function CallUI({
   /** Apel audio: `videoMuted` e mereu true — nu folosi stilul „quiet” acolo. */
   const toolbarQuiet = !isMobileUi && videoMuted && !audioOnly;
 
-  if (callRejected) {
+  if (outgoingTerminal === "rejected") {
     return (
       <RemotePlaybackContext.Provider value={remotePlayback}>
         <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4 px-4 text-center">
-          <p className="text-red-400 font-medium">Apel respins</p>
-          <p className="text-night-500 text-sm">Celălalt utilizator a refuzat apelul. Redirecționare la mesaje…</p>
+          <p className="text-red-400 font-medium">{tStr("pages.callRoom.outgoingRejectedTitle")}</p>
+          <p className="text-night-500 text-sm max-w-md">{tStr("pages.callRoom.outgoingRejectedBody")}</p>
           <Link href="/app/messages" className="text-brand-400 hover:underline mt-2">
-            Înapoi la mesaje
+            {tStr("pages.callRoom.backMessages")}
+          </Link>
+        </div>
+      </RemotePlaybackContext.Provider>
+    );
+  }
+
+  if (outgoingTerminal === "unreachable") {
+    return (
+      <RemotePlaybackContext.Provider value={remotePlayback}>
+        <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4 px-4 text-center">
+          <p className="text-amber-400 font-medium">{tStr("pages.callRoom.outgoingUnreachableTitle")}</p>
+          <p className="text-night-500 text-sm max-w-md">{tStr("pages.callRoom.outgoingUnreachableBody")}</p>
+          <Link href="/app/messages" className="text-brand-400 hover:underline mt-2">
+            {tStr("pages.callRoom.backMessages")}
           </Link>
         </div>
       </RemotePlaybackContext.Provider>
@@ -1063,11 +1096,11 @@ export default function CallUI({
             danger={privacyQuietMode}
             active={!privacyQuietMode}
           >
-            {privacyQuietMode ? (
-              <VolumeX className="h-6 w-6 sm:h-7 sm:w-7" />
-            ) : (
-              <Headphones className="h-6 w-6 sm:h-7 sm:w-7" />
-            )}
+            <PrivacyQuietIcon
+              active={privacyQuietMode}
+              showSpeakerToggle={!!showSpeakerToggle}
+              className="h-6 w-6 sm:h-7 sm:w-7"
+            />
           </CircleBtn>
           <CircleBtn onClick={handleLeave} title="Închide apelul" danger>
             <PhoneOff className="h-6 w-6 sm:h-7 sm:w-7" />
@@ -1202,11 +1235,11 @@ export default function CallUI({
             danger={privacyQuietMode}
             active={!privacyQuietMode}
           >
-            {privacyQuietMode ? (
-              <VolumeX className="h-6 w-6 sm:h-7 sm:w-7" />
-            ) : (
-              <Headphones className="h-6 w-6 sm:h-7 sm:w-7" />
-            )}
+            <PrivacyQuietIcon
+              active={privacyQuietMode}
+              showSpeakerToggle={!!showSpeakerToggle}
+              className="h-6 w-6 sm:h-7 sm:w-7"
+            />
           </CircleBtn>
           <CircleBtn onClick={handleLeave} title="Închide" danger>
             <PhoneOff className="h-6 w-6 sm:h-7 sm:w-7" />
@@ -1352,7 +1385,11 @@ export default function CallUI({
               : "Mod discret: nu auzi pe ceilalți și nu te aud (mic oprit)"
           }
         >
-          {privacyQuietMode ? <VolumeX className="w-5 h-5" /> : <Headphones className="w-5 h-5" />}
+          <PrivacyQuietIcon
+            active={privacyQuietMode}
+            showSpeakerToggle={!!showSpeakerToggle}
+            className="w-5 h-5"
+          />
           {privacyQuietMode ? "Normal" : "Discret"}
         </button>
         <button

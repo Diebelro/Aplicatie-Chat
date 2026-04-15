@@ -6,6 +6,7 @@ import { Heart, X, ChevronRight, MessageCircle, Undo2 } from "lucide-react";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
 import { useSearchFilters, type SearchFilters } from "@/lib/useSearchFilters";
+import { SEARCH_CITY_HINTS } from "@/lib/localeSearchDefaults";
 import { SilhouetteAvatar } from "@/components/SilhouetteAvatar";
 import { AddFriendButton } from "@/components/AddFriendButton";
 import { track } from "@/lib/tracking";
@@ -90,7 +91,7 @@ const LEGEND_KEYS = [
 ] as const;
 
 export default function AppDiscoverPage() {
-  const { tStr } = useI18n();
+  const { tStr, locale } = useI18n();
   const getDistanceDisplay = useCallback(
     (u: UserWithMeta): string => {
       if (u.distanceHidden || u.distanceKm == null) return tStr("pages.matches.distanceHidden");
@@ -126,7 +127,7 @@ export default function AppDiscoverPage() {
     minCardsBeforeAds: number;
   } | null>(null);
   const router = useRouter();
-  const [filters, setFilters] = useSearchFilters();
+  const [filters, setFilters] = useSearchFilters(locale);
   const [debouncedName, setDebouncedName] = useState(filters.name);
   useEffect(() => {
     const t = setTimeout(() => setDebouncedName(filters.name), 600);
@@ -601,11 +602,17 @@ export default function AppDiscoverPage() {
             <label className="block text-xs text-dark-500 mb-1">{tStr("pages.discover.cityLabel")}</label>
             <input
               type="text"
+              list={`search-city-hints-${locale}`}
               placeholder={tStr("pages.discover.cityPlaceholder")}
               value={filters.city}
               onChange={(e) => setFilters((f) => ({ ...f, city: e.target.value }))}
               className="w-36 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 text-sm placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
+            <datalist id={`search-city-hints-${locale}`}>
+              {SEARCH_CITY_HINTS[locale].map((c) => (
+                <option key={c} value={c} />
+              ))}
+            </datalist>
           </div>
         </div>
       </div>
@@ -690,8 +697,9 @@ export default function AppDiscoverPage() {
                     src={current.photos[0]}
                     alt=""
                     fill
-                    sizes="(max-width: 480px) 100vw, 384px"
-                    className="object-cover"
+                    sizes="(max-width: 480px) 100vw, (max-width: 640px) 90vw, 384px"
+                    quality={88}
+                    className="object-cover object-[center_16%]"
                   />
                 ) : null}
                 {!current.photos?.[0] && (

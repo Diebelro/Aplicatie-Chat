@@ -96,6 +96,8 @@ export interface User {
   subscription_current_period_end?: string | null;
   /** Trust score 0–100 pentru filtrare anti-fake (fără blocare țări); calculat din completitudine profil, vârsta contului */
   trust_score?: number | null;
+  /** E-mail verificat (Prisma); lipsă = necunoscut (ex. store in-memory). */
+  email_verified?: boolean;
   /** Rol: USER | ADMIN | SUPERADMIN */
   role?: string;
   /** Cont blocat de admin */
@@ -905,6 +907,33 @@ export function isRoomRejected(roomId: string): boolean {
     return false;
   }
   return true;
+}
+
+/** La un apel nou pe același roomId, șterge starea veche „respins” (altfel apelantul vedea respins imediat). */
+export function clearRejectedRoom(roomId: string): void {
+  rejectedCallRooms.delete(roomId);
+}
+
+/** După accept: apelantul continuă să vadă „în curs” până la WebRTC (nu „indisponibil”). */
+const answeredCallRooms = new Map<string, number>();
+const ANSWERED_CALL_EXPIRE_MS = 30 * 60 * 1000;
+
+export function markAnsweredCallRoom(roomId: string): void {
+  answeredCallRooms.set(roomId, Date.now());
+}
+
+export function isRoomCallAnswered(roomId: string): boolean {
+  const at = answeredCallRooms.get(roomId);
+  if (!at) return false;
+  if (Date.now() - at > ANSWERED_CALL_EXPIRE_MS) {
+    answeredCallRooms.delete(roomId);
+    return false;
+  }
+  return true;
+}
+
+export function clearAnsweredCallRoom(roomId: string): void {
+  answeredCallRooms.delete(roomId);
 }
 
 export function getMissedCalls(userId: string): Array<{ fromId: string; at: string; audioOnly: boolean }> {

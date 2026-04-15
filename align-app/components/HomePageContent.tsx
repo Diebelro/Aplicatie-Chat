@@ -39,7 +39,7 @@ export function HomePageContent() {
             className="group inline-flex items-center min-h-[44px] min-w-[44px] -ml-1 pl-1 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-dark-900"
             aria-label="Diebel"
           >
-            <DiebelWordmark variant="hero" />
+            <DiebelWordmark variant="hero" withMark />
           </Link>
           <nav className="flex items-center gap-4 sm:gap-6">
             <Link href="/login" className="text-sm font-medium text-dark-500 hover:text-zinc-900 transition">

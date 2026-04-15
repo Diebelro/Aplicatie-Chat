@@ -1287,8 +1287,17 @@ export default function ChatPage() {
                       }
                       if (isImageType(m.attachmentContentType)) {
                         return (
-                          <a href={m.attachmentUrl} target="_blank" rel="noopener noreferrer" className="block rounded-lg overflow-hidden max-w-full">
-                            <img src={m.attachmentUrl} alt="" className="max-h-48 w-auto object-contain rounded-lg" />
+                          <a
+                            href={m.attachmentUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block max-w-full overflow-hidden rounded-xl bg-black/10"
+                          >
+                            <img
+                              src={m.attachmentUrl}
+                              alt=""
+                              className="mx-auto max-h-[min(52dvh,22rem)] w-full max-w-full object-contain sm:max-h-[min(48dvh,26rem)]"
+                            />
                           </a>
                         );
                       }
@@ -1299,7 +1308,7 @@ export default function ChatPage() {
                             controls
                             playsInline
                             preload="metadata"
-                            className="max-h-64 w-full max-w-full rounded-lg bg-black/20"
+                            className="max-h-[min(58dvh,28rem)] w-full max-w-full rounded-xl bg-black/30 sm:max-h-[min(52dvh,32rem)]"
                           />
                         );
                       }

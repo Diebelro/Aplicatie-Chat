@@ -222,6 +222,8 @@ export function useWebRtcCall({
   /** Conferință mesh: câte un RTCPeerConnection per participant distant. */
   const peerMapRef = useRef<Map<string, PeerBundle>>(new Map());
   const wsRef = useRef<WebSocket | null>(null);
+  /** După `call-end`, amânăm `cleanupMedia()` ca frame-ul să iasă înainte de `ws.close()` (altfel peer-ul nu primea mereu mesajul). */
+  const leaveFlushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const iceQueueRef = useRef<RTCIceCandidateInit[]>([]);
   const remoteIdRef = useRef<string | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
@@ -387,22 +389,37 @@ export function useWebRtcCall({
   );
 
   const leave = useCallback(() => {
+    if (leaveFlushTimerRef.current != null) {
+      clearTimeout(leaveFlushTimerRef.current);
+      leaveFlushTimerRef.current = null;
+    }
+    const applyLeftState = () => {
+      leaveFlushTimerRef.current = null;
+      cleanupMedia();
+      setState((s) => ({
+        ...s,
+        status: "left",
+        localStream: null,
+        remoteParticipants: [],
+        screenSharing: false,
+        canSwitchCamera: false,
+        permissionHelp: null,
+        cameraSoftFailed: false,
+        waitingForPeerInRoom: false,
+        connectionPhase: null,
+      }));
+    };
     try {
-      wsRef.current?.send(JSON.stringify({ t: "call-end" }));
-    } catch {}
-    cleanupMedia();
-    setState((s) => ({
-      ...s,
-      status: "left",
-      localStream: null,
-      remoteParticipants: [],
-      screenSharing: false,
-      canSwitchCamera: false,
-      permissionHelp: null,
-      cameraSoftFailed: false,
-      waitingForPeerInRoom: false,
-      connectionPhase: null,
-    }));
+      const ws = wsRef.current;
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ t: "call-end" }));
+        leaveFlushTimerRef.current = setTimeout(applyLeftState, 120);
+        return;
+      }
+    } catch {
+      /* ignore */
+    }
+    applyLeftState();
   }, [cleanupMedia]);
 
   const retryPermissions = useCallback(() => {
@@ -1298,10 +1315,28 @@ export function useWebRtcCall({
           endBundle?.pc.close();
           peerMapRef.current.delete(m.from);
           meshRemoteStreamsRef.current.delete(m.from);
-          setState((s) => ({
-            ...s,
-            remoteParticipants: s.remoteParticipants.filter((p) => p.id !== m.from),
-          }));
+          const noRemotesLeft = peerMapRef.current.size === 0;
+          if (noRemotesLeft && !cancelled) {
+            cleanupMedia();
+            setState((s) => ({
+              ...s,
+              status: "left",
+              localStream: null,
+              remoteParticipants: [],
+              screenSharing: false,
+              canSwitchCamera: false,
+              permissionHelp: null,
+              cameraSoftFailed: false,
+              waitingForPeerInRoom: false,
+              connectionPhase: null,
+            }));
+            onAutoEndedRef.current?.();
+          } else if (!cancelled) {
+            setState((s) => ({
+              ...s,
+              remoteParticipants: s.remoteParticipants.filter((p) => p.id !== m.from),
+            }));
+          }
           return;
         }
       };
@@ -2140,6 +2175,10 @@ export function useWebRtcCall({
         }
 
         if (m.t === "call-end") {
+          if (leaveFlushTimerRef.current != null) {
+            clearTimeout(leaveFlushTimerRef.current);
+            leaveFlushTimerRef.current = null;
+          }
           cleanupMedia();
           if (!cancelled) {
             setState((s) => ({
@@ -2245,8 +2284,30 @@ export function useWebRtcCall({
         clearInterval(limitTimer);
         setState((s) => ({ ...s, banner: `Limită apel (${maxMin} min) — apelul se închide.` }));
         try {
-          wsRef.current?.send(JSON.stringify({ t: "call-end" }));
-        } catch {}
+          const w = wsRef.current;
+          if (w && w.readyState === WebSocket.OPEN) {
+            w.send(JSON.stringify({ t: "call-end" }));
+            if (leaveFlushTimerRef.current != null) clearTimeout(leaveFlushTimerRef.current);
+            leaveFlushTimerRef.current = setTimeout(() => {
+              leaveFlushTimerRef.current = null;
+              cleanupMedia();
+              setState((s) => ({
+                ...s,
+                status: "left",
+                localStream: null,
+                remoteParticipants: [],
+                screenSharing: false,
+                cameraSoftFailed: false,
+                waitingForPeerInRoom: false,
+                connectionPhase: null,
+              }));
+              onAutoEndedRef.current?.();
+            }, 120);
+            return;
+          }
+        } catch {
+          /* ignore */
+        }
         cleanupMedia();
         setState((s) => ({
           ...s,
@@ -2265,6 +2326,10 @@ export function useWebRtcCall({
     return () => {
       cancelled = true;
       clearInterval(limitTimer);
+      if (leaveFlushTimerRef.current != null) {
+        clearTimeout(leaveFlushTimerRef.current);
+        leaveFlushTimerRef.current = null;
+      }
       cleanupMedia();
     };
   }, [

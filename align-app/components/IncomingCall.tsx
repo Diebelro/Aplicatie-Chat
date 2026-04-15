@@ -10,7 +10,7 @@ import { startIncomingRingtone, stopIncomingRingtone } from "@/lib/callRingtone"
 import { isBrowserPushPrimaryPath } from "@/lib/browserPushConstants";
 
 /** Filă activă: poll mai des ca „te sună” să apară repede când celălalt sună de pe telefon. */
-const POLL_MS_VISIBLE = 1200;
+const POLL_MS_VISIBLE = 800;
 /** Filă în fundal: mai rare ca să nu omoare bateria; la revenire facem fetch imediat. */
 const POLL_MS_HIDDEN = 5000;
 /**
@@ -178,11 +178,12 @@ export default function IncomingCall() {
       const cur = incomingRef.current;
       if (!cur || cur.roomId !== roomId) return;
       markIncomingCallDismissed(cur.roomId, cur.pendingSince);
-      void fetch("/api/call/reject", {
+      void fetch("/api/call/end", {
         method: "POST",
-        headers: getAuthHeaders(),
+        headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
         credentials: "same-origin",
         keepalive: true,
+        body: JSON.stringify({ roomId: cur.roomId }),
       }).catch(() => {});
       setIncoming(null);
     };

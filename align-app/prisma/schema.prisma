@@ -357,3 +357,9 @@ model RejectedCallRoom {
   roomId    String   @id
   createdAt DateTime @default(now())
 }
+
+/// Apel acceptat (roomId) — până la /end; apelantul nu vede „indisponibil” între accept și conectarea WebRTC.
+model AnsweredCallRoom {
+  roomId    String   @id
+  createdAt DateTime @default(now())
+}

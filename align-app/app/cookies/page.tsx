@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useI18n } from "@/lib/i18n/context";
 import { getCookiesContent } from "@/lib/i18n/legalContent";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-import { Footer } from "@/components/Footer";
 import { DiebelWordmark } from "@/components/DiebelWordmark";
 
 export default function CookiesPage() {
@@ -22,7 +21,7 @@ export default function CookiesPage() {
             className="group inline-flex items-center min-h-[44px] min-w-[44px] -ml-1 pl-1 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-dark-900"
             aria-label="Diebel"
           >
-            <DiebelWordmark variant="header" />
+            <DiebelWordmark variant="header" withMark />
           </Link>
           <LanguageSwitcher openMenuBelow />
         </div>
@@ -52,7 +51,6 @@ export default function CookiesPage() {
           ))}
         </div>
       </main>
-      <Footer />
     </div>
   );
 }

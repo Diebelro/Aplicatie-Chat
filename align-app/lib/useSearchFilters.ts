@@ -1,6 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import type { Locale } from "@/lib/i18n/types";
+import { applyLocaleRegionToFilters } from "@/lib/localeSearchDefaults";
+import { normalizeProfileSortBy } from "@/lib/profileSort";
 
 const STORAGE_KEY = "align_search_filters";
 
@@ -25,7 +28,7 @@ const defaultFilters: SearchFilters = {
   city: "",
   onlineOnly: false,
   name: "",
-  sortBy: "",
+  sortBy: "recommended",
 };
 
 function clampAge(val: number): number {
@@ -55,20 +58,32 @@ function loadFilters(): SearchFilters {
       city: typeof parsed.city === "string" ? parsed.city : defaultFilters.city,
       onlineOnly: typeof parsed.onlineOnly === "boolean" ? parsed.onlineOnly : defaultFilters.onlineOnly,
       name: typeof parsed.name === "string" ? parsed.name : defaultFilters.name,
-      sortBy: typeof parsed.sortBy === "string" ? parsed.sortBy : defaultFilters.sortBy,
+      sortBy:
+        typeof parsed.sortBy === "string" ? normalizeProfileSortBy(parsed.sortBy) : defaultFilters.sortBy,
     };
   } catch {
     return defaultFilters;
   }
 }
 
-export function useSearchFilters(): [SearchFilters, React.Dispatch<React.SetStateAction<SearchFilters>>] {
+export function useSearchFilters(locale: Locale): [SearchFilters, React.Dispatch<React.SetStateAction<SearchFilters>>] {
   const [filters, setFilters] = useState<SearchFilters>(defaultFilters);
+  const persistedLocaleRef = useRef<Locale | null>(null);
 
-  // Încarcă din localStorage la montare (doar pe client)
+  // Prima dată: localStorage + regiune pentru `locale`; apoi: la schimbarea limbii, aliniază țara/orașul dacă erau goale sau preset pe limbă
   useEffect(() => {
-    setFilters(loadFilters());
-  }, []);
+    if (persistedLocaleRef.current === null) {
+      const disk = loadFilters();
+      setFilters(applyLocaleRegionToFilters(disk, locale));
+      persistedLocaleRef.current = locale;
+      return;
+    }
+    if (persistedLocaleRef.current === locale) {
+      return;
+    }
+    persistedLocaleRef.current = locale;
+    setFilters((prev) => applyLocaleRegionToFilters(prev, locale));
+  }, [locale]);
 
   // Salvare la fiecare schimbare
   useEffect(() => {

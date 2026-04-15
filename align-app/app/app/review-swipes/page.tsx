@@ -200,7 +200,8 @@ export default function ReviewSwipesPage() {
                   alt=""
                   fill
                   sizes="(max-width: 480px) 100vw, 384px"
-                  className="object-cover"
+                  quality={88}
+                  className="object-cover object-[center_16%]"
                 />
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center p-8 bg-dark-700">
