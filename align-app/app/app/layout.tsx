@@ -471,7 +471,7 @@ export default function AppLayout({
         </div>
         {/* Mobile dropdown menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden border-t border-dark-600 bg-dark-900 px-4 py-3 flex flex-col gap-1 max-h-[70vh] overflow-y-auto">
+          <div className="md:hidden border-t border-dark-600 bg-dark-900 px-4 py-3 flex flex-col gap-1 max-h-[70vh] overflow-y-auto scrollbar-app">
             <Link href="/app/profile" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-brand-400 hover:bg-dark-700">
               <Users className="w-5 h-5 shrink-0" /> {tStr("appNav.completeProfile")}
             </Link>
@@ -516,7 +516,7 @@ export default function AppLayout({
         className={
           "flex-1 flex flex-col min-h-0 min-w-0 max-w-4xl w-full mx-auto py-4 md:py-6 pb-24 md:pb-6 " +
           "pl-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))] " +
-          (isChatRoute ? "overflow-hidden" : "overflow-y-auto overscroll-y-contain")
+          (isChatRoute ? "overflow-hidden" : "overflow-y-auto overscroll-y-contain scrollbar-app")
         }
       >
         {children}
