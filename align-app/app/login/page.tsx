@@ -9,6 +9,7 @@ import AuthProviders from "@/components/AuthProviders";
 import { getDeviceFingerprint } from "@/lib/deviceFingerprint";
 import { clearLoginEmailDraft, readLoginEmailDraft, writeLoginEmailDraft } from "@/lib/formDrafts";
 import { useI18n } from "@/lib/i18n/context";
+import { DiebelWordmark } from "@/components/DiebelWordmark";
 import { formatTpl } from "@/lib/i18n/formatTpl";
 import { translateApiErrorMessage } from "@/lib/i18n/translateApiError";
 
@@ -286,7 +287,7 @@ function LoginContent() {
       <div className="flex flex-1 flex-col items-center justify-center px-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))] pb-[max(1rem,env(safe-area-inset-bottom,0px))] min-h-0 min-w-0">
         <div className="w-full max-w-[min(100%,24rem)] mx-auto flex flex-col gap-4 sm:gap-5 min-w-0">
           <header className="text-center space-y-2">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-brand-400/90">Align</p>
+            <DiebelWordmark variant="kicker" className="block text-center" />
             <h1 className="text-2xl font-semibold text-zinc-100 tracking-tight">{tStr("pages.login.title")}</h1>
             <p className="text-sm text-dark-300 leading-relaxed">{tStr("pages.login.introHero")}</p>
           </header>

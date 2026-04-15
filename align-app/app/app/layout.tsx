@@ -17,6 +17,7 @@ import { LegalDocLinks } from "@/components/LegalDocLinks";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useI18n } from "@/lib/i18n/context";
 import { performClientLogout } from "@/lib/clientLogout";
+import { DiebelWordmark } from "@/components/DiebelWordmark";
 
 export default function AppLayout({
   children,
@@ -365,8 +366,11 @@ export default function AppLayout({
     <div className="h-dvh min-h-0 bg-dark-900 flex flex-col overflow-hidden">
       <header className="border-b border-dark-600 shrink-0 sticky top-0 z-20 bg-dark-900 safe-area-inset-top">
         <div className="max-w-4xl mx-auto py-3 flex items-center justify-between gap-2 pl-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))]">
-          <Link href="/app" className="text-lg font-bold gradient-text shrink-0">
-            Align
+          <Link
+            href="/app"
+            className="shrink-0 min-w-0 rounded-md outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-brand-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-dark-900"
+          >
+            <DiebelWordmark variant="header" />
           </Link>
           {/* Desktop nav */}
           <nav className="hidden md:flex items-center gap-3 flex-wrap">

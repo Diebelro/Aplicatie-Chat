@@ -540,7 +540,7 @@
       "deletePasswordRequired": "Introdu parola pentru a confirma."
     },
     "login": {
-      "backBrand": "← Align",
+      "backBrand": "← Diebel",
       "title": "Autentificare",
       "intro": "Email și parola contului. Fără cont?",
       "introHero": "Alege cum te conectezi: Google sau telefon (când e disponibil), sau email și parolă mai jos.",
@@ -600,7 +600,7 @@
       "providerYahoo": "Yahoo Mail"
     },
     "signup": {
-      "backBrand": "← Align",
+      "backBrand": "← Diebel",
       "title": "Creează cont",
       "introPrefillTag": "Email precompletat.",
       "introPrefillBody": "Adaugi parola, data nașterii (min. 18 ani) și genul. Nume și oraș mai târziu din „Completează profilul”.",
@@ -662,7 +662,7 @@
       "title": "Cont blocat",
       "subtitle": "Contul tău a fost blocat de la accesarea aplicației.",
       "backLogin": "Înapoi la login",
-      "backBrand": "← Align",
+      "backBrand": "← Diebel",
       "loading": "Se încarcă…",
       "doneTitle": "Cererea ta a fost trimisă.",
       "doneBody": "Un administrator o va citi. Dacă decidem că blocarea a fost o greșeală, îți vom reactiva contul. Nu primi neapărat un email automat — încearcă să te loghezi din nou după ceva timp.",
@@ -680,7 +680,7 @@
       "networkError": "Eroare de rețea."
     },
     "completeProfileRedirect": {
-      "backBrand": "← Align",
+      "backBrand": "← Diebel",
       "loading": "Se încarcă..."
     },
     "onboardingLocation": {
@@ -767,7 +767,7 @@
       "devCopyPrompt": "Copiază manual linkul:",
       "backLoginCta": "Înapoi la Log in",
       "scanTitle": "Recuperează prin scan",
-      "scanIntro": "Deschide aplicația Align pe telefon (sau acest site în browser pe telefon), fii logat, apoi scanează codul de mai jos sau deschide linkul.",
+      "scanIntro": "Deschide aplicația Diebel pe telefon (sau acest site în browser pe telefon), fii logat, apoi scanează codul de mai jos sau deschide linkul.",
       "qrAlt": "QR recuperare parolă",
       "scanOpenPrefix": "Sau deschide pe telefon:",
       "scanWarnTitle": "Chrome pe telefon poate schimba singur http:// în https:// la adrese IP → aceeași eroare „conexiunea nu e privată”, chiar dacă aici linkul e corect.",
@@ -782,7 +782,7 @@
       "emailPlaceholder": "Email",
       "emailSending": "Se trimite...",
       "emailSubmit": "Trimite link de resetare",
-      "backBrand": "← Align"
+      "backBrand": "← Diebel"
     },
     "checkEmail": {
       "title": "Verifică emailul",
@@ -792,10 +792,10 @@
       "goLogin": "Mergi la Log in",
       "backToLoginLead": "Înapoi la",
       "login": "Log in",
-      "backBrand": "← Align"
+      "backBrand": "← Diebel"
     },
     "resetPassword": {
-      "backBrand": "← Align",
+      "backBrand": "← Diebel",
       "checkingLink": "Se verifică linkul…",
       "invalidTitle": "Link invalid sau expirat",
       "invalidBody": "Linkul de resetare nu este valid sau a expirat. Cere un link nou din „Ai uitat parola?”.",
@@ -822,7 +822,7 @@
       "backToLoginLead": "Înapoi la"
     },
     "verifyEmail": {
-      "backBrand": "← Align",
+      "backBrand": "← Diebel",
       "verifiedTitle": "Email verificat",
       "verifiedP1": "Adresa de email a fost confirmată.",
       "verifiedP2": "Poți folosi contul complet.",
@@ -843,7 +843,7 @@
       "errResend": "Nu s-a putut retrimite linkul."
     },
     "resetPasswordViaScan": {
-      "backBrand": "← Align",
+      "backBrand": "← Diebel",
       "invalidTitle": "Sesiune invalidă",
       "invalidBody": "Lipsește sesiunea de recuperare. Încearcă din nou fluxul „Recuperează prin scan”.",
       "goForgot": "Mergi la Ai uitat parola?",

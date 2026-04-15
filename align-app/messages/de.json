@@ -540,7 +540,7 @@
       "deletePasswordRequired": "Gib dein Passwort zur Bestätigung ein."
     },
     "login": {
-      "backBrand": "← Align",
+      "backBrand": "← Diebel",
       "title": "Anmelden",
       "intro": "E-Mail und Passwort für dein Konto. Noch kein Konto?",
       "introHero": "Melde dich mit Google oder Telefon an (wenn verfügbar), oder nutze E-Mail und Passwort unten.",
@@ -600,7 +600,7 @@
       "providerYahoo": "Yahoo Mail"
     },
     "signup": {
-      "backBrand": "← Align",
+      "backBrand": "← Diebel",
       "title": "Konto erstellen",
       "introPrefillTag": "E-Mail vorausgefüllt.",
       "introPrefillBody": "Passwort, Geburtsdatum (mind. 18) und Geschlecht. Name und Stadt später unter „Profil vervollständigen“.",
@@ -662,7 +662,7 @@
       "title": "Konto gesperrt",
       "subtitle": "Dein Konto hat keinen Zugriff auf die App.",
       "backLogin": "Zurück zur Anmeldung",
-      "backBrand": "← Align",
+      "backBrand": "← Diebel",
       "loading": "Wird geladen…",
       "doneTitle": "Deine Anfrage wurde gesendet.",
       "doneBody": "Ein Administrator prüft das. War die Sperre ein Fehler, reaktivieren wir dein Konto. Es gibt ggf. keine automatische E-Mail — später erneut anmelden.",
@@ -680,7 +680,7 @@
       "networkError": "Netzwerkfehler."
     },
     "completeProfileRedirect": {
-      "backBrand": "← Align",
+      "backBrand": "← Diebel",
       "loading": "Wird geladen…"
     },
     "onboardingLocation": {
@@ -767,7 +767,7 @@
       "devCopyPrompt": "Link manuell kopieren:",
       "backLoginCta": "Zurück zur Anmeldung",
       "scanTitle": "Per Scan wiederherstellen",
-      "scanIntro": "Öffne die Align-App auf dem Handy (oder diese Website im Handy-Browser), bleibe angemeldet und scanne dann den Code unten oder öffne den Link.",
+      "scanIntro": "Öffne die Diebel-App auf dem Handy (oder diese Website im Handy-Browser), bleibe angemeldet und scanne dann den Code unten oder öffne den Link.",
       "qrAlt": "QR-Code zur Passwort-Wiederherstellung",
       "scanOpenPrefix": "Oder auf dem Handy öffnen:",
       "scanWarnTitle": "Chrome auf dem Handy kann http:// bei IP-Adressen zu https:// ändern → derselbe Fehler „Verbindung ist nicht privat“, selbst wenn der Link hier stimmt.",
@@ -782,7 +782,7 @@
       "emailPlaceholder": "E-Mail",
       "emailSending": "Wird gesendet...",
       "emailSubmit": "Reset-Link senden",
-      "backBrand": "← Align"
+      "backBrand": "← Diebel"
     },
     "checkEmail": {
       "title": "E-Mail prüfen",
@@ -792,10 +792,10 @@
       "goLogin": "Zur Anmeldung",
       "backToLoginLead": "Zurück zu",
       "login": "Anmelden",
-      "backBrand": "← Align"
+      "backBrand": "← Diebel"
     },
     "resetPassword": {
-      "backBrand": "← Align",
+      "backBrand": "← Diebel",
       "checkingLink": "Link wird geprüft…",
       "invalidTitle": "Ungültiger oder abgelaufener Link",
       "invalidBody": "Der Reset-Link ist ungültig oder abgelaufen. Fordere einen neuen unter „Passwort vergessen?“ an.",
@@ -822,7 +822,7 @@
       "backToLoginLead": "Zurück zu"
     },
     "verifyEmail": {
-      "backBrand": "← Align",
+      "backBrand": "← Diebel",
       "verifiedTitle": "E-Mail verifiziert",
       "verifiedP1": "Deine E-Mail-Adresse wurde bestätigt.",
       "verifiedP2": "Du kannst dein Konto vollständig nutzen.",
@@ -843,7 +843,7 @@
       "errResend": "Link konnte nicht erneut gesendet werden."
     },
     "resetPasswordViaScan": {
-      "backBrand": "← Align",
+      "backBrand": "← Diebel",
       "invalidTitle": "Ungültige Sitzung",
       "invalidBody": "Die Wiederherstellungssitzung fehlt. Starte den Ablauf „Per Scan wiederherstellen“ erneut.",
       "goForgot": "Zu „Passwort vergessen?“",

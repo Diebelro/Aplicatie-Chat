@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n/context";
 import { getStoredUserRaw } from "@/lib/store";
+import { DiebelWordmark } from "@/components/DiebelWordmark";
 
 /** Landing: aceleași secțiuni ca în app/page.tsx, texte din mesaje (ro / en / de). */
 export function HomePageContent() {
@@ -33,7 +34,7 @@ export function HomePageContent() {
     <div className="min-h-screen flex flex-col bg-dark-900 text-zinc-900">
       <header className="border-b border-dark-600 bg-dark-900/95 backdrop-blur-sm sticky top-0 z-10 supports-[backdrop-filter]:bg-dark-900/80">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-          <span className="text-xl font-bold tracking-tight gradient-text">Align</span>
+          <DiebelWordmark variant="hero" />
           <nav className="flex items-center gap-4 sm:gap-6">
             <Link href="/login" className="text-sm font-medium text-dark-500 hover:text-zinc-900 transition">
               {s("home.login")}

@@ -540,7 +540,7 @@
       "deletePasswordRequired": "Enter your password to confirm."
     },
     "login": {
-      "backBrand": "← Align",
+      "backBrand": "← Diebel",
       "title": "Log in",
       "intro": "Email and password for your account. No account?",
       "introHero": "Sign in with Google or phone (when available), or use email and password below.",
@@ -600,7 +600,7 @@
       "providerYahoo": "Yahoo Mail"
     },
     "signup": {
-      "backBrand": "← Align",
+      "backBrand": "← Diebel",
       "title": "Create account",
       "introPrefillTag": "Pre-filled email.",
       "introPrefillBody": "Add password, date of birth (min. 18) and gender. Name and city later in “Complete profile”.",
@@ -662,7 +662,7 @@
       "title": "Account blocked",
       "subtitle": "Your account has been blocked from accessing the app.",
       "backLogin": "Back to log in",
-      "backBrand": "← Align",
+      "backBrand": "← Diebel",
       "loading": "Loading…",
       "doneTitle": "Your request was sent.",
       "doneBody": "An administrator will review it. If we decide the block was a mistake, we’ll reactivate your account. You may not get an automatic email — try logging in again after some time.",
@@ -680,7 +680,7 @@
       "networkError": "Network error."
     },
     "completeProfileRedirect": {
-      "backBrand": "← Align",
+      "backBrand": "← Diebel",
       "loading": "Loading…"
     },
     "onboardingLocation": {
@@ -767,7 +767,7 @@
       "devCopyPrompt": "Copy the link manually:",
       "backLoginCta": "Back to log in",
       "scanTitle": "Recover by scan",
-      "scanIntro": "Open the Align app on your phone (or this site in the phone browser), stay logged in, then scan the code below or open the link.",
+      "scanIntro": "Open the Diebel app on your phone (or this site in the phone browser), stay logged in, then scan the code below or open the link.",
       "qrAlt": "Password recovery QR code",
       "scanOpenPrefix": "Or open on your phone:",
       "scanWarnTitle": "Chrome on your phone may upgrade http:// to https:// for IP addresses → the same “connection is not private” error, even if the link here is correct.",
@@ -782,7 +782,7 @@
       "emailPlaceholder": "Email",
       "emailSending": "Sending...",
       "emailSubmit": "Send reset link",
-      "backBrand": "← Align"
+      "backBrand": "← Diebel"
     },
     "checkEmail": {
       "title": "Check your email",
@@ -792,10 +792,10 @@
       "goLogin": "Go to log in",
       "backToLoginLead": "Back to",
       "login": "Log in",
-      "backBrand": "← Align"
+      "backBrand": "← Diebel"
     },
     "resetPassword": {
-      "backBrand": "← Align",
+      "backBrand": "← Diebel",
       "checkingLink": "Checking link…",
       "invalidTitle": "Invalid or expired link",
       "invalidBody": "The reset link is not valid or has expired. Request a new one from “Forgot password?”.",
@@ -822,7 +822,7 @@
       "backToLoginLead": "Back to"
     },
     "verifyEmail": {
-      "backBrand": "← Align",
+      "backBrand": "← Diebel",
       "verifiedTitle": "Email verified",
       "verifiedP1": "Your email address has been confirmed.",
       "verifiedP2": "You can use your account fully.",
@@ -843,7 +843,7 @@
       "errResend": "Could not resend the link."
     },
     "resetPasswordViaScan": {
-      "backBrand": "← Align",
+      "backBrand": "← Diebel",
       "invalidTitle": "Invalid session",
       "invalidBody": "Recovery session is missing. Try the “Recover by scan” flow again.",
       "goForgot": "Go to Forgot password?",

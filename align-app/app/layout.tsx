@@ -13,7 +13,7 @@ const metadataBaseUrl =
         "https://align-app-delta.vercel.app")
     : siteUrlRaw.replace(/\/$/, "");
 
-const defaultTitle = "Align — Same intent. Real connections.";
+const defaultTitle = "Diebel — Same intent. Real connections.";
 const defaultDescription =
   "Alege intenția ta. Vezi doar oameni care vor același lucru. Fără confuzie, fără timp irosit.";
 
@@ -22,13 +22,13 @@ export const metadata: Metadata = {
   metadataBase: new URL(`${metadataBaseUrl}/`),
   title: {
     default: defaultTitle,
-    template: "%s | Align",
+    template: "%s | Diebel",
   },
   description: defaultDescription,
   openGraph: {
     type: "website",
     locale: "ro_RO",
-    siteName: "Align",
+    siteName: "Diebel",
     title: defaultTitle,
     description: defaultDescription,
   },
@@ -37,7 +37,7 @@ export const metadata: Metadata = {
     title: defaultTitle,
     description: defaultDescription,
   },
-  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Align" },
+  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Diebel" },
 };
 
 export const viewport: Viewport = {

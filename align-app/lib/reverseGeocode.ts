@@ -8,7 +8,7 @@ const NOMINATIM_REVERSE =
 function nominatimUserAgent(): string {
   const fromEnv = process.env.NOMINATIM_USER_AGENT?.trim();
   if (fromEnv) return fromEnv;
-  return "AlignChat/1.0 (contact@diebel.ro)";
+  return "DiebelChat/1.0 (contact@diebel.ro)";
 }
 
 function formatFromNominatimJson(data: unknown): string | null {

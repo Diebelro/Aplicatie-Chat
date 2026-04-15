@@ -6,6 +6,7 @@ import { useI18n } from "@/lib/i18n/context";
 import { getCookiesContent } from "@/lib/i18n/legalContent";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { Footer } from "@/components/Footer";
+import { DiebelWordmark } from "@/components/DiebelWordmark";
 
 export default function CookiesPage() {
   const { locale, t } = useI18n();
@@ -16,8 +17,11 @@ export default function CookiesPage() {
     <div className="min-h-screen flex flex-col bg-dark-900">
       <header className="border-b border-dark-600 sticky top-0 bg-dark-900/95 backdrop-blur z-10">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link href="/" className="text-lg font-bold text-brand-400 hover:text-brand-300">
-            Align
+          <Link
+            href="/"
+            className="rounded-md outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-brand-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-dark-900"
+          >
+            <DiebelWordmark variant="header" />
           </Link>
           <LanguageSwitcher openMenuBelow />
         </div>

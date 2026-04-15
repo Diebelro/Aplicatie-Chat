@@ -160,7 +160,7 @@ export function formatMediaPermissionHelp(err: unknown): { headline: string; lin
     return {
       headline: "Pagina nu e securizată — fără HTTPS nu poate camera",
       lines: [
-        "Pe http:// sau când apare „Not secure”, browserul blochează camera și microfonul. Nu e bug în Align.",
+        "Pe http:// sau când apare „Not secure”, browserul blochează camera și microfonul. Nu e bug în Diebel.",
         "Intră pe același site cu https:// și lacăt în bara de adresă, apoi încearcă din nou apelul video.",
         "Dacă ai o „app” pe ecran: șterge iconița, deschide site-ul în browser pe https, apoi adaugă din nou pe ecran.",
       ],

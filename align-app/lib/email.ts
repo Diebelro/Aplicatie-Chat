@@ -4,14 +4,14 @@
  * Variabile:
  * - RESEND_API_KEY — cheie API (începe cu re_)
  * - RESEND_FROM_EMAIL — expeditor; pentru domeniul tău: verifică diebel.ro în Resend → Domains.
- *   Format recomandat: `Align <contact@diebel.ro>` (adresa efectivă = contact@diebel.ro).
+ *   Format recomandat: `Diebel <contact@diebel.ro>` (adresa efectivă = contact@diebel.ro).
  */
 
 import { Resend } from "resend";
 import { getPublicAppUrl } from "@/lib/appUrl";
 
 /** Adresa From implicită dacă nu setezi RESEND_FROM_EMAIL (domeniul trebuie Verified în Resend). */
-export const RESEND_FROM_DEFAULT = "Align <contact@diebel.ro>";
+export const RESEND_FROM_DEFAULT = "Diebel <contact@diebel.ro>";
 
 function trimKey(key: string | undefined): string {
   return (key ?? "").trim();
@@ -34,7 +34,7 @@ export function isResendConfigured(): boolean {
   return getResendClient() != null;
 }
 
-const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME ?? "Align";
+const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME ?? "Diebel";
 
 export interface SendPasswordResetOptions {
   to: string;

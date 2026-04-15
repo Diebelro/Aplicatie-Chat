@@ -6,13 +6,13 @@ globs: app/page.tsx
 # Prima pagină – NU schimba
 
 Pe **app/page.tsx** (prima pagină / home) rămâne DOAR:
-- header cu Align, Log in, Inregistrare
+- header cu Diebel (wordmark), Log in, Inregistrare
 - main: titlu "Same intent. Real connections.", text scurt, buton "Incepe acum"
 
 **NU adăuga NICIODATĂ pe această pagină:**
 - InLucruReminder / al doilea banner "Site în lucru" (există deja în layout)
 - Secțiune Contact (formular, mailto)
 - Footer propriu / al doilea footer (footer-ul global e în Providers)
-- Card "Beneficii și condiții pentru planul premium" / Align Premium / "Detalii la cerere"
+- Card "Beneficii și condiții pentru planul premium" / Diebel Premium / "Detalii la cerere"
 
 Dacă utilizatorul cere să scoți ceva de pe prima pagină, scoate-l și nu readăuga.
