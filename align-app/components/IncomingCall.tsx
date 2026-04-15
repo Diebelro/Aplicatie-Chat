@@ -44,6 +44,15 @@ export default function IncomingCall() {
   const pollTimerRef = useRef<number | null>(null);
   const incomingRef = useRef<IncomingCallData | null>(null);
   incomingRef.current = incoming;
+  /** Evită „soneria pornește din nou”: poll-ul poate întoarce `null` o clipă apoi același apel — debounce la golire. */
+  const clearIncomingDebounceRef = useRef<number | null>(null);
+
+  const cancelScheduledClearIncoming = useCallback(() => {
+    if (clearIncomingDebounceRef.current != null) {
+      window.clearTimeout(clearIncomingDebounceRef.current);
+      clearIncomingDebounceRef.current = null;
+    }
+  }, []);
 
   const fetchIncoming = useCallback(() => {
     void fetchWithAuthRetry("/api/call/incoming", {
@@ -66,6 +75,7 @@ export default function IncomingCall() {
         if (!d || typeof d !== "object") return;
         const inc = (d as { incoming?: IncomingCallData | null }).incoming as IncomingCallData | null | undefined;
         if (inc?.roomId && shouldIgnorePolledIncoming(inc.roomId, inc.pendingSince)) {
+          cancelScheduledClearIncoming();
           setIncoming(null);
           void fetch("/api/call/end", {
             method: "POST",
@@ -75,14 +85,35 @@ export default function IncomingCall() {
           }).catch(() => {});
           return;
         }
-        if (inc) setIncoming(inc);
-        else setIncoming(null);
+        if (inc) {
+          cancelScheduledClearIncoming();
+          setIncoming((prev) => {
+            if (
+              prev &&
+              prev.roomId === inc.roomId &&
+              prev.pendingSince === inc.pendingSince &&
+              prev.fromId === inc.fromId &&
+              prev.audioOnly === inc.audioOnly &&
+              prev.fromName === inc.fromName
+            ) {
+              return prev;
+            }
+            return inc;
+          });
+          return;
+        }
+        if (clearIncomingDebounceRef.current != null) return;
+        clearIncomingDebounceRef.current = window.setTimeout(() => {
+          clearIncomingDebounceRef.current = null;
+          setIncoming(null);
+        }, 500);
       })
       .catch(() => {});
-  }, []);
+  }, [cancelScheduledClearIncoming]);
 
   useEffect(() => {
     if (onCallPage) {
+      cancelScheduledClearIncoming();
       setIncoming(null);
       if (pollTimerRef.current) {
         clearTimeout(pollTimerRef.current);
@@ -140,12 +171,13 @@ export default function IncomingCall() {
     return () => {
       cancelled = true;
       clearPoll();
+      cancelScheduledClearIncoming();
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("focus", bumpIncoming);
       window.removeEventListener("pageshow", bumpIncoming);
       window.removeEventListener("online", bumpIncoming);
     };
-  }, [fetchIncoming, onCallPage]);
+  }, [fetchIncoming, onCallPage, cancelScheduledClearIncoming]);
 
   useEffect(() => {
     if (onCallPage || !incoming) {
@@ -168,7 +200,7 @@ export default function IncomingCall() {
       stopIncomingRingtone();
       setRingNeedsTap(false);
     };
-  }, [incoming?.roomId, onCallPage]);
+  }, [incoming?.roomId, incoming?.pendingSince, onCallPage]);
 
   /** Back browser cât e overlay „te sună”: respinge pe server ca să nu reapară la următorul back. */
   useEffect(() => {
@@ -177,6 +209,7 @@ export default function IncomingCall() {
     const onPopState = () => {
       const cur = incomingRef.current;
       if (!cur || cur.roomId !== roomId) return;
+      cancelScheduledClearIncoming();
       markIncomingCallDismissed(cur.roomId, cur.pendingSince);
       void fetch("/api/call/end", {
         method: "POST",
@@ -189,7 +222,7 @@ export default function IncomingCall() {
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
-  }, [incoming?.roomId, onCallPage]);
+  }, [incoming?.roomId, onCallPage, cancelScheduledClearIncoming]);
 
   /**
    * Fără reject la unmount: navigarea /app → /admin, /login etc. demonta layout-ul și respingea apelul
@@ -229,6 +262,7 @@ export default function IncomingCall() {
     if (!incoming || loading) return;
     setActionError(null);
     setLoading(true);
+    cancelScheduledClearIncoming();
     markIncomingCallDismissed(incoming.roomId, incoming.pendingSince);
     fetch("/api/call/reject", {
       method: "POST",
