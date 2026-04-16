@@ -1,5 +1,7 @@
 "use client";
 
+// LEGACY / OPTIONAL – NOT PRIMARY CALL PATH (apelurile principale sunt WebRTC în `hooks/useWebRtcCall.ts`).
+
 import { useEffect, useRef, useState, useCallback } from "react";
 
 const JITSI_DOMAIN = typeof process.env.NEXT_PUBLIC_JITSI_DOMAIN === "string" && process.env.NEXT_PUBLIC_JITSI_DOMAIN

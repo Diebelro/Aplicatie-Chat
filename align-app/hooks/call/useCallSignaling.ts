@@ -1,6 +1,7 @@
 "use client";
 
 import { signalingWsConnectUrl } from "@/lib/webrtc/signaling";
+import { pushCallDebug } from "@/hooks/call/callDebugLog";
 
 export type SignalingGetAuthHeaders = () => HeadersInit;
 
@@ -91,6 +92,10 @@ export async function openSignalingWebSocketWithRetry(
       return { ok: false, reason: "cancelled" };
     }
     if (attempt > 0) {
+      pushCallDebug({
+        kind: "signaling_reconnect",
+        detail: { logLabel, attempt },
+      });
       const delay = Math.min(4000, 400 * 2 ** (attempt - 1));
       log("WS reconnect scheduled", { attempt, delayMs: delay });
       await new Promise((r) => setTimeout(r, delay));
@@ -143,6 +148,10 @@ export async function openSignalingWebSocketWithRetry(
       ws = null;
       if (attempt === maxWsAttempts - 1) {
         console.warn(finalConnectErrorMessage);
+        pushCallDebug({
+          kind: "signaling_ws_failed",
+          detail: { logLabel, reason: "ws_exhausted" },
+        });
         return { ok: false, reason: "ws_exhausted" };
       }
     }

@@ -1,5 +1,11 @@
 "use client";
 
+/**
+ * Adapter apel WebRTC: orchestrează `useCallStateMachine`, semnalizarea (`useCallSignaling`), peer helpers
+ * (`useWebRtcPeer`), DataChannel cursor (`useCallDataChannels`). API-ul returnat rămâne compatibil cu
+ * consumatorii existenți (`CallUI`, etc.).
+ */
+
 import { useEffect, useRef, useState, useCallback } from "react";
 import {
   acquireCallMediaStream,
@@ -68,6 +74,7 @@ import {
   rtcOfferOptionsWithRecvFallback,
 } from "@/hooks/call/useWebRtcPeer";
 import { bindP2pCursorDataChannel } from "@/hooks/call/useCallDataChannels";
+import { pushCallDebug } from "@/hooks/call/callDebugLog";
 
 export type RemoteParticipant = {
   id: string;
@@ -115,6 +122,7 @@ export type UseWebRtcCallOptions = {
 };
 
 export type { CallState } from "@/hooks/call/useCallStateMachine";
+export { callDebugLog } from "@/hooks/call/callDebugLog";
 
 /** Heartbeat client — alias la constanta partajată din `useWebRtcPeer`. */
 const HEARTBEAT_MS = CALL_SIGNALING_HEARTBEAT_MS;
@@ -326,6 +334,7 @@ export function useWebRtcCall({
     }
     const applyLeftState = () => {
       leaveFlushTimerRef.current = null;
+      pushCallDebug({ kind: "call_end", detail: { reason: "user_leave" } });
       cleanupMedia();
       setState((s) => ({
         ...s,
@@ -993,6 +1002,23 @@ export function useWebRtcCall({
           (p): p is { remoteUserId: string; shouldOffer: boolean } =>
             typeof p.remoteUserId === "string" && typeof p.shouldOffer === "boolean"
         );
+        if (valid.length > 4) {
+          pushCallDebug({
+            kind: "mesh_limit",
+            detail: { reason: "MESH_LIMIT_EXCEEDED", count: valid.length },
+          });
+          if (!cancelled) {
+            setState((s) => ({
+              ...s,
+              status: "error",
+              error:
+                "Conferința permite maximum 4 participanți (MESH_LIMIT_EXCEEDED). Lasă câțiva să iasă sau începe o cameră nouă.",
+              connectionPhase: null,
+              waitingForPeerInRoom: false,
+            }));
+          }
+          return;
+        }
         const targetIds = new Set(valid.map((p) => p.remoteUserId));
         for (const id of [...peerMapRef.current.keys()]) {
           if (!targetIds.has(id)) {
@@ -1647,6 +1673,7 @@ export function useWebRtcCall({
           if (!pIce) return;
           const ice = pIce.iceConnectionState;
           console.info("[RTC] iceConnectionState", ice);
+          pushCallDebug({ kind: "ice_connection_state", detail: { p2p: true, ice } });
           if (p2pIceStuckHintTimerRef.current != null) {
             clearTimeout(p2pIceStuckHintTimerRef.current);
             p2pIceStuckHintTimerRef.current = null;
@@ -1674,6 +1701,7 @@ export function useWebRtcCall({
           if (!pConn) return;
           const st = pConn.connectionState;
           console.info("[RTC] connectionState", st);
+          pushCallDebug({ kind: "peer_connection_state", detail: { p2p: true, state: st } });
           if (st === "connected") {
             if (disconnectRecoverTimerRef.current) {
               clearTimeout(disconnectRecoverTimerRef.current);
