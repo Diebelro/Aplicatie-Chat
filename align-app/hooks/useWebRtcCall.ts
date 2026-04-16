@@ -56,6 +56,7 @@ import {
   isScreenshareFeatureEnabled,
 } from "@/lib/env/webrtcConfig";
 import { getAuthHeaders } from "@/lib/authClient";
+import { useCallStateMachine } from "@/hooks/call/useCallStateMachine";
 
 /**
  * Opțiuni pentru `createOffer` după `addTrack`: NU folosi `offerToReceive*` dacă trimitem deja
@@ -131,7 +132,7 @@ export type CallConnectionPhase =
   | "peer_joined"
   | "negotiating";
 
-type CallState = {
+type CallRuntimeState = {
   status: "idle" | "connecting" | "connected" | "left" | "error" | "permission_help";
   error: string | null;
   /** Ghid permisiuni microfon/cameră — UI prietenos, fără roșu */
@@ -228,7 +229,7 @@ export function useWebRtcCall({
   /** Reîncercare după refuz permisiuni — rerulează efectul (getUserMedia + semnalizare). */
   const [permissionRetryKey, setPermissionRetryKey] = useState(0);
 
-  const [state, setState] = useState<CallState>({
+  const [state, setState] = useState<CallRuntimeState>({
     status: "idle",
     error: null,
     permissionHelp: null,
@@ -281,6 +282,8 @@ export function useWebRtcCall({
   const [cursorDataChannel, setCursorDataChannel] = useState<RTCDataChannel | null>(null);
 
   onAutoEndedRef.current = onAutoEnded;
+
+  const { callState, syncFromLegacy } = useCallStateMachine();
 
   const clearConnectWatchdog = useCallback(() => {
     if (connectWatchdogRef.current != null) {
@@ -746,6 +749,13 @@ export function useWebRtcCall({
       pc.addIceCandidate(c).catch(() => {});
     }
   }, []);
+
+  useEffect(() => {
+    syncFromLegacy(
+      { status: state.status },
+      { isCaller, isConference }
+    );
+  }, [state.status, isCaller, isConference, syncFromLegacy]);
 
   useEffect(() => {
     if (!roomId || !userId || typeof window === "undefined") return;
@@ -2373,6 +2383,7 @@ export function useWebRtcCall({
 
   return {
     status: state.status,
+    callState,
     error: state.error,
     permissionHelp: state.permissionHelp,
     remoteParticipants: state.remoteParticipants,
