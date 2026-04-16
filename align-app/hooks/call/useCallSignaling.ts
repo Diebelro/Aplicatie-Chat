@@ -2,7 +2,7 @@
 
 import { signalingWsConnectUrl } from "@/lib/webrtc/signaling";
 
-export type SignalingGetAuthHeaders = () => Record<string, string>;
+export type SignalingGetAuthHeaders = () => HeadersInit;
 
 export type SignalingTokenResult =
   | { ok: true; token: string }
@@ -47,6 +47,8 @@ export async function fetchCallSignalingToken(
 
 export type OpenSignalingWebSocketParams = {
   baseUrl: string;
+  /** Token deja obținut de caller (mesaje / erori UI identice cu înainte). */
+  initialToken: string;
   getAuthHeaders: SignalingGetAuthHeaders;
   cancelled: () => boolean;
   maxWsAttempts: number;
@@ -58,14 +60,18 @@ export type OpenSignalingWebSocketParams = {
   onAbortLocalStream?: () => void;
 };
 
+export type SignalingConnectResult =
+  | { ok: true; ws: WebSocket }
+  | { ok: false; reason: "cancelled" | "ws_exhausted" | "token_refresh_failed" };
+
 /**
- * Buclă token + WebSocket — aceeași ordine ca în useWebRtcCall (reconnect cu token proaspăt).
- * Conectat în useWebRtcCall la Checkpoint 3A; până atunci acest modul nu e importat.
+ * Buclă WebSocket + refresh token la reconnect — aceeași ordine ca în useWebRtcCall.
  */
 export async function openSignalingWebSocketWithRetry(
   p: OpenSignalingWebSocketParams
-): Promise<WebSocket | null> {
-  const { baseUrl, getAuthHeaders, cancelled, maxWsAttempts, logLabel, finalConnectErrorMessage } = p;
+): Promise<SignalingConnectResult> {
+  const { baseUrl, initialToken, getAuthHeaders, cancelled, maxWsAttempts, logLabel, finalConnectErrorMessage } =
+    p;
   const onAbort = p.onAbortLocalStream;
   const log = (m: string, extra?: unknown) => {
     const prefix = logLabel === "mesh" ? "[SIGNALING][mesh]" : "[SIGNALING]";
@@ -74,27 +80,24 @@ export async function openSignalingWebSocketWithRetry(
   };
 
   const base = baseUrl.trim();
-  if (!base) return null;
+  if (!base) return { ok: false, reason: "ws_exhausted" };
 
-  let firstTok = await fetchCallSignalingToken(getAuthHeaders, logLabel === "p2p");
-  if (!firstTok.ok) {
-    onAbort?.();
-    return null;
-  }
-  let activeToken = firstTok.token;
+  let activeToken = initialToken;
 
   let ws: WebSocket | null = null;
   for (let attempt = 0; attempt < maxWsAttempts; attempt++) {
     if (cancelled()) {
       onAbort?.();
-      return null;
+      return { ok: false, reason: "cancelled" };
     }
     if (attempt > 0) {
       const delay = Math.min(4000, 400 * 2 ** (attempt - 1));
       log("WS reconnect scheduled", { attempt, delayMs: delay });
       await new Promise((r) => setTimeout(r, delay));
       const tokRes2 = await fetchCallSignalingToken(getAuthHeaders, logLabel === "p2p");
-      if (!tokRes2.ok) break;
+      if (!tokRes2.ok) {
+        return { ok: false, reason: "token_refresh_failed" };
+      }
       activeToken = tokRes2.token;
     }
     const wsUrl = signalingWsConnectUrl(base, activeToken);
@@ -140,9 +143,10 @@ export async function openSignalingWebSocketWithRetry(
       ws = null;
       if (attempt === maxWsAttempts - 1) {
         console.warn(finalConnectErrorMessage);
-        return null;
+        return { ok: false, reason: "ws_exhausted" };
       }
     }
   }
-  return ws;
+  if (ws) return { ok: true, ws };
+  return { ok: false, reason: "token_refresh_failed" };
 }
