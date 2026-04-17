@@ -6,7 +6,11 @@ import Link from "next/link";
 import { Phone, PhoneOff } from "lucide-react";
 import { getAuthHeaders, fetchWithAuthRetry } from "@/lib/authClient";
 import { markIncomingCallDismissed, shouldIgnorePolledIncoming } from "@/lib/callIncomingDismiss";
-import { isIncomingHangupGraced, markIncomingHangupGrace } from "@/lib/callIncomingHangupGrace";
+import {
+  clearIncomingGrace,
+  isIncomingGraced,
+  markIncomingGrace,
+} from "@/lib/callIncomingGrace";
 import { closeIncomingCallPushNotifications } from "@/lib/closeIncomingCallPushNotifications";
 import { startIncomingRingtone, stopIncomingRingtone } from "@/lib/callRingtone";
 import { isBrowserPushPrimaryPath } from "@/lib/browserPushConstants";
@@ -81,9 +85,9 @@ export default function IncomingCall() {
       .then((d) => {
         if (!d || typeof d !== "object") return;
         const inc = (d as { incoming?: IncomingCallData | null }).incoming as IncomingCallData | null | undefined;
-        if (inc?.roomId && shouldIgnorePolledIncoming(inc.roomId, inc.pendingSince)) {
+        /** Part 2.2: grace înainte de UI/sonerie — apoi dismiss explicit (shouldIgnore) cu extindere grace. */
+        if (inc?.roomId && isIncomingGraced(inc.roomId, inc.pendingSince)) {
           cancelScheduledClearIncoming();
-          markIncomingHangupGrace(inc.roomId);
           setIncoming(null);
           void fetch("/api/call/end", {
             method: "POST",
@@ -93,8 +97,9 @@ export default function IncomingCall() {
           }).catch(() => {});
           return;
         }
-        if (inc?.roomId && isIncomingHangupGraced(inc.roomId)) {
+        if (inc?.roomId && shouldIgnorePolledIncoming(inc.roomId, inc.pendingSince)) {
           cancelScheduledClearIncoming();
+          markIncomingGrace(inc.roomId, inc.pendingSince, 12000);
           setIncoming(null);
           void fetch("/api/call/end", {
             method: "POST",
@@ -235,7 +240,7 @@ export default function IncomingCall() {
       if (!cur || cur.roomId !== roomId) return;
       cancelScheduledClearIncoming();
       markIncomingCallDismissed(cur.roomId, cur.pendingSince);
-      markIncomingHangupGrace(cur.roomId);
+      markIncomingGrace(cur.roomId, cur.pendingSince, 12000);
       void fetch("/api/call/end", {
         method: "POST",
         headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
@@ -271,6 +276,7 @@ export default function IncomingCall() {
         }
         if (d.roomId) {
           const q = d.audioOnly ? "?audio=1" : "";
+          clearIncomingGrace(d.roomId);
           /** După accept, serverul curăță pending; marchează local ca să nu reapară overlay la poll între navigări. */
           markIncomingCallDismissed(d.roomId, incoming.pendingSince);
           /** Nu setIncoming(null) înainte de navigare — altfel dispare overlay-ul și se vede o clipă pagina de dedesubt (ex. mesaje). */
@@ -288,8 +294,14 @@ export default function IncomingCall() {
     setActionError(null);
     setLoading(true);
     cancelScheduledClearIncoming();
+    markIncomingGrace(incoming.roomId, incoming.pendingSince, 12000);
     markIncomingCallDismissed(incoming.roomId, incoming.pendingSince);
-    markIncomingHangupGrace(incoming.roomId);
+    void fetch("/api/call/end", {
+      method: "POST",
+      headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ roomId: incoming.roomId }),
+    }).catch(() => {});
     fetch("/api/call/reject", {
       method: "POST",
       headers: getAuthHeaders(),

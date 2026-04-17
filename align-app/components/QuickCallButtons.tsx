@@ -8,7 +8,7 @@ import { getStoredUserRaw } from "@/lib/store";
 import { fetchWithAuthRetry, getAuthHeaders } from "@/lib/authClient";
 import { getVideoRoomId } from "@/lib/videoCall";
 import { markCallEndPosted } from "@/lib/callEndDedup";
-import { markIncomingHangupGrace } from "@/lib/callIncomingHangupGrace";
+import { markIncomingGrace } from "@/lib/callIncomingGrace";
 import type { RingNotifySnapshot } from "@/lib/callRingNotifySnapshot";
 import { RING_PUSH_HINT_SESSION_KEY, formatRingNotifyHint } from "@/lib/callRingNotifySnapshot";
 
@@ -61,7 +61,7 @@ export function QuickCallButtons({ toUserId, size = "md", className = "" }: Quic
 
   const retractRing = (roomId: string) => {
     markCallEndPosted(roomId);
-    markIncomingHangupGrace(roomId);
+    markIncomingGrace(roomId, undefined, 8000);
     void fetch("/api/call/end", {
       method: "POST",
       headers: { ...getAuthHeaders(), "Content-Type": "application/json" },

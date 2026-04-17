@@ -54,8 +54,8 @@ import {
   setCursorEnabled,
 } from "@/lib/webrtc/cursorOverlay";
 import { markCallEndPosted } from "@/lib/callEndDedup";
-import { markIncomingHangupGrace } from "@/lib/callIncomingHangupGrace";
-import { useRemoteVideoRenderable } from "@/hooks/useRemoteVideoRenderable";
+import { markIncomingGrace } from "@/lib/callIncomingGrace";
+import { useVideoRenderable } from "@/hooks/useVideoRenderable";
 
 function p2pConnectingSubtitle(
   phase: CallConnectionPhase | null,
@@ -206,7 +206,7 @@ function RemoteVideoCard({ participant }: { participant: RemoteParticipant }) {
   const ref = useRef<HTMLVideoElement>(null);
   const stream = participant.stream ?? null;
   useRemoteVideoElement(ref, stream);
-  const hasRenderableVideo = useRemoteVideoRenderable(stream);
+  const hasRenderableVideo = useVideoRenderable(ref, stream);
 
   return (
     <div className="relative isolate overflow-hidden rounded-2xl bg-black border border-white/10 aspect-video shadow-xl">
@@ -258,7 +258,7 @@ function RemoteVideoStage({
   const ref = useRef<HTMLVideoElement>(null);
   const stream = participant.stream ?? null;
   useRemoteVideoElement(ref, stream);
-  const hasRenderableVideo = useRemoteVideoRenderable(stream);
+  const hasRenderableVideo = useVideoRenderable(ref, stream);
 
   return (
     <div
@@ -383,7 +383,7 @@ export default function CallUI({
     isConference,
     onAutoEnded: () => {
       markCallEndPosted(roomId);
-      markIncomingHangupGrace(roomId);
+      markIncomingGrace(roomId, undefined, 8000);
       void fetch("/api/call/end", {
         method: "POST",
         headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
@@ -618,7 +618,7 @@ export default function CallUI({
 
   const handleLeave = () => {
     markCallEndPosted(roomId);
-    markIncomingHangupGrace(roomId);
+    markIncomingGrace(roomId, undefined, 8000);
     leave();
     void fetch("/api/call/end", {
       method: "POST",
