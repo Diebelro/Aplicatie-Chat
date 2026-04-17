@@ -38,6 +38,17 @@ function isPrivateOrLocalHostname(hostname: string): boolean {
 }
 
 export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  /** Preview / monitorizare: mereu publice, fără redirect sau alte reguli. */
+  if (
+    pathname === "/api/healthz" ||
+    pathname.startsWith("/api/healthz/") ||
+    pathname === "/api/db-ping" ||
+    pathname.startsWith("/api/db-ping/")
+  ) {
+    return NextResponse.next();
+  }
+
   if (!shouldForceHttpsRedirect()) return NextResponse.next();
   const host = request.headers.get("host") ?? "";
   if (isLocalDevHost(host)) return NextResponse.next();
@@ -53,7 +64,12 @@ export function middleware(request: NextRequest) {
   return NextResponse.next();
 }
 
-/** Fără /api și asset-uri Next — evită efecte colaterale pe cereri API. */
+/**
+ * Exclude explicit rute de health (publice) + static assets.
+ * Nu excludem tot `/api/*` — astfel Preview nu poate „pierde” health printr-un matcher prea larg/greșit.
+ */
 export const config = {
-  matcher: ["/((?!api/|_next/static|_next/image|favicon.ico|manifest.webmanifest|manifest.json|sw.js|robots.txt|sitemap.xml).*)"],
+  matcher: [
+    "/((?!api/healthz(?:/|$)|api/db-ping(?:/|$)|_next/static|_next/image|favicon.ico|manifest.webmanifest|manifest.json|sw.js|robots.txt|sitemap.xml).*)",
+  ],
 };

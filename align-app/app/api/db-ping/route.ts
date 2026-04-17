@@ -1,13 +1,17 @@
 import { NextResponse } from "next/server";
-import { pingDatabase } from "@/lib/productionHealthz";
 
-/** Ping DB minimal pentru monitorizare; fără stack traces în body. */
+/** Ping DB minimal pentru monitorizare; fără stack traces în body. Mereu HTTP 200 pentru Preview/monitori. */
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const r = await pingDatabase();
-  if (r.dbOk) {
-    return NextResponse.json({ dbOk: true, ms: r.ms });
+  try {
+    const { pingDatabase } = await import("@/lib/productionHealthz");
+    const r = await pingDatabase();
+    if (r.dbOk) {
+      return NextResponse.json({ ok: true, dbOk: true, ms: r.ms });
+    }
+    return NextResponse.json({ ok: false, dbOk: false, error: r.error }, { status: 200 });
+  } catch {
+    return NextResponse.json({ ok: false, dbOk: false, error: "DB_PING_FAILED" }, { status: 200 });
   }
-  return NextResponse.json({ dbOk: false, error: r.error }, { status: 503 });
 }
