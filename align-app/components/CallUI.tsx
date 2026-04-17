@@ -54,6 +54,7 @@ import {
   setCursorEnabled,
 } from "@/lib/webrtc/cursorOverlay";
 import { markCallEndPosted } from "@/lib/callEndDedup";
+import { markIncomingHangupGrace } from "@/lib/callIncomingHangupGrace";
 import { useRemoteVideoRenderable } from "@/hooks/useRemoteVideoRenderable";
 
 function p2pConnectingSubtitle(
@@ -382,6 +383,7 @@ export default function CallUI({
     isConference,
     onAutoEnded: () => {
       markCallEndPosted(roomId);
+      markIncomingHangupGrace(roomId);
       void fetch("/api/call/end", {
         method: "POST",
         headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
@@ -616,6 +618,7 @@ export default function CallUI({
 
   const handleLeave = () => {
     markCallEndPosted(roomId);
+    markIncomingHangupGrace(roomId);
     leave();
     void fetch("/api/call/end", {
       method: "POST",

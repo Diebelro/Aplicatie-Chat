@@ -3,17 +3,14 @@
 import { useEffect, useState } from "react";
 
 /**
- * Video „real” = track video live cu frame-uri (receiver WebRTC: `muted` până la primul RTP).
- * Safari/iOS: nu schimbăm playsInline/autoplay aici — rămân pe elementul `<video>` din CallUI.
+ * Overlay: ascunde placeholder când există track video live (inclusiv muted înainte de RTP).
+ * Nu folosim `track.muted` aici — pe receiver mute/unmute poate palpa la pierderi de pachete și
+ * face overlay-ul să licăre. Elementul `<video>` rămâne montat; utilizatorul vede negru scurt
+ * în loc de flicker. Safari/iOS: playsInline pe `<video>` în CallUI, neschimbat.
  */
 function computeHasRenderableVideo(stream: MediaStream | null | undefined): boolean {
   if (!stream) return false;
-  for (const t of stream.getVideoTracks()) {
-    if (t.kind !== "video") continue;
-    if (t.readyState !== "live") continue;
-    if (!t.muted) return true;
-  }
-  return false;
+  return stream.getVideoTracks().some((t) => t.kind === "video" && t.readyState === "live");
 }
 
 export function useRemoteVideoRenderable(stream: MediaStream | null | undefined): boolean {
@@ -25,12 +22,7 @@ export function useRemoteVideoRenderable(stream: MediaStream | null | undefined)
       return;
     }
 
-    type Row = {
-      t: MediaStreamTrack;
-      onEnded: () => void;
-      onMute: () => void;
-      onUnmute: () => void;
-    };
+    type Row = { t: MediaStreamTrack; onEnded: () => void };
     const rows: Row[] = [];
 
     const sync = () => {
@@ -40,12 +32,8 @@ export function useRemoteVideoRenderable(stream: MediaStream | null | undefined)
     const bindVideoTrack = (t: MediaStreamTrack) => {
       if (t.kind !== "video") return;
       const onEnded = () => sync();
-      const onMute = () => sync();
-      const onUnmute = () => sync();
       t.addEventListener("ended", onEnded);
-      t.addEventListener("mute", onMute);
-      t.addEventListener("unmute", onUnmute);
-      rows.push({ t, onEnded, onMute, onUnmute });
+      rows.push({ t, onEnded });
     };
 
     const onStreamAdd = (ev: MediaStreamTrackEvent) => {
@@ -59,8 +47,6 @@ export function useRemoteVideoRenderable(stream: MediaStream | null | undefined)
       if (i !== -1) {
         const r = rows[i]!;
         r.t.removeEventListener("ended", r.onEnded);
-        r.t.removeEventListener("mute", r.onMute);
-        r.t.removeEventListener("unmute", r.onUnmute);
         rows.splice(i, 1);
       }
       sync();
@@ -77,8 +63,6 @@ export function useRemoteVideoRenderable(stream: MediaStream | null | undefined)
       stream.removeEventListener("removetrack", onStreamRemove);
       for (const r of rows) {
         r.t.removeEventListener("ended", r.onEnded);
-        r.t.removeEventListener("mute", r.onMute);
-        r.t.removeEventListener("unmute", r.onUnmute);
       }
     };
   }, [stream]);

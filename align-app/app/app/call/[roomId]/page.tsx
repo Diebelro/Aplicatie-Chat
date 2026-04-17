@@ -13,6 +13,7 @@ import { displayName } from "@/lib/displayName";
 import CallUI from "@/components/CallUI";
 import { useI18n } from "@/lib/i18n/context";
 import { shouldSkipDuplicateCallEnd } from "@/lib/callEndDedup";
+import { markIncomingHangupGrace } from "@/lib/callIncomingHangupGrace";
 import { RING_PUSH_HINT_SESSION_KEY } from "@/lib/callRingNotifySnapshot";
 
 function getStoredUser(): User | null {
@@ -183,6 +184,7 @@ export default function CallPage() {
       window.clearTimeout(tid);
       if (!armed) return;
       if (shouldSkipDuplicateCallEnd(roomId)) return;
+      markIncomingHangupGrace(roomId);
       if (!callSessionStartedRef.current) {
         void fetch("/api/call/end", {
           method: "POST",
@@ -212,6 +214,7 @@ export default function CallPage() {
     const body = JSON.stringify({ roomId });
     const flush = () => {
       if (shouldSkipDuplicateCallEnd(roomId)) return;
+      markIncomingHangupGrace(roomId);
       if (!callSessionStartedRef.current) {
         try {
           void fetch("/api/call/end", {

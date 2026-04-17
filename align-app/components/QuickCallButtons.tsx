@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect, useLayoutEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Video, Phone } from "lucide-react";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
-import { fetchWithAuthRetry } from "@/lib/authClient";
+import { fetchWithAuthRetry, getAuthHeaders } from "@/lib/authClient";
 import { getVideoRoomId } from "@/lib/videoCall";
+import { markCallEndPosted } from "@/lib/callEndDedup";
+import { markIncomingHangupGrace } from "@/lib/callIncomingHangupGrace";
 import type { RingNotifySnapshot } from "@/lib/callRingNotifySnapshot";
 import { RING_PUSH_HINT_SESSION_KEY, formatRingNotifyHint } from "@/lib/callRingNotifySnapshot";
 
@@ -43,9 +45,34 @@ export function QuickCallButtons({ toUserId, size = "md", className = "" }: Quic
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [callHint, setCallHint] = useState<string | null>(null);
+  const liveRef = useRef(true);
+  const ringTargetRef = useRef(toUserId);
+
+  useLayoutEffect(() => {
+    ringTargetRef.current = toUserId;
+  }, [toUserId]);
+
+  useEffect(() => {
+    liveRef.current = true;
+    return () => {
+      liveRef.current = false;
+    };
+  }, []);
+
+  const retractRing = (roomId: string) => {
+    markCallEndPosted(roomId);
+    markIncomingHangupGrace(roomId);
+    void fetch("/api/call/end", {
+      method: "POST",
+      headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ roomId }),
+    }).catch(() => {});
+  };
 
   const start = async (audioOnly: boolean) => {
     if (busy || !toUserId) return;
+    const targetAtStart = toUserId;
     setCallHint(null);
     const myId = await resolveMyIdForCall();
     if (!myId) {
@@ -54,16 +81,22 @@ export function QuickCallButtons({ toUserId, size = "md", className = "" }: Quic
     }
     setBusy(true);
     let keepBusyUntilUnmount = false;
+    const roomIdForRing = getVideoRoomId(myId, targetAtStart);
+    const stillThisTarget = () => liveRef.current && ringTargetRef.current === targetAtStart;
     try {
       const res = await fetchWithAuthRetry("/api/call/ring", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ toId: toUserId, audioOnly }),
+        body: JSON.stringify({ toId: targetAtStart, audioOnly }),
       });
       if (!res.ok) {
         const j = (await res.json().catch(() => ({}))) as { error?: string };
         const msg = typeof j.error === "string" && j.error.trim() ? j.error.trim() : "Nu am putut porni apelul.";
         setCallHint(msg);
+        return;
+      }
+      if (!stillThisTarget()) {
+        retractRing(roomIdForRing);
         return;
       }
       const j = (await res.json().catch(() => ({}))) as { notify?: RingNotifySnapshot };
@@ -75,8 +108,12 @@ export function QuickCallButtons({ toUserId, size = "md", className = "" }: Quic
           /* ignore */
         }
       }
+      if (!stillThisTarget()) {
+        retractRing(roomIdForRing);
+        return;
+      }
       keepBusyUntilUnmount = true;
-      router.push(`/app/call/${getVideoRoomId(myId, toUserId)}${audioOnly ? "?audio=1&from=ring" : "?from=ring"}`);
+      router.push(`/app/call/${roomIdForRing}${audioOnly ? "?audio=1&from=ring" : "?from=ring"}`);
     } catch {
       setCallHint("Eroare rețea. Verifică conexiunea.");
     } finally {

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Phone, PhoneOff } from "lucide-react";
 import { getAuthHeaders, fetchWithAuthRetry } from "@/lib/authClient";
 import { markIncomingCallDismissed, shouldIgnorePolledIncoming } from "@/lib/callIncomingDismiss";
+import { isIncomingHangupGraced, markIncomingHangupGrace } from "@/lib/callIncomingHangupGrace";
 import { closeIncomingCallPushNotifications } from "@/lib/closeIncomingCallPushNotifications";
 import { startIncomingRingtone, stopIncomingRingtone } from "@/lib/callRingtone";
 import { isBrowserPushPrimaryPath } from "@/lib/browserPushConstants";
@@ -81,6 +82,18 @@ export default function IncomingCall() {
         if (!d || typeof d !== "object") return;
         const inc = (d as { incoming?: IncomingCallData | null }).incoming as IncomingCallData | null | undefined;
         if (inc?.roomId && shouldIgnorePolledIncoming(inc.roomId, inc.pendingSince)) {
+          cancelScheduledClearIncoming();
+          markIncomingHangupGrace(inc.roomId);
+          setIncoming(null);
+          void fetch("/api/call/end", {
+            method: "POST",
+            headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+            credentials: "same-origin",
+            body: JSON.stringify({ roomId: inc.roomId }),
+          }).catch(() => {});
+          return;
+        }
+        if (inc?.roomId && isIncomingHangupGraced(inc.roomId)) {
           cancelScheduledClearIncoming();
           setIncoming(null);
           void fetch("/api/call/end", {
@@ -222,6 +235,7 @@ export default function IncomingCall() {
       if (!cur || cur.roomId !== roomId) return;
       cancelScheduledClearIncoming();
       markIncomingCallDismissed(cur.roomId, cur.pendingSince);
+      markIncomingHangupGrace(cur.roomId);
       void fetch("/api/call/end", {
         method: "POST",
         headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
@@ -275,6 +289,7 @@ export default function IncomingCall() {
     setLoading(true);
     cancelScheduledClearIncoming();
     markIncomingCallDismissed(incoming.roomId, incoming.pendingSince);
+    markIncomingHangupGrace(incoming.roomId);
     fetch("/api/call/reject", {
       method: "POST",
       headers: getAuthHeaders(),
