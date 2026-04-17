@@ -349,6 +349,11 @@ export function attachHostileNetworkGuards(input: HostileGuardsInput): () => voi
       clearConnect();
       clearGather();
     }
+    /** Supliment la `iceConnectionState`: unele browsere raportează eșec DTLS mai întâi aici. */
+    if (st === "failed") {
+      clearDtls();
+      void tryRecovery("pc_connection_failed");
+    }
   };
 
   const onOnline = () => {

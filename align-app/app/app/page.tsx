@@ -30,6 +30,7 @@ import {
 import { QuickCallButtons } from "@/components/QuickCallButtons";
 import { useI18n } from "@/lib/i18n/context";
 import { formatTpl } from "@/lib/i18n/formatTpl";
+import { AppProLoading } from "@/components/AppProLoading";
 
 type UserWithMeta = User & {
   online?: boolean;
@@ -445,11 +446,7 @@ export default function AppDiscoverPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <span className="text-dark-500">{tStr("pages.discover.loadingFeed")}</span>
-      </div>
-    );
+    return <AppProLoading label={tStr("pages.discover.loadingFeed")} />;
   }
 
   const hasItems = feedItems.length > 0;
@@ -459,7 +456,7 @@ export default function AppDiscoverPage() {
     <div className="flex flex-col items-center w-full min-w-0 max-w-full">
       {matchModal && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 p-4" onClick={() => setMatchModal(null)}>
-          <div className="bg-dark-800 border border-dark-600 rounded-2xl p-6 max-w-sm w-full shadow-xl text-center" onClick={(e) => e.stopPropagation()}>
+          <div className="app-pro-panel max-w-sm w-full p-6 shadow-2xl text-center border-dark-600/80" onClick={(e) => e.stopPropagation()}>
             <p className="text-lg font-semibold text-zinc-900 mb-1">{tStr("pages.reviewSwipes.matchTitle")}</p>
             <p className="text-dark-300 mb-6">
               {formatTpl(tStr("pages.reviewSwipes.matchBody"), { name: matchModal.name })}
@@ -492,10 +489,10 @@ export default function AppDiscoverPage() {
           </div>
         </div>
       )}
-      <h2 className="text-xl font-semibold mb-4 w-full">{tStr("pages.discover.title")}</h2>
+      <h2 className="app-pro-page-title mb-4 w-full">{tStr("pages.discover.title")}</h2>
 
-      <div className="w-full mb-6 p-4 rounded-xl bg-dark-800 border border-dark-600">
-        <p className="text-sm text-dark-400 mb-3">{tStr("pages.discover.filterHint")}</p>
+      <div className="app-pro-panel w-full mb-6 p-4 sm:p-5">
+        <p className="app-pro-lead mb-3">{tStr("pages.discover.filterHint")}</p>
         <div className="flex flex-wrap gap-3 items-end">
           <div>
             <label className="block text-xs text-dark-500 mb-1">{tStr("pages.discover.nameLabel")}</label>

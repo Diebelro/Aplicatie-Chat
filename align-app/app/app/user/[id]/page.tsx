@@ -18,6 +18,7 @@ import { formatTpl } from "@/lib/i18n/formatTpl";
 import { formatKmDistance } from "@/lib/i18n/formatKmDistance";
 import { translateApiErrorMessage } from "@/lib/i18n/translateApiError";
 import { ProfilePhotoLightbox } from "@/components/ProfilePhotoLightbox";
+import { AppProLoading } from "@/components/AppProLoading";
 
 type FriendStatusApi = "pending_sent" | "pending_received" | "accepted" | "rejected" | null;
 
@@ -95,20 +96,18 @@ export default function PublicUserProfilePage() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center px-4 py-24">
-        <span className="text-dark-500 text-base">{tStr("pages.userPublic.loading")}</span>
-      </div>
-    );
+    return <AppProLoading label={tStr("pages.userPublic.loading")} className="py-24" />;
   }
 
   if (error || !user) {
     return (
-      <div className="py-14 text-center px-5 sm:px-6">
-        <p className="text-dark-500 text-base leading-relaxed mb-5 max-w-md mx-auto">{error || tStr("pages.userPublic.notFound")}</p>
-        <Link href="/app/profiles" className="text-brand-400 hover:underline">
-          {tStr("pages.userPublic.backProfiles")}
-        </Link>
+      <div className="max-w-md mx-auto px-5 sm:px-6 py-14">
+        <div className="app-pro-empty">
+          <p className="app-pro-lead mb-5">{error || tStr("pages.userPublic.notFound")}</p>
+          <Link href="/app/profiles" className="text-brand-400 hover:underline">
+            {tStr("pages.userPublic.backProfiles")}
+          </Link>
+        </div>
       </div>
     );
   }
@@ -141,7 +140,7 @@ export default function PublicUserProfilePage() {
         >
           ←
         </Link>
-        <h1 className="min-w-0 flex-1 truncate text-2xl font-semibold leading-tight tracking-tight text-zinc-900 sm:text-[1.65rem]">
+        <h1 className="app-pro-page-title min-w-0 flex-1 truncate leading-tight sm:text-[1.65rem]">
           {name}
         </h1>
       </div>

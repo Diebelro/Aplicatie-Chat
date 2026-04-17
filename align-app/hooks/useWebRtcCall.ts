@@ -168,7 +168,6 @@ export function useWebRtcCall({
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const statsTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const maxMinutesRef = useRef(30);
-  const disconnectRecoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const p2pHostileDetachRef = useRef<(() => void) | null>(null);
   /** Cap bitrate video trimis: coboară la pierderi mari, urcă treptat când e stabil. */
   const adaptiveVideoBpsRef = useRef(2_500_000);
@@ -214,10 +213,6 @@ export function useWebRtcCall({
       clearTimeout(p2pIceStuckHintTimerRef.current);
       p2pIceStuckHintTimerRef.current = null;
     }
-    if (disconnectRecoverTimerRef.current) {
-      clearTimeout(disconnectRecoverTimerRef.current);
-      disconnectRecoverTimerRef.current = null;
-    }
     if (heartbeatRef.current) {
       clearInterval(heartbeatRef.current);
       heartbeatRef.current = null;
@@ -234,6 +229,7 @@ export function useWebRtcCall({
 
     for (const [, bundle] of peerMapRef.current) {
       try {
+        bundle.deferredRemoteOfferSdp = null;
         bundle.detachHostileGuards?.();
         bundle.pc.getReceivers().forEach((r) => {
           try {
@@ -843,6 +839,7 @@ export function useWebRtcCall({
           const { pc, withNegotiationLock } = bundle;
           await withNegotiationLock(async () => {
             try {
+              if (pc.signalingState !== "stable") return;
               const skipRecv = ensureRecvOnlyVideoIfNoLocalVideo(pc, audioOnly, localStream);
               const offer = await pc.createOffer(
                 rtcOfferOptionsWithRecvFallback(pc, audioOnly, skipRecv)
@@ -916,6 +913,7 @@ export function useWebRtcCall({
           const prev = meshRemoteStreamsRef.current.get(remoteUserId);
           const stream = mergeRemoteTrackIntoMediaStream(prev, ev);
           meshRemoteStreamsRef.current.set(remoteUserId, stream);
+          if (prev === stream && prev != null) return;
           setState((s) => {
             const others = s.remoteParticipants.filter((p) => p.id !== remoteUserId);
             return {
@@ -937,6 +935,25 @@ export function useWebRtcCall({
           if (ev.candidate && ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ t: "ice", candidate: ev.candidate.toJSON(), to: remoteUserId }));
           }
+        };
+
+        /** Perfect negotiation (minimal): renegociere doar în `stable`, serializată — evită offer-collision cu mutex + `resolveOfferGlare` pe inbound. */
+        pc.onnegotiationneeded = () => {
+          void withNegotiationLock(async () => {
+            if (cancelled || ws.readyState !== WebSocket.OPEN) return;
+            if (pc.signalingState !== "stable") return;
+            try {
+              applyCodecPreferencesIfSupported(pc);
+              const skipRecv = ensureRecvOnlyVideoIfNoLocalVideo(pc, audioOnly, localStream);
+              const offer = await pc.createOffer(
+                rtcOfferOptionsWithRecvFallback(pc, audioOnly, skipRecv)
+              );
+              await pc.setLocalDescription(offer);
+              ws.send(JSON.stringify({ t: "offer", sdp: offer.sdp ?? "", to: remoteUserId }));
+            } catch {
+              /* ignore */
+            }
+          });
         };
 
         const detachMesh = attachHostileNetworkGuards({
@@ -981,6 +998,7 @@ export function useWebRtcCall({
         if (shouldOffer) {
           void withNegotiationLock(async () => {
             try {
+              if (pc.signalingState !== "stable") return;
               applyCodecPreferencesIfSupported(pc);
               const skipRecv = ensureRecvOnlyVideoIfNoLocalVideo(pc, audioOnly, localStream);
               const offer = await pc.createOffer(
@@ -1622,6 +1640,7 @@ export function useWebRtcCall({
           if (!p || !w || w.readyState !== WebSocket.OPEN || cancelled || !to) return;
           await withP2pNegotiationLock(async () => {
             try {
+              if (p.signalingState !== "stable") return;
               applyCodecPreferencesIfSupported(p);
               p2pSkipOfferRecvVideo = ensureRecvOnlyVideoIfNoLocalVideo(p, audioOnly, localStream);
               const offer = await p.createOffer(rtcOfferOptionsWithRecvFallback(p, audioOnly, p2pSkipOfferRecvVideo));
@@ -1638,8 +1657,10 @@ export function useWebRtcCall({
           if (cancelled) return;
           applyInboundAudioPlayoutHint(ev.receiver);
           const rid = remoteIdRef.current ?? "remote";
-          const stream = mergeRemoteTrackIntoMediaStream(p2pRemoteStreamRef.current ?? undefined, ev);
+          const prev = p2pRemoteStreamRef.current ?? undefined;
+          const stream = mergeRemoteTrackIntoMediaStream(prev, ev);
           p2pRemoteStreamRef.current = stream;
+          if (prev === stream && prev != null) return;
           setState((s) => ({
             ...s,
             status: "connected",
@@ -1665,6 +1686,25 @@ export function useWebRtcCall({
           } else if (!ev.candidate) {
             console.info("[ICE] local ICE gathering complete (null candidate)");
           }
+        };
+
+        pc.onnegotiationneeded = () => {
+          void withP2pNegotiationLock(async () => {
+            if (cancelled || pcRef.current !== pc) return;
+            const w = wsRef.current;
+            const to = remoteIdRef.current;
+            if (!w || w.readyState !== WebSocket.OPEN || !to) return;
+            if (pc.signalingState !== "stable") return;
+            try {
+              applyCodecPreferencesIfSupported(pc);
+              p2pSkipOfferRecvVideo = ensureRecvOnlyVideoIfNoLocalVideo(pc, audioOnly, localStream);
+              const offer = await pc.createOffer(rtcOfferOptionsWithRecvFallback(pc, audioOnly, p2pSkipOfferRecvVideo));
+              await pc.setLocalDescription(offer);
+              w.send(JSON.stringify({ t: "offer", sdp: offer.sdp ?? "", to }));
+            } catch {
+              /* ignore */
+            }
+          });
         };
 
         pc.oniceconnectionstatechange = () => {
@@ -1703,10 +1743,6 @@ export function useWebRtcCall({
           console.info("[RTC] connectionState", st);
           pushCallDebug({ kind: "peer_connection_state", detail: { p2p: true, state: st } });
           if (st === "connected") {
-            if (disconnectRecoverTimerRef.current) {
-              clearTimeout(disconnectRecoverTimerRef.current);
-              disconnectRecoverTimerRef.current = null;
-            }
             applyPlayoutHintsForAllReceivers(pConn);
             setState((s) => ({ ...s, banner: null, connectionPhase: null }));
             startStatsMonitor();
@@ -1770,6 +1806,7 @@ export function useWebRtcCall({
         if (!to || !p) return;
         await withP2pNegotiationLock(async () => {
           try {
+            if (p.signalingState !== "stable") return;
             applyCodecPreferencesIfSupported(p);
             p2pSkipOfferRecvVideo = ensureRecvOnlyVideoIfNoLocalVideo(p, audioOnly, localStream);
             const offer = await p.createOffer(rtcOfferOptionsWithRecvFallback(p, audioOnly, p2pSkipOfferRecvVideo));

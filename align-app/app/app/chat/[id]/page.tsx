@@ -12,6 +12,7 @@ import { RING_PUSH_HINT_DELAY_MS, formatRingNotifyHint } from "@/lib/callRingNot
 import { track } from "@/lib/tracking";
 import { displayName } from "@/lib/displayName";
 import { getAuthHeaders, fetchWithAuthRetry } from "@/lib/authClient";
+import { markCallEndPosted } from "@/lib/callEndDedup";
 import { messageAttachmentProxyPath, shouldProxyChatAttachment } from "@/lib/chatAttachmentProxy";
 import {
   ALIGN_LOCATION_CONTENT_TYPE,
@@ -28,6 +29,7 @@ import { formatTpl } from "@/lib/i18n/formatTpl";
 import { translateApiErrorMessage } from "@/lib/i18n/translateApiError";
 import type { Locale } from "@/lib/i18n/types";
 import { isAllowedAttachmentType, isVideoContentType } from "@/lib/chatAttachments";
+import { AppProLoading } from "@/components/AppProLoading";
 
 const ALLOWED_ATTACH_ACCEPT =
   "image/jpeg,image/png,image/webp,application/pdf,video/mp4,video/webm,video/quicktime";
@@ -225,8 +227,23 @@ export default function ChatPage() {
   const prevMessageCountRef = useRef(0);
   const chatTextRef = useRef("");
   const chatOtherIdRef = useRef("");
+  /** false când pagina de chat s-a demontat — oprește navigarea spre /app/call după ring. */
+  const chatPageLiveRef = useRef(true);
+  /** Schimbare conversație: anulăm „ring în zbor” pentru vechiul otherId. */
+  const ringSessionOtherIdRef = useRef(otherId);
 
   const { tStr, locale } = useI18n();
+
+  useLayoutEffect(() => {
+    ringSessionOtherIdRef.current = otherId;
+  }, [otherId]);
+
+  useEffect(() => {
+    chatPageLiveRef.current = true;
+    return () => {
+      chatPageLiveRef.current = false;
+    };
+  }, []);
 
   const meRaw = typeof window !== "undefined" ? getStoredUserRaw() : null;
   const me: User | null = meRaw ? (() => { try { return JSON.parse(meRaw); } catch { return null; } })() : null;
@@ -893,6 +910,21 @@ export default function ChatPage() {
   const ringAndGoCall = useCallback(
     async (audioOnly: boolean) => {
       if (!callerId) return;
+      const sessionOtherId = otherId;
+      const roomIdForRing = getVideoRoomId(callerId, sessionOtherId);
+      const stillThisChat = () =>
+        chatPageLiveRef.current && ringSessionOtherIdRef.current === sessionOtherId;
+
+      const retractRingIfAbandoned = () => {
+        markCallEndPosted(roomIdForRing);
+        void fetch("/api/call/end", {
+          method: "POST",
+          headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({ roomId: roomIdForRing }),
+        }).catch(() => {});
+      };
+
       setSendError(null);
       setRingPushHint(null);
       setCalling(audioOnly ? "audio" : "video");
@@ -900,12 +932,16 @@ export default function ChatPage() {
         const res = await fetchWithAuthRetry("/api/call/ring", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ toId: otherId, audioOnly }),
+          body: JSON.stringify({ toId: sessionOtherId, audioOnly }),
         });
         if (!res.ok) {
           const j = (await res.json().catch(() => ({}))) as { error?: string };
           const raw = String(j.error ?? "").trim();
           setSendError(translateApiErrorMessage(raw, tStr) || raw || tStr("pages.chat.errGeneric"));
+          return;
+        }
+        if (!stillThisChat()) {
+          retractRingIfAbandoned();
           return;
         }
         const j = (await res.json().catch(() => ({}))) as { notify?: RingNotifySnapshot };
@@ -914,8 +950,12 @@ export default function ChatPage() {
           setRingPushHint(pushHint);
           await new Promise((r) => setTimeout(r, RING_PUSH_HINT_DELAY_MS));
         }
+        if (!stillThisChat()) {
+          retractRingIfAbandoned();
+          return;
+        }
         const qs = audioOnly ? "?audio=1&from=ring" : "?from=ring";
-        router.push(`/app/call/${getVideoRoomId(callerId, otherId)}${qs}`);
+        router.push(`/app/call/${roomIdForRing}${qs}`);
       } catch {
         setSendError(tStr("pages.chat.fetchErrGeneric"));
       } finally {
@@ -926,17 +966,13 @@ export default function ChatPage() {
   );
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <span className="text-dark-500">{tStr("pages.chat.loading")}</span>
-      </div>
-    );
+    return <AppProLoading label={tStr("pages.chat.loading")} />;
   }
 
   if (!other && !me) {
     return (
-      <div className="py-12 text-center">
-        <p className="text-dark-500 mb-4">{tStr("pages.chat.profileNotFound")}</p>
+      <div className="max-w-md mx-auto app-pro-empty">
+        <p className="app-pro-lead mb-4">{tStr("pages.chat.profileNotFound")}</p>
         <Link href="/app/profiles" className="text-brand-400 hover:underline">
           {tStr("pages.chat.backToProfiles")}
         </Link>

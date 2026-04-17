@@ -12,6 +12,7 @@ import { getAuthHeaders } from "@/lib/authClient";
 import { useI18n } from "@/lib/i18n/context";
 import { formatTpl } from "@/lib/i18n/formatTpl";
 import { intlLocaleTag } from "@/lib/i18n/intlLocale";
+import { AppProLoading } from "@/components/AppProLoading";
 
 type OtherWithMeta = User & { online?: boolean; distanceKm?: number; lastActivityAt?: number };
 
@@ -157,17 +158,13 @@ export default function MessagesPage() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <span className="text-dark-500">{tStr("pages.messages.loading")}</span>
-      </div>
-    );
+    return <AppProLoading label={tStr("pages.messages.loading")} />;
   }
 
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-        <h2 className="text-xl font-semibold">{tStr("pages.messages.title")}</h2>
+        <h2 className="app-pro-page-title">{tStr("pages.messages.title")}</h2>
         <Link
           href="/app/missed-calls"
           className="inline-flex items-center gap-1.5 text-sm text-brand-400 hover:text-brand-300 hover:underline touch-manipulation"
@@ -176,7 +173,7 @@ export default function MessagesPage() {
           {tStr("pages.messages.missedLink")}
         </Link>
       </div>
-      <p className="text-dark-500 text-sm mb-4">
+      <p className="app-pro-lead mb-4">
         {formatTpl(tStr("pages.messages.hint"), {
           video: tStr("pages.messages.video"),
           audio: tStr("pages.messages.audio"),
@@ -191,7 +188,7 @@ export default function MessagesPage() {
           </h3>
           <ul className="flex flex-wrap gap-2">
             {friends.map((f) => (
-              <li key={f.id} className="flex items-stretch gap-0 rounded-xl border border-dark-600 bg-dark-800 hover:border-[#4DA6FF]/50 transition overflow-hidden">
+              <li key={f.id} className="flex items-stretch gap-0 rounded-xl border border-dark-600 bg-dark-800 shadow-sm hover:border-[#4DA6FF]/50 transition overflow-hidden">
                 <Link
                   href={`/app/chat/${f.id}`}
                   className="flex flex-1 items-center gap-2 px-3 py-2 min-w-0 touch-manipulation"
@@ -229,9 +226,9 @@ export default function MessagesPage() {
       )}
 
       {conversations.length === 0 ? (
-        <div className="bg-dark-800 border border-dark-600 rounded-xl p-8 text-center">
-          <p className="text-dark-500">{tStr("pages.messages.noConversations")}</p>
-          <p className="text-dark-500 text-sm mt-2">
+        <div className="app-pro-empty">
+          <p className="text-dark-500 font-medium">{tStr("pages.messages.noConversations")}</p>
+          <p className="app-pro-lead mt-3">
             {tStr("pages.messages.noConversationsHintBefore")}{" "}
             <Link href="/app/profiles" className="text-brand-400 hover:underline">
               {tStr("pages.messages.profilesLink")}
@@ -244,7 +241,7 @@ export default function MessagesPage() {
           </p>
         </div>
       ) : (
-        <ul className="space-y-1">
+        <ul className="space-y-2">
           {conversations.map(({ otherUser, lastMessage, receivedCount, unreadCount, noMessagesYet }) => {
             const isPlatformNotice = !!(lastMessage as Message & { isPlatformNotice?: boolean }).isPlatformNotice;
             const preview = noMessagesYet
@@ -258,7 +255,7 @@ export default function MessagesPage() {
             return (
               <li
                 key={otherUser.id}
-                className="flex items-stretch rounded-xl bg-dark-800 border border-dark-600 hover:border-dark-500 active:bg-dark-700/80 transition overflow-hidden touch-manipulation"
+                className="flex items-stretch rounded-xl bg-dark-800 border border-dark-600 shadow-sm hover:border-dark-500 active:bg-dark-700/80 transition overflow-hidden touch-manipulation"
               >
                 <Link
                   href={`/app/user/${otherUser.id}`}

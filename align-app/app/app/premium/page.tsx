@@ -78,16 +78,16 @@ export default function PremiumPage() {
       <div className="flex items-center gap-3">
         <Crown className="w-8 h-8 text-amber-400" />
         <div>
-          <h1 className="text-2xl font-bold text-zinc-900">{tStr("pages.premium.title")}</h1>
-          <p className="text-dark-400 text-sm">{tStr("pages.premium.subtitle")}</p>
+          <h1 className="app-pro-page-title">{tStr("pages.premium.title")}</h1>
+          <p className="app-pro-lead text-dark-400">{tStr("pages.premium.subtitle")}</p>
         </div>
       </div>
 
       <RewardedPremiumCTA />
 
       <section>
-        <h2 className="text-lg font-semibold text-zinc-900 mb-4">{tStr("pages.premium.sectionPlans")}</h2>
-        <p className="text-dark-400 text-sm mb-4">{tStr("pages.premium.plansIntro")}</p>
+        <h2 className="app-pro-section-title mb-4">{tStr("pages.premium.sectionPlans")}</h2>
+        <p className="app-pro-lead text-dark-400 mb-4">{tStr("pages.premium.plansIntro")}</p>
         <div className="grid gap-4 sm:grid-cols-3">
           {plans.map((plan) => {
             const isCurrent = subscription?.planId === plan.id;
@@ -114,7 +114,7 @@ export default function PremiumPage() {
             return (
               <div
                 key={plan.id}
-                className="rounded-2xl border p-5 flex flex-col border-dark-600 bg-dark-800"
+                className="app-pro-panel p-5 flex flex-col shadow-sm"
               >
                 <h3 className="font-semibold text-zinc-900 mb-1">{displayName}</h3>
                 <p className="text-dark-500 text-sm mb-3">{displayDescription}</p>

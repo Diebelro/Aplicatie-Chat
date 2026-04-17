@@ -182,7 +182,6 @@ export default function CallPage() {
     return () => {
       window.clearTimeout(tid);
       if (!armed) return;
-      clearIncomingRingDismissFilter();
       if (shouldSkipDuplicateCallEnd(roomId)) return;
       if (!callSessionStartedRef.current) {
         void fetch("/api/call/end", {
@@ -212,7 +211,6 @@ export default function CallPage() {
   useEffect(() => {
     const body = JSON.stringify({ roomId });
     const flush = () => {
-      clearIncomingRingDismissFilter();
       if (shouldSkipDuplicateCallEnd(roomId)) return;
       if (!callSessionStartedRef.current) {
         try {

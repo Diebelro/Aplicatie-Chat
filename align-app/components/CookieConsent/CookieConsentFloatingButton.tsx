@@ -22,6 +22,9 @@ export function CookieConsentFloatingButton() {
     setOpen(false);
   }, [pathname]);
 
+  /** Pe ecranul de apel fullscreen, butonul se suprapune peste PiP / controale — ascuns aici (setări rămân din banner / /cookies). */
+  if (pathname?.startsWith("/app/call")) return null;
+
   if (!hasConsented) return null;
 
   const appMobileNavClear =

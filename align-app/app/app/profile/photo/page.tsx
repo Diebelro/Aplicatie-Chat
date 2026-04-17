@@ -6,6 +6,7 @@ import { fetchWithAuthRetry, getAuthHeaders } from "@/lib/authClient";
 import type { User } from "@/lib/store";
 import { ProfilePhotosGallery } from "@/components/profile/ProfilePhotosGallery";
 import { useI18n } from "@/lib/i18n/context";
+import { AppProLoading } from "@/components/AppProLoading";
 import { translateApiErrorMessage } from "@/lib/i18n/translateApiError";
 import { MAX_PHOTOS, resizeImageAsDataUrl } from "@/lib/profilePhotoUtils";
 
@@ -104,17 +105,13 @@ export default function ProfilePhotoPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <span className="text-dark-500">{tStr("pages.profile.loading")}</span>
-      </div>
-    );
+    return <AppProLoading label={tStr("pages.profile.loading")} />;
   }
 
   if (!user) {
     return (
-      <div className="py-12 text-center">
-        <p className="text-dark-500 mb-4">{tStr("pages.profile.notAuth")}</p>
+      <div className="max-w-md mx-auto app-pro-empty">
+        <p className="app-pro-lead mb-4">{tStr("pages.profile.notAuth")}</p>
         <Link href="/login" className="text-brand-400 hover:underline">
           {tStr("pages.profile.login")}
         </Link>
@@ -134,7 +131,7 @@ export default function ProfilePhotoPage() {
       >
         {tStr("pages.profile.photoPage.backLink")}
       </Link>
-      <h1 className="ui-page-title text-2xl mt-4">{tStr("pages.profile.photoPage.title")}</h1>
+      <h1 className="app-pro-page-title mt-4">{tStr("pages.profile.photoPage.title")}</h1>
       <p className="ui-subtitle text-sm mt-2 mb-6">{tStr("pages.profile.photoPage.subtitle")}</p>
 
       <ProfilePhotosGallery

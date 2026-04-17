@@ -11,6 +11,7 @@ import { formatTpl } from "@/lib/i18n/formatTpl";
 import { translateApiErrorMessage } from "@/lib/i18n/translateApiError";
 import { MAX_PHOTOS, resizeImageAsDataUrl } from "@/lib/profilePhotoUtils";
 import { ProfilePhotosGallery } from "@/components/profile/ProfilePhotosGallery";
+import { AppProLoading } from "@/components/AppProLoading";
 
 function getStoredUser(): User | null {
   if (typeof window === "undefined") return null;
@@ -423,17 +424,13 @@ export default function ProfilePage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <span className="text-dark-500">{tStr("pages.profile.loading")}</span>
-      </div>
-    );
+    return <AppProLoading label={tStr("pages.profile.loading")} />;
   }
 
   if (!user) {
     return (
-      <div className="py-12 text-center">
-        <p className="text-dark-500 mb-4">{tStr("pages.profile.notAuth")}</p>
+      <div className="max-w-md mx-auto app-pro-empty">
+        <p className="app-pro-lead mb-4">{tStr("pages.profile.notAuth")}</p>
         <Link href="/login" className="text-brand-400 hover:underline">
           {tStr("pages.profile.login")}
         </Link>
@@ -449,7 +446,7 @@ export default function ProfilePage() {
 
   return (
     <div>
-      <h2 className="ui-page-title text-2xl mt-4">{tStr("pages.profile.title")}</h2>
+      <h2 className="app-pro-page-title mt-4">{tStr("pages.profile.title")}</h2>
 
       {!serverHasUser && (
         <div className="mt-4 p-4 rounded-xl bg-amber-500/10 border border-amber-500/40 text-amber-950 text-sm">

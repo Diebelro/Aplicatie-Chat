@@ -101,7 +101,11 @@
     "legalNavAria": "Documente legale",
     "anonymousUser": "Cineva",
     "ariaChangeProfilePhoto": "Schimbă poza de profil",
-    "ariaMyProfile": "Profilul meu"
+    "ariaMyProfile": "Profilul meu",
+    "mobileSheetTitle": "Opțiuni",
+    "mobileSectionProfile": "Profil",
+    "mobileSectionActivity": "Apeluri și instrumente",
+    "mobileSectionAccount": "Cont și suport"
   },
   "pages": {
     "matches": {

@@ -14,6 +14,7 @@ import {
 } from "@/lib/mapVisibilityConstants";
 import { useI18n } from "@/lib/i18n/context";
 import { formatTpl } from "@/lib/i18n/formatTpl";
+import { AppProLoading } from "@/components/AppProLoading";
 
 const GEO_OPTIONS: PositionOptions = {
   enableHighAccuracy: true,
@@ -279,18 +280,18 @@ export default function MapPage() {
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <h1 className="text-xl font-semibold">{tStr("pages.map.title")}</h1>
+        <h1 className="app-pro-page-title">{tStr("pages.map.title")}</h1>
         <Link href="/app/profiles" className="text-sm text-brand-600 hover:underline">
           {tStr("pages.map.backProfiles")}
         </Link>
       </div>
 
-      <p className="text-sm text-dark-500 mb-4">{mapIntro}</p>
+      <p className="app-pro-lead mb-4">{mapIntro}</p>
       <p className="text-sm text-amber-600/90 border border-amber-700/40 bg-amber-950/20 rounded-xl px-3 py-2 mb-4">
         {tStr("pages.map.batteryNote")}
       </p>
 
-      <div className="mb-4 p-4 rounded-xl bg-dark-800 border border-dark-600 space-y-3">
+      <div className="app-pro-panel mb-4 p-4 sm:p-5 space-y-3">
         <div>
           <label className="block text-xs text-dark-500 mb-1">
             {formatTpl(tStr("pages.map.visibilityMinutes"), { n: durationMin })}
@@ -344,7 +345,7 @@ export default function MapPage() {
       )}
 
       {loading ? (
-        <p className="text-dark-500">{tStr("pages.map.loadingMap")}</p>
+        <AppProLoading label={tStr("pages.map.loadingMap")} className="py-12" />
       ) : data ? (
         <MapView data={data} viewerUserId={viewerUserId} />
       ) : null}

@@ -10,6 +10,7 @@ import { displayName } from "@/lib/displayName";
 import { getAuthHeaders } from "@/lib/authClient";
 import { useI18n } from "@/lib/i18n/context";
 import { formatTpl } from "@/lib/i18n/formatTpl";
+import { AppProLoading } from "@/components/AppProLoading";
 
 type MatchWithMeta = User & { online?: boolean; distanceKm?: number; distanceHidden?: boolean };
 
@@ -35,18 +36,16 @@ export default function MatchesPage() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <span className="text-dark-500">{tStr("appNav.loading")}</span>
-      </div>
-    );
+    return <AppProLoading label={tStr("appNav.loading")} />;
   }
 
   return (
     <div>
-      <h2 className="text-xl font-semibold mb-6">{tStr("pages.matches.title")}</h2>
+      <h2 className="app-pro-page-title mb-6">{tStr("pages.matches.title")}</h2>
       {matches.length === 0 ? (
-        <p className="text-dark-500">{tStr("pages.matches.empty")}</p>
+        <div className="app-pro-empty">
+          <p className="app-pro-lead">{tStr("pages.matches.empty")}</p>
+        </div>
       ) : (
         <ul className="space-y-4">
           {matches.map((u) => {
@@ -54,7 +53,7 @@ export default function MatchesPage() {
             return (
             <li
               key={u.id}
-              className="flex items-stretch rounded-xl bg-dark-800 border border-dark-600 hover:border-dark-500 overflow-hidden touch-manipulation"
+              className="flex items-stretch rounded-xl bg-dark-800 border border-dark-600 shadow-sm hover:border-dark-500 overflow-hidden touch-manipulation"
             >
               <Link
                 href={`/app/user/${u.id}`}

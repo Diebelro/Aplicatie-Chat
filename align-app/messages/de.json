@@ -101,7 +101,11 @@
     "legalNavAria": "Rechtliche Dokumente",
     "anonymousUser": "Jemand",
     "ariaChangeProfilePhoto": "Profilfoto ändern",
-    "ariaMyProfile": "Mein Profil"
+    "ariaMyProfile": "Mein Profil",
+    "mobileSheetTitle": "Weitere Optionen",
+    "mobileSectionProfile": "Profil",
+    "mobileSectionActivity": "Anrufe & Werkzeuge",
+    "mobileSectionAccount": "Konto & Hilfe"
   },
   "pages": {
     "matches": {

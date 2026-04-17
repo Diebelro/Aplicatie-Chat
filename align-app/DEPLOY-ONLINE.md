@@ -44,14 +44,17 @@ git push origin main
    | Variabilă | Obligatoriu pentru apeluri | Notă |
    |-----------|----------------------------|------|
    | `NEXT_PUBLIC_SIGNALING_WS_URL` | Da | Ex. `wss://ws.diebel.ro/ws` (**wss://**, nu `ws://127.0.0.1`) |
-   | `NEXT_PUBLIC_TURN_URLS` | Da | JSON array: `stun` / `turn` / `turns` către serverul TURN (ex. `turn.diebel.ro`) |
-   | `TURN_AUTH_SECRET` | Da | ≥ 16 car.; aliniat cu coturn / `GET /api/call/ice-config` |
-   | `TURN_REALM` | Da | Ex. `turn.diebel.ro` (sau realm-ul coturn) |
+   | `NEXT_PUBLIC_TURN_URLS` | Da | JSON array sau listă virgulă; **cel puțin un** `turn:` / `turns:` (relay) — vezi `GET /api/call/ice-config` |
+   | `TURN_STATIC_SECRET` | Da (ICE) | **Identic** cu `static-auth-secret` din coturn — folosit de `/api/call/ice-config` (HMAC credențiale TURN). **Nu** e același lucru ca `TURN_AUTH_SECRET`. |
+   | `TURN_AUTH_SECRET` | Da (server) | ≥ 16 car.; validare `webrtcConfig` / token semnalizare (vezi `parseTurnAndSignalingSecrets`) |
+   | `TURN_REALM` | Da | Ex. `turn.diebel.ro` (sau `realm=` coturn) |
    | `SIGNALING_TOKEN_SECRET` | Da* | ≥ 16 car.; **identic** pe Vercel și pe VPS-ul unde rulează `call-signaling-server.mjs` (sau folosește același `NEXTAUTH_SECRET` ≥ 16) |
 
    \*Dacă `NEXTAUTH_SECRET` are deja ≥ 16 car., poți omite `SIGNALING_TOKEN_SECRET` doar dacă serverul de semnalizare e configurat să accepte același secret (vezi `docs/calls.md`).
 
 6. **Deploy**.
+
+**Checklist rapid (local, fără a afișa secrete):** din `align-app`, după ce ai copiat valorile din Vercel în `.env.local` (sau export în shell), rulează `npm run check:online-env` — trebuie mesajul `OK: online env checklist passed`. Pentru doar TURN/ICE: `npm run check:turn-env`.
 
 La build, Vercel rulează **`prisma generate && next build`** (vezi `vercel.json`).  
 **Migrările SQL** nu rulează automat în build (evită erori când DB e indisponibilă sau IP blocat). Le aplici **tu** când aduci cod nou cu migrări — folosește **`prisma migrate deploy`** (nu `db push` pe producție):

@@ -21,6 +21,8 @@
     "verify:production": "node scripts/verify-production.mjs",
     "verify:webrtc": "node scripts/verify-webrtc-production.mjs",
     "verify:webrtc:final": "node scripts/verify-webrtc-final.mjs",
+    "check:turn-env": "node scripts/check-turn-env.mjs",
+    "check:online-env": "node scripts/check-online-env.mjs",
     "verify:calls": "node scripts/verify-call-infra-remote.mjs",
     "verify:hetzner-remote": "node scripts/hetzner-remote-smoke.mjs",
     "postinstall": "prisma generate",

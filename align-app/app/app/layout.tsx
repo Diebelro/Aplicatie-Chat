@@ -1,9 +1,26 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { Menu, X, Compass, MessageCircle, Heart, MapPin, Video, Users, CreditCard, Settings, LogOut, History, Shield, Lightbulb } from "lucide-react";
+import {
+  Menu,
+  X,
+  Compass,
+  MessageCircle,
+  Heart,
+  MapPin,
+  Video,
+  Users,
+  CreditCard,
+  Settings,
+  LogOut,
+  History,
+  Shield,
+  Lightbulb,
+  PhoneMissed,
+  Loader2,
+} from "lucide-react";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
 import { getAuthHeaders } from "@/lib/authClient";
@@ -346,14 +363,39 @@ export default function AppLayout({
     };
   }, [user?.id, tStr]);
 
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [mobileMenuOpen]);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMobileMenuOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [mobileMenuOpen]);
+
   const logout = () => {
     void performClientLogout();
   };
 
   if (loading || !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-dark-900">
-        <div className="text-dark-500">{tStr("appNav.loading")}</div>
+      <div className="min-h-dvh flex flex-col items-center justify-center gap-4 bg-dark-900 px-6 antialiased">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-dark-600/80 bg-dark-800/80 shadow-lg shadow-black/10">
+          <Loader2 className="h-7 w-7 animate-spin text-brand-500" aria-hidden />
+        </div>
+        <p className="text-sm font-medium text-dark-500 tracking-tight">{tStr("appNav.loading")}</p>
       </div>
     );
   }
@@ -361,11 +403,21 @@ export default function AppLayout({
   const isAdmin = user.role === "ADMIN" || user.role === "SUPERADMIN";
 
   const isChatRoute = pathname?.startsWith("/app/chat/") ?? false;
+  const path = pathname ?? "";
+  const navDiscoverActive = path === "/app" || path.startsWith("/app/profiles");
+  const navMessagesActive = path.startsWith("/app/messages");
+  const navMatchesActive = path.startsWith("/app/matches");
+
+  const mobileTabBase =
+    "flex flex-col items-center justify-center gap-0.5 min-h-[56px] min-w-[64px] py-2 px-3 rounded-2xl transition-all duration-200 touch-manipulation active:scale-[0.97]";
+  const mobileTabInactive = "text-dark-400 hover:text-dark-900 hover:bg-dark-800/70";
+  const mobileTabActive =
+    "text-brand-600 font-semibold bg-brand-500/12 ring-1 ring-brand-500/25 shadow-sm shadow-brand-500/10";
 
   return (
-    <div className="h-dvh min-h-0 bg-dark-900 flex flex-col overflow-hidden">
-      <header className="border-b border-dark-600 shrink-0 sticky top-0 z-20 bg-dark-900 safe-area-inset-top">
-        <div className="max-w-4xl mx-auto py-3 flex items-center justify-between gap-2 pl-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))]">
+    <div className="h-dvh min-h-0 bg-dark-900 flex flex-col overflow-hidden antialiased text-dark-900">
+      <header className="border-b border-dark-600/80 shrink-0 sticky top-0 z-20 safe-area-inset-top bg-dark-900/92 shadow-[0_1px_0_rgba(0,0,0,0.04)] backdrop-blur-md supports-[backdrop-filter]:bg-dark-900/88">
+        <div className="max-w-4xl mx-auto py-3 md:py-3.5 flex items-center justify-between gap-2 pl-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))]">
           <Link
             href="/app"
             className="group shrink-0 min-w-0 inline-flex items-center min-h-[44px] -ml-1 pl-1 pr-2 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-dark-900"
@@ -479,57 +531,17 @@ export default function AppLayout({
               onClick={() => setMobileMenuOpen((o) => !o)}
               className="p-2 rounded-lg text-dark-400 hover:text-zinc-900 hover:bg-dark-700 transition"
               aria-label={mobileMenuOpen ? tStr("appNav.menuClose") : tStr("appNav.menuOpen")}
+              aria-expanded={mobileMenuOpen}
+              aria-controls="app-mobile-drawer"
             >
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
           </div>
         </div>
-        {/* Mobile dropdown menu */}
-        {mobileMenuOpen && (
-          <div className="md:hidden border-t border-dark-600 bg-dark-900 px-4 py-3 flex flex-col gap-1 max-h-[70vh] overflow-y-auto scrollbar-app">
-            <Link href="/app/profile" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-brand-400 hover:bg-dark-700">
-              <Users className="w-5 h-5 shrink-0" /> {tStr("appNav.completeProfile")}
-            </Link>
-            <Link href="/app/profiles" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-dark-300 hover:bg-dark-700">
-              {tStr("appNav.allProfiles")}
-            </Link>
-            {missedCallsCount > 0 && (
-              <Link href="/app/missed-calls" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-amber-400 hover:bg-dark-700">
-                {tStr("appNav.missedCalls")} ({missedCallsCount > 99 ? "99+" : missedCallsCount})
-              </Link>
-            )}
-            <Link href="/app/call/start" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-dark-300 hover:bg-dark-700">
-              <Video className="w-5 h-5 shrink-0" /> {tStr("appNav.conference")}
-            </Link>
-            <Link href="/app/review-swipes" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-amber-400 hover:bg-dark-700">
-              <History className="w-5 h-5 shrink-0" /> {tStr("appNav.reviewSwipes")}
-            </Link>
-            <Link href="/app/map" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-dark-300 hover:bg-dark-700">
-              <MapPin className="w-5 h-5 shrink-0" /> {tStr("appNav.map")}
-            </Link>
-            <Link href="/app/premium" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-amber-400 hover:bg-dark-700">
-              <CreditCard className="w-5 h-5 shrink-0" /> {tStr("appNav.premium")}
-            </Link>
-            {isAdmin && (
-              <Link href="/admin" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-red-300 hover:bg-dark-700">
-                <Shield className="w-5 h-5 shrink-0" /> {tStr("appNav.admin")}
-              </Link>
-            )}
-            <Link href="/app/settings/feedback" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-dark-300 hover:bg-dark-700">
-              <Lightbulb className="w-5 h-5 shrink-0" /> {tStr("appNav.suggestionsFeedback")}
-            </Link>
-            <Link href="/app/settings/account" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-dark-300 hover:bg-dark-700">
-              <Settings className="w-5 h-5 shrink-0" /> {tStr("appNav.accountSettings")}
-            </Link>
-            <button type="button" onClick={() => { logout(); setMobileMenuOpen(false); }} className="flex items-center gap-3 py-2.5 px-3 rounded-lg text-red-400 hover:bg-dark-700 text-left w-full">
-              <LogOut className="w-5 h-5 shrink-0" /> {tStr("appNav.logout")}
-            </button>
-          </div>
-        )}
       </header>
       <main
         className={
-          "flex-1 flex flex-col min-h-0 min-w-0 max-w-4xl w-full mx-auto py-4 md:py-6 pb-24 md:pb-6 " +
+          "flex-1 flex flex-col min-h-0 min-w-0 max-w-4xl w-full mx-auto py-4 md:py-7 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:pb-7 " +
           "pl-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))] " +
           (isChatRoute ? "overflow-hidden" : "overflow-y-auto overscroll-y-contain scrollbar-app")
         }
@@ -555,24 +567,27 @@ export default function AppLayout({
       </main>
       {/* Bottom nav: doar pe mobile */}
       <nav
-        className="md:hidden fixed bottom-0 left-0 right-0 z-30 flex items-center justify-around touch-manipulation border-t border-dark-600/90 bg-dark-900 shadow-[0_-10px_28px_-6px_rgba(0,0,0,0.55)] safe-area-inset-bottom"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-30 flex items-center justify-around border-t border-dark-600/60 bg-dark-900/95 backdrop-blur-xl shadow-[0_-8px_32px_-8px_rgba(0,0,0,0.18)] safe-area-inset-bottom"
         style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom, 0px))", paddingTop: "0.5rem" }}
+        aria-label="Navigare principală"
       >
         <Link
           href="/app"
-          className="flex flex-col items-center justify-center gap-0.5 min-h-[56px] min-w-[64px] py-2 px-3 rounded-lg transition text-dark-400 hover:text-zinc-900 active:bg-dark-800"
+          className={`${mobileTabBase} ${navDiscoverActive ? mobileTabActive : mobileTabInactive}`}
           title={tStr("appNav.discover")}
+          aria-current={navDiscoverActive ? "page" : undefined}
         >
-          <Compass className="w-6 h-6 shrink-0" />
-          <span className="text-xs">{tStr("appNav.discover")}</span>
+          <Compass className={`w-6 h-6 shrink-0 ${navDiscoverActive ? "drop-shadow-sm" : ""}`} />
+          <span className="text-[11px] leading-tight">{tStr("appNav.discover")}</span>
         </Link>
         <Link
           href="/app/messages"
-          className="flex flex-col items-center justify-center gap-0.5 min-h-[56px] min-w-[64px] py-2 px-3 rounded-lg transition text-dark-400 hover:text-zinc-900 active:bg-dark-800 relative"
+          className={`${mobileTabBase} relative ${navMessagesActive ? mobileTabActive : mobileTabInactive}`}
           title={tStr("appNav.messages")}
+          aria-current={navMessagesActive ? "page" : undefined}
         >
-          <MessageCircle className="w-6 h-6 shrink-0" />
-          <span className="text-xs">{tStr("appNav.messages")}</span>
+          <MessageCircle className={`w-6 h-6 shrink-0 ${navMessagesActive ? "drop-shadow-sm" : ""}`} />
+          <span className="text-[11px] leading-tight">{tStr("appNav.messages")}</span>
           {totalUnread > 0 && (
             <span
               className={
@@ -588,13 +603,144 @@ export default function AppLayout({
         </Link>
         <Link
           href="/app/matches"
-          className="flex flex-col items-center justify-center gap-0.5 min-h-[56px] min-w-[64px] py-2 px-3 rounded-lg transition text-dark-400 hover:text-zinc-900 active:bg-dark-800"
+          className={`${mobileTabBase} ${navMatchesActive ? mobileTabActive : mobileTabInactive}`}
           title={tStr("appNav.matches")}
+          aria-current={navMatchesActive ? "page" : undefined}
         >
-          <Heart className="w-6 h-6 shrink-0" />
-          <span className="text-xs">{tStr("appNav.matches")}</span>
+          <Heart className={`w-6 h-6 shrink-0 ${navMatchesActive ? "drop-shadow-sm" : ""}`} />
+          <span className="text-[11px] leading-tight">{tStr("appNav.matches")}</span>
         </Link>
       </nav>
+      {mobileMenuOpen && (
+        <div className="md:hidden fixed inset-0 z-[60] flex justify-end" role="presentation">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/50 backdrop-blur-[1px]"
+            aria-label={tStr("appNav.menuClose")}
+            onClick={() => setMobileMenuOpen(false)}
+          />
+          <aside
+            id="app-mobile-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-label={tStr("appNav.mobileSheetTitle")}
+            className="relative flex h-full w-[min(19.5rem,calc(100vw-2.5rem))] max-w-[100vw] flex-col border-l border-dark-600/90 bg-dark-950/98 shadow-[-12px_0_40px_rgba(0,0,0,0.45)] backdrop-blur-md"
+          >
+            <div className="flex shrink-0 items-center justify-between gap-2 border-b border-dark-600/80 px-3 py-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
+              <p className="truncate text-sm font-semibold tracking-tight text-dark-900">
+                {tStr("appNav.mobileSheetTitle")}
+              </p>
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-dark-500 transition hover:bg-dark-700 hover:text-dark-900"
+                aria-label={tStr("appNav.menuClose")}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <nav
+              className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-2 pb-[max(1rem,env(safe-area-inset-bottom))] pt-1 scrollbar-app"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <MobileMenuSection title={tStr("appNav.mobileSectionProfile")}>
+                <MobileNavRow
+                  href="/app/profile"
+                  onNavigate={() => setMobileMenuOpen(false)}
+                  tone="brand"
+                  icon={<Users className="h-5 w-5" aria-hidden />}
+                >
+                  {tStr("appNav.completeProfile")}
+                </MobileNavRow>
+                <MobileNavRow
+                  href="/app/profiles"
+                  onNavigate={() => setMobileMenuOpen(false)}
+                  icon={<Compass className="h-5 w-5" aria-hidden />}
+                >
+                  {tStr("appNav.allProfiles")}
+                </MobileNavRow>
+              </MobileMenuSection>
+              <MobileMenuSection title={tStr("appNav.mobileSectionActivity")}>
+                {missedCallsCount > 0 && (
+                  <MobileNavRow
+                    href="/app/missed-calls"
+                    onNavigate={() => setMobileMenuOpen(false)}
+                    tone="amber"
+                    icon={<PhoneMissed className="h-5 w-5" aria-hidden />}
+                  >
+                    {tStr("appNav.missedCalls")} ({missedCallsCount > 99 ? "99+" : missedCallsCount})
+                  </MobileNavRow>
+                )}
+                <MobileNavRow
+                  href="/app/call/start"
+                  onNavigate={() => setMobileMenuOpen(false)}
+                  icon={<Video className="h-5 w-5" aria-hidden />}
+                >
+                  {tStr("appNav.conference")}
+                </MobileNavRow>
+                <MobileNavRow
+                  href="/app/review-swipes"
+                  onNavigate={() => setMobileMenuOpen(false)}
+                  tone="amber"
+                  icon={<History className="h-5 w-5" aria-hidden />}
+                >
+                  {tStr("appNav.reviewSwipes")}
+                </MobileNavRow>
+                <MobileNavRow
+                  href="/app/map"
+                  onNavigate={() => setMobileMenuOpen(false)}
+                  icon={<MapPin className="h-5 w-5" aria-hidden />}
+                >
+                  {tStr("appNav.map")}
+                </MobileNavRow>
+                <MobileNavRow
+                  href="/app/premium"
+                  onNavigate={() => setMobileMenuOpen(false)}
+                  tone="amber"
+                  icon={<CreditCard className="h-5 w-5" aria-hidden />}
+                >
+                  {tStr("appNav.premium")}
+                </MobileNavRow>
+                {isAdmin && (
+                  <MobileNavRow
+                    href="/admin"
+                    onNavigate={() => setMobileMenuOpen(false)}
+                    tone="danger"
+                    icon={<Shield className="h-5 w-5" aria-hidden />}
+                  >
+                    {tStr("appNav.admin")}
+                  </MobileNavRow>
+                )}
+              </MobileMenuSection>
+              <MobileMenuSection title={tStr("appNav.mobileSectionAccount")}>
+                <MobileNavRow
+                  href="/app/settings/feedback"
+                  onNavigate={() => setMobileMenuOpen(false)}
+                  icon={<Lightbulb className="h-5 w-5" aria-hidden />}
+                >
+                  {tStr("appNav.suggestionsFeedback")}
+                </MobileNavRow>
+                <MobileNavRow
+                  href="/app/settings/account"
+                  onNavigate={() => setMobileMenuOpen(false)}
+                  icon={<Settings className="h-5 w-5" aria-hidden />}
+                >
+                  {tStr("appNav.accountSettings")}
+                </MobileNavRow>
+                <MobileNavButton
+                  icon={<LogOut className="h-5 w-5" aria-hidden />}
+                  onClick={() => {
+                    logout();
+                    setMobileMenuOpen(false);
+                  }}
+                >
+                  {tStr("appNav.logout")}
+                </MobileNavButton>
+              </MobileMenuSection>
+            </nav>
+          </aside>
+        </div>
+      )}
       {newMatchToast && (
         <MatchToast
           name={newMatchToast.name}
@@ -607,6 +753,76 @@ export default function AppLayout({
       <ServiceWorkerAndPush />
       <IncomingCall />
     </div>
+  );
+}
+
+function MobileMenuSection({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="mb-3 last:mb-1">
+      <h2 className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-dark-500 first:pt-0">
+        {title}
+      </h2>
+      <div className="flex flex-col gap-0.5">{children}</div>
+    </section>
+  );
+}
+
+type MobileNavTone = "default" | "brand" | "amber" | "danger";
+
+function MobileNavRow({
+  href,
+  onNavigate,
+  icon,
+  children,
+  tone = "default",
+}: {
+  href: string;
+  onNavigate: () => void;
+  icon: ReactNode;
+  children: ReactNode;
+  tone?: MobileNavTone;
+}) {
+  const toneCls =
+    tone === "brand"
+      ? "text-brand-600 hover:bg-brand-500/12 active:bg-brand-500/18"
+      : tone === "amber"
+        ? "text-amber-600 hover:bg-amber-500/12 active:bg-amber-500/18"
+        : tone === "danger"
+          ? "text-red-600 hover:bg-red-500/12 active:bg-red-500/18"
+          : "text-dark-500 hover:bg-dark-700/85 active:bg-dark-700";
+
+  return (
+    <Link
+      href={href}
+      onClick={onNavigate}
+      className={`flex min-h-[44px] items-center gap-3 rounded-xl px-2.5 py-1.5 text-sm transition-colors ${toneCls}`}
+    >
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-dark-700/60 text-current">
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1 font-medium leading-snug">{children}</span>
+    </Link>
+  );
+}
+
+function MobileNavButton({
+  onClick,
+  icon,
+  children,
+}: {
+  onClick: () => void;
+  icon: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex min-h-[44px] w-full items-center gap-3 rounded-xl px-2.5 py-1.5 text-left text-sm font-medium text-red-600 transition-colors hover:bg-red-500/12 active:bg-red-500/18"
+    >
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-dark-700/60 text-current">{icon}</span>
+      <span>{children}</span>
+    </button>
   );
 }
 

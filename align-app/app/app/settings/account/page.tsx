@@ -10,6 +10,7 @@ import { useI18n } from "@/lib/i18n/context";
 import { formatTpl } from "@/lib/i18n/formatTpl";
 import { translateApiErrorMessage } from "@/lib/i18n/translateApiError";
 import { performClientLogout } from "@/lib/clientLogout";
+import { AppProLoading } from "@/components/AppProLoading";
 
 export default function AccountSettingsPage() {
   const { tStr } = useI18n();
@@ -221,11 +222,7 @@ export default function AccountSettingsPage() {
         : subscriptionPlan ?? "";
 
   if (!user) {
-    return (
-      <div className="py-12 text-center">
-        <p className="text-dark-500">{tStr("pages.account.loading")}</p>
-      </div>
-    );
+    return <AppProLoading label={tStr("pages.account.loading")} />;
   }
 
   return (
@@ -234,12 +231,12 @@ export default function AccountSettingsPage() {
         <Link href="/app/profile" className="text-dark-400 hover:text-zinc-900 transition text-sm">
           {tStr("pages.account.backToProfile")}
         </Link>
-        <h1 className="text-xl font-semibold text-zinc-900">{tStr("pages.account.title")}</h1>
+        <h1 className="app-pro-page-title">{tStr("pages.account.title")}</h1>
       </div>
 
-      <section className="p-6 rounded-2xl bg-dark-800 border border-dark-600 border-brand-500/20">
-        <h2 className="text-lg font-medium text-zinc-900 mb-2">{tStr("pages.account.feedbackTitle")}</h2>
-        <p className="text-dark-500 text-sm mb-4">{tStr("pages.account.feedbackIntro")}</p>
+      <section className="app-pro-panel p-6 border-brand-500/20">
+        <h2 className="app-pro-section-title mb-2">{tStr("pages.account.feedbackTitle")}</h2>
+        <p className="app-pro-lead mb-4">{tStr("pages.account.feedbackIntro")}</p>
         <Link
           href="/app/settings/feedback"
           className="inline-block px-4 py-2 rounded-lg bg-brand-500/20 text-brand-400 border border-brand-500/40 hover:bg-brand-500/30 font-medium text-sm transition"
@@ -249,8 +246,8 @@ export default function AccountSettingsPage() {
       </section>
 
       {/* A) Personal info */}
-      <section className="p-6 rounded-2xl bg-dark-800 border border-dark-600">
-        <h2 className="text-lg font-medium text-zinc-900 mb-4">{tStr("pages.account.personalTitle")}</h2>
+      <section className="app-pro-panel p-6">
+        <h2 className="app-pro-section-title mb-4">{tStr("pages.account.personalTitle")}</h2>
         <p className="text-dark-500 text-sm mb-4">{tStr("pages.account.personalHint")}</p>
         <div className="space-y-4">
           <div>
@@ -306,8 +303,8 @@ export default function AccountSettingsPage() {
       </section>
 
       {/* Abonament / Premium */}
-      <section className="p-6 rounded-2xl bg-dark-800 border border-dark-600">
-        <h2 className="text-lg font-medium text-zinc-900 mb-4">{tStr("pages.account.subscriptionTitle")}</h2>
+      <section className="app-pro-panel p-6">
+        <h2 className="app-pro-section-title mb-4">{tStr("pages.account.subscriptionTitle")}</h2>
         <p className="text-dark-500 text-sm mb-3">
           {subscriptionPlan
             ? formatTpl(tStr("pages.account.subscriptionActive"), { plan: subscriptionPlanLabel })
@@ -322,8 +319,8 @@ export default function AccountSettingsPage() {
       </section>
 
       {/* B) Password */}
-      <section className="p-6 rounded-2xl bg-dark-800 border border-dark-600">
-        <h2 className="text-lg font-medium text-zinc-900 mb-4">{tStr("pages.account.passwordTitle")}</h2>
+      <section className="app-pro-panel p-6">
+        <h2 className="app-pro-section-title mb-4">{tStr("pages.account.passwordTitle")}</h2>
         <div className="space-y-4">
           <div>
             <label className={labelClass}>{tStr("pages.account.currentPassword")}</label>
@@ -368,8 +365,8 @@ export default function AccountSettingsPage() {
       </section>
 
       {/* C) Privacy */}
-      <section className="p-6 rounded-2xl bg-dark-800 border border-dark-600">
-        <h2 className="text-lg font-medium text-zinc-900 mb-4">{tStr("pages.account.privacyTitle")}</h2>
+      <section className="app-pro-panel p-6">
+        <h2 className="app-pro-section-title mb-4">{tStr("pages.account.privacyTitle")}</h2>
         {privacyLoading ? (
           <p className="text-dark-500 text-sm">{tStr("pages.account.privacyLoading")}</p>
         ) : (
@@ -423,8 +420,8 @@ export default function AccountSettingsPage() {
         )}
       </section>
 
-      <section className="p-6 rounded-2xl bg-dark-800 border border-dark-600">
-        <h2 className="text-lg font-medium text-zinc-900 mb-2">{tStr("pages.account.sessionTitle")}</h2>
+      <section className="app-pro-panel p-6">
+        <h2 className="app-pro-section-title mb-2">{tStr("pages.account.sessionTitle")}</h2>
         <p className="text-dark-500 text-sm mb-4">{tStr("pages.account.sessionHint")}</p>
         <button
           type="button"
@@ -436,8 +433,8 @@ export default function AccountSettingsPage() {
       </section>
 
       {/* D) GDPR */}
-      <section className="p-6 rounded-2xl bg-dark-800 border border-dark-600">
-        <h2 className="text-lg font-medium text-zinc-900 mb-4">{tStr("pages.account.gdprTitle")}</h2>
+      <section className="app-pro-panel p-6">
+        <h2 className="app-pro-section-title mb-4">{tStr("pages.account.gdprTitle")}</h2>
         <div className="space-y-4">
           <div>
             <button

@@ -25,7 +25,11 @@ export function markIncomingCallDismissed(roomId: string, pendingSince?: string)
   }
 }
 
-/** La închiderea apelului din CallUI / pagina de apel: nu păstra niciun filtru vechi. */
+/**
+ * Resetează filtrul „am respins overlay-ul pentru roomId+pendingSince”.
+ * Folosit la flux push (Răspunde/Respinge) — NU la fiecare închidere CallUI: altfel poll-ul
+ * poate reafișa același pending în cursă cu serverul și pare „cineva tot sună”.
+ */
 export function clearIncomingRingDismissFilter(): void {
   if (typeof window === "undefined") return;
   try {

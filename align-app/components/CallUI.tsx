@@ -29,6 +29,8 @@ import {
   EarOff,
   AlertCircle,
   ServerCog,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import {
   useWebRtcCall,
@@ -37,7 +39,6 @@ import {
 } from "@/hooks/useWebRtcCall";
 import { getAuthHeaders } from "@/lib/authClient";
 import { isScreenshareFeatureEnabled } from "@/lib/env/webrtcConfig";
-import { clearIncomingRingDismissFilter } from "@/lib/callIncomingDismiss";
 import {
   DEFAULT_AUDIO_SINK,
   applyAudioSinkId,
@@ -53,6 +54,7 @@ import {
   setCursorEnabled,
 } from "@/lib/webrtc/cursorOverlay";
 import { markCallEndPosted } from "@/lib/callEndDedup";
+import { useRemoteVideoRenderable } from "@/hooks/useRemoteVideoRenderable";
 
 function p2pConnectingSubtitle(
   phase: CallConnectionPhase | null,
@@ -132,19 +134,23 @@ function RemoteAudio({ stream }: { stream: MediaStream }) {
   return <audio ref={ref} autoPlay playsInline className="hidden" />;
 }
 
-/** Track video „live” dar fără RTP încă = `muted` pe track; tot montăm <video> și reapelăm play() la `unmute`. */
-function remoteStreamShowsVideoSlot(stream: MediaStream | null | undefined): boolean {
-  return stream?.getVideoTracks().some((t) => t.readyState !== "ended") ?? false;
-}
-
 function useRemoteVideoElement(ref: RefObject<HTMLVideoElement | null>, stream: MediaStream | null | undefined) {
   useEffect(() => {
     const el = ref.current;
-    if (!el || !stream) return;
-    el.srcObject = stream;
+    if (!el) return;
+
+    if (!stream) {
+      if (el.srcObject != null) el.srcObject = null;
+      return;
+    }
+
+    if (el.srcObject !== stream) {
+      el.srcObject = stream;
+    }
+
     const tryPlay = () => {
       void el.play().catch(() => {
-        /* autoplay / gesture */
+        /* autoplay / gesture — iOS/Safari: video muted + playsInline pe element; fără schimbare comportament aici */
       });
     };
     tryPlay();
@@ -190,7 +196,6 @@ function useRemoteVideoElement(ref: RefObject<HTMLVideoElement | null>, stream: 
       }
       el.srcObject = null;
     };
-    // ref e stabil; stream stabil între ontrack-uri — addtrack/removetrack reîmprospătează fără să „șteargă” imaginea inutil.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- ref e RefObject stabil; depindem doar de stream
   }, [stream]);
 }
@@ -198,30 +203,43 @@ function useRemoteVideoElement(ref: RefObject<HTMLVideoElement | null>, stream: 
 /** Card mic (conferință / layout clasic). */
 function RemoteVideoCard({ participant }: { participant: RemoteParticipant }) {
   const ref = useRef<HTMLVideoElement>(null);
-  useRemoteVideoElement(ref, participant.stream);
-
-  const hasLiveVideo = remoteStreamShowsVideoSlot(participant.stream);
+  const stream = participant.stream ?? null;
+  useRemoteVideoElement(ref, stream);
+  const hasRenderableVideo = useRemoteVideoRenderable(stream);
 
   return (
-    <div className="relative rounded-2xl overflow-hidden bg-night-800 border border-white/10 aspect-video shadow-xl">
-      {hasLiveVideo ? (
-        <video
-          ref={ref}
-          autoPlay
-          playsInline
-          muted
-          className="w-full h-full object-cover"
-        />
+    <div className="relative isolate overflow-hidden rounded-2xl bg-black border border-white/10 aspect-video shadow-xl">
+      {stream ? (
+        <>
+          <video
+            ref={ref}
+            autoPlay
+            playsInline
+            muted
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+          <div
+            className={`absolute inset-0 z-10 flex flex-col items-center justify-center bg-black transition-opacity duration-300 ease-out pointer-events-none ${
+              hasRenderableVideo ? "opacity-0" : "opacity-100"
+            }`}
+            aria-hidden={hasRenderableVideo}
+          >
+            <span className="text-3xl font-semibold text-white/40">
+              {(participant.displayName || "?").slice(0, 1).toUpperCase()}
+            </span>
+            <span className="text-xs text-night-400 mt-2">Fără video</span>
+          </div>
+        </>
       ) : (
-        <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-night-800 to-night-950 text-night-400 gap-2">
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black text-night-400 gap-2">
           <span className="text-3xl font-semibold text-white/40">
             {(participant.displayName || "?").slice(0, 1).toUpperCase()}
           </span>
           <span className="text-xs">Fără video</span>
         </div>
       )}
-      {participant.stream?.getAudioTracks().length ? <RemoteAudio stream={participant.stream} /> : null}
-      <span className="absolute bottom-2 left-2 text-xs bg-black/55 backdrop-blur-sm px-2 py-1 rounded-lg truncate max-w-[85%]">
+      {stream?.getAudioTracks().length ? <RemoteAudio stream={stream} /> : null}
+      <span className="absolute bottom-2 left-2 z-20 text-xs bg-black/55 backdrop-blur-sm px-2 py-1 rounded-lg truncate max-w-[85%]">
         {participant.displayName || participant.id}
       </span>
     </div>
@@ -237,30 +255,47 @@ function RemoteVideoStage({
   overlayHostRef?: Ref<HTMLDivElement>;
 }) {
   const ref = useRef<HTMLVideoElement>(null);
-  useRemoteVideoElement(ref, participant.stream);
-
-  const hasLiveVideo = remoteStreamShowsVideoSlot(participant.stream);
+  const stream = participant.stream ?? null;
+  useRemoteVideoElement(ref, stream);
+  const hasRenderableVideo = useRemoteVideoRenderable(stream);
 
   return (
-    <div id="remoteShareWrapper" ref={overlayHostRef} className="absolute inset-0 h-full w-full">
-      {hasLiveVideo ? (
-        <video
-          id="remoteShareVideo"
-          ref={ref}
-          autoPlay
-          playsInline
-          muted
-          className="absolute inset-0 h-full w-full object-cover"
-        />
+    <div
+      id="remoteShareWrapper"
+      ref={overlayHostRef}
+      className="absolute inset-0 isolate h-full w-full bg-black"
+    >
+      {stream ? (
+        <>
+          <video
+            id="remoteShareVideo"
+            ref={ref}
+            autoPlay
+            playsInline
+            muted
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+          <div
+            className={`absolute inset-0 z-10 flex flex-col items-center justify-center bg-black transition-opacity duration-300 ease-out pointer-events-none ${
+              hasRenderableVideo ? "opacity-0" : "opacity-100"
+            }`}
+            aria-hidden={hasRenderableVideo}
+          >
+            <div className="h-28 w-28 rounded-full bg-white/10 flex items-center justify-center text-4xl font-light text-white/50 mb-4 ring-2 ring-white/15">
+              {(participant.displayName || "?").slice(0, 1).toUpperCase()}
+            </div>
+            <p className="text-white/45 text-sm font-medium tracking-wide">Fără video de la celălalt</p>
+          </div>
+        </>
       ) : (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-zinc-900 via-black to-zinc-950">
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black">
           <div className="h-28 w-28 rounded-full bg-white/10 flex items-center justify-center text-4xl font-light text-white/50 mb-4 ring-2 ring-white/15">
             {(participant.displayName || "?").slice(0, 1).toUpperCase()}
           </div>
           <p className="text-white/45 text-sm font-medium tracking-wide">Fără video de la celălalt</p>
         </div>
       )}
-      {participant.stream?.getAudioTracks().length ? <RemoteAudio stream={participant.stream} /> : null}
+      {stream?.getAudioTracks().length ? <RemoteAudio stream={stream} /> : null}
     </div>
   );
 }
@@ -311,6 +346,8 @@ export default function CallUI({
   const [elapsedSec, setElapsedSec] = useState(0);
   /** false = celălalt pe tot ecranul, tu în colț; true = invers */
   const [videoLayoutSwapped, setVideoLayoutSwapped] = useState(false);
+  /** Apel 1-la-1 video: ascunde chenarul mic cu camera ta (imaginea ta se trimite în continuare). */
+  const [showLocalPip, setShowLocalPip] = useState(true);
   const isCaller = !!isCallerProp && !isConference;
 
   const screenshareAllowed = isScreenshareFeatureEnabled();
@@ -345,7 +382,6 @@ export default function CallUI({
     isConference,
     onAutoEnded: () => {
       markCallEndPosted(roomId);
-      clearIncomingRingDismissFilter();
       void fetch("/api/call/end", {
         method: "POST",
         headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
@@ -381,7 +417,7 @@ export default function CallUI({
       if (v) v.srcObject = null;
       if (a) a.srcObject = null;
     };
-  }, [localStream, videoLayoutSwapped]);
+  }, [localStream, videoLayoutSwapped, showLocalPip]);
 
   useEffect(() => {
     if (callState !== "connected") {
@@ -581,7 +617,6 @@ export default function CallUI({
   const handleLeave = () => {
     markCallEndPosted(roomId);
     leave();
-    clearIncomingRingDismissFilter();
     void fetch("/api/call/end", {
       method: "POST",
       headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
@@ -1041,7 +1076,7 @@ export default function CallUI({
         {remotePlaybackHintBanner}
 
         {/* PiP: implicit tu mic; după swap — celălalt mic. Atinge mare sau mic pentru a comuta. */}
-        {!videoLayoutSwapped && localStream && !videoMuted && (
+        {!videoLayoutSwapped && localStream && !videoMuted && showLocalPip && (
           <div
             id="localShareWrapper"
             ref={localCursorSendRef}
@@ -1061,7 +1096,24 @@ export default function CallUI({
             />
           </div>
         )}
-        {!videoLayoutSwapped && localStream && videoMuted && (
+        {!videoLayoutSwapped && localStream && !videoMuted && !showLocalPip && (
+          <div
+            id="localShareWrapper"
+            ref={localCursorSendRef}
+            className="fixed top-0 left-0 h-px w-px overflow-hidden opacity-0 pointer-events-none"
+            aria-hidden
+          >
+            <video
+              id="localShareVideo"
+              ref={localVideoRef}
+              autoPlay
+              playsInline
+              muted
+              className="h-px w-px object-cover scale-x-[-1]"
+            />
+          </div>
+        )}
+        {!videoLayoutSwapped && localStream && videoMuted && showLocalPip && (
           <div
             className={`${pipFrameClass} flex flex-col items-center justify-center gap-1 bg-zinc-800/95 ring-white/15 px-1`}
             onClick={canSwapVideoLayout ? toggleVideoLayout : undefined}
@@ -1074,7 +1126,15 @@ export default function CallUI({
             </span>
           </div>
         )}
-        {videoLayoutSwapped && remote && (
+        {!videoLayoutSwapped && localStream && videoMuted && !showLocalPip && (
+          <div
+            id="localShareWrapper"
+            ref={localCursorSendRef}
+            className="fixed top-0 left-0 h-px w-px overflow-hidden opacity-0 pointer-events-none"
+            aria-hidden
+          />
+        )}
+        {videoLayoutSwapped && remote && showLocalPip && (
           <div
             className={pipFrameClass}
             onClick={canSwapVideoLayout ? toggleVideoLayout : undefined}
@@ -1137,6 +1197,26 @@ export default function CallUI({
             active={!videoMuted}
           >
             {videoMuted ? <VideoOff className="h-6 w-6 sm:h-7 sm:w-7" /> : <Video className="h-6 w-6 sm:h-7 sm:w-7" />}
+          </CircleBtn>
+          <CircleBtn
+            onClick={() => setShowLocalPip((v) => !v)}
+            quiet={toolbarQuiet}
+            title={
+              videoLayoutSwapped
+                ? showLocalPip
+                  ? "Ascunde fereastra mică (celălalt în colț)"
+                  : "Arată din nou fereastra mică cu celălalt"
+                : showLocalPip
+                  ? "Ascunde fereastra mică cu imaginea ta (celălalt pe tot ecranul)"
+                  : "Arată din nou fereastra mică cu camera ta"
+            }
+            active={showLocalPip}
+          >
+            {showLocalPip ? (
+              <Eye className="h-6 w-6 sm:h-7 sm:w-7" />
+            ) : (
+              <EyeOff className="h-6 w-6 sm:h-7 sm:w-7" />
+            )}
           </CircleBtn>
           {showCameraFlip && (
             <CircleBtn

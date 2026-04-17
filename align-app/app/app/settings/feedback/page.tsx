@@ -71,16 +71,16 @@ export default function AppFeedbackPage() {
         <Link href="/app/settings/account" className="text-dark-400 hover:text-zinc-900 transition text-sm shrink-0">
           {tStr("pages.feedback.backToAccount")}
         </Link>
-        <h1 className="text-xl font-semibold text-zinc-900">{tStr("pages.feedback.title")}</h1>
+        <h1 className="app-pro-page-title">{tStr("pages.feedback.title")}</h1>
       </div>
 
-      <p className="text-dark-400 text-sm leading-relaxed">
+      <p className="app-pro-lead text-dark-400">
         {tStr("pages.feedback.introBefore")}
         <strong className="text-dark-300">{tStr("pages.feedback.introTab")}</strong>
         {tStr("pages.feedback.introAfter")}
       </p>
 
-      <form onSubmit={(e) => void submit(e)} className="p-6 rounded-2xl bg-dark-800 border border-dark-600 space-y-4">
+      <form onSubmit={(e) => void submit(e)} className="app-pro-panel p-6 space-y-4">
         <div>
           <label htmlFor="feedback-msg" className="block text-dark-500 text-sm mb-2">
             {tStr("pages.feedback.yourMessage")}

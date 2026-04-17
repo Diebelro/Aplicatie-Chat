@@ -18,6 +18,7 @@ import { getAuthHeaders } from "@/lib/authClient";
 import { MAX_PROFILE_SEARCH_RADIUS_KM } from "@/lib/profileSearchConstants";
 import { useI18n } from "@/lib/i18n/context";
 import { formatTpl } from "@/lib/i18n/formatTpl";
+import { AppProLoading } from "@/components/AppProLoading";
 
 /** Culori pentru cele 3 stări pe profil – fără suprapuneri, un singur state per card. */
 const PROFILE_STATE_COLORS = {
@@ -228,7 +229,7 @@ export default function ProfilesPage() {
 
   return (
     <div>
-      <h2 className="text-xl font-semibold mb-4">{tStr("pages.profiles.title")}</h2>
+      <h2 className="app-pro-page-title mb-4">{tStr("pages.profiles.title")}</h2>
 
       {!myLocationEnabled && (
         <div className="mb-4 p-4 rounded-xl bg-dark-800 border border-amber-500/50 flex flex-wrap items-center justify-between gap-3">
@@ -243,8 +244,8 @@ export default function ProfilesPage() {
         </div>
       )}
 
-      <div className="mb-6 p-4 rounded-xl bg-dark-800 border border-dark-600">
-        <p className="text-sm text-dark-400 mb-3">{tStr("pages.profiles.filterHint")}</p>
+      <div className="app-pro-panel mb-6 p-4 sm:p-5">
+        <p className="app-pro-lead mb-3">{tStr("pages.profiles.filterHint")}</p>
         <div className="flex flex-wrap gap-3 items-end">
           <div>
             <label className="block text-xs text-dark-500 mb-1">{tStr("pages.discover.nameLabel")}</label>
@@ -396,11 +397,11 @@ export default function ProfilesPage() {
       </div>
 
       {loading ? (
-        <div className="flex flex-col items-center justify-center gap-2 py-16">
-          <span className="text-dark-500">{tStr("pages.profiles.loading")}</span>
-        </div>
+        <AppProLoading label={tStr("pages.profiles.loading")} className="py-16" />
       ) : profiles.length === 0 ? (
-        <p className="text-center py-10 text-dark-500">{tStr("pages.profiles.empty")}</p>
+        <div className="app-pro-empty">
+          <p className="app-pro-lead">{tStr("pages.profiles.empty")}</p>
+        </div>
       ) : (
         <>
       {previewMe && me && (

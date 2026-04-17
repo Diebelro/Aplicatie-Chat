@@ -12,6 +12,7 @@ import { getAuthHeaders } from "@/lib/authClient";
 import { track } from "@/lib/tracking";
 import { useI18n } from "@/lib/i18n/context";
 import { formatTpl } from "@/lib/i18n/formatTpl";
+import { AppProLoading } from "@/components/AppProLoading";
 
 type Profile = User & { mySwipeLiked: boolean };
 
@@ -121,11 +122,7 @@ export default function ReviewSwipesPage() {
   );
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <span className="text-dark-500">{tStr("pages.reviewSwipes.loading")}</span>
-      </div>
-    );
+    return <AppProLoading label={tStr("pages.reviewSwipes.loading")} />;
   }
 
   return (
@@ -136,7 +133,7 @@ export default function ReviewSwipesPage() {
           onClick={() => setMatchModal(null)}
         >
           <div
-            className="bg-dark-800 border border-dark-600 rounded-2xl p-6 max-w-sm w-full shadow-xl text-center"
+            className="app-pro-panel max-w-sm w-full p-6 shadow-2xl text-center border-dark-600/80"
             onClick={(e) => e.stopPropagation()}
           >
             <p className="text-lg font-semibold text-zinc-900 mb-1">{tStr("pages.reviewSwipes.matchTitle")}</p>
@@ -167,7 +164,7 @@ export default function ReviewSwipesPage() {
       )}
 
       <div className="w-full flex items-center justify-between gap-2 mb-4">
-        <h2 className="text-xl font-semibold">{tStr("pages.reviewSwipes.title")}</h2>
+        <h2 className="app-pro-page-title">{tStr("pages.reviewSwipes.title")}</h2>
         <Link href="/app/matches" className="text-sm text-brand-400 hover:underline shrink-0">
           {tStr("pages.reviewSwipes.backMatches")}
         </Link>

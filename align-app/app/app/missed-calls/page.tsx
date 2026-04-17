@@ -7,6 +7,7 @@ import { getAuthHeaders } from "@/lib/authClient";
 import { useI18n } from "@/lib/i18n/context";
 import { formatTpl } from "@/lib/i18n/formatTpl";
 import { intlLocaleTag } from "@/lib/i18n/intlLocale";
+import { AppProLoading } from "@/components/AppProLoading";
 
 interface MissedItem {
   fromId: string;
@@ -63,26 +64,28 @@ export default function MissedCallsPage() {
 
   if (loading) {
     return (
-      <div className="py-12 text-center text-dark-500">
-        {tStr("pages.missedCalls.loading")}
+      <div className="max-w-md mx-auto">
+        <AppProLoading label={tStr("pages.missedCalls.loading")} className="py-16" />
       </div>
     );
   }
 
   return (
     <div className="max-w-md mx-auto">
-      <h1 className="text-xl font-bold mb-2">{tStr("pages.missedCalls.title")}</h1>
-      <p className="text-dark-500 text-sm mb-6">{tStr("pages.missedCalls.subtitle")}</p>
+      <h1 className="app-pro-page-title mb-2">{tStr("pages.missedCalls.title")}</h1>
+      <p className="app-pro-lead mb-6">{tStr("pages.missedCalls.subtitle")}</p>
 
       {missed.length === 0 ? (
-        <p className="text-dark-500 text-center py-8">{tStr("pages.missedCalls.empty")}</p>
+        <div className="app-pro-empty">
+          <p className="app-pro-lead">{tStr("pages.missedCalls.empty")}</p>
+        </div>
       ) : (
         <>
           <ul className="space-y-3 mb-6">
             {missed.map((m, i) => (
               <li
                 key={`${m.fromId}-${m.at}-${i}`}
-                className="flex items-center gap-3 p-3 rounded-xl bg-dark-800 border border-dark-600"
+                className="flex items-center gap-3 p-3 rounded-xl bg-dark-800 border border-dark-600 shadow-sm"
               >
                 <span className="p-2 rounded-lg bg-amber-500/10 text-amber-400">
                   <PhoneOff className="w-5 h-5" />
