@@ -10,6 +10,11 @@ import { closeIncomingCallPushNotifications } from "@/lib/closeIncomingCallPushN
 import { startIncomingRingtone, stopIncomingRingtone } from "@/lib/callRingtone";
 import { isBrowserPushPrimaryPath } from "@/lib/browserPushConstants";
 
+/**
+ * Soneria „incoming” e înainte de join în camera WebRTC — nu folosește `callState` din `useWebRtcCall`
+ * (FSM-ul acoperă apelul activ după ce ești în cameră; `CallUI` citește `callState`).
+ */
+
 /** Filă activă: poll mai des ca „te sună” să apară repede când celălalt sună de pe telefon. */
 const POLL_MS_VISIBLE = 800;
 /** Filă în fundal: mai rare ca să nu omoare bateria; la revenire facem fetch imediat. */

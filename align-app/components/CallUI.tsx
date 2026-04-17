@@ -57,7 +57,7 @@ import { markCallEndPosted } from "@/lib/callEndDedup";
 function p2pConnectingSubtitle(
   phase: CallConnectionPhase | null,
   waitingPeer: boolean,
-  status: string
+  isConnectingPrep: boolean
 ): string {
   switch (phase) {
     case "signaling_connecting":
@@ -74,7 +74,7 @@ function p2pConnectingSubtitle(
       break;
   }
   if (waitingPeer) return "Așteptăm celălalt participant…";
-  if (status === "connecting") return "Se pregătește camera și microfonul…";
+  if (isConnectingPrep) return "Se pregătește camera și microfonul…";
   return "Se conectează…";
 }
 
@@ -316,7 +316,7 @@ export default function CallUI({
   const screenshareAllowed = isScreenshareFeatureEnabled();
 
   const {
-    status,
+    callState,
     error,
     permissionHelp,
     remoteParticipants,
@@ -356,6 +356,12 @@ export default function CallUI({
     },
   });
 
+  const isConnectingLike: boolean =
+    callState === "connecting" ||
+    callState === "outgoing" ||
+    callState === "incoming" ||
+    callState === "reconnecting";
+
   /** Pe telefon comutăm față/spate prin facingMode chiar dacă enumerateDevices raportează un singur videoinput. */
   const showCameraFlip = !audioOnly && (canSwitchCamera || isMobileDevice());
 
@@ -378,14 +384,14 @@ export default function CallUI({
   }, [localStream, videoLayoutSwapped]);
 
   useEffect(() => {
-    if (status !== "connected") {
+    if (callState !== "connected") {
       setElapsedSec(0);
       return;
     }
     const t0 = Date.now();
     const id = window.setInterval(() => setElapsedSec(Math.floor((Date.now() - t0) / 1000)), 1000);
     return () => clearInterval(id);
-  }, [status]);
+  }, [callState]);
 
   const [chromeVisible, setChromeVisible] = useState(true);
   /** În browser setTimeout returnează number; evită conflict cu tipul Node `Timeout`. */
@@ -401,12 +407,12 @@ export default function CallUI({
       chromeHideTimerRef.current = null;
     }
     setChromeVisible(true);
-    if (status !== "connected") return;
+    if (callState !== "connected") return;
     chromeHideTimerRef.current = window.setTimeout(() => {
       setChromeVisible(false);
       chromeHideTimerRef.current = null;
     }, CHROME_AUTO_HIDE_MS);
-  }, [status]);
+  }, [callState]);
 
   useEffect(() => {
     scheduleChromeHide();
@@ -471,17 +477,17 @@ export default function CallUI({
   }, [privacyQuietMode, exitPrivacyQuietMode, muted, setMuted]);
 
   useEffect(() => {
-    if (status === "connected") return;
+    if (callState === "connected") return;
     if (!privacyQuietMode) return;
     exitPrivacyQuietMode();
-  }, [status, privacyQuietMode, exitPrivacyQuietMode]);
+  }, [callState, privacyQuietMode, exitPrivacyQuietMode]);
 
   useEffect(() => {
     if (!supportsAudioOutputSelection()) return;
     void listAudioOutputDevices().then((devs) => {
       setSpeakerSinkIdResolved(pickSpeakerLikeSinkId(devs));
     });
-  }, [status]);
+  }, [callState]);
 
   const remoteAudioSinkId = useMemo(() => {
     if (!supportsAudioOutputSelection()) return DEFAULT_AUDIO_SINK;
@@ -552,11 +558,11 @@ export default function CallUI({
   }, [roomId]);
 
   useEffect(() => {
-    if (!isCaller || status === "connected") return;
+    if (!isCaller || callState === "connected") return;
     fetchOutgoingStatus();
     const t = setInterval(fetchOutgoingStatus, OUTGOING_POLL_MS);
     return () => clearInterval(t);
-  }, [isCaller, status, fetchOutgoingStatus]);
+  }, [isCaller, callState, fetchOutgoingStatus]);
 
   useEffect(() => {
     if (!outgoingTerminal) return;
@@ -567,10 +573,10 @@ export default function CallUI({
   /** Dacă am arătat din greșeală „unreachable”, dar WebRTC s-a legat — revino la UI-ul de apel. */
   useEffect(() => {
     if (outgoingTerminal !== "unreachable") return;
-    if (status === "connected" || remoteParticipants.length > 0) {
+    if (callState === "connected" || remoteParticipants.length > 0) {
       setOutgoingTerminal(null);
     }
-  }, [outgoingTerminal, status, remoteParticipants.length]);
+  }, [outgoingTerminal, callState, remoteParticipants.length]);
 
   const handleLeave = () => {
     markCallEndPosted(roomId);
@@ -582,7 +588,7 @@ export default function CallUI({
       credentials: "same-origin",
       body: JSON.stringify({
         roomId,
-        ...(isCaller && status !== "connected" ? { recordMissedForCallee: true } : {}),
+        ...(isCaller && callState !== "connected" ? { recordMissedForCallee: true } : {}),
       }),
     }).catch(() => {});
     router.push("/app/messages");
@@ -593,7 +599,7 @@ export default function CallUI({
   useEffect(() => {
     if (isConference || !screenshareAllowed || audioOnly) return;
     const dc = cursorDataChannel;
-    if (!dc || dc.readyState !== "open" || status !== "connected") return;
+    if (!dc || dc.readyState !== "open" || callState !== "connected") return;
 
     let detachReceiver: (() => void) | undefined;
     let detachSender: (() => void) | undefined;
@@ -632,7 +638,7 @@ export default function CallUI({
     screenshareAllowed,
     audioOnly,
     cursorDataChannel,
-    status,
+    callState,
     screenSharing,
     displayName,
     videoLayoutSwapped,
@@ -725,7 +731,7 @@ export default function CallUI({
     );
   }
 
-  if (status === "permission_help" && permissionHelp) {
+  if (permissionHelp) {
     return (
       <RemotePlaybackContext.Provider value={remotePlayback}>
         <div className="flex flex-col items-center justify-center min-h-[50vh] gap-6 px-5 py-10 text-center bg-night-950">
@@ -929,11 +935,11 @@ export default function CallUI({
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-zinc-900 to-black">
                 <div className="h-16 w-16 border-2 border-white/20 border-t-brand-400 rounded-full animate-spin mb-6" />
                 <p className="text-white/60 text-sm text-center max-w-[min(92vw,22rem)] leading-snug px-3">
-                  {!isConference && status === "connecting"
-                    ? p2pConnectingSubtitle(connectionPhase, waitingForPeerInRoom, status)
+                  {!isConference && isConnectingLike
+                    ? p2pConnectingSubtitle(connectionPhase, waitingForPeerInRoom, isConnectingLike)
                     : waitingForPeerInRoom
                       ? "Ești singur în cameră. Celălalt trebuie să accepte apelul sau să deschidă același apel din chat (alt cont / alt dispozitiv)."
-                      : status === "connecting"
+                      : isConnectingLike
                         ? "Se conectează…"
                         : "Așteptăm celălalt participant…"}
                 </p>
@@ -1003,13 +1009,13 @@ export default function CallUI({
               {remote?.displayName || "Apel video"}
             </span>
             <span className="text-xs text-white/55 tabular-nums">
-              {status === "connected"
+              {callState === "connected"
                 ? fmtCallDuration(elapsedSec)
-                : !isConference && status === "connecting"
-                  ? p2pConnectingSubtitle(connectionPhase, waitingForPeerInRoom, status)
+                : !isConference && isConnectingLike
+                  ? p2pConnectingSubtitle(connectionPhase, waitingForPeerInRoom, isConnectingLike)
                   : waitingForPeerInRoom
                     ? "Așteptăm partenerul…"
-                    : status === "connecting"
+                    : isConnectingLike
                       ? "Se conectează…"
                       : ""}
             </span>
@@ -1086,7 +1092,7 @@ export default function CallUI({
         )}
         <audio ref={localAudioRef} autoPlay playsInline muted className="hidden" />
 
-        {chromeVisible && status === "connected" ? (
+        {chromeVisible && callState === "connected" ? (
           <p
             className={`relative z-20 mx-auto -mb-1 max-w-sm px-4 text-center text-[10px] leading-snug text-white/45 transition-all duration-300 ${chromeBottomClass}`}
           >
@@ -1213,10 +1219,10 @@ export default function CallUI({
           <div className="text-center min-w-0 px-2">
             <p className="font-semibold text-lg truncate">{remote?.displayName || "Apel audio"}</p>
             <p className="text-xs text-white/50 tabular-nums">
-              {status === "connected"
+              {callState === "connected"
                 ? fmtCallDuration(elapsedSec)
-                : !isConference && status === "connecting"
-                  ? p2pConnectingSubtitle(connectionPhase, waitingForPeerInRoom, status)
+                : !isConference && isConnectingLike
+                  ? p2pConnectingSubtitle(connectionPhase, waitingForPeerInRoom, isConnectingLike)
                   : waitingForPeerInRoom
                     ? "Așteptăm partenerul…"
                     : "Se conectează…"}
@@ -1262,7 +1268,7 @@ export default function CallUI({
           </div>
         ) : null}
 
-        {chromeVisible && status === "connected" ? (
+        {chromeVisible && callState === "connected" ? (
           <p
             className={`mx-auto mb-1 max-w-sm px-4 text-center text-[10px] leading-snug text-white/45 transition-all duration-300 ${chromeBottomClass}`}
           >
@@ -1344,16 +1350,16 @@ export default function CallUI({
           ← Mesaje
         </Link>
         <span className="text-night-500 text-sm">
-          {status === "connecting" &&
+          {isConnectingLike &&
             (!isConference
-              ? p2pConnectingSubtitle(connectionPhase, waitingForPeerInRoom, status)
+              ? p2pConnectingSubtitle(connectionPhase, waitingForPeerInRoom, isConnectingLike)
               : waitingForPeerInRoom
                 ? "Așteptăm participanții…"
                 : "Se conectează…")}
-          {status === "connected" && (isConference ? "Conferință" : "Apel")}
-          {status === "left" && "Apel încheiat"}
+          {callState === "connected" && (isConference ? "Conferință" : "Apel")}
+          {callState === "ended" && "Apel încheiat"}
         </span>
-        {isConference && status === "connected" && (
+        {isConference && callState === "connected" && (
           <button
             type="button"
             onClick={() => {
@@ -1400,7 +1406,7 @@ export default function CallUI({
           <RemoteVideoCard key={p.id} participant={p} />
         ))}
 
-        {status === "connected" && remoteParticipants.length === 0 && (
+        {callState === "connected" && remoteParticipants.length === 0 && (
           <div className="flex items-center justify-center text-night-500 col-span-full min-h-[12rem]">
             Așteptăm participanți…
           </div>
