@@ -877,6 +877,29 @@ export default function CallUI({
                       <li>NEXT_PUBLIC_TURN_URLS</li>
                       <li>TURN_REALM · TURN_STATIC_SECRET · TURN_AUTH_SECRET</li>
                     </ul>
+                    {typeof window !== "undefined" && window.location.host ? (
+                      <p className="text-xs text-night-500">
+                        Mediu curent:{" "}
+                        <code className="text-night-300 break-all">{window.location.host}</code>
+                        {" — "}
+                        <span className="text-night-500">
+                          pe Vercel, Preview și Production au env separate; dacă aici e un preview, trebuie
+                          setate și pentru <strong className="text-night-400">Preview</strong>.
+                        </span>
+                      </p>
+                    ) : null}
+                    <p className="text-xs">
+                      <a
+                        href="/api/webrtc-env-check"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-brand-400 hover:text-brand-300 underline underline-offset-2"
+                      >
+                        Diagnostic server (JSON, fără secrete)
+                      </a>
+                      {" — "}verifică <code className="text-night-400">turnRealmSet</code>,{" "}
+                      <code className="text-night-400">envLayerCompleteForCalls</code>.
+                    </p>
                     <p className="text-xs text-night-500">
                       Dev local: pornește{" "}
                       <code className="text-night-400">npm run signaling:dev</code>,{" "}

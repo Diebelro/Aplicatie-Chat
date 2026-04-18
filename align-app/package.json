@@ -24,6 +24,7 @@
     "check:turn-env": "node scripts/check-turn-env.mjs",
     "check:online-env": "node scripts/check-online-env.mjs",
     "verify:calls": "node scripts/verify-call-infra-remote.mjs",
+    "vercel:assert-call-env": "node scripts/assert-vercel-call-env.mjs",
     "verify:hetzner-remote": "node scripts/hetzner-remote-smoke.mjs",
     "postinstall": "prisma generate",
     "db:generate": "prisma generate",
