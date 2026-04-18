@@ -3,7 +3,7 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { AppCreditLine } from "@/components/DiebelAuthorCredit";
+import { DiebelCopyrightStrip } from "@/components/DiebelAuthorCredit";
 import { useI18n } from "@/lib/i18n/context";
 import { formatTpl } from "@/lib/i18n/formatTpl";
 import { translateApiErrorMessage } from "@/lib/i18n/translateApiError";
@@ -146,9 +146,7 @@ export default function ContBlocatPage() {
       <Link href="/login" className="mt-8 text-dark-400 hover:text-zinc-900 text-sm">
         {tStr("pages.banAppeal.backLogin")}
       </Link>
-      <p className="mt-8 text-dark-500 text-xs text-center">
-        <AppCreditLine />
-      </p>
+      <DiebelCopyrightStrip className="mt-8 px-2" />
     </div>
   );
 }

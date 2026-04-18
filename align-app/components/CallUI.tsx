@@ -984,8 +984,6 @@ export default function CallUI({
                     <p className="text-xs">
                       <a
                         href="/api/webrtc-env-check"
-                        target="_blank"
-                        rel="noopener noreferrer"
                         className="text-brand-400 hover:text-brand-300 underline underline-offset-2"
                       >
                         Diagnostic server (JSON, fără secrete)
@@ -1275,7 +1273,7 @@ export default function CallUI({
         <audio ref={localAudioRef} autoPlay playsInline muted className="hidden" />
 
         <div
-          className={`relative z-20 mt-auto flex flex-wrap items-center justify-center gap-3 sm:gap-5 px-3
+          className={`relative z-20 mt-auto flex flex-wrap items-center justify-center gap-2 sm:gap-3 px-3
             pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-6 transition-all duration-300 ease-out ${chromeBottomClass}`}
         >
           <CircleBtn
@@ -1456,7 +1454,7 @@ export default function CallUI({
         ) : null}
 
         <div
-          className={`flex flex-wrap items-center justify-center gap-3 sm:gap-5 px-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-4 transition-all duration-300 ease-out ${chromeBottomClass}`}
+          className={`flex flex-wrap items-center justify-center gap-2 sm:gap-3 px-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-4 transition-all duration-300 ease-out ${chromeBottomClass}`}
         >
           <CircleBtn
             onClick={onMicToggle}

@@ -14,7 +14,7 @@ import CallUI from "@/components/CallUI";
 import { useI18n } from "@/lib/i18n/context";
 import { shouldSkipDuplicateCallEnd } from "@/lib/callEndDedup";
 import { markIncomingGrace } from "@/lib/callIncomingGrace";
-import { RING_PUSH_HINT_SESSION_KEY } from "@/lib/callRingNotifySnapshot";
+import { RING_PUSH_HINT_SESSION_KEY, isRingNotifyHintKey } from "@/lib/callRingNotifySnapshot";
 
 function getStoredUser(): User | null {
   if (typeof window === "undefined") return null;
@@ -139,7 +139,8 @@ export default function CallPage() {
       const h = sessionStorage.getItem(RING_PUSH_HINT_SESSION_KEY);
       if (h) {
         sessionStorage.removeItem(RING_PUSH_HINT_SESSION_KEY);
-        setTransientRingNotify(h);
+        const text = isRingNotifyHintKey(h) ? tStr(`pages.callRoom.ringPushHint.${h}`) : h;
+        setTransientRingNotify(text);
         const tid = window.setTimeout(() => setTransientRingNotify(null), 12_000);
         return () => clearTimeout(tid);
       }
@@ -147,7 +148,7 @@ export default function CallPage() {
       /* ignore */
     }
     return;
-  }, [roomId]);
+  }, [roomId, tStr]);
 
   useEffect(() => {
     if (!fromPush || callStarted) return;
@@ -318,7 +319,7 @@ export default function CallPage() {
     })
       .finally(() => {
         setPushGateLoading(false);
-        window.location.href = "/app/messages";
+        window.location.replace("/app/messages");
       });
   };
 

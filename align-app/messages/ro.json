@@ -486,8 +486,12 @@
       "fallbackUserName": "Utilizator",
       "outgoingRejectedTitle": "Apel respins",
       "outgoingRejectedBody": "Celălalt utilizator a refuzat explicit apelul. Redirecționare la mesaje…",
-      "outgoingUnreachableTitle": "Nu s-a putut stabili apelul",
-      "outgoingUnreachableBody": "Celălalt nu pare disponibil sau nu a răspuns (aplicație închisă, fără rețea sau apel anulat). Nu înseamnă neapărat că ți-a respins apelul. Redirecționare la mesaje…"
+      "outgoingUnreachableTitle": "Celălalt participant nu este disponibil pentru apel",
+      "outgoingUnreachableBody": "Pentru a putea suna, ambii participanți trebuie să fie conectați în aplicație (web sau mobil). Dacă e offline sau nu are aplicația deschisă, poate să nu vadă apelul. Nu înseamnă neapărat că te-a respins. Poți trimite un link și să îi ceri să se conecteze.",
+      "ringPushHint": {
+        "noPushServer": "Dacă celălalt nu are aplicația deschisă, poate să nu vadă că îl suni. Cu chatul sau aplicația deschisă, apelul merge.",
+        "noCalleeNotif": "Celălalt nu are notificări activate pe dispozitiv — în fundal s-ar putea să nu primească apelul. Cu aplicația deschisă merge."
+      }
     },
     "feedback": {
       "backToAccount": "← Setări cont",

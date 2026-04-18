@@ -28,3 +28,15 @@ export function AppCreditLine({ className = "" }: { className?: string }) {
     </span>
   );
 }
+
+/**
+ * O singură linie de credit: © an Diebel. Aplicația este realizată de Diebel.
+ * Folosit în `Footer` (rute publice) și în shell-ul `/app` (unde `Providers` nu mai randează footer-ul global).
+ */
+export function DiebelCopyrightStrip({ className = "" }: { className?: string }) {
+  return (
+    <p className={`text-dark-500 text-xs text-center leading-snug max-w-lg mx-auto ${className}`.trim()}>
+      © {new Date().getFullYear()} <DiebelAuthorLink />. <AppCreditLine />
+    </p>
+  );
+}

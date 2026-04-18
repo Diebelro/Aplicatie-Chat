@@ -12,6 +12,22 @@ const port = 3005;
 const defaultUrl = `http://localhost:${port}/`;
 const openUrl = (process.env.ALIGN_DEV_OPEN || defaultUrl).trim();
 
+/** Pe Windows, `fetch(localhost)` poate lovi ::1 în timp ce Next răspunde doar pe IPv4 — probăm și 127.0.0.1, dar deschidem mereu `openUrl`. */
+function probeUrlsForDevServer(browserUrl) {
+  const list = [browserUrl];
+  try {
+    const u = new URL(browserUrl);
+    if (u.hostname === "localhost") {
+      u.hostname = "127.0.0.1";
+      const alt = u.toString();
+      if (alt !== browserUrl) list.push(alt);
+    }
+  } catch {
+    /* ignore */
+  }
+  return list;
+}
+
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const isWin = process.platform === "win32";
 const npmBin = isWin ? "npm.cmd" : "npm";
@@ -63,21 +79,24 @@ const child = spawn(npmBin, ["run", "dev:server"], {
 let opened = false;
 
 async function tryOpenWhenReady() {
+  const probes = probeUrlsForDevServer(openUrl);
   for (let i = 0; i < 120; i++) {
     await new Promise((r) => setTimeout(r, 500));
-    try {
-      const ac = new AbortController();
-      const t = setTimeout(() => ac.abort(), 3000);
-      const res = await fetch(openUrl, { signal: ac.signal });
-      clearTimeout(t);
-      if (!opened && res != null) {
-        opened = true;
-        console.log(`\n[dev] Deschid browser: ${openUrl}\n`);
-        openBrowser(openUrl);
+    for (const url of probes) {
+      try {
+        const ac = new AbortController();
+        const t = setTimeout(() => ac.abort(), 3000);
+        const res = await fetch(url, { signal: ac.signal });
+        clearTimeout(t);
+        if (!opened && res != null) {
+          opened = true;
+          console.log(`\n[dev] Deschid browser: ${openUrl}\n`);
+          openBrowser(openUrl);
+        }
+        return;
+      } catch {
+        /* încă pornește sau URL-ul de probă nu răspunde */
       }
-      return;
-    } catch {
-      /* încă pornește */
     }
   }
   console.error(

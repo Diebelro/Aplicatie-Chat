@@ -16,6 +16,8 @@ function SiteFooter() {
   const pathname = usePathname();
   if (pathname?.startsWith("/admin")) return null;
   if (pathname?.startsWith("/app")) return null;
+  /** Pagina are credit în conținut; evită dublu cu `<Footer />`. */
+  if (pathname === "/cont-blocat") return null;
   return <Footer />;
 }
 

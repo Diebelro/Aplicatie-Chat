@@ -263,6 +263,15 @@ const privacyRO: LegalSection[] = [
     ],
   },
   {
+    title: "Apeluri audio și video (cameră și microfon)",
+    content: [
+      "Pentru funcția de **apel audio** și **apel video** între utilizatori, aplicația poate solicita acces la **microfon** și, doar pentru apelurile video, la **cameră** (camera dispozitivului), prin mecanismele de permisiuni oferite de browser sau de sistemul de operare.",
+      "**Microfonul** este folosit **exclusiv în timpul unui apel audio sau video activ**, pentru a transmite vocea dumneavoastră către celălalt participant. **Camera** este folosită **exclusiv în timpul unui apel video activ**, pentru a transmite imaginea către celălalt participant.",
+      "Accesul la microfon și la cameră este solicitat și activ **doar când inițiați sau acceptați un apel** în cadrul aplicației; **nu folosim aceste permisiuni în fundal** în afara unui apel activ pentru dumneavoastră (fără conectare la canalul de apel, microfonul și camera nu sunt accesate în scopul apelurilor).",
+      "**Apelurile audio și video NU sunt înregistrate și NU sunt stocate ca fișiere audio sau video pe serverele noastre** în scopul salvării convorbirilor. Date tehnice minime (ex. semnalizare, securitate, facturare, conform altor secțiuni ale acestei politici) pot fi prelucrate independent de fluxul media al apelului.",
+    ],
+  },
+  {
     title: "8. Moderare, acces autorizat și cooperare cu autoritățile",
     content: [
       "În scopul siguranței platformei, prevenirii abuzurilor, investigării încălcărilor și respectării legii, personalul tehnic și de încredere autorizat poate accesa conținutul comunicărilor și al fișierelor transmise prin Serviciu (inclusiv mesaje și imagini) în mod proporțional și limitat la ce este necesar.",
@@ -293,7 +302,8 @@ const privacyRO: LegalSection[] = [
   {
     title: "12. Contact și operator",
     content: [
-      "Pentru exercitarea drepturilor GDPR (acces, rectificare, ștergere, restricționare, portabilitate, opoziție, plângere la autoritate) și pentru întrebări privind confidențialitatea: contact@diebel.ro. În România, autoritatea de supraveghere este ANSPDCP (www.dataprotection.ro). Datele de identificare completă ale operatorului (denumire, adresă) pot fi comunicate la cerere pe calea indicată mai sus.",
+      "**Identificare publică a operatorului (GDPR / magazine de aplicații):** serviciul **Diebel** (inclusiv aplicația disponibilă la **chat.diebel.ro** și domeniile asociate) este pus la dispoziție de o **persoană juridică cu sediul în România**. **Țară:** România. **Denumirea legală completă a societății** și **Codul Unic de Înregistrare (CUI)** (conform **Registrului Comerțului** / actului constitutiv) sunt comunicate **la solicitare** la **contact@diebel.ro**, de regulă în cel mult **30 de zile**. **Adresa sediului social nu este afișată în această politică publică**; dacă o autoritate competentă solicită în mod expres date suplimentare de localizare a operatorului, legea aplicabilă stabilește modalitatea de comunicare. **Contact protecția datelor:** **contact@diebel.ro**.",
+      "Pentru exercitarea drepturilor GDPR (acces, rectificare, ștergere, restricționare, portabilitate, opoziție, plângere la autoritate) și pentru întrebări privind confidențialitatea: **contact@diebel.ro**. În România, autoritatea de supraveghere este **ANSPDCP** (www.dataprotection.ro).",
     ],
   },
 ];
@@ -359,6 +369,15 @@ const privacyEN: LegalSection[] = [
     ],
   },
   {
+    title: "Audio and video calls (camera and microphone)",
+    content: [
+      "For **audio** and **video calls** between users, the application may request access to the **microphone** and, for video calls only, to the **camera** (your device's camera) through the permission mechanisms provided by your browser or operating system.",
+      "The **microphone** is used **only during an active audio or video call** to transmit your voice to the other participant. The **camera** is used **only during an active video call** to transmit your image to the other participant.",
+      "Microphone and camera access is requested and active **only when you start or accept a call** within the application; **we do not use these permissions in the background** outside of a call that is active for you (without connecting to the call channel, the microphone and camera are not accessed for calling purposes).",
+      "**Audio and video calls are NOT recorded and are NOT stored as audio or video files on our servers** for the purpose of saving the conversation. Minimal technical data (e.g. signalling, security, billing, as described elsewhere in this Policy) may be processed independently of the call media stream.",
+    ],
+  },
+  {
     title: "8. Moderation, authorised access and cooperation with authorities",
     content: [
       "To keep the platform safe, prevent abuse, investigate violations and comply with the law, authorised trusted technical and moderation staff may access the content of communications and files sent through the Service (including messages and images) in a proportionate manner and only as necessary.",
@@ -389,7 +408,8 @@ const privacyEN: LegalSection[] = [
   {
     title: "12. Contact and controller",
     content: [
-      "To exercise GDPR rights (access, rectification, erasure, restriction, portability, objection, complaint to a supervisory authority) and for privacy questions: contact@diebel.ro. In Romania, the supervisory authority is ANSPDCP (www.dataprotection.ro). Full legal identification of the controller (name, address) can be provided on request via the contact above.",
+      "**Public identification of the controller (GDPR / app stores):** the **Diebel** service (including the application available at **chat.diebel.ro** and associated domains) is provided by a **legal entity registered in Romania**. **Country:** Romania. The **full legal name of the company** and **Unique Registration Code (CUI)** (as shown in the **Trade Register** / constitutional documents) **will be provided on request** at **contact@diebel.ro**, typically within **30 days**. The **registered office address is not displayed in this public policy**; if a competent authority expressly requests additional information to locate the controller, applicable law governs how it is provided. **Data protection contact:** **contact@diebel.ro**.",
+      "To exercise GDPR rights (access, rectification, erasure, restriction, portability, objection, complaint to a supervisory authority) and for privacy questions: **contact@diebel.ro**. In Romania, the supervisory authority is **ANSPDCP** (www.dataprotection.ro).",
     ],
   },
 ];
@@ -455,6 +475,15 @@ const privacyDE: LegalSection[] = [
     ],
   },
   {
+    title: "Audio- und Videoanrufe (Kamera und Mikrofon)",
+    content: [
+      "Für **Audio-** und **Videoanrufe** zwischen Nutzern kann die Anwendung Zugriff auf das **Mikrofon** und – nur bei Videoanrufen – auf die **Kamera** (Gerätekamera) über die Berechtigungsmechanismen Ihres Browsers oder Betriebssystems anfordern.",
+      "Das **Mikrofon** wird **ausschließlich während eines aktiven Audio- oder Videoanrufs** verwendet, um Ihre Stimme an den anderen Teilnehmer zu übertragen. Die **Kamera** wird **ausschließlich während eines aktiven Videoanrufs** verwendet, um Ihr Bild an den anderen Teilnehmer zu übertragen.",
+      "Der Zugriff auf Mikrofon und Kamera wird **nur angefordert und aktiv**, wenn Sie **einen Anruf starten oder annehmen**; **wir nutzen diese Berechtigungen nicht im Hintergrund** außerhalb eines für Sie aktiven Anrufs (ohne Verbindung zum Anrufkanal werden Mikrofon und Kamera nicht für Anrufzwecke genutzt).",
+      "**Audio- und Videoanrufe werden NICHT aufgezeichnet und NICHT als Audio- oder Videodateien auf unseren Servern gespeichert**, um Gespräche zu archivieren. Minimale technische Daten (z. B. Signalisierung, Sicherheit, Abrechnung, wie in anderen Abschnitten dieser Richtlinie beschrieben) können unabhängig vom Medienstrom des Anrufs verarbeitet werden.",
+    ],
+  },
+  {
     title: "8. Moderation, autorisierter Zugriff und Behördenzusammenarbeit",
     content: [
       "Zur Sicherheit der Plattform, zur Missbrauchsbekämpfung, zur Untersuchung von Verstößen und zur Einhaltung des Rechts können autorisierte technische und Moderationsmitarieder auf Inhalte von Mitteilungen und Dateien im Dienst (einschließlich Nachrichten und Bilder) in angemessener Weise und nur soweit nötig zugreifen.",
@@ -485,7 +514,8 @@ const privacyDE: LegalSection[] = [
   {
     title: "12. Kontakt und Verantwortlicher",
     content: [
-      "Zur Ausübung Ihrer DSGVO-Rechte (Auskunft, Berichtigung, Löschung, Einschränkung, Übertragbarkeit, Widerspruch, Beschwerde bei einer Aufsichtsbehörde) und für Datenschutzfragen: contact@diebel.ro. In Rumänien ist die Aufsichtsbehörde die ANSPDCP (www.dataprotection.ro). Vollständige Angaben zum Verantwortlichen (Name, Adresse) können auf Anfrage über die genannte Kontaktadresse mitgeteilt werden.",
+      "**Öffentliche Identifizierung des Verantwortlichen (DSGVO / App-Stores):** Der Dienst **Diebel** (einschließlich der Anwendung unter **chat.diebel.ro** und zugehöriger Domains) wird von einer **in Rumänien ansässigen juristischen Person** bereitgestellt. **Land:** Rumänien. Der **vollständige Firmenname** und die **eindeutige Steuernummer (CUI)** (gemäß **Handelsregister** / Gründungsurkunde) **werden auf Anfrage** an **contact@diebel.ro** mitgeteilt, in der Regel innerhalb von **30 Tagen**. Die **Adresse des eingetragenen Sitzes wird in dieser öffentlichen Datenschutzerklärung nicht angezeigt**; wenn eine zuständige Behörde ausdrücklich zusätzliche Angaben zur Lokalisierung des Verantwortlichen verlangt, regelt das anwendbare Recht die Übermittlung. **Kontakt Datenschutz:** **contact@diebel.ro**.",
+      "Zur Ausübung Ihrer DSGVO-Rechte (Auskunft, Berichtigung, Löschung, Einschränkung, Übertragbarkeit, Widerspruch, Beschwerde bei einer Aufsichtsbehörde) und für Datenschutzfragen: **contact@diebel.ro**. In Rumänien ist die Aufsichtsbehörde die **ANSPDCP** (www.dataprotection.ro).",
     ],
   },
 ];

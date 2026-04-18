@@ -10,7 +10,8 @@ import { getVideoRoomId } from "@/lib/videoCall";
 import { markCallEndPosted } from "@/lib/callEndDedup";
 import { markIncomingGrace } from "@/lib/callIncomingGrace";
 import type { RingNotifySnapshot } from "@/lib/callRingNotifySnapshot";
-import { RING_PUSH_HINT_SESSION_KEY, formatRingNotifyHint } from "@/lib/callRingNotifySnapshot";
+import { RING_PUSH_HINT_SESSION_KEY, getRingNotifyHintKey } from "@/lib/callRingNotifySnapshot";
+import { useI18n } from "@/lib/i18n/context";
 
 async function resolveMyIdForCall(): Promise<string | null> {
   const raw = getStoredUserRaw();
@@ -42,6 +43,7 @@ type QuickCallButtonsProps = {
  * Folosit în Mesaje, liste; nu propaga click către Link părinte.
  */
 export function QuickCallButtons({ toUserId, size = "md", className = "" }: QuickCallButtonsProps) {
+  const { tStr } = useI18n();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [callHint, setCallHint] = useState<string | null>(null);
@@ -100,10 +102,10 @@ export function QuickCallButtons({ toUserId, size = "md", className = "" }: Quic
         return;
       }
       const j = (await res.json().catch(() => ({}))) as { notify?: RingNotifySnapshot };
-      const pushHint = formatRingNotifyHint(j.notify);
-      if (pushHint) {
+      const hintKey = getRingNotifyHintKey(j.notify);
+      if (hintKey) {
         try {
-          sessionStorage.setItem(RING_PUSH_HINT_SESSION_KEY, pushHint);
+          sessionStorage.setItem(RING_PUSH_HINT_SESSION_KEY, hintKey);
         } catch {
           /* ignore */
         }

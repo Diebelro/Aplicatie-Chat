@@ -13,18 +13,24 @@ export const RING_PUSH_HINT_DELAY_MS = 250;
 /** Hint scurt despre push salvat înainte de navigare spre camera de apel (fără pauză pe lista de mesaje). */
 export const RING_PUSH_HINT_SESSION_KEY = "align_ring_push_hint";
 
+/** Chei pentru `pages.callRoom.ringPushHint.*` — salvăm cheia în sessionStorage ca să o traducem la deschiderea camerei. */
+export const RING_NOTIFY_HINT_KEYS = ["noPushServer", "noCalleeNotif"] as const;
+export type RingNotifyHintKey = (typeof RING_NOTIFY_HINT_KEYS)[number];
+
+export function isRingNotifyHintKey(s: string): s is RingNotifyHintKey {
+  return (RING_NOTIFY_HINT_KEYS as readonly string[]).includes(s);
+}
+
 /**
- * Mesaj scurt: doar despre **push în fundal**, nu despre WebRTC în sine.
- * Apelul audio/video poate merge dacă amândoi au Diebel deschis (polling / UI), fără FCM.
+ * Situație în care apelantul merită un mesaj discret (fără jargon tehnic): lipsă infrastructură push
+ * sau destinatar fără dispozitive / abonamente înregistrate — nu despre WebRTC în sine.
  */
-export function formatRingNotifyHint(n: RingNotifySnapshot | null | undefined): string | null {
+export function getRingNotifyHintKey(n: RingNotifySnapshot | null | undefined): RingNotifyHintKey | null {
   if (!n || !n.prisma) return null;
   const hasCallee =
     n.fcm.calleeDevices > 0 || n.voip.calleeDevices > 0 || n.webPush.calleeSubscriptions > 0;
   if (hasCallee) return null;
   const anyServer = n.fcm.server || n.voip.server || n.webPush.server;
-  if (!anyServer) {
-    return "Fără push configurat pe server, celălalt poate să nu primească alertă în fundal. Cu aplicația deschisă, apelul merge.";
-  }
-  return "Destinatarul nu are notificări înregistrate — cu app în fundal poate să nu vadă apelul. Cu chat deschis merge.";
+  if (!anyServer) return "noPushServer";
+  return "noCalleeNotif";
 }

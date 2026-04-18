@@ -35,6 +35,7 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useI18n } from "@/lib/i18n/context";
 import { performClientLogout } from "@/lib/clientLogout";
 import { DiebelWordmark } from "@/components/DiebelWordmark";
+import { DiebelCopyrightStrip } from "@/components/DiebelAuthorCredit";
 
 export default function AppLayout({
   children,
@@ -419,7 +420,11 @@ export default function AppLayout({
   return (
     <div className="h-dvh min-h-0 bg-dark-900 flex flex-col overflow-hidden antialiased text-dark-900">
       <header className="border-b border-dark-600/80 shrink-0 sticky top-0 z-20 safe-area-inset-top bg-dark-900/92 shadow-[0_1px_0_rgba(0,0,0,0.04)] backdrop-blur-md supports-[backdrop-filter]:bg-dark-900/88">
-        <div className="max-w-4xl mx-auto py-3 md:py-3.5 flex items-center justify-between gap-2 pl-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))]">
+        {/*
+          Header pe lățime completă: max-w-4xl doar pe main lasă banda de nav îngustă pe monitor lat
+          și taie textul (ex. „Matches”). Conținutul paginilor rămâne centrat în main mai jos.
+        */}
+        <div className="w-full max-w-[min(100vw,1920px)] mx-auto py-3 md:py-3.5 flex items-center gap-2 sm:gap-3 min-w-0 pl-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))]">
           <Link
             href="/app"
             className="group relative z-[25] shrink-0 inline-flex items-center min-h-[44px] min-w-[7.5rem] -ml-1 pl-1 pr-2 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-dark-900 touch-manipulation active:opacity-90"
@@ -427,18 +432,18 @@ export default function AppLayout({
           >
             <DiebelWordmark variant="header" withMark />
           </Link>
-          {/* Desktop nav: de la lg în sus — între md și lg rămâne shell mobil (hamburger + tab bar) ca să nu înfășoare meniul peste conținut */}
-          <nav className="hidden lg:flex items-center gap-2.5 flex-nowrap overflow-x-auto scrollbar-app max-w-[min(100%,calc(100vw-11rem))] py-0.5">
-            <Link href="/app/profile" className="px-3 py-1.5 rounded-lg bg-brand-500/20 text-brand-400 hover:bg-brand-500/30 font-medium text-sm transition">
+          {/* Desktop: linkuri în zonă scrollabilă; avatar + profil + Ieșire mereu vizibile în dreapta (nu dispar în overflow). */}
+          <nav className="hidden lg:flex min-w-0 flex-1 flex-wrap items-center content-start gap-x-2.5 gap-y-1.5 py-0.5 [&_a]:whitespace-nowrap">
+            <Link href="/app/profile" className="px-3 py-1.5 rounded-lg bg-brand-500/20 text-brand-400 hover:bg-brand-500/30 font-medium text-sm transition shrink-0">
               {tStr("appNav.completeProfile")}
             </Link>
-            <Link href="/app" className="text-dark-400 hover:text-zinc-900 transition">
+            <Link href="/app" className="shrink-0 text-dark-400 hover:text-zinc-900 transition">
               {tStr("appNav.discover")}
             </Link>
-            <Link href="/app/profiles" className="text-dark-400 hover:text-zinc-900 transition">
+            <Link href="/app/profiles" className="shrink-0 text-dark-400 hover:text-zinc-900 transition">
               {tStr("appNav.allProfiles")}
             </Link>
-            <Link href="/app/messages" className="text-dark-400 hover:text-zinc-900 transition relative inline-flex items-center">
+            <Link href="/app/messages" className="shrink-0 text-dark-400 hover:text-zinc-900 transition relative inline-flex items-center">
               {tStr("appNav.messages")}
               {totalUnread > 0 && (
                 <span
@@ -454,70 +459,74 @@ export default function AppLayout({
               )}
             </Link>
             {missedCallsCount > 0 && (
-              <Link href="/app/missed-calls" className="text-amber-400 hover:text-amber-300 transition relative inline-flex items-center text-sm">
+              <Link href="/app/missed-calls" className="shrink-0 text-amber-400 hover:text-amber-300 transition relative inline-flex items-center text-sm">
                 {tStr("appNav.missedCalls")}
                 <span className="ml-1.5 min-w-[1.25rem] h-5 px-1.5 rounded-full bg-amber-500/30 text-amber-400 text-xs font-semibold flex items-center justify-center">
                   {missedCallsCount > 99 ? "99+" : missedCallsCount}
                 </span>
               </Link>
             )}
-            <Link href="/app/call/start" className="text-dark-400 hover:text-zinc-900 transition text-sm">
+            <Link href="/app/call/start" className="shrink-0 text-dark-400 hover:text-zinc-900 transition text-sm">
               {tStr("appNav.conference")}
             </Link>
-            <Link href="/app/matches" className="text-dark-400 hover:text-zinc-900 transition">
+            <Link href="/app/matches" className="shrink-0 text-dark-400 hover:text-zinc-900 transition">
               {tStr("appNav.matches")}
             </Link>
             <Link
               href="/app/review-swipes"
-              className="text-amber-400/90 hover:text-amber-300 transition text-sm"
+              className="shrink-0 text-amber-400/90 hover:text-amber-300 transition text-sm"
               title={tStr("appNav.reviewSwipesTitle")}
             >
               {tStr("appNav.reviewSwipes")}
             </Link>
-            <Link href="/app/map" className="text-dark-400 hover:text-zinc-900 transition">
+            <Link href="/app/map" className="shrink-0 text-dark-400 hover:text-zinc-900 transition">
               {tStr("appNav.map")}
             </Link>
-            <Link href="/app/premium" className="text-amber-400 hover:text-amber-300 transition text-sm">
+            <Link href="/app/premium" className="shrink-0 text-amber-400 hover:text-amber-300 transition text-sm">
               {tStr("appNav.premium")}
             </Link>
             {isAdmin && (
               <Link
                 href="/admin"
-                className="text-red-300 hover:text-red-200 transition text-sm inline-flex items-center gap-1"
+                className="shrink-0 text-red-300 hover:text-red-200 transition text-sm inline-flex items-center gap-1"
                 title={tStr("appNav.adminPanelTitle")}
               >
                 <Shield className="w-4 h-4 shrink-0" aria-hidden />
                 {tStr("appNav.admin")}
               </Link>
             )}
-            <Link href="/app/settings/feedback" className="text-dark-400 hover:text-zinc-900 transition text-sm">
+            <Link href="/app/settings/feedback" className="shrink-0 text-dark-400 hover:text-zinc-900 transition text-sm">
               {tStr("appNav.suggestions")}
             </Link>
-            <Link href="/app/settings/account" className="text-dark-400 hover:text-zinc-900 transition text-sm">
+            <Link href="/app/settings/account" className="text-dark-400 hover:text-zinc-900 transition text-sm shrink-0">
               {tStr("appNav.accountSettings")}
             </Link>
-            <div className="flex items-center gap-1 border-l border-dark-600 pl-3 shrink-0">
-              <Link
-                href="/app/profile/photo"
-                aria-label={tStr("appNav.ariaChangeProfilePhoto")}
-                title={tStr("appNav.ariaChangeProfilePhoto")}
-                className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full overflow-hidden bg-dark-700 cursor-pointer transition hover:bg-dark-600 hover:ring-2 hover:ring-brand-500/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-              >
-                <SilhouetteAvatar photoUrl={getProfileImageUrl(user) ?? undefined} gender={user.gender} name={user.name} className="w-full h-full" imgClassName="w-full h-full object-cover object-center" />
-              </Link>
-              <Link
-                href="/app/profile"
-                aria-label={tStr("appNav.ariaMyProfile")}
-                title={tStr("appNav.ariaMyProfile")}
-                className="inline-flex min-h-11 max-w-[10rem] lg:max-w-[14rem] items-center rounded-lg px-2 py-1.5 text-sm text-dark-500 truncate cursor-pointer transition hover:text-zinc-900 hover:bg-dark-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-              >
-                {displayName(user.username ?? user.name)}
-              </Link>
-            </div>
-            <button onClick={logout} className="text-dark-400 hover:text-red-400 text-sm transition">
+          </nav>
+          <div className="hidden lg:flex shrink-0 items-center gap-2 border-l border-dark-600 pl-3 ml-0.5">
+            <Link
+              href="/app/profile/photo"
+              aria-label={tStr("appNav.ariaChangeProfilePhoto")}
+              title={tStr("appNav.ariaChangeProfilePhoto")}
+              className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full overflow-hidden bg-dark-700 cursor-pointer transition hover:bg-dark-600 hover:ring-2 hover:ring-brand-500/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+            >
+              <SilhouetteAvatar photoUrl={getProfileImageUrl(user) ?? undefined} gender={user.gender} name={user.name} className="w-full h-full" imgClassName="w-full h-full object-cover object-center" />
+            </Link>
+            <Link
+              href="/app/profile"
+              aria-label={tStr("appNav.ariaMyProfile")}
+              title={tStr("appNav.ariaMyProfile")}
+              className="inline-flex min-h-11 max-w-[8rem] xl:max-w-[12rem] items-center rounded-lg px-2 py-1.5 text-sm text-dark-500 truncate cursor-pointer transition hover:text-zinc-900 hover:bg-dark-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+            >
+              {displayName(user.username ?? user.name)}
+            </Link>
+            <button
+              type="button"
+              onClick={logout}
+              className="shrink-0 text-dark-400 hover:text-red-400 text-sm font-medium transition px-2 py-1.5 rounded-lg hover:bg-dark-700/80"
+            >
               {tStr("appNav.logout")}
             </button>
-          </nav>
+          </div>
           {/* Mobile / tablet până la lg: meniu + avatar */}
           <div className="flex lg:hidden items-center gap-2 shrink-0">
             <Link
@@ -563,6 +572,7 @@ export default function AppLayout({
               Privacy Policy
             </Link>
             <LanguageSwitcher compact />
+            <DiebelCopyrightStrip className="mt-1 px-2" />
           </div>
         ) : (
           <div
@@ -583,6 +593,7 @@ export default function AppLayout({
             </p>
             <LegalDocLinks className={isMessagesListRoute ? "text-dark-500 scale-90 sm:scale-100" : "text-dark-500"} />
             <LanguageSwitcher />
+            <DiebelCopyrightStrip className="mt-1 px-2" />
           </div>
         )}
       </main>
@@ -779,11 +790,11 @@ export default function AppLayout({
 
 function MobileMenuSection({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="mb-3 last:mb-1">
-      <h2 className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-dark-500 first:pt-0">
+    <section className="mb-1.5 last:mb-0">
+      <h2 className="px-3 pb-0.5 pt-1 text-[10px] font-semibold uppercase tracking-wider text-dark-500 first:pt-0">
         {title}
       </h2>
-      <div className="flex flex-col gap-0.5">{children}</div>
+      <div className="flex flex-col gap-0">{children}</div>
     </section>
   );
 }
@@ -816,9 +827,9 @@ function MobileNavRow({
     <Link
       href={href}
       onClick={onNavigate}
-      className={`flex min-h-[44px] items-center gap-3 rounded-xl px-2.5 py-1.5 text-sm transition-colors ${toneCls}`}
+      className={`flex min-h-10 items-center gap-2.5 rounded-xl px-2.5 py-1 text-sm transition-colors ${toneCls}`}
     >
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-dark-700/60 text-current">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-dark-700/60 text-current">
         {icon}
       </span>
       <span className="min-w-0 flex-1 font-medium leading-snug">{children}</span>
@@ -839,9 +850,9 @@ function MobileNavButton({
     <button
       type="button"
       onClick={onClick}
-      className="flex min-h-[44px] w-full items-center gap-3 rounded-xl px-2.5 py-1.5 text-left text-sm font-medium text-red-600 transition-colors hover:bg-red-500/12 active:bg-red-500/18"
+      className="flex min-h-10 w-full items-center gap-2.5 rounded-xl px-2.5 py-1 text-left text-sm font-medium text-red-600 transition-colors hover:bg-red-500/12 active:bg-red-500/18"
     >
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-dark-700/60 text-current">{icon}</span>
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-dark-700/60 text-current">{icon}</span>
       <span>{children}</span>
     </button>
   );

@@ -8,7 +8,7 @@ import type { Gender, User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
 import { getVideoRoomId } from "@/lib/videoCall";
 import type { RingNotifySnapshot } from "@/lib/callRingNotifySnapshot";
-import { RING_PUSH_HINT_DELAY_MS, formatRingNotifyHint } from "@/lib/callRingNotifySnapshot";
+import { RING_PUSH_HINT_DELAY_MS, getRingNotifyHintKey } from "@/lib/callRingNotifySnapshot";
 import { track } from "@/lib/tracking";
 import { displayName } from "@/lib/displayName";
 import { getAuthHeaders, fetchWithAuthRetry } from "@/lib/authClient";
@@ -947,9 +947,9 @@ export default function ChatPage() {
           return;
         }
         const j = (await res.json().catch(() => ({}))) as { notify?: RingNotifySnapshot };
-        const pushHint = formatRingNotifyHint(j.notify);
-        if (pushHint) {
-          setRingPushHint(pushHint);
+        const hintKey = getRingNotifyHintKey(j.notify);
+        if (hintKey) {
+          setRingPushHint(tStr(`pages.callRoom.ringPushHint.${hintKey}`));
           await new Promise((r) => setTimeout(r, RING_PUSH_HINT_DELAY_MS));
         }
         if (!stillThisChat()) {

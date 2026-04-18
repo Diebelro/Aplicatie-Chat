@@ -486,8 +486,12 @@
       "fallbackUserName": "User",
       "outgoingRejectedTitle": "Call declined",
       "outgoingRejectedBody": "The other person declined the call. Redirecting to messages…",
-      "outgoingUnreachableTitle": "Couldn’t reach them",
-      "outgoingUnreachableBody": "They may be offline, away from the app, had no connection, or the call was cancelled. This doesn’t always mean they declined. Redirecting to messages…"
+      "outgoingUnreachableTitle": "The other person isn’t available for a call",
+      "outgoingUnreachableBody": "To place a call, both people need to be signed in (web or app). If they’re offline or don’t have the app open, they might not see the call. It doesn’t always mean they declined. You can send them a link and ask them to sign in.",
+      "ringPushHint": {
+        "noPushServer": "If they don’t have the app open, they might not see that you’re calling. With chat or the app open, the call works.",
+        "noCalleeNotif": "They don’t have notifications enabled on this device — they might miss the call in the background. With the app open, it works."
+      }
     },
     "feedback": {
       "backToAccount": "← Account settings",

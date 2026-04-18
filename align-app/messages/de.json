@@ -486,8 +486,12 @@
       "fallbackUserName": "Nutzer",
       "outgoingRejectedTitle": "Anruf abgelehnt",
       "outgoingRejectedBody": "Die andere Person hat den Anruf ausdrücklich abgelehnt. Weiterleitung zu Nachrichten…",
-      "outgoingUnreachableTitle": "Nicht erreichbar",
-      "outgoingUnreachableBody": "Die andere Person ist evtl. offline, nicht in der App, ohne Verbindung, oder der Anruf wurde beendet. Das heißt nicht immer eine Ablehnung. Weiterleitung zu Nachrichten…"
+      "outgoingUnreachableTitle": "Die andere Person ist für einen Anruf nicht verfügbar",
+      "outgoingUnreachableBody": "Damit ein Anruf klappt, müssen beide in der App angemeldet sein (Web oder Mobil). Offline oder ohne geöffnete App kann der Anruf unbemerkt bleiben. Das bedeutet nicht immer eine Ablehnung. Du kannst einen Link schicken und um Anmeldung bitten.",
+      "ringPushHint": {
+        "noPushServer": "Wenn die andere Person die App nicht geöffnet hat, sieht sie den Anruf vielleicht nicht. Mit offenem Chat oder App funktioniert der Anruf.",
+        "noCalleeNotif": "Benachrichtigungen sind auf diesem Gerät nicht aktiv — im Hintergrund kann der Anruf fehlen. Mit geöffneter App klappt es."
+      }
     },
     "feedback": {
       "backToAccount": "← Kontoeinstellungen",
