@@ -1,6 +1,6 @@
 # Iconițe PWA / Google Play
 
-Generare din **un singur set de constante** (culoare + glyph) în `scripts/generate-pwa-icons.mjs`:
+Generare din **culori + path SVG (inimă)** în `scripts/generate-pwa-icons.mjs`:
 
 ```bash
 npm run icons:pwa
