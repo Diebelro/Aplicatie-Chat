@@ -37,9 +37,9 @@ function isPrivateOrLocalHostname(hostname: string): boolean {
   return false;
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  /** Preview / monitorizare: mereu publice, fără redirect sau alte reguli. */
+  /** Preview / monitorizare: publice (și dacă matcher-ul s-ar schimba). */
   if (
     pathname === "/api/healthz" ||
     pathname.startsWith("/api/healthz/") ||
@@ -64,12 +64,9 @@ export function middleware(request: NextRequest) {
   return NextResponse.next();
 }
 
-/**
- * Exclude explicit rute de health (publice) + static assets.
- * Nu excludem tot `/api/*` — astfel Preview nu poate „pierde” health printr-un matcher prea larg/greșit.
- */
+/** Fără `/api/*` — evită orice logică pe Route Handlers (healthz, db-ping, auth, etc.). */
 export const config = {
   matcher: [
-    "/((?!api/healthz(?:/|$)|api/db-ping(?:/|$)|_next/static|_next/image|favicon.ico|manifest.webmanifest|manifest.json|sw.js|robots.txt|sitemap.xml).*)",
+    "/((?!api/|_next/static|_next/image|favicon.ico|manifest.webmanifest|manifest.json|sw.js|robots.txt|sitemap.xml).*)",
   ],
 };
