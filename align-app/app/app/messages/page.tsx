@@ -162,8 +162,8 @@ export default function MessagesPage() {
   }
 
   return (
-    <div>
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-2 sm:mb-4 shrink-0">
         <h2 className="app-pro-page-title">{tStr("pages.messages.title")}</h2>
         <Link
           href="/app/missed-calls"
@@ -173,7 +173,7 @@ export default function MessagesPage() {
           {tStr("pages.messages.missedLink")}
         </Link>
       </div>
-      <p className="app-pro-lead mb-4">
+      <p className="app-pro-lead mb-2 max-sm:hidden sm:mb-4 text-sm sm:text-base leading-snug">
         {formatTpl(tStr("pages.messages.hint"), {
           video: tStr("pages.messages.video"),
           audio: tStr("pages.messages.audio"),
@@ -181,7 +181,7 @@ export default function MessagesPage() {
       </p>
 
       {friends.length > 0 && (
-        <div className="mb-6">
+        <div className="mb-3 sm:mb-6 shrink-0">
           <h3 className="text-sm font-medium text-dark-400 mb-2 flex items-center gap-2">
             <Users className="w-4 h-4 text-[#4DA6FF]" />
             {tStr("pages.messages.friends")}
@@ -226,7 +226,7 @@ export default function MessagesPage() {
       )}
 
       {conversations.length === 0 ? (
-        <div className="app-pro-empty">
+        <div className="app-pro-empty min-h-0 flex-1 flex flex-col justify-center">
           <p className="text-dark-500 font-medium">{tStr("pages.messages.noConversations")}</p>
           <p className="app-pro-lead mt-3">
             {tStr("pages.messages.noConversationsHintBefore")}{" "}
@@ -241,7 +241,7 @@ export default function MessagesPage() {
           </p>
         </div>
       ) : (
-        <ul className="space-y-2">
+        <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-y-contain pb-2 sm:pb-3 scrollbar-app -mr-1 pr-1">
           {conversations.map(({ otherUser, lastMessage, receivedCount, unreadCount, noMessagesYet }) => {
             const isPlatformNotice = !!(lastMessage as Message & { isPlatformNotice?: boolean }).isPlatformNotice;
             const preview = noMessagesYet

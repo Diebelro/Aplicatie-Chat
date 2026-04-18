@@ -404,12 +404,14 @@ export default function AppLayout({
 
   const isChatRoute = pathname?.startsWith("/app/chat/") ?? false;
   const path = pathname ?? "";
+  /** Listă conversații (nu chat deschis): footer mai compact pe ecran mic. */
+  const isMessagesListRoute = path === "/app/messages";
   const navDiscoverActive = path === "/app" || path.startsWith("/app/profiles");
   const navMessagesActive = path.startsWith("/app/messages");
   const navMatchesActive = path.startsWith("/app/matches");
 
   const mobileTabBase =
-    "flex flex-col items-center justify-center gap-0.5 min-h-[56px] min-w-[64px] py-2 px-3 rounded-2xl transition-all duration-200 touch-manipulation active:scale-[0.97]";
+    "flex flex-col items-center justify-center gap-0.5 min-h-[50px] min-w-[58px] py-1.5 px-2.5 rounded-2xl transition-all duration-200 touch-manipulation active:scale-[0.97]";
   const mobileTabInactive = "text-dark-400 hover:text-dark-900 hover:bg-dark-800/70";
   const mobileTabActive =
     "text-brand-600 font-semibold bg-brand-500/12 ring-1 ring-brand-500/25 shadow-sm shadow-brand-500/10";
@@ -420,13 +422,13 @@ export default function AppLayout({
         <div className="max-w-4xl mx-auto py-3 md:py-3.5 flex items-center justify-between gap-2 pl-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))]">
           <Link
             href="/app"
-            className="group shrink-0 min-w-0 inline-flex items-center min-h-[44px] -ml-1 pl-1 pr-2 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-dark-900"
-            aria-label="Diebel"
+            className="group relative z-[25] shrink-0 inline-flex items-center min-h-[44px] min-w-[7.5rem] -ml-1 pl-1 pr-2 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-dark-900 touch-manipulation active:opacity-90"
+            aria-label={tStr("appNav.ariaDiscoverHome")}
           >
             <DiebelWordmark variant="header" withMark />
           </Link>
-          {/* Desktop nav */}
-          <nav className="hidden md:flex items-center gap-3 flex-wrap">
+          {/* Desktop nav: de la lg în sus — între md și lg rămâne shell mobil (hamburger + tab bar) ca să nu înfășoare meniul peste conținut */}
+          <nav className="hidden lg:flex items-center gap-2.5 flex-nowrap overflow-x-auto scrollbar-app max-w-[min(100%,calc(100vw-11rem))] py-0.5">
             <Link href="/app/profile" className="px-3 py-1.5 rounded-lg bg-brand-500/20 text-brand-400 hover:bg-brand-500/30 font-medium text-sm transition">
               {tStr("appNav.completeProfile")}
             </Link>
@@ -516,8 +518,8 @@ export default function AppLayout({
               {tStr("appNav.logout")}
             </button>
           </nav>
-          {/* Mobile: menu toggle + avatar */}
-          <div className="flex md:hidden items-center gap-2">
+          {/* Mobile / tablet până la lg: meniu + avatar */}
+          <div className="flex lg:hidden items-center gap-2 shrink-0">
             <Link
               href="/app/profile/photo"
               aria-label={tStr("appNav.ariaChangeProfilePhoto")}
@@ -541,9 +543,14 @@ export default function AppLayout({
       </header>
       <main
         className={
-          "flex-1 flex flex-col min-h-0 min-w-0 max-w-4xl w-full mx-auto py-4 md:py-7 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:pb-7 " +
+          "flex-1 flex flex-col min-h-0 min-w-0 max-w-4xl w-full mx-auto py-2 sm:py-4 lg:py-7 " +
+          "pb-[calc(4.75rem+env(safe-area-inset-bottom,0px))] lg:pb-7 " +
           "pl-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))] " +
-          (isChatRoute ? "overflow-hidden" : "overflow-y-auto overscroll-y-contain scrollbar-app")
+          (isChatRoute
+            ? "overflow-hidden"
+            : isMessagesListRoute
+              ? "overflow-hidden"
+              : "overflow-y-auto overscroll-y-contain scrollbar-app")
         }
       >
         {children}
@@ -558,17 +565,31 @@ export default function AppLayout({
             <LanguageSwitcher compact />
           </div>
         ) : (
-          <div className="mt-10 pt-4 border-t border-dark-700/80 shrink-0 flex flex-col items-center gap-4">
-            <p className="text-center text-dark-500 text-[10px] md:text-xs px-2">{tStr("appNav.legalFooterIntro")}</p>
-            <LegalDocLinks className="text-dark-500" />
+          <div
+            className={
+              isMessagesListRoute
+                ? "mt-3 pt-2 border-t border-dark-700/70 shrink-0 flex flex-col items-center gap-2 sm:gap-3 lg:mt-10 lg:pt-4 lg:gap-4"
+                : "mt-6 sm:mt-10 pt-3 sm:pt-4 border-t border-dark-700/80 shrink-0 flex flex-col items-center gap-3 sm:gap-4"
+            }
+          >
+            <p
+              className={
+                isMessagesListRoute
+                  ? "hidden sm:block text-center text-dark-500 text-[10px] md:text-xs px-2"
+                  : "text-center text-dark-500 text-[10px] md:text-xs px-2"
+              }
+            >
+              {tStr("appNav.legalFooterIntro")}
+            </p>
+            <LegalDocLinks className={isMessagesListRoute ? "text-dark-500 scale-90 sm:scale-100" : "text-dark-500"} />
             <LanguageSwitcher />
           </div>
         )}
       </main>
       {/* Bottom nav: doar pe mobile */}
       <nav
-        className="md:hidden fixed bottom-0 left-0 right-0 z-30 flex items-center justify-around border-t border-dark-600/60 bg-dark-900/95 backdrop-blur-xl shadow-[0_-8px_32px_-8px_rgba(0,0,0,0.18)] safe-area-inset-bottom"
-        style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom, 0px))", paddingTop: "0.5rem" }}
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-30 flex items-center justify-around border-t border-dark-600/60 bg-dark-900/95 backdrop-blur-xl shadow-[0_-8px_32px_-8px_rgba(0,0,0,0.18)] safe-area-inset-bottom"
+        style={{ paddingBottom: "max(0.35rem, env(safe-area-inset-bottom, 0px))", paddingTop: "0.35rem" }}
         aria-label="Navigare principală"
       >
         <Link
@@ -612,7 +633,7 @@ export default function AppLayout({
         </Link>
       </nav>
       {mobileMenuOpen && (
-        <div className="md:hidden fixed inset-0 z-[60] flex justify-end" role="presentation">
+        <div className="lg:hidden fixed inset-0 z-[60] flex justify-end" role="presentation">
           <button
             type="button"
             className="absolute inset-0 bg-black/50 backdrop-blur-[1px]"
@@ -844,7 +865,7 @@ function MatchToast({
   return (
     <div
       role="alert"
-      className="fixed bottom-24 md:bottom-6 left-4 right-4 max-w-md mx-auto z-[105] rounded-xl bg-brand-500 text-dark-900 shadow-lg border border-brand-400 p-4 flex items-center justify-between gap-3"
+      className="fixed bottom-24 lg:bottom-6 left-4 right-4 max-w-md mx-auto z-[105] rounded-xl bg-brand-500 text-dark-900 shadow-lg border border-brand-400 p-4 flex items-center justify-between gap-3"
     >
       <p className="font-medium">
         {tStr("appNav.matchWithBefore")}
