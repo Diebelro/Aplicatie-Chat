@@ -1,8 +1,17 @@
 # Iconițe PWA / Google Play
 
-Pune aici două fișiere PNG (fundal opac, logo centrat; pentru `maskable` lasă margini safe ~20%):
+Generare din **un singur set de constante** (culoare + glyph) în `scripts/generate-pwa-icons.mjs`:
 
-- `icon-192.png` — 192×192 px  
-- `icon-512.png` — 512×512 px (același fișier e referit și ca `maskable` în manifest până faci o variantă dedicată)
+```bash
+npm run icons:pwa
+```
 
-Fără ele, manifestul returnează 404 la iconițe; PWABuilder poate genera și iconițe dintr-un logo dacă le încarci acolo.
+**Ieșiri:**
+
+| Fișier | Rol |
+|--------|-----|
+| `icon-192-any.png`, `icon-512-any.png` | `purpose: "any"` — tab-uri, favicon-like, pătrat |
+| `icon-192-maskable.png`, `icon-512-maskable.png` | `purpose: "maskable"` — launcher Android (zonă sigură) |
+| `icon-192.png`, `icon-512.png` | Alias = copie a variantelor **any** (linkuri vechi / unelte) |
+
+Manifest: `public/manifest.json` listează explicit cele 4 intrări + `purpose` separat.

@@ -23,6 +23,13 @@ const defaultDescription =
 export const metadata: Metadata = {
   manifest: "/manifest.json",
   metadataBase: new URL(`${metadataBaseUrl}/`),
+  icons: {
+    icon: [
+      { url: "/icons/icon-192-any.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512-any.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/icons/icon-192-any.png", sizes: "192x192", type: "image/png" }],
+  },
   title: {
     default: defaultTitle,
     template: "%s | Diebel",
@@ -49,7 +56,7 @@ export const viewport: Viewport = {
   maximumScale: 5,
   userScalable: true,
   viewportFit: "cover",
-  themeColor: "#000000",
+  themeColor: "#0FB9B1",
 };
 
 export default function RootLayout({
