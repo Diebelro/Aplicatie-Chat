@@ -52,6 +52,8 @@ git push origin main
 
    \*Dacă `NEXTAUTH_SECRET` are deja ≥ 16 car., poți omite `SIGNALING_TOKEN_SECRET` doar dacă serverul de semnalizare e configurat să accepte același secret (vezi `docs/calls.md`).
 
+   **Preview (URL `*.vercel.app`, PR-uri, branch-uri):** pentru **aceleași** variabile WebRTC ca mai sus, în Vercel la fiecare cheie bifează și **Preview** (nu doar Production). Dacă lipesc pe Preview, **`/api/db-ping` poate rămâne OK** (DB e setată), dar **`/api/call/ice-config` dă 500** (`TURN_REQUIRED: …`) și apelurile nu pornesc — nu e regresie de cod, e mediul. După ce le adaugi: **Redeploy**. Din `align-app`, cu `npx vercel link` făcut: `npm run vercel:assert-call-env` (listează chei lipsă, fără valori).
+
 6. **Deploy**.
 
 **Checklist rapid (local, fără a afișa secrete):** din `align-app`, după ce ai copiat valorile din Vercel în `.env.local` (sau export în shell), rulează `npm run check:online-env` — trebuie mesajul `OK: online env checklist passed`. Pentru doar TURN/ICE: `npm run check:turn-env`.
@@ -72,7 +74,7 @@ Rulează asta de pe PC sau din orice mediu care poate ajunge la Neon **după** f
 - Verificare **automată** env + formă conexiuni Neon + ping DB (fără valori secrete în răspuns):
   - **Health detaliat:** `https://chat.diebel.ro/api/healthz` (înlocuiește domeniul cu cel real al app-ului).
   - **Doar DB:** `https://chat.diebel.ro/api/db-ping`
-  - **Ce indică „totul verde”:** în JSON, `ok: true`, `dbOk: true`, `expectedDbEnvProd: true`, `nextAuthSecretMinLengthOk: true`, `urlChecks.identical: true`, toate intrările din `requiredEnv` cu `set: true`, `dbChecks.neonPoolerShapeOk` nu este `false` (dacă folosești Neon), `dbChecks.*ContainsAmpEntity` ambele `false`. Lipsa variabilelor WebRTC (`webrtcChecks.*` false) **nu** face `ok` false — doar înseamnă că apelurile nu sunt configurate.
+  - **Ce indică „totul verde”:** în JSON, `ok: true`, `dbOk: true`, `expectedDbEnvProd: true`, `nextAuthSecretMinLengthOk: true`, `urlChecks.identical: true`, toate intrările din `requiredEnv` cu `set: true`, `dbChecks.neonPoolerShapeOk` nu este `false` (dacă folosești Neon), `dbChecks.*ContainsAmpEntity` ambele `false`. **Important:** dacă `webrtcChecks.*` sunt `false`, **apelurile tot nu vor merge** până setezi variabilele WebRTC/TURN pe **acel** deployment (inclusiv Preview); health-ul rămâne „verde” la app+DB în mod intenționat. Verificare rapidă: `GET /api/webrtc-env-check` (JSON fără secrete).
   - Există și endpoint-ul simplu pentru uptime: `GET /api/health` (doar `ok` / `database` / `ms`).
 
 ### Verificare automată end-to-end (recomandat după fiecare deploy)
