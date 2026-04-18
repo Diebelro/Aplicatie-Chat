@@ -29,8 +29,6 @@ import {
   EarOff,
   AlertCircle,
   ServerCog,
-  Eye,
-  EyeOff,
   UserRound,
   UserRoundX,
 } from "lucide-react";
@@ -349,6 +347,7 @@ function RemoteVideoStageOptional({
   );
 }
 
+const MINI_PREVIEW_STORAGE_KEY = "diebel.call.showMiniPreview";
 const OUTGOING_POLL_MS = 550;
 /** După conectare, ascundem bara de controale ca să nu stea peste imagine; tap / mișcare mouse reafișează. */
 const CHROME_AUTO_HIDE_MS = 4500;
@@ -395,8 +394,18 @@ export default function CallUI({
   const [elapsedSec, setElapsedSec] = useState(0);
   /** false = celălalt pe tot ecranul, tu în colț; true = invers */
   const [videoLayoutSwapped, setVideoLayoutSwapped] = useState(false);
-  /** Apel 1-la-1 video: ascunde chenarul mic cu camera ta (imaginea ta se trimite în continuare). */
-  const [showLocalPip, setShowLocalPip] = useState(true);
+  /** Apel 1-la-1 video: mini-preview (PiP); doar UI — camera rămâne activă. */
+  const [showMiniPreview, setShowMiniPreview] = useState(() => {
+    if (typeof window === "undefined") return true;
+    try {
+      const raw = localStorage.getItem(MINI_PREVIEW_STORAGE_KEY);
+      if (raw === "false") return false;
+      if (raw === "true") return true;
+    } catch {
+      /* ignore */
+    }
+    return true;
+  });
   /** Afișează sau ascunde video-ul interlocutorului (audio rămâne). */
   const [showRemoteParticipantVideo, setShowRemoteParticipantVideo] = useState(true);
   const isCaller = !!isCallerProp && !isConference;
@@ -440,7 +449,7 @@ export default function CallUI({
         credentials: "same-origin",
         body: JSON.stringify({ roomId }),
       }).catch(() => {});
-      router.push("/app/messages");
+      router.replace("/app/messages");
     },
   });
 
@@ -469,7 +478,15 @@ export default function CallUI({
       if (v) v.srcObject = null;
       if (a) a.srcObject = null;
     };
-  }, [localStream, videoLayoutSwapped, showLocalPip]);
+  }, [localStream, videoLayoutSwapped, showMiniPreview]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(MINI_PREVIEW_STORAGE_KEY, showMiniPreview ? "true" : "false");
+    } catch {
+      /* ignore */
+    }
+  }, [showMiniPreview]);
 
   useEffect(() => {
     if (callState !== "connected") {
@@ -654,7 +671,7 @@ export default function CallUI({
 
   useEffect(() => {
     if (!outgoingTerminal) return;
-    const t = setTimeout(() => router.push("/app/messages"), 1800);
+    const t = setTimeout(() => router.replace("/app/messages"), 1800);
     return () => clearTimeout(t);
   }, [outgoingTerminal, router]);
 
@@ -697,7 +714,7 @@ export default function CallUI({
         ...(isCaller && callState !== "connected" ? { recordMissedForCallee: true } : {}),
       }),
     }).catch(() => {});
-    router.push("/app/messages");
+    router.replace("/app/messages");
   };
 
   const remote = remoteParticipants[0];
@@ -749,6 +766,7 @@ export default function CallUI({
     displayName,
     videoLayoutSwapped,
     remote?.id,
+    showMiniPreview,
   ]);
 
   const immersiveVideo = !isConference && !audioOnly;
@@ -823,7 +841,7 @@ export default function CallUI({
         <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4 px-4 text-center">
           <p className="text-red-400 font-medium">{tStr("pages.callRoom.outgoingRejectedTitle")}</p>
           <p className="text-night-500 text-sm max-w-md">{tStr("pages.callRoom.outgoingRejectedBody")}</p>
-          <Link href="/app/messages" className="text-brand-400 hover:underline mt-2">
+          <Link replace href="/app/messages" className="text-brand-400 hover:underline mt-2">
             {tStr("pages.callRoom.backMessages")}
           </Link>
         </div>
@@ -837,7 +855,7 @@ export default function CallUI({
         <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4 px-4 text-center">
           <p className="text-amber-400 font-medium">{tStr("pages.callRoom.outgoingUnreachableTitle")}</p>
           <p className="text-night-500 text-sm max-w-md">{tStr("pages.callRoom.outgoingUnreachableBody")}</p>
-          <Link href="/app/messages" className="text-brand-400 hover:underline mt-2">
+          <Link replace href="/app/messages" className="text-brand-400 hover:underline mt-2">
             {tStr("pages.callRoom.backMessages")}
           </Link>
         </div>
@@ -872,6 +890,7 @@ export default function CallUI({
             Încearcă din nou (permite microfon / cameră)
           </button>
           <Link
+            replace
             href="/app/messages"
             className="text-brand-400 hover:text-brand-300 font-medium hover:underline"
           >
@@ -1003,6 +1022,7 @@ export default function CallUI({
                 Reîncearcă conexiunea
               </button>
               <Link
+                replace
                 href="/app/messages"
                 className="inline-flex items-center justify-center rounded-xl border border-white/15 px-5 py-3 text-white/90 font-medium hover:bg-white/5 transition"
               >
@@ -1179,16 +1199,19 @@ export default function CallUI({
         ) : null}
         {remotePlaybackHintBanner}
 
-        {/* PiP: implicit tu mic; după swap — celălalt mic. Atinge mare sau mic pentru a comuta. */}
-        {!videoLayoutSwapped && localStream && !videoMuted && showLocalPip && (
+        {/* PiP: tu mic / după swap celălalt mic. Tap pe mini = ascunde/arată preview; tap pe video mare = swap layout. */}
+        {!videoLayoutSwapped && localStream && !videoMuted && showMiniPreview && (
           <div
             id="localShareWrapper"
             ref={localCursorSendRef}
             className={pipFrameClass}
-            onClick={canSwapVideoLayout ? toggleVideoLayout : undefined}
-            role={canSwapVideoLayout ? "button" : undefined}
-            tabIndex={canSwapVideoLayout ? 0 : undefined}
-            aria-label={canSwapVideoLayout ? "Atinge pentru a te vedea mare pe ecran" : undefined}
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowMiniPreview((v) => !v);
+            }}
+            role="button"
+            tabIndex={0}
+            aria-label="Atinge pentru a ascunde mini-preview"
           >
             <video
               id="localShareVideo"
@@ -1200,29 +1223,16 @@ export default function CallUI({
             />
           </div>
         )}
-        {!videoLayoutSwapped && localStream && !videoMuted && !showLocalPip && (
-          <div
-            id="localShareWrapper"
-            ref={localCursorSendRef}
-            className="fixed top-0 left-0 h-px w-px overflow-hidden opacity-0 pointer-events-none"
-            aria-hidden
-          >
-            <video
-              id="localShareVideo"
-              ref={localVideoRef}
-              autoPlay
-              playsInline
-              muted
-              className="h-px w-px object-cover scale-x-[-1]"
-            />
-          </div>
-        )}
-        {!videoLayoutSwapped && localStream && videoMuted && showLocalPip && (
+        {!videoLayoutSwapped && localStream && videoMuted && showMiniPreview && (
           <div
             className={`${pipFrameClass} flex flex-col items-center justify-center gap-1 bg-zinc-800/95 ring-white/15 px-1`}
-            onClick={canSwapVideoLayout ? toggleVideoLayout : undefined}
-            role={canSwapVideoLayout ? "button" : undefined}
-            aria-label={canSwapVideoLayout ? "Atinge pentru a te vedea mare pe ecran" : undefined}
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowMiniPreview((v) => !v);
+            }}
+            role="button"
+            tabIndex={0}
+            aria-label="Ascunde mini-preview"
           >
             <VideoOff className={isMobileUi ? "h-8 w-8 text-white/35" : "h-7 w-7 text-white/35"} />
             <span className="text-[9px] leading-tight text-center text-white/50 px-0.5">
@@ -1230,21 +1240,16 @@ export default function CallUI({
             </span>
           </div>
         )}
-        {!videoLayoutSwapped && localStream && videoMuted && !showLocalPip && (
-          <div
-            id="localShareWrapper"
-            ref={localCursorSendRef}
-            className="fixed top-0 left-0 h-px w-px overflow-hidden opacity-0 pointer-events-none"
-            aria-hidden
-          />
-        )}
-        {videoLayoutSwapped && remote && showLocalPip && (
+        {videoLayoutSwapped && remote && showMiniPreview && (
           <div
             className={pipFrameClass}
-            onClick={canSwapVideoLayout ? toggleVideoLayout : undefined}
-            role={canSwapVideoLayout ? "button" : undefined}
-            tabIndex={canSwapVideoLayout ? 0 : undefined}
-            aria-label={canSwapVideoLayout ? "Atinge pentru a vedea din nou celălalt mare" : undefined}
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowMiniPreview((v) => !v);
+            }}
+            role="button"
+            tabIndex={0}
+            aria-label="Ascunde mini-preview"
           >
             <div className="relative h-full w-full">
               <RemoteVideoStageOptional
@@ -1258,6 +1263,14 @@ export default function CallUI({
               {remote.displayName || "Participant"}
             </span>
           </div>
+        )}
+        {/* Partajare ecran: container pentru cursor când mini-preview e ascuns (fără tile vizibil). */}
+        {!showMiniPreview && screenSharing && !videoLayoutSwapped && (
+          <div
+            ref={localCursorSendRef}
+            className="pointer-events-none fixed top-0 left-0 h-px w-px overflow-hidden opacity-0"
+            aria-hidden
+          />
         )}
         <audio ref={localAudioRef} autoPlay playsInline muted className="hidden" />
 
@@ -1287,26 +1300,13 @@ export default function CallUI({
           >
             {videoMuted ? <VideoOff className="h-6 w-6 sm:h-7 sm:w-7" /> : <Video className="h-6 w-6 sm:h-7 sm:w-7" />}
           </CircleBtn>
-          <CircleBtn
-            onClick={() => setShowLocalPip((v) => !v)}
-            quiet={toolbarQuiet}
-            title={
-              videoLayoutSwapped
-                ? showLocalPip
-                  ? "Ascunde fereastra mică (celălalt în colț)"
-                  : "Arată din nou fereastra mică cu celălalt"
-                : showLocalPip
-                  ? "Ascunde fereastra mică cu imaginea ta (celălalt pe tot ecranul)"
-                  : "Arată din nou fereastra mică cu camera ta"
-            }
-            active={showLocalPip}
+          <button
+            type="button"
+            onClick={() => setShowMiniPreview((v) => !v)}
+            className="pointer-events-auto shrink-0 max-w-[11rem] rounded-xl border border-white/20 bg-white/10 px-2.5 py-2 text-center text-[11px] font-medium leading-tight text-white/90 shadow-sm backdrop-blur-sm transition hover:bg-white/15 active:scale-[0.98] sm:max-w-[14rem] sm:px-3 sm:text-xs"
           >
-            {showLocalPip ? (
-              <Eye className="h-6 w-6 sm:h-7 sm:w-7" />
-            ) : (
-              <EyeOff className="h-6 w-6 sm:h-7 sm:w-7" />
-            )}
-          </CircleBtn>
+            {showMiniPreview ? "Ascunde mini-preview" : "Arată mini-preview"}
+          </button>
           {remote ? (
             <CircleBtn
               onClick={() => setShowRemoteParticipantVideo((v) => !v)}
@@ -1515,7 +1515,7 @@ export default function CallUI({
     <RemotePlaybackContext.Provider value={remotePlayback}>
     <div className="flex flex-col min-h-[calc(100dvh-4rem)] sm:min-h-[calc(100vh-5rem)]">
       <div className="flex items-center justify-between border-b border-night-600 py-2 px-3 sm:px-4">
-        <Link href="/app/messages" onClick={() => leave()} className="text-night-500 hover:text-white text-sm">
+        <Link replace href="/app/messages" onClick={() => leave()} className="text-night-500 hover:text-white text-sm">
           ← Mesaje
         </Link>
         <span className="text-night-500 text-sm">
