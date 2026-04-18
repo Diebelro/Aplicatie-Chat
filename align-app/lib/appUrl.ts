@@ -65,6 +65,12 @@ export function getPublicAppUrl(): string {
 
   resolved = normalizeApexDiebelForEmail(resolved);
 
+  /** Env gol / doar „/” / host fără schemă → `new URL()` pică la `next build` (Vercel Preview fără .env). */
+  const t = resolved.trim();
+  if (!t || !/^https?:\/\//i.test(t)) {
+    return fallbackBase;
+  }
+
   if (process.env.NODE_ENV === "development" && !loggedPublicUrlOnce) {
     loggedPublicUrlOnce = true;
     console.info(

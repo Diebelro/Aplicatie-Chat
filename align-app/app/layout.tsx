@@ -6,12 +6,15 @@ import { PwaServiceWorkerRegister } from "@/components/PwaServiceWorkerRegister"
 import { getPublicAppUrl } from "@/lib/appUrl";
 
 const siteUrlRaw = getPublicAppUrl();
-const metadataBaseUrl =
+let metadataBaseUrl =
   siteUrlRaw.startsWith("http://localhost") || siteUrlRaw.startsWith("http://127.0.0.1")
     ? (process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ||
         process.env.NEXTAUTH_URL?.replace(/\/$/, "") ||
         "https://align-app-delta.vercel.app")
     : siteUrlRaw.replace(/\/$/, "");
+if (!metadataBaseUrl.trim() || !/^https?:\/\//i.test(metadataBaseUrl.trim())) {
+  metadataBaseUrl = "https://chat.diebel.ro";
+}
 
 const defaultTitle = "Diebel — Same intent. Real connections.";
 const defaultDescription =
