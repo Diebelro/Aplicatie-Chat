@@ -867,9 +867,7 @@ export default function CallUI({
                     <p>
                       Serverul nu are (încă) toate variabilele pentru semnalizare WebSocket și TURN. Pe{" "}
                       <span className="font-semibold text-night-200">Vercel</span>: Settings → Environment Variables
-                      (Production și Preview). Local: fișierul <code className="text-brand-300/90">.env.local</code> din{" "}
-                      <code className="text-brand-300/90">align-app</code> — vezi{" "}
-                      <code className="text-brand-300/90">docs/calls.md</code>.
+                      (Production și Preview). Local: <code className="text-brand-300/90">align-app/.env.local</code>.
                     </p>
                     <p className="text-xs text-night-500 uppercase tracking-wide">Variabile esențiale</p>
                     <ul className="font-mono text-[11px] sm:text-xs text-brand-200/90 bg-night-900/80 rounded-lg px-3 py-3 space-y-1 border border-night-700/60">
@@ -912,8 +910,8 @@ export default function CallUI({
                   </>
                 ) : (
                   <p>
-                    A apărut o problemă la apel. Poți încerca din nou; dacă se repetă, verifică documentația din{" "}
-                    <code className="text-brand-300/90">docs/calls.md</code> sau contactează administratorul.
+                    A apărut o problemă la apel. Poți încerca din nou; dacă se repetă, contactează administratorul sau
+                    deschide <code className="text-brand-300/90">/api/webrtc-env-check</code> în browser.
                   </p>
                 )}
               </div>
