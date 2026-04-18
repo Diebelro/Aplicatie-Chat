@@ -12,6 +12,7 @@ import {
   markIncomingGrace,
 } from "@/lib/callIncomingGrace";
 import { closeIncomingCallPushNotifications } from "@/lib/closeIncomingCallPushNotifications";
+import { markCallEndPosted, shouldSkipDuplicateCallEnd } from "@/lib/callEndDedup";
 import { startIncomingRingtone, stopIncomingRingtone } from "@/lib/callRingtone";
 import { isBrowserPushPrimaryPath } from "@/lib/browserPushConstants";
 
@@ -53,6 +54,8 @@ export default function IncomingCall() {
   const [ringNeedsTap, setRingNeedsTap] = useState(false);
   /** În browser `window.setTimeout` → number; `ReturnType<typeof setTimeout>` cu @types/node → Timeout și pică build-ul Vercel. */
   const pollTimerRef = useRef<number | null>(null);
+  /** Evită dublarea lanțului reject→end la dublu-tap pe Respinge. */
+  const declineInFlightRef = useRef(false);
   const incomingRef = useRef<IncomingCallData | null>(null);
   incomingRef.current = incoming;
   /** Evită „soneria pornește din nou”: poll-ul poate întoarce `null` o clipă apoi același apel — debounce la golire. */
@@ -290,24 +293,37 @@ export default function IncomingCall() {
   };
 
   const handleDecline = () => {
-    if (!incoming || loading) return;
+    if (!incoming || loading || declineInFlightRef.current) return;
+    declineInFlightRef.current = true;
     setActionError(null);
     setLoading(true);
     cancelScheduledClearIncoming();
     markIncomingGrace(incoming.roomId, incoming.pendingSince, 12000);
     markIncomingCallDismissed(incoming.roomId, incoming.pendingSince);
-    void fetch("/api/call/end", {
+    const roomId = incoming.roomId;
+    /**
+     * IMPORTANT: întâi POST /reject cu roomId (marchează respins cât încă există pending), apoi POST /end.
+     * Dacă trimiți /end înainte, pending-ul dispare și /reject nu mai poate marca respins.
+     */
+    fetch("/api/call/reject", {
       method: "POST",
       headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
       credentials: "same-origin",
-      body: JSON.stringify({ roomId: incoming.roomId }),
-    }).catch(() => {});
-    fetch("/api/call/reject", {
-      method: "POST",
-      headers: getAuthHeaders(),
-      credentials: "same-origin",
+      body: JSON.stringify({ roomId }),
     })
+      .then(async (r) => {
+        if (!r.ok) return;
+        if (shouldSkipDuplicateCallEnd(roomId)) return;
+        markCallEndPosted(roomId);
+        void fetch("/api/call/end", {
+          method: "POST",
+          headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({ roomId }),
+        }).catch(() => {});
+      })
       .finally(() => {
+        declineInFlightRef.current = false;
         setLoading(false);
         setIncoming(null);
       });

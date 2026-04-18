@@ -55,7 +55,7 @@ import {
   attachCursorSender,
   setCursorEnabled,
 } from "@/lib/webrtc/cursorOverlay";
-import { markCallEndPosted } from "@/lib/callEndDedup";
+import { markCallEndPosted, shouldSkipDuplicateCallEnd } from "@/lib/callEndDedup";
 import { markIncomingGrace } from "@/lib/callIncomingGrace";
 import { useVideoRenderable } from "@/hooks/useVideoRenderable";
 
@@ -657,6 +657,24 @@ export default function CallUI({
     const t = setTimeout(() => router.push("/app/messages"), 1800);
     return () => clearTimeout(t);
   }, [outgoingTerminal, router]);
+
+  /**
+   * „Respins” e terminal: mai întâi oprim media/WebRTC, apoi cleanup server (fără dublare POST /end).
+   * Nu facem asta la „unreachable” — acolo există recuperare dacă WebRTC se leagă după poll.
+   */
+  useEffect(() => {
+    if (outgoingTerminal !== "rejected" || !isCaller) return;
+    leave();
+    if (shouldSkipDuplicateCallEnd(roomId)) return;
+    markCallEndPosted(roomId);
+    markIncomingGrace(roomId, undefined, 8000);
+    void fetch("/api/call/end", {
+      method: "POST",
+      headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ roomId }),
+    }).catch(() => {});
+  }, [outgoingTerminal, isCaller, leave, roomId]);
 
   /** Dacă am arătat din greșeală „unreachable”, dar WebRTC s-a legat — revino la UI-ul de apel. */
   useEffect(() => {
