@@ -13,17 +13,27 @@ import {
   prismaFindUserByEmailForLogin,
 } from "@/lib/repo-prisma";
 
+const NEXTAUTH_SECRET_BUILD_PLACEHOLDER =
+  "align-missing-nextauth-secret-build-placeholder-min-32-chars-xxxx";
+
 /**
  * Fără secret, NextAuth pică la `/api/auth/session` → în browser apare [CLIENT_FETCH_ERROR] cu mesaj gol.
- * În producție: obligatoriu NEXTAUTH_SECRET în env (vezi .env.example).
+ * Pe Vercel Preview, `next build` rulează uneori fără NEXTAUTH_SECRET în env-ul de build — folosim placeholder
+ * doar când VERCEL_ENV nu e `production`; pe producție Vercel secretul rămâne obligatoriu.
  */
 function resolveNextAuthSecret(): string {
   const s = process.env.NEXTAUTH_SECRET?.trim();
   if (s) return s;
-  if (process.env.NODE_ENV === "production") {
-    throw new Error("NEXTAUTH_SECRET este obligatoriu în producție (Vercel / .env).");
+  if (process.env.NODE_ENV !== "production") {
+    return "align-local-dev-nextauth-secret-min-32-chars-do-not-use-in-prod";
   }
-  return "align-local-dev-nextauth-secret-min-32-chars-do-not-use-in-prod";
+  if (process.env.VERCEL === "1") {
+    if (process.env.VERCEL_ENV === "production") {
+      throw new Error("NEXTAUTH_SECRET este obligatoriu în producție (Vercel / .env).");
+    }
+    return NEXTAUTH_SECRET_BUILD_PLACEHOLDER;
+  }
+  throw new Error("NEXTAUTH_SECRET este obligatoriu în producție (Vercel / .env).");
 }
 
 function buildOAuthProviders(): NonNullable<NextAuthOptions["providers"]> {
