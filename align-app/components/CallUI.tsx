@@ -1176,26 +1176,6 @@ export default function CallUI({
         )}
         <audio ref={localAudioRef} autoPlay playsInline muted className="hidden" />
 
-        {chromeVisible && callState === "connected" ? (
-          <p
-            className={`relative z-20 mx-auto -mb-1 max-w-sm px-4 text-center text-[10px] leading-snug text-white/45 transition-all duration-300 ${chromeBottomClass}`}
-          >
-            {isMobileUi ? (
-              <>
-                Pe telefon, sunetul îl alege browserul (uneori difuzor, uneori cască).{" "}
-                {showSpeakerToggle
-                  ? "„Difuzor” forțează ieșirea tare când e suportat."
-                  : "„Discret” oprește sunetul la amândoi la tine (inclusiv microfonul)."}
-              </>
-            ) : (
-              <>
-                Pe laptop/PC, sunetul merge la boxe/căști după sistem. „Discret” = fără voce la amândoi la tine
-                (inclusiv oprește microfonul ca să nu audă foșnet).
-              </>
-            )}
-          </p>
-        ) : null}
-
         <div
           className={`relative z-20 mt-auto flex flex-wrap items-center justify-center gap-3 sm:gap-5 px-3
             pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-6 transition-all duration-300 ease-out ${chromeBottomClass}`}
@@ -1370,24 +1350,6 @@ export default function CallUI({
           <div className="relative z-[240] mx-4 mb-2 rounded-xl bg-amber-500/30 border border-amber-400/50 px-3 py-2 text-xs text-amber-50 shadow-lg">
             Browserul poate bloca sunetul interlocutorului până la o atingere pe ecran. Atinge oriunde pentru a continua.
           </div>
-        ) : null}
-
-        {chromeVisible && callState === "connected" ? (
-          <p
-            className={`mx-auto mb-1 max-w-sm px-4 text-center text-[10px] leading-snug text-white/45 transition-all duration-300 ${chromeBottomClass}`}
-          >
-            {isMobileUi ? (
-              <>
-                Sunetul îl alege telefonul/browserul.{" "}
-                {showSpeakerToggle ? "„Difuzor” = mai tare când merge." : ""}{" "}
-                „Discret” = fără sunet la amândoi la tine (și microfon oprit).
-              </>
-            ) : (
-              <>
-                Pe PC: sunet la boxe/căști după Windows. „Discret” = nu auzi + nu te aud (fără foșnet).
-              </>
-            )}
-          </p>
         ) : null}
 
         <div
