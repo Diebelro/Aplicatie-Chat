@@ -1404,16 +1404,6 @@ export default function ChatPage() {
         onSubmit={sendMessage}
         className="flex flex-col gap-2 pt-4 shrink-0 w-full min-w-0 max-w-full pb-[max(0.5rem,env(safe-area-inset-bottom,0))]"
       >
-        {calling && (
-          <p className="text-xs text-dark-500" role="status" aria-live="polite">
-            {tStr("pages.chat.callingInProgress")}
-          </p>
-        )}
-        {ringPushHint && (
-          <p className="text-xs text-amber-400/95 leading-snug" role="status">
-            {ringPushHint}
-          </p>
-        )}
         {sendError && (
           <div className="flex flex-col gap-2">
             <p className="text-red-400 text-sm break-words" role="alert">

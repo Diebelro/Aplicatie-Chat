@@ -4,6 +4,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   useCallback,
@@ -462,23 +463,53 @@ export default function CallUI({
   /** Pe telefon comutăm față/spate prin facingMode chiar dacă enumerateDevices raportează un singur videoinput. */
   const showCameraFlip = !audioOnly && (canSwitchCamera || isMobileDevice());
 
-  const localVideoRef = useRef<HTMLVideoElement>(null);
-  const localAudioRef = useRef<HTMLAudioElement>(null);
+  const localVideoRef = useRef<HTMLVideoElement | null>(null);
+  const localAudioRef = useRef<HTMLAudioElement | null>(null);
+  /** Ref callback: la fiecare montare/demontare a `<video>` local, legăm imediat `srcObject` (useEffect singur ratează cicluri oprit/pornit cameră / PiP). */
+  const bindLocalVideoRef = useCallback(
+    (node: HTMLVideoElement | null) => {
+      const prev = localVideoRef.current;
+      if (prev && prev !== node) {
+        try {
+          prev.srcObject = null;
+        } catch {
+          /* ignore */
+        }
+      }
+      localVideoRef.current = node;
+      if (node) {
+        node.srcObject = localStream ?? null;
+      }
+    },
+    [localStream]
+  );
+  const bindLocalAudioRef = useCallback(
+    (node: HTMLAudioElement | null) => {
+      const prev = localAudioRef.current;
+      if (prev && prev !== node) {
+        try {
+          prev.srcObject = null;
+        } catch {
+          /* ignore */
+        }
+      }
+      localAudioRef.current = node;
+      if (node) {
+        node.srcObject = localStream ?? null;
+      }
+    },
+    [localStream]
+  );
+  useLayoutEffect(() => {
+    const v = localVideoRef.current;
+    if (v) v.srcObject = localStream ?? null;
+    const a = localAudioRef.current;
+    if (a) a.srcObject = localStream ?? null;
+  }, [localStream]);
   /** Partajare ecran: trimitere cursor normalizat (P2P DataChannel). */
   const localCursorSendRef = useRef<HTMLDivElement>(null);
   /** Suprapunere cursor primit peste video-ul celuilalt. */
   const remoteCursorOverlayRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const v = localVideoRef.current;
-    const a = localAudioRef.current;
-    if (v) v.srcObject = localStream;
-    if (a) a.srcObject = localStream;
-    return () => {
-      if (v) v.srcObject = null;
-      if (a) a.srcObject = null;
-    };
-  }, [localStream, videoLayoutSwapped, showMiniPreview]);
 
   useEffect(() => {
     try {
@@ -1124,7 +1155,7 @@ export default function CallUI({
                 <div id="localShareWrapper" ref={localCursorSendRef} className="absolute inset-0 h-full w-full">
                   <video
                     id="localShareVideo"
-                    ref={localVideoRef}
+                    ref={bindLocalVideoRef}
                     autoPlay
                     playsInline
                     muted
@@ -1213,7 +1244,7 @@ export default function CallUI({
           >
             <video
               id="localShareVideo"
-              ref={localVideoRef}
+              ref={bindLocalVideoRef}
               autoPlay
               playsInline
               muted
@@ -1270,7 +1301,7 @@ export default function CallUI({
             aria-hidden
           />
         )}
-        <audio ref={localAudioRef} autoPlay playsInline muted className="hidden" />
+        <audio ref={bindLocalAudioRef} autoPlay playsInline muted className="hidden" />
 
         <div
           className={`relative z-20 mt-auto flex flex-wrap items-center justify-center gap-2 sm:gap-3 px-3
@@ -1438,7 +1469,7 @@ export default function CallUI({
           {remote?.stream ? <RemoteAudio stream={remote.stream} /> : null}
         </div>
 
-        <audio ref={localAudioRef} autoPlay playsInline muted className="hidden" />
+        <audio ref={bindLocalAudioRef} autoPlay playsInline muted className="hidden" />
 
         {banner ? (
           <div
@@ -1565,8 +1596,8 @@ export default function CallUI({
         }`}
       >
         <div className="relative rounded-2xl overflow-hidden bg-night-800 border border-white/10 aspect-video shadow-lg">
-          <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
-          <audio ref={localAudioRef} autoPlay playsInline muted className="hidden" />
+          <video ref={bindLocalVideoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
+          <audio ref={bindLocalAudioRef} autoPlay playsInline muted className="hidden" />
         </div>
 
         {remoteParticipants.map((p) => (

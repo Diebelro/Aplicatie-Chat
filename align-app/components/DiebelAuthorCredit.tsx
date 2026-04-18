@@ -36,7 +36,7 @@ export function AppCreditLine({ className = "" }: { className?: string }) {
 export function DiebelCopyrightStrip({ className = "" }: { className?: string }) {
   return (
     <p className={`text-dark-500 text-xs text-center leading-snug max-w-lg mx-auto ${className}`.trim()}>
-      © {new Date().getFullYear()} <DiebelAuthorLink />. <AppCreditLine />
+      © {new Date().getFullYear()} · <AppCreditLine />
     </p>
   );
 }
