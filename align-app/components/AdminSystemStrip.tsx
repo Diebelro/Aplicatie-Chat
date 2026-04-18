@@ -13,6 +13,11 @@ type Snap = {
   memory: { heapUsedMb: number };
   vitals: { avgLcpLast20: number | null };
   generatedAt: string;
+  /** Rezumat „Apeluri & mesaje” (același ca pe /admin/system) — poate fi OK la env dar apelul tot poate eșua (coturn, rețea, WS token). */
+  product?: {
+    shortStrip: string;
+    webrtc: { summaryOk: boolean };
+  };
 };
 
 export function AdminSystemStrip() {
@@ -91,6 +96,18 @@ export function AdminSystemStrip() {
         {snap.overallReasons.length > 0 && (
           <span className="w-full sm:w-auto text-[11px] text-zinc-600 mt-0.5 sm:mt-0 line-clamp-2 sm:line-clamp-none">
             {snap.overallReasons.join(" · ")}
+          </span>
+        )}
+        {snap.product?.shortStrip && (
+          <span
+            className={`w-full text-[11px] mt-1 sm:mt-0.5 leading-snug ${
+              snap.product.webrtc?.summaryOk ? "text-zinc-600" : "text-amber-900 font-medium"
+            }`}
+          >
+            <span className="text-zinc-500">Apeluri / mesaje:</span> {snap.product.shortStrip}
+            {!snap.product.webrtc?.summaryOk && (
+              <span className="text-zinc-600 font-normal"> — env ≠ apel reușit; vezi /admin/system</span>
+            )}
           </span>
         )}
         <Link
