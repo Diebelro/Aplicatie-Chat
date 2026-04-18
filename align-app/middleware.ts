@@ -37,7 +37,7 @@ function isPrivateOrLocalHostname(hostname: string): boolean {
   return false;
 }
 
-export function proxy(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   /** Preview / monitorizare: publice (și dacă matcher-ul s-ar schimba). */
   if (
