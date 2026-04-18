@@ -31,6 +31,8 @@ import {
   ServerCog,
   Eye,
   EyeOff,
+  UserRound,
+  UserRoundX,
 } from "lucide-react";
 import {
   useWebRtcCall,
@@ -301,6 +303,52 @@ function RemoteVideoStage({
   );
 }
 
+/**
+ * Ascunde doar video-ul interlocutorului (păstrează audio). Util când vrei ecran curat sau doar imaginea ta.
+ */
+function RemoteVideoStageOptional({
+  participant,
+  overlayHostRef,
+  videoVisible,
+  variant = "fullscreen",
+}: {
+  participant: RemoteParticipant;
+  overlayHostRef?: Ref<HTMLDivElement>;
+  videoVisible: boolean;
+  variant?: "fullscreen" | "pip";
+}) {
+  const stream = participant.stream ?? null;
+  if (videoVisible || !stream) {
+    return <RemoteVideoStage participant={participant} overlayHostRef={overlayHostRef} />;
+  }
+  const pip = variant === "pip";
+  return (
+    <div
+      id="remoteShareWrapper"
+      ref={overlayHostRef}
+      className={
+        pip
+          ? "absolute inset-0 isolate h-full w-full bg-zinc-950 flex flex-col items-center justify-center"
+          : "absolute inset-0 isolate h-full w-full bg-black flex flex-col items-center justify-center"
+      }
+    >
+      {pip ? (
+        <UserRoundX className="h-9 w-9 text-white/35 shrink-0" aria-hidden />
+      ) : (
+        <>
+          <div className="h-28 w-28 rounded-full bg-white/10 flex items-center justify-center text-4xl font-light text-white/50 mb-4 ring-2 ring-white/15">
+            {(participant.displayName || "?").slice(0, 1).toUpperCase()}
+          </div>
+          <p className="text-white/45 text-sm font-medium px-6 text-center leading-snug">
+            Video interlocutorului e ascuns — îl auzi în continuare.
+          </p>
+        </>
+      )}
+      {stream.getAudioTracks().length ? <RemoteAudio stream={stream} /> : null}
+    </div>
+  );
+}
+
 const OUTGOING_POLL_MS = 550;
 /** După conectare, ascundem bara de controale ca să nu stea peste imagine; tap / mișcare mouse reafișează. */
 const CHROME_AUTO_HIDE_MS = 4500;
@@ -349,6 +397,8 @@ export default function CallUI({
   const [videoLayoutSwapped, setVideoLayoutSwapped] = useState(false);
   /** Apel 1-la-1 video: ascunde chenarul mic cu camera ta (imaginea ta se trimite în continuare). */
   const [showLocalPip, setShowLocalPip] = useState(true);
+  /** Afișează sau ascunde video-ul interlocutorului (audio rămâne). */
+  const [showRemoteParticipantVideo, setShowRemoteParticipantVideo] = useState(true);
   const isCaller = !!isCallerProp && !isConference;
 
   const screenshareAllowed = isScreenshareFeatureEnabled();
@@ -696,6 +746,14 @@ export default function CallUI({
     if (!remote) setVideoLayoutSwapped(false);
   }, [remote]);
 
+  useEffect(() => {
+    if (callState !== "connected") setShowRemoteParticipantVideo(true);
+  }, [callState]);
+
+  useEffect(() => {
+    setShowRemoteParticipantVideo(true);
+  }, [remote?.id]);
+
   /** Pe laptop: camera oprită = păstrezi interlocutorul pe tot ecranul, fără chenar PiP cu icon în colț. */
   useEffect(() => {
     if (isConference || audioOnly) return;
@@ -988,7 +1046,11 @@ export default function CallUI({
                 }
                 aria-label={canSwapVideoLayout ? "Atinge pentru a te vedea mare în colț" : undefined}
               >
-                <RemoteVideoStage participant={remote} overlayHostRef={remoteCursorOverlayRef} />
+                <RemoteVideoStageOptional
+                  participant={remote}
+                  overlayHostRef={remoteCursorOverlayRef}
+                  videoVisible={showRemoteParticipantVideo}
+                />
               </div>
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-zinc-900 to-black">
@@ -1167,7 +1229,12 @@ export default function CallUI({
             aria-label={canSwapVideoLayout ? "Atinge pentru a vedea din nou celălalt mare" : undefined}
           >
             <div className="relative h-full w-full">
-              <RemoteVideoStage participant={remote} overlayHostRef={remoteCursorOverlayRef} />
+              <RemoteVideoStageOptional
+                participant={remote}
+                overlayHostRef={remoteCursorOverlayRef}
+                videoVisible={showRemoteParticipantVideo}
+                variant="pip"
+              />
             </div>
             <span className="pointer-events-none absolute bottom-1.5 left-2 right-2 truncate text-[10px] font-medium uppercase tracking-wider text-white/80 bg-black/50 px-1.5 py-0.5 rounded max-w-[calc(100%-0.5rem)]">
               {remote.displayName || "Participant"}
@@ -1222,6 +1289,24 @@ export default function CallUI({
               <EyeOff className="h-6 w-6 sm:h-7 sm:w-7" />
             )}
           </CircleBtn>
+          {remote ? (
+            <CircleBtn
+              onClick={() => setShowRemoteParticipantVideo((v) => !v)}
+              quiet={toolbarQuiet}
+              title={
+                showRemoteParticipantVideo
+                  ? "Ascunde video interlocutorului (îl auzi în continuare)"
+                  : "Arată din nou video interlocutorului"
+              }
+              active={showRemoteParticipantVideo}
+            >
+              {showRemoteParticipantVideo ? (
+                <UserRound className="h-6 w-6 sm:h-7 sm:w-7" />
+              ) : (
+                <UserRoundX className="h-6 w-6 sm:h-7 sm:w-7" />
+              )}
+            </CircleBtn>
+          ) : null}
           {showCameraFlip && (
             <CircleBtn
               onClick={() => void switchCamera()}
