@@ -14,6 +14,7 @@ Pe **Vercel → Environment Variables → Production**: păstrează **`DATABASE_
 
 - [ ] Neon: **Pooled** → `DATABASE_URL` (lăsat cum e dacă deja are `-pooler`).
 - [ ] Neon: **Direct** (fără `-pooler` în hostname) → înlocuiește **doar** `DIRECT_URL` în Vercel.
+- [ ] Opțional (CLI): din rădăcina repo `npx vercel env pull .env.vercel.production.pull --environment=production --yes`, apoi din `align-app`: `npm run vercel:fix-direct-url` (ia `DATABASE_URL_UNPOOLED` din pull și rescrie `DIRECT_URL` în Production).
 - [ ] **Redeploy** producție (Vercel sau `npm run deploy:chat` din `align-app`).
 - [ ] `GET /api/healthz`: `dbChecks.neonPoolerShapeOk === true`, fără `warnings` cu `NEON_POOLER_SHAPE`. Verificare locală: `npm run verify:production`.
 
