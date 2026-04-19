@@ -13,3 +13,6 @@ export const OUTGOING_CALL_RINGING_EXTEND_MS = 8000;
 
 /** Câte poll-uri consecutive `unreachable` înainte de a afișa ecranul terminal. */
 export const OUTGOING_UNREACHABLE_CONSECUTIVE_POLLS = 2;
+
+/** După 429 pe poll-uri call (outgoing-status, incoming): client nu mai lovește API-ul până atunci. */
+export const CALL_POLL_429_BACKOFF_MS = 10_000;

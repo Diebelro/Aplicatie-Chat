@@ -13,6 +13,7 @@ import {
 } from "@/lib/callIncomingGrace";
 import { closeIncomingCallPushNotifications } from "@/lib/closeIncomingCallPushNotifications";
 import { markCallEndPosted, shouldSkipDuplicateCallEnd } from "@/lib/callEndDedup";
+import { CALL_POLL_429_BACKOFF_MS } from "@/lib/callOutgoingConstants";
 import { startIncomingRingtone, stopIncomingRingtone } from "@/lib/callRingtone";
 import { isBrowserPushPrimaryPath } from "@/lib/browserPushConstants";
 
@@ -60,6 +61,8 @@ export default function IncomingCall() {
   incomingRef.current = incoming;
   /** Evită „soneria pornește din nou”: poll-ul poate întoarce `null` o clipă apoi același apel — debounce la golire. */
   const clearIncomingDebounceRef = useRef<number | null>(null);
+  /** După 429 pe `/api/call/incoming`: nu mai cerem imediat (aliniat cu poll apelant). */
+  const incoming429UntilRef = useRef(0);
 
   const cancelScheduledClearIncoming = useCallback(() => {
     if (clearIncomingDebounceRef.current != null) {
@@ -69,6 +72,7 @@ export default function IncomingCall() {
   }, []);
 
   const fetchIncoming = useCallback(() => {
+    if (Date.now() < incoming429UntilRef.current) return;
     void fetchWithAuthRetry("/api/call/incoming", {
       cache: "no-store",
       headers: {
@@ -77,8 +81,14 @@ export default function IncomingCall() {
       },
     })
       .then(async (r) => {
-        /** 401: nu reseta overlay — poate cursă cookie/header după login sau schimbare tab; următorul poll reușește. */
+        /** 401 / 429: nu interpretăm corpul — evită golire UI pe JSON de eroare. */
         if (r.status === 401) return null;
+        if (r.status === 429) {
+          incoming429UntilRef.current = Date.now() + CALL_POLL_429_BACKOFF_MS;
+          return null;
+        }
+        if (!r.ok) return null;
+        incoming429UntilRef.current = 0;
         try {
           return await r.json();
         } catch {
@@ -141,6 +151,7 @@ export default function IncomingCall() {
   useEffect(() => {
     if (onCallPage) {
       cancelScheduledClearIncoming();
+      incoming429UntilRef.current = 0;
       setIncoming(null);
       if (pollTimerRef.current) {
         clearTimeout(pollTimerRef.current);
@@ -163,13 +174,15 @@ export default function IncomingCall() {
      */
     const scheduleAfterFetchCycle = () => {
       if (cancelled) return;
-      const ms = isBrowserPushPrimaryPath()
+      const baseMs = isBrowserPushPrimaryPath()
         ? typeof document !== "undefined" && document.visibilityState === "visible"
           ? POLL_MS_PUSH_FALLBACK_VISIBLE
           : POLL_MS_PUSH_FALLBACK_HIDDEN
         : typeof document !== "undefined" && document.visibilityState === "visible"
           ? POLL_MS_VISIBLE
           : POLL_MS_HIDDEN;
+      const wait429 = Math.max(0, incoming429UntilRef.current - Date.now());
+      const ms = wait429 > 0 ? Math.max(baseMs, wait429) : baseMs;
       pollTimerRef.current = window.setTimeout(() => {
         fetchIncoming();
         scheduleAfterFetchCycle();

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { fetchWithAuthRetry } from "@/lib/authClient";
 import { parseOutgoingPollStatus } from "@/lib/callOutgoingStatus";
 import {
+  CALL_POLL_429_BACKOFF_MS,
   OUTGOING_CALL_INITIAL_GRACE_MS,
   OUTGOING_CALL_POLL_MS,
   OUTGOING_CALL_RINGING_EXTEND_MS,
@@ -36,10 +37,13 @@ export function useOutgoingCallerPoll(opts: {
 
   const unreachableGraceUntilRef = useRef(0);
   const unreachablePollStreakRef = useRef(0);
+  /** După 429: `Date.now()` până la care nu mai facem fetch. */
+  const rate429UntilRef = useRef(0);
 
   useEffect(() => {
     setOutgoingTerminal(null);
     unreachablePollStreakRef.current = 0;
+    rate429UntilRef.current = 0;
     if (!isCaller) {
       unreachableGraceUntilRef.current = 0;
       return;
@@ -52,6 +56,7 @@ export function useOutgoingCallerPoll(opts: {
     const ac = new AbortController();
 
     const run = () => {
+      if (Date.now() < rate429UntilRef.current) return;
       const queriedRoom = roomIdLiveRef.current;
       fetchWithAuthRetry(
         `/api/call/outgoing-status?roomId=${encodeURIComponent(queriedRoom)}`,
@@ -59,8 +64,12 @@ export function useOutgoingCallerPoll(opts: {
       )
         .then(async (r) => {
           if (ac.signal.aborted || roomIdLiveRef.current !== queriedRoom) return;
-          if (r.status === 429) return;
+          if (r.status === 429) {
+            rate429UntilRef.current = Date.now() + CALL_POLL_429_BACKOFF_MS;
+            return;
+          }
           if (!r.ok) return;
+          rate429UntilRef.current = 0;
           const raw = (await r.json().catch(() => ({}))) as { status?: unknown };
           if (ac.signal.aborted || roomIdLiveRef.current !== queriedRoom) return;
           const status = parseOutgoingPollStatus(raw.status);
