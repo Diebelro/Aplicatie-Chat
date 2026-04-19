@@ -18,7 +18,9 @@ git push origin main
 
 ## 2. Bază de date PostgreSQL
 
-1. **Neon** (recomandat cu Vercel): [neon.tech](https://neon.tech) → New project → copiază **`DATABASE_URL`** (include `?sslmode=require` dacă ți-l dă așa).
+1. **Neon** (recomandat cu Vercel): [neon.tech](https://neon.tech) → New project → **Connection details** în consolă:
+   - Copiază conexiunea **Pooled** / **Transaction** (hostname cu **`-pooler`**) → aceasta este **`DATABASE_URL`** pe Vercel (runtime / serverless).
+   - Copiază conexiunea **Direct** (hostname **fără** **`-pooler`**, același user/DB) → aceasta este **`DIRECT_URL`** (Prisma `migrate`, advisory locks). **Nu** pune același URL pooled și la `DIRECT_URL`.
 2. Sau **Supabase** → Project Settings → Database → connection string (mod **Transaction**, URI).
 
 ## 3. Proiect pe Vercel
@@ -87,7 +89,7 @@ node scripts/verify-production.mjs
 
 **Ce face:** face `GET` la `/api/healthz` și `/api/db-ping` pe domeniul de producție și verifică strict:
 
-- `/api/healthz`: status **200**, `Content-Type` conține **application/json**, `ok === true`, `dbOk === true`, `urlChecks.identical === true`
+- `/api/healthz`: status **200**, `Content-Type` conține **application/json**, `ok === true`, `dbOk === true`, `urlChecks.identical === true`, `dbChecks.neonPoolerShapeOk` nu este **`false`** (Neon: vezi **Bază de date PostgreSQL** de mai sus — pooled vs direct)
 - `/api/db-ping`: status **200**, `dbOk === true`
 
 **Dacă răspunsul e HTML** (ex. pagina 404 din `app/not-found.tsx`), scriptul raportează explicit că **domeniul nu servește rutele API așteptate** (proiect Vercel greșit, Root Directory, sau URL greșit).

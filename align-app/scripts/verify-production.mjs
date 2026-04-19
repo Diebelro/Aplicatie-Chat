@@ -86,6 +86,12 @@ async function main() {
         if (!uc || uc.identical !== true) {
           errors.push("/api/healthz: json.urlChecks.identical must be true");
         }
+        const dbCh = healthzJson.dbChecks;
+        if (dbCh && dbCh.neonPoolerShapeOk === false) {
+          errors.push(
+            "/api/healthz: dbChecks.neonPoolerShapeOk is false — Vercel Production: keep DATABASE_URL on Neon pooled host (-pooler); set DIRECT_URL to Neon Direct connection (hostname without -pooler). Neon Console → Connection details. Redeploy, then re-run this script."
+          );
+        }
       }
     }
   } catch (e) {
@@ -153,7 +159,9 @@ async function main() {
   }
 
   console.log("✅ PROD OK\n");
-  console.log("   • /api/healthz: HTTP 200, application/json, ok=true, dbOk=true, urlChecks.identical=true");
+  console.log(
+    "   • /api/healthz: HTTP 200, application/json, ok=true, dbOk=true, urlChecks.identical=true, neon pooler shape OK"
+  );
   console.log("   • /api/db-ping: HTTP 200, dbOk=true");
   if (healthzJson && typeof healthzJson.gitSha === "string" && healthzJson.gitSha.length) {
     console.log(`   • deployment gitSha: ${healthzJson.gitSha}`);

@@ -8,6 +8,17 @@ Checklist **orientat pe risc**. Detalii env: `align-app/.env.example`; infrastru
 
 ---
 
+## Neon + Vercel — `DATABASE_URL` (pooler) vs `DIRECT_URL` (direct)
+
+Pe **Vercel → Environment Variables → Production**: păstrează **`DATABASE_URL`** cu host **pooled** (conține **`-pooler`**). Setează **`DIRECT_URL`** la conexiunea **Direct** din Neon (host **fără** **`-pooler`**), copiată din **Neon Console → Connection details** (nu același string ca la pooled).
+
+- [ ] Neon: **Pooled** → `DATABASE_URL` (lăsat cum e dacă deja are `-pooler`).
+- [ ] Neon: **Direct** (fără `-pooler` în hostname) → înlocuiește **doar** `DIRECT_URL` în Vercel.
+- [ ] **Redeploy** producție (Vercel sau `npm run deploy:chat` din `align-app`).
+- [ ] `GET /api/healthz`: `dbChecks.neonPoolerShapeOk === true`, fără `warnings` cu `NEON_POOLER_SHAPE`. Verificare locală: `npm run verify:production`.
+
+---
+
 ## Go / No‑Go (3 reguli)
 
 **GO** dacă (toate îndeplinite):
