@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { getAuthHeaders } from "@/lib/authClient";
+import { useEffect, useRef, useState } from "react";
+import { fetchWithAuthRetry } from "@/lib/authClient";
+import { parseOutgoingPollStatus } from "@/lib/callOutgoingStatus";
 import {
   OUTGOING_CALL_INITIAL_GRACE_MS,
   OUTGOING_CALL_POLL_MS,
@@ -10,8 +11,6 @@ import {
 } from "@/lib/callOutgoingConstants";
 
 export type OutgoingCallerTerminal = null | "rejected" | "unreachable";
-
-type OutgoingStatusPayload = { status?: string };
 
 /**
  * Poll stabil pentru apelant: `GET /api/call/outgoing-status`.
@@ -48,43 +47,55 @@ export function useOutgoingCallerPoll(opts: {
     unreachableGraceUntilRef.current = Date.now() + OUTGOING_CALL_INITIAL_GRACE_MS;
   }, [isCaller, roomId]);
 
-  const fetchOutgoingStatus = useCallback(() => {
-    const queriedRoom = roomIdLiveRef.current;
-    fetch(`/api/call/outgoing-status?roomId=${encodeURIComponent(queriedRoom)}`, {
-      headers: getAuthHeaders(),
-      credentials: "same-origin",
-    })
-      .then(async (r) => {
-        if (roomIdLiveRef.current !== queriedRoom) return;
-        const d = (await r.json().catch(() => ({}))) as OutgoingStatusPayload;
-        if (!r.ok) return;
-        if (d?.status === "ringing") {
-          unreachablePollStreakRef.current = 0;
-          unreachableGraceUntilRef.current = Date.now() + OUTGOING_CALL_RINGING_EXTEND_MS;
-          setOutgoingTerminal(null);
-          return;
-        }
-        if (d?.status === "rejected") {
-          unreachablePollStreakRef.current = 0;
-          setOutgoingTerminal("rejected");
-          return;
-        }
-        if (d?.status === "unreachable") {
-          if (Date.now() < unreachableGraceUntilRef.current) return;
-          unreachablePollStreakRef.current += 1;
-          if (unreachablePollStreakRef.current < OUTGOING_UNREACHABLE_CONSECUTIVE_POLLS) return;
-          setOutgoingTerminal((prev) => (prev === "rejected" ? "rejected" : "unreachable"));
-        }
-      })
-      .catch(() => {});
-  }, []);
-
   useEffect(() => {
     if (!isCaller || callConnected) return;
-    fetchOutgoingStatus();
-    const t = setInterval(fetchOutgoingStatus, OUTGOING_CALL_POLL_MS);
-    return () => clearInterval(t);
-  }, [isCaller, callConnected, fetchOutgoingStatus]);
+    const ac = new AbortController();
+
+    const run = () => {
+      const queriedRoom = roomIdLiveRef.current;
+      fetchWithAuthRetry(
+        `/api/call/outgoing-status?roomId=${encodeURIComponent(queriedRoom)}`,
+        { signal: ac.signal }
+      )
+        .then(async (r) => {
+          if (ac.signal.aborted || roomIdLiveRef.current !== queriedRoom) return;
+          if (r.status === 429) return;
+          if (!r.ok) return;
+          const raw = (await r.json().catch(() => ({}))) as { status?: unknown };
+          if (ac.signal.aborted || roomIdLiveRef.current !== queriedRoom) return;
+          const status = parseOutgoingPollStatus(raw.status);
+          if (status == null) return;
+          if (status === "ringing") {
+            unreachablePollStreakRef.current = 0;
+            unreachableGraceUntilRef.current = Date.now() + OUTGOING_CALL_RINGING_EXTEND_MS;
+            setOutgoingTerminal(null);
+            return;
+          }
+          if (status === "rejected") {
+            unreachablePollStreakRef.current = 0;
+            setOutgoingTerminal("rejected");
+            return;
+          }
+          if (status === "unreachable") {
+            if (Date.now() < unreachableGraceUntilRef.current) return;
+            unreachablePollStreakRef.current += 1;
+            if (unreachablePollStreakRef.current < OUTGOING_UNREACHABLE_CONSECUTIVE_POLLS) return;
+            setOutgoingTerminal((prev) => (prev === "rejected" ? "rejected" : "unreachable"));
+          }
+        })
+        .catch((e: unknown) => {
+          const name = e && typeof e === "object" && "name" in e ? String((e as { name?: string }).name) : "";
+          if (name === "AbortError") return;
+        });
+    };
+
+    run();
+    const t = setInterval(run, OUTGOING_CALL_POLL_MS);
+    return () => {
+      clearInterval(t);
+      ac.abort();
+    };
+  }, [isCaller, callConnected, roomId]);
 
   useEffect(() => {
     if (outgoingTerminal !== "unreachable") return;

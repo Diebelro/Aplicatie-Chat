@@ -10,6 +10,18 @@ import {
 import { callApiCallerUserExists } from "@/lib/callCallerExists";
 import { getPendingIncomingForCallee } from "@/lib/callPending";
 import { parseVideoRoomId } from "@/lib/videoCall";
+import { rateLimitAllow } from "@/lib/callRateLimit";
+
+export const dynamic = "force-dynamic";
+
+const NO_STORE_HEADERS = { "Cache-Control": "private, no-store, max-age=0" } as const;
+const RATE_WINDOW_MS = 60_000;
+/** Poll ~109/min + retry 401 + tab-uri multiple — marjă peste trafic legitim. */
+const RATE_MAX_PER_USER = 280;
+
+function jsonResponse(body: Record<string, unknown>, status = 200) {
+  return NextResponse.json(body, { status, headers: NO_STORE_HEADERS });
+}
 
 /**
  * Apelantul (caller) întreabă starea apelului 1-la-1:
@@ -26,14 +38,17 @@ export async function GET(request: NextRequest) {
     userId = request.headers.get("x-user-id")?.trim() || null;
   }
   if (!userId) {
-    return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
+    return jsonResponse({ error: "Neautorizat." }, 401);
+  }
+  if (!rateLimitAllow(`call-outst:${userId}`, RATE_MAX_PER_USER, RATE_WINDOW_MS)) {
+    return jsonResponse({ error: "Prea multe cereri." }, 429);
   }
   if (!(await callApiCallerUserExists(userId))) {
-    return NextResponse.json({ error: "Utilizator negăsit." }, { status: 404 });
+    return jsonResponse({ error: "Utilizator negăsit." }, 404);
   }
   const roomId = request.nextUrl.searchParams.get("roomId");
   if (!roomId) {
-    return NextResponse.json({ error: "Lipsește roomId." }, { status: 400 });
+    return jsonResponse({ error: "Lipsește roomId." }, 400);
   }
 
   const rejectedInMem = isRoomRejected(roomId);
@@ -48,7 +63,7 @@ export async function GET(request: NextRequest) {
   if (pair) {
     const [a, b] = pair;
     if (a !== userId && b !== userId) {
-      return NextResponse.json({ error: "Nu ai acces la acest roomId." }, { status: 403 });
+      return jsonResponse({ error: "Nu ai acces la acest roomId." }, 403);
     }
     const calleeId = a === userId ? b : a;
     const pending = await getPendingIncomingForCallee(calleeId);
@@ -56,22 +71,22 @@ export async function GET(request: NextRequest) {
       pending != null && pending.roomId === roomId && pending.fromId === userId;
 
     if (stillRinging || answered) {
-      return NextResponse.json({ status: "ringing" });
+      return jsonResponse({ status: "ringing" });
     }
     if (rejected) {
-      return NextResponse.json({ status: "rejected" });
+      return jsonResponse({ status: "rejected" });
     }
     if (isPrismaAvailable()) {
       const row = await prismaGetPendingIncomingRowByRoomId(roomId);
       if (row && row.fromId === userId && row.toUserId === calleeId) {
-        return NextResponse.json({ status: "ringing" });
+        return jsonResponse({ status: "ringing" });
       }
     }
-    return NextResponse.json({ status: "unreachable" });
+    return jsonResponse({ status: "unreachable" });
   }
 
   if (rejected) {
-    return NextResponse.json({ status: "rejected" });
+    return jsonResponse({ status: "rejected" });
   }
-  return NextResponse.json({ status: "ringing" });
+  return jsonResponse({ status: "ringing" });
 }
