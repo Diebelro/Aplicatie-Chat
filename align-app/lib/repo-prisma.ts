@@ -2192,6 +2192,26 @@ export async function prismaGetPendingIncomingCall(
   }
 }
 
+/**
+ * Caută pending după `roomId` (1-la-1). Complement la `prismaGetPendingIncomingCall(toUserId)`:
+ * uneori e mai sigur să aliniezi starea după camera de apel decât doar după utilizatorul sunat.
+ */
+export async function prismaGetPendingIncomingRowByRoomId(
+  roomId: string
+): Promise<{ fromId: string; toUserId: string; roomId: string } | null> {
+  try {
+    const row = await prisma.pendingIncomingCall.findFirst({
+      where: { roomId },
+      select: { fromId: true, toUserId: true, roomId: true, createdAt: true },
+    });
+    if (!row) return null;
+    if (Date.now() - row.createdAt.getTime() > RING_PENDING_MAX_MS) return null;
+    return { fromId: row.fromId, toUserId: row.toUserId, roomId: row.roomId };
+  } catch {
+    return null;
+  }
+}
+
 export async function prismaDeletePendingIncomingCall(toUserId: string): Promise<void> {
   try {
     await prisma.pendingIncomingCall.delete({ where: { toUserId } });

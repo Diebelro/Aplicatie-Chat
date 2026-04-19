@@ -3,6 +3,7 @@ import { getAuthenticatedUserId } from "@/lib/sessionAuth";
 import { isRoomRejected, isRoomCallAnswered } from "@/lib/store";
 import {
   isPrismaAvailable,
+  prismaGetPendingIncomingRowByRoomId,
   prismaIsCallRejectedRoom,
   prismaIsCallAnsweredRoom,
 } from "@/lib/repo-prisma";
@@ -15,6 +16,9 @@ import { parseVideoRoomId } from "@/lib/videoCall";
  * - `ringing` — încă sună sau apelul tocmai a fost acceptat (conectare în curs).
  * - `rejected` — celălalt a apăsat explicit Respinge (sau echivalent API decline/reject).
  * - `unreachable` — nu mai sună și nu e respins explicit (offline, tab închis, apel anulat, expirat etc.).
+ *
+ * Pentru P2P: după `getPendingIncomingForCallee`, verificăm și rândul după `roomId` în Prisma
+ * (aceeași sursă de adevăr ca la `/api/call/ring`) ca să reducem false `unreachable` la re-sunare.
  */
 export async function GET(request: NextRequest) {
   let userId = await getAuthenticatedUserId(request);
@@ -56,6 +60,12 @@ export async function GET(request: NextRequest) {
     }
     if (rejected) {
       return NextResponse.json({ status: "rejected" });
+    }
+    if (isPrismaAvailable()) {
+      const row = await prismaGetPendingIncomingRowByRoomId(roomId);
+      if (row && row.fromId === userId && row.toUserId === calleeId) {
+        return NextResponse.json({ status: "ringing" });
+      }
     }
     return NextResponse.json({ status: "unreachable" });
   }

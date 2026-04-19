@@ -57,6 +57,7 @@ import {
 import { markCallEndPosted, shouldSkipDuplicateCallEnd } from "@/lib/callEndDedup";
 import { markIncomingGrace } from "@/lib/callIncomingGrace";
 import { useVideoRenderable } from "@/hooks/useVideoRenderable";
+import { useOutgoingCallerPoll } from "@/hooks/useOutgoingCallerPoll";
 
 function p2pConnectingSubtitle(
   audioOnlyCall: boolean,
@@ -352,7 +353,6 @@ function RemoteVideoStageOptional({
 }
 
 const MINI_PREVIEW_STORAGE_KEY = "diebel.call.showMiniPreview";
-const OUTGOING_POLL_MS = 550;
 /** După conectare, ascundem bara de controale ca să nu stea peste imagine; tap / mișcare mouse reafișează. */
 /** Mai lung = mai puțin „intră/iese” bara de controale la fiecare mișcare pe video. */
 const CHROME_AUTO_HIDE_MS = 8000;
@@ -394,11 +394,6 @@ export default function CallUI({
 }: CallUIProps) {
   const { tStr } = useI18n();
   const router = useRouter();
-  /** Evită poll-uri `outgoing-status` care se termină după schimbarea `roomId` și setează stări greșite. */
-  const roomIdLiveRef = useRef(roomId);
-  roomIdLiveRef.current = roomId;
-  /** Doar apelant: „respins” explicit vs „nu e disponibil / nu răspunde” (fără respingere explicită). */
-  const [outgoingTerminal, setOutgoingTerminal] = useState<null | "rejected" | "unreachable">(null);
   const [elapsedSec, setElapsedSec] = useState(0);
   /** false = celălalt pe tot ecranul, tu în colț; true = invers */
   const [videoLayoutSwapped, setVideoLayoutSwapped] = useState(false);
@@ -459,6 +454,13 @@ export default function CallUI({
       }).catch(() => {});
       router.replace("/app/messages");
     },
+  });
+
+  const outgoingTerminal = useOutgoingCallerPoll({
+    roomId,
+    isCaller,
+    callConnected: callState === "connected",
+    remoteParticipantCount: remoteParticipants.length,
   });
 
   const isConnectingLike: boolean =
@@ -669,62 +671,6 @@ export default function CallUI({
   /** Doar pe mobil: pe desktop lăsăm ieșirea implicită (boxe/căști după OS). */
   const showSpeakerToggle = isMobileUi && supportsAudioOutputSelection() && !!speakerSinkIdResolved;
 
-  /**
-   * Ignoră primele `unreachable` de la poll: apar des din cursă (ring încă nu e în DB) sau cold start
-   * serverless — altfel apelantul vedea „indisponibil” și pierdea UI-ul video înainte de WebRTC.
-   */
-  const unreachableGraceUntilRef = useRef(0);
-  /** Două poll-uri consecutive „unreachable” înainte de a crede — reduce licăritul false-positive. */
-  const unreachablePollStreakRef = useRef(0);
-  useEffect(() => {
-    setOutgoingTerminal(null);
-    unreachablePollStreakRef.current = 0;
-    if (!isCaller) {
-      unreachableGraceUntilRef.current = 0;
-      return;
-    }
-    unreachableGraceUntilRef.current = Date.now() + 10_000;
-  }, [isCaller, roomId]);
-
-  const fetchOutgoingStatus = useCallback(() => {
-    const queriedRoom = roomIdLiveRef.current;
-    fetch(`/api/call/outgoing-status?roomId=${encodeURIComponent(queriedRoom)}`, {
-      headers: getAuthHeaders(),
-      credentials: "same-origin",
-    })
-      .then(async (r) => {
-        if (roomIdLiveRef.current !== queriedRoom) return;
-        const d = (await r.json().catch(() => ({}))) as { status?: string };
-        if (!r.ok) return;
-        if (d?.status === "ringing") {
-          unreachablePollStreakRef.current = 0;
-          /** Nu reseta grace la 0 — altfel următorul „unreachable” scurt după „ringing” blochează al doilea apel. */
-          unreachableGraceUntilRef.current = Date.now() + 8000;
-          setOutgoingTerminal(null);
-          return;
-        }
-        if (d?.status === "rejected") {
-          unreachablePollStreakRef.current = 0;
-          setOutgoingTerminal("rejected");
-          return;
-        }
-        if (d?.status === "unreachable") {
-          if (Date.now() < unreachableGraceUntilRef.current) return;
-          unreachablePollStreakRef.current += 1;
-          if (unreachablePollStreakRef.current < 2) return;
-          setOutgoingTerminal((prev) => (prev === "rejected" ? "rejected" : "unreachable"));
-        }
-      })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    if (!isCaller || callState === "connected") return;
-    fetchOutgoingStatus();
-    const t = setInterval(fetchOutgoingStatus, OUTGOING_POLL_MS);
-    return () => clearInterval(t);
-  }, [isCaller, callState, fetchOutgoingStatus]);
-
   useEffect(() => {
     if (!outgoingTerminal) return;
     const t = setTimeout(() => router.replace("/app/messages"), 1800);
@@ -748,14 +694,6 @@ export default function CallUI({
       body: JSON.stringify({ roomId }),
     }).catch(() => {});
   }, [outgoingTerminal, isCaller, leave, roomId]);
-
-  /** Dacă am arătat din greșeală „unreachable”, dar WebRTC s-a legat — revino la UI-ul de apel. */
-  useEffect(() => {
-    if (outgoingTerminal !== "unreachable") return;
-    if (callState === "connected" || remoteParticipants.length > 0) {
-      setOutgoingTerminal(null);
-    }
-  }, [outgoingTerminal, callState, remoteParticipants.length]);
 
   const handleLeave = () => {
     markCallEndPosted(roomId);
