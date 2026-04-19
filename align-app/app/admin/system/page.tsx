@@ -188,7 +188,7 @@ export default function AdminSystemDashboardPage() {
           <span className="text-dark-500">— {snap.overallReasons.join(" · ")}</span>
         ) : null}
         {pingMs != null && (
-          <span className="text-dark-600 text-xs">
+          <span className="text-zinc-500 text-xs">
             ({pingMs} ms · {new Date(snap.generatedAt).toLocaleString("ro-RO")})
           </span>
         )}
@@ -235,7 +235,7 @@ export default function AdminSystemDashboardPage() {
             </p>
           ) : (
             <ul className="text-xs text-dark-300 space-y-1.5">
-              <li className="break-all font-mono text-[11px] text-dark-200">{snap.product.signalingHealth.url}</li>
+              <li className="break-all font-mono text-[11px] text-zinc-800">{snap.product.signalingHealth.url}</li>
               <li>
                 Răspuns:{" "}
                 <strong className="text-zinc-900">
@@ -294,9 +294,9 @@ export default function AdminSystemDashboardPage() {
         </Card>
 
         <Card title="Proces Node" icon={Server}>
-          <p className="text-dark-200 text-sm">Node {snap.nodeVersion}</p>
-          <p className="text-dark-200 text-sm">Mediu: {snap.environment}</p>
-          <p className="text-dark-200 text-sm mt-1 flex items-center gap-1">
+          <p className="text-zinc-800 text-sm">Node {snap.nodeVersion}</p>
+          <p className="text-zinc-800 text-sm">Mediu: {snap.environment}</p>
+          <p className="text-zinc-800 text-sm mt-1 flex items-center gap-1">
             <Clock className="w-3.5 h-3.5" /> Uptime: {uptimeH}h {uptimeM}m
           </p>
         </Card>
@@ -334,7 +334,7 @@ export default function AdminSystemDashboardPage() {
         </Card>
 
         <Card title="Performanță (browser)" icon={Gauge}>
-          <p className="text-dark-200 text-sm">
+          <p className="text-zinc-800 text-sm">
             LCP mediu (ultimele rapoarte):{" "}
             <strong className="text-zinc-900">{snap.vitals.avgLcpLast20 ?? "—"}</strong> ms
           </p>
@@ -364,7 +364,7 @@ export default function AdminSystemDashboardPage() {
               <li key={`${e.at}-${i}`} className="text-xs p-3 rounded-lg bg-dark-800 border border-dark-600">
                 <span className="text-dark-500">{new Date(e.at).toLocaleString("ro-RO")}</span>{" "}
                 <span className="text-amber-400/90 font-mono">{e.source}</span>
-                <p className="text-dark-200 mt-1 break-words">{e.message}</p>
+                <p className="text-zinc-800 mt-1 break-words">{e.message}</p>
               </li>
             ))}
           </ul>

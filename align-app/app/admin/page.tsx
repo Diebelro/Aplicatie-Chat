@@ -60,10 +60,10 @@ export default function AdminDashboardPage() {
       <h1 className="text-2xl font-semibold mb-1">Dashboard Admin</h1>
       <p className="text-dark-400 text-sm mb-6">
         Aici vezi câți utilizatori sunt în tot sistemul, câți sunt blocați, câte rapoarte există și ce s-a
-        întâmplat <strong className="text-dark-200">după ultima ta verificare</strong> (sau ultimele 7 zile, până
+        întâmplat <strong className="text-zinc-800">după ultima ta verificare</strong> (sau ultimele 7 zile, până
         apeși „Am verificat”). Numărul roșu include{' '}
-        <strong className="text-dark-200">contestările la blocare</strong> în așteptare și{' '}
-        <strong className="text-dark-200">feedback-ul app</strong> nou după același moment.
+        <strong className="text-zinc-800">contestările la blocare</strong> în așteptare și{' '}
+        <strong className="text-zinc-800">feedback-ul app</strong> nou după același moment.
       </p>
 
       {error && <p className="text-red-400 text-sm mb-4">{error}</p>}
@@ -97,19 +97,19 @@ export default function AdminDashboardPage() {
               <li className="rounded-lg bg-dark-800/80 border border-dark-600 px-3 py-2 flex items-center gap-2">
                 <Users className="w-4 h-4 text-brand-400 shrink-0" />
                 <span>
-                  <strong className="text-dark-100">{summary.newUsersSince}</strong> înscrieri noi după acest moment
+                  <strong className="text-zinc-900">{summary.newUsersSince}</strong> înscrieri noi după acest moment
                 </span>
               </li>
               <li className="rounded-lg bg-dark-800/80 border border-dark-600 px-3 py-2 flex items-center gap-2">
                 <Flag className="w-4 h-4 text-amber-400 shrink-0" />
                 <span>
-                  <strong className="text-dark-100">{summary.newReportsSince}</strong> rapoarte noi după acest moment
+                  <strong className="text-zinc-900">{summary.newReportsSince}</strong> rapoarte noi după acest moment
                 </span>
               </li>
               <li className="rounded-lg bg-dark-800/80 border border-red-900/40 px-3 py-2 flex items-center gap-2 sm:col-span-2 lg:col-span-1">
                 <Scale className="w-4 h-4 text-red-300 shrink-0" aria-hidden />
                 <span>
-                  <strong className="text-dark-100">{summary.pendingBanAppeals ?? 0}</strong> contestări blocare în așteptare
+                  <strong className="text-zinc-900">{summary.pendingBanAppeals ?? 0}</strong> contestări blocare în așteptare
                   {(summary.pendingBanAppeals ?? 0) > 0 ? (
                     <>
                       {" "}
@@ -123,7 +123,7 @@ export default function AdminDashboardPage() {
               <li className="rounded-lg bg-dark-800/80 border border-dark-600 px-3 py-2 flex items-center gap-2 sm:col-span-2 lg:col-span-1">
                 <MessageSquareText className="w-4 h-4 text-sky-400 shrink-0" aria-hidden />
                 <span>
-                  <strong className="text-dark-100">{summary.newAppFeedbackSince ?? 0}</strong> mesaje feedback app după acest moment
+                  <strong className="text-zinc-900">{summary.newAppFeedbackSince ?? 0}</strong> mesaje feedback app după acest moment
                   {(summary.newAppFeedbackSince ?? 0) > 0 ? (
                     <>
                       {" "}
@@ -170,7 +170,7 @@ export default function AdminDashboardPage() {
                   Ultimele 30 zile: <strong className="text-dark-300">+{summary.signupsLast30Days}</strong> înscrieri
                 </li>
               </ul>
-              <p className="text-dark-600 text-[11px] mt-2 leading-snug">
+              <p className="text-zinc-500 text-[11px] mt-2 leading-snug">
                 Ferestre rulante (de acum înapoi) — utile la buget reclamă / facturare la ~15 zile.
               </p>
             </div>

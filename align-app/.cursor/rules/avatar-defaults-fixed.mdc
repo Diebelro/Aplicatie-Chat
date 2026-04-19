@@ -1,22 +1,23 @@
 ---
-description: Poze profil și avataruri – NU modifica
+description: Poze profil și avataruri – NU modifica fără cerere explicită
 globs: components/SilhouetteAvatar.tsx, public/avatars/*, app/app/profile/page.tsx
 ---
 
-# Poze profil și avataruri – NU schimba
+# Poze profil și avataruri
 
 ## 1. Când userul ARE poze
 - Se afișează **mereu poza lui** (prima din listă = poza de profil).
-- Imaginea implicită (femeie/bărbat) nu se folosește când există cel puțin o poză.
+- Placeholder-ul implicit nu se folosește când există `photoUrl` (prima poză).
 
-## 2. Când userul NU are poză
-- **Femei**: `/avatars/female-default.jpg`
-- **Bărbați**: `/avatars/male-default-1.jpg`
-- Fără gen / other: gradient + inițială.
+## 2. Când userul NU are poză (`SilhouetteAvatar` fără `photoUrl`)
+- **Femei**: `/avatars/female-default.jpg` (siluetă / spate).
+- **Bărbați**: `/avatars/male-default-1.jpg`.
+- Afișare: **`object-contain`** + fundal închis (`bg-zinc-950`) ca imaginea să nu fie tăiată ca la `object-cover` (altfel părea doar un gradient).
+- Fără gen / other: gradient + inițială sau icon **User**.
 
 ## 3. Galeria pe pagina Profil
 - Sub fiecare poză există bifa (radio) „Poză de profil” / „Setează ca poză de profil”.
 - Poza bifată devine prima în listă și e afișată ca poză de profil peste tot.
 - NU schimba acest comportament (setProfilePhoto, prima poză = profil).
 
-**NU face:** să înlocuiești imaginile implicite, să schimbi path-urile, să elimini logica photoUrl || defaultByGender, sau să scoți bifele pentru poza de profil din galerie. Să rămână așa.
+**NU face:** să elimini bifele pentru poza de profil din galerie sau să schimbi regula „prima poză = profil” fără cerere explicită.

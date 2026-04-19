@@ -1,14 +1,18 @@
 ---
-description: Deschide browserul cu aplicația din proiectul Aplicatie Chat, vizibil în Cursor
+description: Deschide browserul cu aplicația de chat, vizibil în Cursor
 alwaysApply: true
 ---
 
-# Browser cu aplicația vizibil în Cursor
+# Browser — aplicația de chat
 
-- Proiectul este **Aplicatie Chat**; aplicația deschisă este întotdeauna **cea din acest proiect** (align-app), nu alte site-uri (ex. Diebel IT extern).
-- **La fiecare pornire a serverului de development** (`npm run dev` / `next dev` în `align-app`): după ce serverul pornește, deschide aplicația în browser.
-- **URL de deschis:** `http://localhost:3000` — pagina Align cu Contact, Login, Înregistrare (aplicația Aplicatie Chat). Pentru zona cu Profile/Mesaje/Chat: `http://localhost:3000/app`.
-- **Nu deschide niciodată** `localhost:3000/ro` sau `localhost:3000/m` — acolo apare site-ul Diebel IT, nu aplicația de chat.
-- **Preferință:** Simple Browser în Cursor: Ctrl+Shift+P → „Simple Browser: Show” → `http://localhost:3000`.
-- După ce pornești dev serverul, deschide `http://localhost:3000` (sau `/app` dacă vrei direct în aplicație).
-- Scop: aplicația din **Aplicatie Chat** să fie mereu vizibilă (în Cursor sau în browser).
+## Când vorbești cu utilizatorul
+
+- Spune **producție / online:** **`https://chat.diebel.ro`** — asta e site-ul live de testat.
+- **Nu** începe cu numele folderului din repo; utilizatorul se raportează la **chat.diebel.ro**. Numele tehnic al folderului (`align-app`) folosește-l **doar** dacă e nevoie pentru comenzi (cale în repo).
+
+## Pentru agenți (tehnic)
+
+- Codul care se publică la **chat.diebel.ro** stă în subfolderul repo **`align-app`**.
+- **Dev local:** din `align-app`, `npm run dev` → **http://localhost:3005** (nu 3000; pe 3000 poate rula alt proiect).
+- **Simple Browser:** `http://localhost:3005` sau `http://localhost:3005/app` după ce rulează dev.
+- Deschide în browser aplicația din **Aplicatie Chat**, nu alte site-uri Diebel fără legătură.

@@ -137,9 +137,9 @@ export default function AdminUserDetailPage() {
       <h1 className="text-2xl font-semibold mb-3">User: {user.email ?? user.id}</h1>
 
       <div className="sticky top-0 z-10 -mx-2 px-2 py-3 mb-6 bg-dark-900/95 backdrop-blur border border-dark-600 rounded-xl">
-        <p className="text-xs text-dark-500 uppercase tracking-wide mb-2">Acțiuni rapide</p>
+        <p className="text-xs text-zinc-500 uppercase tracking-wide mb-2">Acțiuni rapide</p>
         <p className="text-[11px] text-dark-400 leading-snug mb-3 border-l-2 border-brand-600/60 pl-2">
-          Suspendarea pe ore e un <strong className="text-dark-200">avertisment la nivel de cont</strong> (nu poate folosi
+          Suspendarea pe ore e un <strong className="text-zinc-800">avertisment la nivel de cont</strong> (nu poate folosi
           app-ul). Blocările făcute de alți utilizatori între ei <strong className="text-brand-300">nu dispar</strong> —
           sunt altceva în sistem.
         </p>
@@ -212,7 +212,7 @@ export default function AdminUserDetailPage() {
                 ) : null}
               </p>
               {banLog?.reason ? (
-                <p className="mt-2 text-dark-50 text-base leading-relaxed whitespace-pre-wrap break-words">
+                <p className="mt-2 text-zinc-900 text-base leading-relaxed whitespace-pre-wrap break-words">
                   {banLog.reason}
                 </p>
               ) : (
@@ -225,7 +225,7 @@ export default function AdminUserDetailPage() {
                 </p>
               )}
               {banLog && (
-                <p className="mt-2 text-dark-500 text-xs tabular-nums">
+                <p className="mt-2 text-zinc-500 text-xs tabular-nums">
                   {new Date(banLog.at).toLocaleString("ro-RO", { dateStyle: "short", timeStyle: "short" })}
                   {banLog.adminEmail ? ` · acțiune de ${banLog.adminEmail}` : ""}
                 </p>
@@ -241,17 +241,17 @@ export default function AdminUserDetailPage() {
             <AlertTriangle className="w-5 h-5 text-amber-400" aria-hidden />
             Rapoarte despre acest utilizator ({reportsAboutUser.length})
           </h2>
-          <p className="text-dark-500 text-xs mb-4">Motivul raportului este primul lucru vizibil la fiecare intrare.</p>
+          <p className="text-zinc-500 text-xs mb-4">Motivul raportului este primul lucru vizibil la fiecare intrare.</p>
           <ul className="space-y-3">
             {reportsAboutUser.map((rep) => (
               <li
                 key={rep.id}
                 className="rounded-lg border border-dark-600 bg-dark-800/90 p-3"
               >
-                <p className="text-dark-100 text-base leading-relaxed whitespace-pre-wrap break-words border-l-4 border-amber-500 pl-3 py-1 font-medium">
+                <p className="text-zinc-900 text-base leading-relaxed whitespace-pre-wrap break-words border-l-4 border-amber-500 pl-3 py-1 font-medium">
                   {rep.reason || "—"}
                 </p>
-                <p className="mt-2 text-dark-500 text-xs">
+                <p className="mt-2 text-zinc-500 text-xs">
                   {new Date(rep.createdAt).toLocaleString("ro-RO", { dateStyle: "short", timeStyle: "short" })} ·
                   raportor: {rep.reporterEmail ?? rep.reporterId}
                 </p>
@@ -275,7 +275,7 @@ export default function AdminUserDetailPage() {
         <p>
           <strong>Blocat:</strong> {user.isBanned || banUntilActive ? "Da" : "Nu"}
           {user.banUntil && (
-            <span className="text-dark-500 text-sm block mt-1">
+            <span className="text-zinc-500 text-sm block mt-1">
               banUntil DB: {new Date(user.banUntil).toLocaleString("ro-RO")}
             </span>
           )}
@@ -286,7 +286,7 @@ export default function AdminUserDetailPage() {
           {premium?.premiumUntil && premium.active && (
             <span className="text-dark-400 text-sm"> (pana la {new Date(premium.premiumUntil).toLocaleDateString("ro-RO")})</span>
           )}
-          {premium?.planId && <span className="text-dark-500 text-sm"> — {premium.planId}</span>}
+          {premium?.planId && <span className="text-zinc-500 text-sm"> — {premium.planId}</span>}
         </p>
       </div>
       <div className="mt-6 p-4 rounded-xl bg-dark-800 border border-dark-600">

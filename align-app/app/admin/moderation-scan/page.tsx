@@ -225,26 +225,26 @@ export default function AdminModerationScanPage() {
   return (
     <div className="max-w-4xl">
       <h1 className="text-2xl font-semibold mb-2">Scanare conținut (moderare)</h1>
-      <div className="rounded-xl border border-amber-600/40 bg-amber-950/20 px-4 py-3 text-sm text-dark-200 mb-4 flex gap-2">
+      <div className="rounded-xl border border-amber-600/40 bg-amber-950/20 px-4 py-3 text-sm text-zinc-800 mb-4 flex gap-2">
         <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
         <div>
           <p>
-            Aici nu e inteligență artificială — sunt <strong className="text-dark-50">potriviri simple</strong> pe text.
-            Există <strong className="text-dark-50">false positive</strong>. Pentru abuz real (în special implicând minori),{" "}
-            verifică contextul, conversația întreagă și, dacă e cazul, <strong className="text-dark-50">raportează autorităților</strong>{" "}
+            Aici nu e inteligență artificială — sunt <strong className="text-zinc-900">potriviri simple</strong> pe text.
+            Există <strong className="text-zinc-900">false positive</strong>. Pentru abuz real (în special implicând minori),{" "}
+            verifică contextul, conversația întreagă și, dacă e cazul, <strong className="text-zinc-900">raportează autorităților</strong>{" "}
             conform legii.
           </p>
         </div>
       </div>
 
-      <div className="rounded-xl border border-violet-600/35 bg-violet-950/15 px-4 py-3 text-sm text-dark-200 mb-4">
+      <div className="rounded-xl border border-violet-600/35 bg-violet-950/15 px-4 py-3 text-sm text-zinc-800 mb-4">
         <div className="flex items-start gap-2 mb-3">
           <Sparkles className="w-5 h-5 text-violet-300 shrink-0 mt-0.5" />
           <div>
-            <p className="font-medium text-dark-100 mb-1">Raport AI (doar sugestii)</p>
+            <p className="font-medium text-zinc-900 mb-1">Raport AI (doar sugestii)</p>
             <p className="text-dark-400 text-xs leading-relaxed">
               Modelul clasifică ultimele mesaje cu text și îți arată etichete + o notă scurtă în română.
-              <strong className="text-dark-200"> Nu se întâmplă nimic automat</strong> în aplicație — doar îți
+              <strong className="text-zinc-800"> Nu se întâmplă nimic automat</strong> în aplicație — doar îți
               ușurează parcurgerea. Mesajele pleacă către OpenAI; folosește doar dacă e ok din punct de vedere
               privacy și cost.
             </p>
@@ -252,19 +252,19 @@ export default function AdminModerationScanPage() {
         </div>
         {aiConfigured === false && (
           <p className="text-amber-400/90 text-xs mb-3">
-            AI dezactivat: setează <code className="text-dark-200">OPENAI_API_KEY</code> pe server (vezi
+            AI dezactivat: setează <code className="text-zinc-800">OPENAI_API_KEY</code> pe server (vezi
             .env.example), apoi repornește aplicația.
           </p>
         )}
         {aiConfigured === null && (
-          <p className="text-dark-500 text-xs mb-3">Se verifică configurația…</p>
+          <p className="text-zinc-500 text-xs mb-3">Se verifică configurația…</p>
         )}
         {aiDisclaimer && (
           <p className="text-violet-200/80 text-xs mb-3 border-l-2 border-violet-500 pl-2">{aiDisclaimer}</p>
         )}
         <div className="flex flex-wrap items-end gap-3">
           <div>
-            <label className="block text-xs text-dark-500 mb-1">Mesaje (batch AI)</label>
+            <label className="block text-xs text-zinc-500 mb-1">Mesaje (batch AI)</label>
             <input
               type="number"
               min={5}
@@ -297,13 +297,13 @@ export default function AdminModerationScanPage() {
         {aiError && <p className="text-red-400 text-xs mt-3">{aiError}</p>}
         {aiRows.length > 0 && (
           <div className="mt-4 flex flex-wrap gap-2 text-xs border-t border-dark-600 pt-3">
-            <span className="text-dark-500">
-              Batch: <strong className="text-dark-200">{aiBatchStats.flagged}</strong> cu semnal din{" "}
-              <strong className="text-dark-200">{aiBatchStats.total}</strong>
+            <span className="text-zinc-500">
+              Batch: <strong className="text-zinc-800">{aiBatchStats.flagged}</strong> cu semnal din{" "}
+              <strong className="text-zinc-800">{aiBatchStats.total}</strong>
             </span>
             {aiBatchStats.flagged > 0 && (
               <>
-                <span className="text-dark-600">·</span>
+                <span className="text-zinc-600">·</span>
                 <span className="text-red-300/90">Ridicată: {aiBatchStats.bySev.high}</span>
                 <span className="text-amber-200/90">Medie: {aiBatchStats.bySev.medium}</span>
                 <span className="text-dark-400">Redusă: {aiBatchStats.bySev.low}</span>
@@ -311,7 +311,7 @@ export default function AdminModerationScanPage() {
             )}
             {Object.keys(aiBatchStats.byFlag).length > 0 && (
               <>
-                <span className="text-dark-600 w-full sm:w-auto sm:ml-1">Etichete:</span>
+                <span className="text-zinc-600 w-full sm:w-auto sm:ml-1">Etichete:</span>
                 {Object.entries(aiBatchStats.byFlag).map(([fid, n]) => (
                   <span key={fid} className="text-violet-200/85">
                     {AI_FLAG_LABELS[fid] ?? fid}: {n}
@@ -325,7 +325,7 @@ export default function AdminModerationScanPage() {
           <ul className="mt-4 space-y-3 border-t border-dark-600 pt-4">
             {sortedAiRows.map((r) => (
               <li key={r.id} className="rounded-xl border border-violet-900/50 bg-dark-900/50 p-4">
-                <div className="flex flex-wrap gap-2 text-xs text-dark-500 mb-2 items-center">
+                <div className="flex flex-wrap gap-2 text-xs text-zinc-500 mb-2 items-center">
                   <span className="tabular-nums">
                     {new Date(r.createdAt).toLocaleString("ro-RO", { dateStyle: "short", timeStyle: "short" })}
                   </span>
@@ -365,7 +365,7 @@ export default function AdminModerationScanPage() {
                 {r.aiNoteRo ? (
                   <p className="text-violet-200/90 text-xs mb-2 italic">{r.aiNoteRo}</p>
                 ) : null}
-                <p className="text-dark-100 text-sm whitespace-pre-wrap break-words mb-2">{r.text}</p>
+                <p className="text-zinc-900 text-sm whitespace-pre-wrap break-words mb-2">{r.text}</p>
                 <div className="text-xs text-dark-400 space-y-1">
                   <p>
                     De la:{" "}
@@ -410,9 +410,9 @@ export default function AdminModerationScanPage() {
                   return (
                     <div className="mt-3 rounded-lg border border-violet-800/40 bg-violet-950/25 px-3 py-2 text-xs space-y-2">
                       {tb.disclaimer ? (
-                        <p className="text-dark-500 leading-snug border-l-2 border-violet-600 pl-2">{tb.disclaimer}</p>
+                        <p className="text-zinc-500 leading-snug border-l-2 border-violet-600 pl-2">{tb.disclaimer}</p>
                       ) : null}
-                      <p className="text-dark-100 leading-relaxed whitespace-pre-wrap">{tb.summary_ro}</p>
+                      <p className="text-zinc-900 leading-relaxed whitespace-pre-wrap">{tb.summary_ro}</p>
                       {tb.severity_hint && tb.severity_hint !== "low" && (
                         <p className="text-dark-400">
                           Estimare context:{" "}
@@ -444,7 +444,7 @@ export default function AdminModerationScanPage() {
           </ul>
         )}
         {!aiLoading && aiRows.length > 0 && filteredAiRows.length === 0 && onlyAiFlagged && (
-          <p className="text-dark-500 text-xs mt-3">
+          <p className="text-zinc-500 text-xs mt-3">
             AI nu a semnalat nimic în acest batch (sau toate sunt „none”). Debifează filtrul sau încearcă un batch
             mai mare.
           </p>
@@ -502,7 +502,7 @@ export default function AdminModerationScanPage() {
 
       <div className="flex flex-wrap items-end gap-3 mb-4">
         <div>
-          <label className="block text-xs text-dark-500 mb-1">Max. rezultate</label>
+          <label className="block text-xs text-zinc-500 mb-1">Max. rezultate</label>
           <input
             type="number"
             min={20}
@@ -526,12 +526,12 @@ export default function AdminModerationScanPage() {
       {error && <p className="text-red-400 text-sm mb-4">{error}</p>}
 
       {rows.length === 0 && !loading ? (
-        <p className="text-dark-500 text-sm">Apasă „Rulează scanarea”. Dacă nu apar rânduri, nu s-au găsit potriviri în ultimele mesaje verificate.</p>
+        <p className="text-zinc-500 text-sm">Apasă „Rulează scanarea”. Dacă nu apar rânduri, nu s-au găsit potriviri în ultimele mesaje verificate.</p>
       ) : (
         <ul className="space-y-3">
           {rows.map((r) => (
             <li key={r.id} className="rounded-xl border border-dark-600 bg-dark-800/80 p-4">
-              <div className="flex flex-wrap gap-2 text-xs text-dark-500 mb-2">
+              <div className="flex flex-wrap gap-2 text-xs text-zinc-500 mb-2">
                 <span className="tabular-nums">
                   {new Date(r.createdAt).toLocaleString("ro-RO", { dateStyle: "short", timeStyle: "short" })}
                 </span>
@@ -557,7 +557,7 @@ export default function AdminModerationScanPage() {
                   ))}
                 </div>
               )}
-              <p className="text-dark-100 text-sm whitespace-pre-wrap break-words mb-2">
+              <p className="text-zinc-900 text-sm whitespace-pre-wrap break-words mb-2">
                 {r.text || (r.attachmentUrl ? "— (doar atașament) —" : "—")}
               </p>
               <div className="text-xs text-dark-400 space-y-1">

@@ -73,7 +73,7 @@ export default function AdminReportsPage() {
       {loading ? (
         <p className="text-dark-400">Se incarca...</p>
       ) : reports.length === 0 ? (
-        <p className="text-dark-500">Nu există rapoarte.</p>
+        <p className="text-zinc-500">Nu există rapoarte.</p>
       ) : (
         <ul className="space-y-4">
           {reports.map((r) => (
@@ -85,19 +85,19 @@ export default function AdminReportsPage() {
                 <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" aria-hidden />
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-medium uppercase tracking-wide text-amber-200/90">Motiv raport</p>
-                  <p className="mt-1 text-dark-50 text-base leading-relaxed whitespace-pre-wrap break-words font-medium">
+                  <p className="mt-1 text-zinc-900 text-base leading-relaxed whitespace-pre-wrap break-words font-medium">
                     {r.reason || "— (fără text)"}
                   </p>
                 </div>
               </div>
               <div className="px-4 py-3 flex flex-wrap gap-x-4 gap-y-2 text-sm text-dark-400">
                 <span>
-                  <span className="text-dark-500">Raportat:</span>{" "}
-                  <span className="text-dark-200">{r.reportedEmail ?? r.reportedId}</span>
+                  <span className="text-zinc-500">Raportat:</span>{" "}
+                  <span className="text-zinc-800">{r.reportedEmail ?? r.reportedId}</span>
                 </span>
                 <span>
-                  <span className="text-dark-500">Raportor:</span>{" "}
-                  <span className="text-dark-200">{r.reporterEmail ?? r.reporterId}</span>
+                  <span className="text-zinc-500">Raportor:</span>{" "}
+                  <span className="text-zinc-800">{r.reporterEmail ?? r.reporterId}</span>
                 </span>
                 <span className="tabular-nums">{r.createdAt}</span>
               </div>

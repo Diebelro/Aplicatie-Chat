@@ -127,7 +127,7 @@ export default function AdminConversationPage() {
         {userA && (
           <span className="rounded-lg border border-dark-600 bg-dark-800 px-3 py-2">
             <span className="text-dark-500">Participant 1 · </span>
-            <span className="text-dark-100">{displayUser(userA)}</span>{" "}
+            <span className="text-zinc-900">{displayUser(userA)}</span>{" "}
             <Link href={"/admin/users/" + userA.id} className="text-brand-400 hover:underline">
               Profil
             </Link>
@@ -136,7 +136,7 @@ export default function AdminConversationPage() {
         {userB && (
           <span className="rounded-lg border border-dark-600 bg-dark-800 px-3 py-2">
             <span className="text-dark-500">Participant 2 · </span>
-            <span className="text-dark-100">{displayUser(userB)}</span>{" "}
+            <span className="text-zinc-900">{displayUser(userB)}</span>{" "}
             <Link href={"/admin/users/" + userB.id} className="text-brand-400 hover:underline">
               Profil
             </Link>
@@ -145,7 +145,7 @@ export default function AdminConversationPage() {
       </div>
       {userA && userB && actionTargetId ? (
         <div className="mb-6 rounded-xl border border-amber-500/35 bg-amber-500/10 p-4 text-sm">
-          <p className="text-dark-100 font-medium mb-1">Acțiuni pentru utilizatorul urmărit</p>
+          <p className="text-zinc-900 font-medium mb-1">Acțiuni pentru utilizatorul urmărit</p>
           <p className="text-dark-500 text-xs mb-3">
             Avertismentul trimite o notificare generală în chat (fără referință la un mesaj anume). În conversație apare
             ca „Notificare platformă”, nu ca mesaj de la celălalt participant. Notificarea dispare din chat după 30 zile
@@ -161,7 +161,7 @@ export default function AdminConversationPage() {
                 onChange={() => setActionTargetId(userA.id)}
                 className="accent-brand-400"
               />
-              <span className="text-dark-200">{displayUser(userA)}</span>
+              <span className="text-zinc-800">{displayUser(userA)}</span>
             </label>
             <label className="inline-flex items-center gap-1.5 cursor-pointer">
               <input
@@ -171,14 +171,14 @@ export default function AdminConversationPage() {
                 onChange={() => setActionTargetId(userB.id)}
                 className="accent-brand-400"
               />
-              <span className="text-dark-200">{displayUser(userB)}</span>
+              <span className="text-zinc-800">{displayUser(userB)}</span>
             </label>
           </div>
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
               disabled={!!actionBusy}
-              className="rounded-lg bg-dark-700 border border-dark-600 px-3 py-1.5 text-xs text-dark-100 hover:bg-dark-600 disabled:opacity-50"
+              className="rounded-lg bg-dark-700 border border-dark-600 px-3 py-1.5 text-xs text-zinc-900 hover:bg-dark-600 disabled:opacity-50"
               onClick={async () => {
                 if (
                   !confirm(
@@ -211,7 +211,7 @@ export default function AdminConversationPage() {
             <button
               type="button"
               disabled={!!actionBusy}
-              className="rounded-lg bg-dark-700 border border-dark-600 px-3 py-1.5 text-xs text-dark-100 hover:bg-dark-600 disabled:opacity-50"
+              className="rounded-lg bg-dark-700 border border-dark-600 px-3 py-1.5 text-xs text-zinc-900 hover:bg-dark-600 disabled:opacity-50"
               onClick={async () => {
                 const raw = window.prompt("Suspendare: ore (1–168)?", "24");
                 if (raw === null) return;
@@ -332,14 +332,14 @@ export default function AdminConversationPage() {
                     <span className="text-amber-200 text-sm font-medium">Notificare platformă</span>
                   ) : (
                     <>
-                      <span className="text-dark-100 font-medium">{fromLabel}</span>
+                      <span className="text-zinc-900 font-medium">{fromLabel}</span>
                       <span className="text-dark-500 text-sm">→ {toLabel}</span>
                     </>
                   )}
                   <span className="text-dark-500 text-sm tabular-nums">· {formatMessageAt(m.at)}</span>
                 </div>
                 {m.text ? (
-                  <p className="text-dark-100 text-base leading-relaxed whitespace-pre-wrap break-words">{m.text}</p>
+                  <p className="text-zinc-900 text-base leading-relaxed whitespace-pre-wrap break-words">{m.text}</p>
                 ) : null}
                 {showImage ? (
                   <a
@@ -366,7 +366,7 @@ export default function AdminConversationPage() {
                 ) : null}
                 {locationPt ? (
                   <div className="mt-2 text-sm space-y-1">
-                    <p className="text-dark-100">
+                    <p className="text-zinc-900">
                       <span className="text-dark-400">Adresă / poziție: </span>
                       <span className="break-words">{formatLocationPrimaryLine(locationPt, 6)}</span>
                     </p>

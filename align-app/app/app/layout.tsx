@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, type ReactNode } from "react";
+import { useEffect, useState, useRef, type MouseEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import {
@@ -403,6 +403,14 @@ export default function AppLayout({
   const mobileTabActive =
     "text-brand-600 font-semibold bg-brand-500/12 ring-1 ring-brand-500/25 shadow-sm shadow-brand-500/10";
 
+  /** Logo → /app: pe Discover ești deja acolo — fără acțiune pare „link mort”. Derulăm sus + închidem meniul mobil. */
+  const onDiebelLogoNavClick = (e: MouseEvent<HTMLAnchorElement>) => {
+    setMobileMenuOpen(false);
+    if (path !== "/app") return;
+    e.preventDefault();
+    document.querySelector<HTMLElement>("main.flex-1")?.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   return (
     <div className="h-dvh min-h-0 bg-dark-900 flex flex-col overflow-hidden antialiased text-dark-900">
       <header className="border-b border-dark-600/80 shrink-0 sticky top-0 z-20 safe-area-inset-top bg-dark-900/92 shadow-[0_1px_0_rgba(0,0,0,0.04)] backdrop-blur-md supports-[backdrop-filter]:bg-dark-900/88">
@@ -413,6 +421,7 @@ export default function AppLayout({
         <div className="w-full max-w-[min(100vw,1920px)] mx-auto py-3 md:py-3.5 flex items-center gap-2 sm:gap-3 min-w-0 pl-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))]">
           <Link
             href="/app"
+            onClick={onDiebelLogoNavClick}
             className="group relative z-[25] shrink-0 inline-flex items-center min-h-[44px] min-w-[7.5rem] -ml-1 pl-1 pr-2 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-dark-900 touch-manipulation active:opacity-90"
             aria-label={tStr("appNav.ariaDiscoverHome")}
           >

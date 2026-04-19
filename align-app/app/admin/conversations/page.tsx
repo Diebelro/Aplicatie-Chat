@@ -52,7 +52,7 @@ function AdminConversationsForm() {
         user (/admin/users/…) sau din rapoarte. Apoi vezi mesajele înainte de Ban / Ștergere.
       </p>
       <div className="mb-8 rounded-lg border border-dark-600 bg-dark-800/50 p-4">
-        <h2 className="text-sm font-medium text-dark-200 mb-2">Variantă rapidă</h2>
+        <h2 className="text-sm font-medium text-zinc-800 mb-2">Variantă rapidă</h2>
         <p className="text-dark-500 text-xs mb-3">
           Lipește aici șirul complet <code className="text-dark-400">id1_id2</code> (din URL sau din documentație) — ordinea nu contează.
         </p>

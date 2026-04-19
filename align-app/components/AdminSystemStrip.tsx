@@ -47,13 +47,13 @@ export function AdminSystemStrip() {
 
   if (!snap) return null;
 
-  /** Bara e informativă, nu „alarmă” vizuală — detalii pe /admin/system */
+  /** Bara e informativă — verde discret când totul e OK; detalii pe /admin/system */
   const palette =
     snap.overall === "critical"
       ? "bg-zinc-100 border-b border-red-200 text-zinc-800"
       : snap.overall === "warn"
         ? "bg-zinc-100 border-b border-amber-200 text-zinc-800"
-        : "bg-zinc-50 border-b border-zinc-200 text-zinc-700";
+        : "bg-emerald-50 border-b border-emerald-200 text-emerald-950";
 
   const dbLabel =
     snap.db.status === "up"
@@ -65,7 +65,10 @@ export function AdminSystemStrip() {
   return (
     <div className={`border-b px-3 py-2 text-xs sm:text-sm ${palette}`}>
       <div className="max-w-6xl mx-auto flex flex-wrap items-center gap-x-3 gap-y-1">
-        <Activity className="w-4 h-4 shrink-0 opacity-90" aria-hidden />
+        <Activity
+          className={`w-4 h-4 shrink-0 opacity-90 ${snap.overall === "ok" ? "text-emerald-700" : ""}`}
+          aria-hidden
+        />
         <span className="font-semibold">
           {snap.overall === "ok"
             ? "Sistem în parametri"

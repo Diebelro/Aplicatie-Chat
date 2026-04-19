@@ -117,13 +117,13 @@ export default function AdminUsersPage() {
     <div className="max-w-4xl">
       <h1 className="text-2xl font-semibold mb-2">Utilizatori</h1>
       <p className="text-dark-400 text-sm mb-4">
-        Fiecare card are butoane mari: <strong className="text-dark-200">avertisment — suspendare pe ore</strong>{" "}
+        Fiecare card are butoane mari: <strong className="text-zinc-800">avertisment — suspendare pe ore</strong>{" "}
         (utilizatorul nu se poate loga până expiră; apoi revine singur), ban permanent, deblocare, ștergere.
       </p>
       <div className="rounded-lg border border-dark-600 bg-dark-800/80 px-3 py-2 text-dark-300 text-xs mb-4 leading-relaxed">
-        <strong className="text-dark-100">Blocare între utilizatori</strong> (când cineva apasă „block” pe altcineva){" "}
+        <strong className="text-zinc-900">Blocare între utilizatori</strong> (când cineva apasă „block” pe altcineva){" "}
         <strong className="text-brand-300">rămâne</strong> — nu o ștergem și nu o schimbăm din acest panou. Suspendarea
-        ta e la nivelul <strong className="text-dark-100">întregului cont</strong>: îl „meditezi” câteva ore fără acces,
+        ta e la nivelul <strong className="text-zinc-900">întregului cont</strong>: îl „meditezi” câteva ore fără acces,
         relațiile lui de block/match rămân în baza de date.
       </div>
       <input

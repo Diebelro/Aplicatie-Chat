@@ -75,7 +75,7 @@ export default function AdminAppFeedbackPage() {
                   </>
                 )}
               </div>
-              <p className="text-dark-200 text-sm whitespace-pre-wrap break-words">{r.message}</p>
+              <p className="text-zinc-800 text-sm whitespace-pre-wrap break-words">{r.message}</p>
               <Link
                 href={`/admin/users/${encodeURIComponent(r.userId)}`}
                 className="text-brand-400 hover:underline text-xs mt-2 inline-block"

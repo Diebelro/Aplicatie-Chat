@@ -68,20 +68,20 @@ export default function AdminBanAppealsPage() {
       </div>
       <p className="text-dark-400 text-sm mb-6">
         Utilizatorii blocați pot cere revizuirea. Citește mesajul — dacă blocarea a fost greșită, apasă{" "}
-        <strong className="text-dark-200">Deblochează</strong>. Dacă menții decizia, <strong className="text-dark-200">Respinge cererea</strong>.
+        <strong className="text-zinc-800">Deblochează</strong>. Dacă menții decizia, <strong className="text-zinc-800">Respinge cererea</strong>.
       </p>
       {error && <p className="text-red-400 text-sm mb-4">{error}</p>}
       {loading ? (
         <p className="text-dark-400">Se încarcă…</p>
       ) : appeals.length === 0 ? (
-        <p className="text-dark-500">Nu există contestări în așteptare.</p>
+        <p className="text-zinc-500">Nu există contestări în așteptare.</p>
       ) : (
         <ul className="space-y-4">
           {appeals.map((a) => (
             <li key={a.id} className="rounded-xl border border-dark-600 bg-dark-800/90 overflow-hidden">
               <div className="border-b border-dark-600 px-4 py-3 flex flex-wrap gap-3 text-sm text-dark-400">
                 <span>
-                  <span className="text-dark-500">Utilizator:</span>{" "}
+                  <span className="text-zinc-500">Utilizator:</span>{" "}
                   <Link href={"/admin/users/" + a.userId} className="text-brand-400 hover:underline">
                     {a.userEmail}
                   </Link>
@@ -90,7 +90,7 @@ export default function AdminBanAppealsPage() {
               </div>
               <div className="px-4 py-3">
                 <p className="text-xs font-medium uppercase tracking-wide text-red-300/90 mb-1">Mesaj</p>
-                <p className="text-dark-50 text-base leading-relaxed whitespace-pre-wrap break-words">{a.message}</p>
+                <p className="text-zinc-900 text-base leading-relaxed whitespace-pre-wrap break-words">{a.message}</p>
               </div>
               <div className="px-4 pb-4 flex flex-wrap gap-2">
                 <button
