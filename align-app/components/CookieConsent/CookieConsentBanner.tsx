@@ -9,7 +9,7 @@ import { CookieConsentModal } from "./CookieConsentModal";
 export function CookieConsentBanner() {
   const pathname = usePathname();
   const { t } = useI18n();
-  const { consent, setConsent, hasConsented } = useCookieConsent();
+  const { consent, setConsent, hasConsented, consentHydrated } = useCookieConsent();
   /** Pe mobil în `/app`, bara de nav e fixă jos — ridicăm bannerul ca să nu o acopere (md+: nav ascuns). */
   const cookieBottomClass =
     pathname?.startsWith("/app") === true
@@ -39,6 +39,7 @@ export function CookieConsentBanner() {
     });
   };
 
+  if (!consentHydrated) return null;
   if (hasConsented) return null;
   if (pathname === "/privacy" || pathname === "/privacy-policy") return null;
 

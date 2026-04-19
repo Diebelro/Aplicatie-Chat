@@ -14,7 +14,7 @@ import { CookieConsentModal } from "./CookieConsentModal";
 export function CookieConsentFloatingButton() {
   const pathname = usePathname();
   const { t } = useI18n();
-  const { hasConsented } = useCookieConsent();
+  const { hasConsented, consentHydrated } = useCookieConsent();
   const settingsLabel = t("cookieConsent.settingsButton") as string;
   const [open, setOpen] = useState(false);
 
@@ -25,7 +25,7 @@ export function CookieConsentFloatingButton() {
   /** Pe ecranul de apel fullscreen, butonul se suprapune peste PiP / controale — ascuns aici (setări rămân din banner / /cookies). */
   if (pathname?.startsWith("/app/call")) return null;
 
-  if (!hasConsented) return null;
+  if (!consentHydrated || !hasConsented) return null;
 
   const appMobileNavClear =
     pathname?.startsWith("/app") === true

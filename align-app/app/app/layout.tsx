@@ -245,22 +245,8 @@ export default function AppLayout({
     };
   }, [user?.id]);
 
-  // Trimite locația la încărcare doar dacă utilizatorul a activat-o (onboarding sau pe pagina de căutare)
-  useEffect(() => {
-    if (!user?.id || user?.location_enabled !== true || typeof navigator === "undefined" || !navigator.geolocation) return;
-    const onPos = (pos: GeolocationPosition) => {
-      fetch("/api/me/location", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-        body: JSON.stringify({
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude,
-          location_enabled: true,
-        }),
-      }).catch(() => {});
-    };
-    navigator.geolocation.getCurrentPosition(onPos, () => {}, { enableHighAccuracy: true });
-  }, [user?.id, user?.location_enabled]);
+  // Locația NU se cere aici: getCurrentPosition fără gest utilizator → prompt care apare/dispare sau e blocat de browser.
+  // Actualizare: onboarding / Profil (buton) / Hartă / chat (trimite locația).
 
   // Total mesaje necitite pentru badge la Mesaje
   const fetchUnread = () => {

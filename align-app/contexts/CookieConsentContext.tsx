@@ -25,6 +25,8 @@ interface CookieConsentContextValue {
   setConsent: (value: CookieConsentState) => void;
   loadConsent: () => void;
   hasConsented: boolean;
+  /** După primul citit al localStorage pe client — evită flash banner la cei care au deja acceptat. */
+  consentHydrated: boolean;
 }
 
 const CookieConsentContext = createContext<CookieConsentContextValue | null>(null);
@@ -51,6 +53,7 @@ function loadStoredConsent(): ConsentState {
 
 export function CookieConsentProvider({ children }: { children: React.ReactNode }) {
   const [consent, setConsentState] = useState<ConsentState>(null);
+  const [consentHydrated, setConsentHydrated] = useState(false);
 
   const loadConsent = useCallback(() => {
     setConsentState(loadStoredConsent());
@@ -58,6 +61,7 @@ export function CookieConsentProvider({ children }: { children: React.ReactNode 
 
   useEffect(() => {
     loadConsent();
+    setConsentHydrated(true);
   }, [loadConsent]);
 
   const setConsent = useCallback((value: CookieConsentState) => {
@@ -74,7 +78,7 @@ export function CookieConsentProvider({ children }: { children: React.ReactNode 
 
   return (
     <CookieConsentContext.Provider
-      value={{ consent, setConsent, loadConsent, hasConsented }}
+      value={{ consent, setConsent, loadConsent, hasConsented, consentHydrated }}
     >
       {children}
     </CookieConsentContext.Provider>
