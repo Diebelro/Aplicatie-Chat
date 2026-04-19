@@ -5,7 +5,9 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { fetchWithAuthRetry } from "@/lib/authClient";
 import { DiebelCopyrightStrip } from "@/components/DiebelAuthorCredit";
+import { AdminModerationSummaryProvider } from "@/components/AdminModerationSummaryProvider";
 import { AdminModerationNavBadge } from "@/components/AdminModerationNavBadge";
+import { AdminNavSectionBadge } from "@/components/AdminNavSectionBadge";
 import { AdminSecurityThreatBanner } from "@/components/AdminSecurityThreatBanner";
 import { AdminSystemStrip } from "@/components/AdminSystemStrip";
 
@@ -80,42 +82,60 @@ export default function AdminLayout({
 
   return (
     <div className="min-h-screen bg-dark-900 text-zinc-900">
-      <nav className="border-b border-dark-600 px-4 py-3 flex gap-4 flex-wrap bg-white/90">
-        <Link href="/admin" className="text-brand-600 font-bold hover:underline inline-flex items-center">
-          Admin
-          <AdminModerationNavBadge />
-        </Link>
-        <Link href="/admin/users" className="text-zinc-600 hover:text-zinc-900">
-          Useri
-        </Link>
-        <Link href="/admin/reports" className="text-zinc-600 hover:text-zinc-900">
-          Rapoarte
-        </Link>
-        <Link href="/admin/app-feedback" className="text-zinc-600 hover:text-zinc-900">
-          Feedback app
-        </Link>
-        <Link href="/admin/ban-appeals" className="text-zinc-600 hover:text-zinc-900">
-          Contestări
-        </Link>
-        <Link href="/admin/logs" className="text-zinc-600 hover:text-zinc-900">
-          Loguri
-        </Link>
-        <Link href="/admin/conversations" className="text-zinc-600 hover:text-zinc-900">
-          Conversatii
-        </Link>
-        <Link href="/admin/moderation-scan" className="text-zinc-600 hover:text-zinc-900">
-          Scanare conținut
-        </Link>
-        <Link href="/admin/security" className="text-zinc-600 hover:text-red-600">
-          Securitate
-        </Link>
-        <Link href="/admin/system" className="text-zinc-600 hover:text-emerald-700" title="DB, apeluri, mesaje, erori">
-          Bord sistem
-        </Link>
-        <Link href="/app" className="text-dark-500 ml-auto hover:text-zinc-900">
-          ← App
-        </Link>
-      </nav>
+      <AdminModerationSummaryProvider>
+        <nav className="border-b border-dark-600 px-4 py-3 flex gap-4 flex-wrap bg-white/90">
+          <Link href="/admin" className="text-brand-600 font-bold hover:underline inline-flex items-center">
+            Admin
+            <AdminModerationNavBadge />
+          </Link>
+          <Link href="/admin/users" className="text-zinc-600 hover:text-zinc-900">
+            Useri
+          </Link>
+          <Link
+            href="/admin/reports"
+            className="text-zinc-600 hover:text-zinc-900 inline-flex items-center gap-1.5"
+          >
+            Rapoarte
+            <AdminNavSectionBadge section="reports" />
+          </Link>
+          <Link
+            href="/admin/app-feedback"
+            className="text-zinc-600 hover:text-zinc-900 inline-flex items-center gap-1.5"
+          >
+            Feedback app
+            <AdminNavSectionBadge section="appFeedback" />
+          </Link>
+          <Link
+            href="/admin/ban-appeals"
+            className="text-zinc-600 hover:text-zinc-900 inline-flex items-center gap-1.5"
+          >
+            Contestări
+            <AdminNavSectionBadge section="appeals" />
+          </Link>
+          <Link href="/admin/logs" className="text-zinc-600 hover:text-zinc-900">
+            Loguri
+          </Link>
+          <Link href="/admin/conversations" className="text-zinc-600 hover:text-zinc-900">
+            Conversatii
+          </Link>
+          <Link href="/admin/moderation-scan" className="text-zinc-600 hover:text-zinc-900">
+            Scanare conținut
+          </Link>
+          <Link href="/admin/security" className="text-zinc-600 hover:text-red-600">
+            Securitate
+          </Link>
+          <Link
+            href="/admin/system"
+            className="text-zinc-600 hover:text-emerald-700"
+            title="DB, apeluri, mesaje, erori"
+          >
+            Bord sistem
+          </Link>
+          <Link href="/app" className="text-dark-500 ml-auto hover:text-zinc-900">
+            ← App
+          </Link>
+        </nav>
+      </AdminModerationSummaryProvider>
       <AdminSecurityThreatBanner />
       <AdminSystemStrip />
       <main className="p-4">{children}</main>

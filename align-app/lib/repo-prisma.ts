@@ -1953,6 +1953,8 @@ export type AdminModerationSummary = {
   reportsLast30Days: number;
   newUsersSince: number;
   newReportsSince: number;
+  /** AppFeedback cu createdAt >= since (același checkpoint ca înscrieri/rapoarte). */
+  newAppFeedbackSince: number;
 };
 
 /** Rezumat pentru dashboard moderare. `since` = începutul ferestrei „ce e nou de când am verificat”. */
@@ -1975,6 +1977,7 @@ export async function prismaGetAdminModerationSummary(since: Date): Promise<Admi
     reportsLast30Days,
     newUsersSince,
     newReportsSince,
+    newAppFeedbackSince,
   ] = await Promise.all([
     prisma.user.count(),
     prisma.user.count({ where: { isBanned: true } }),
@@ -1989,6 +1992,7 @@ export async function prismaGetAdminModerationSummary(since: Date): Promise<Admi
     prisma.report.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
     prisma.user.count({ where: { createdAt: { gte: since } } }),
     prisma.report.count({ where: { createdAt: { gte: since } } }),
+    prisma.appFeedback.count({ where: { createdAt: { gte: since } } }),
   ]);
   return {
     totalUsers,
@@ -2004,6 +2008,7 @@ export async function prismaGetAdminModerationSummary(since: Date): Promise<Admi
     reportsLast30Days,
     newUsersSince,
     newReportsSince,
+    newAppFeedbackSince,
   };
 }
 

@@ -39,6 +39,10 @@ export async function GET(request: NextRequest) {
     since: since.toISOString(),
     ...summary,
     pendingBanAppeals,
-    attentionCount: summary.newUsersSince + summary.newReportsSince + pendingBanAppeals,
+    attentionCount:
+      summary.newUsersSince +
+      summary.newReportsSince +
+      pendingBanAppeals +
+      summary.newAppFeedbackSince,
   });
 }
