@@ -647,7 +647,7 @@ export default function AppLayout({
         <div className="lg:hidden fixed inset-0 z-[60] flex justify-end" role="presentation">
           <button
             type="button"
-            className="absolute inset-0 bg-black/50 backdrop-blur-[1px]"
+            className="absolute inset-0 bg-zinc-900/35 motion-reduce:transition-none"
             aria-label={tStr("appNav.menuClose")}
             onClick={() => setMobileMenuOpen(false)}
           />
@@ -656,7 +656,7 @@ export default function AppLayout({
             role="dialog"
             aria-modal="true"
             aria-label={tStr("appNav.mobileSheetTitle")}
-            className="relative flex h-full w-[min(19.5rem,calc(100vw-2.5rem))] max-w-[100vw] flex-col border-l border-dark-600/90 bg-dark-950/98 shadow-[-12px_0_40px_rgba(0,0,0,0.45)] backdrop-blur-md"
+            className="relative flex h-full w-[min(19.5rem,calc(100vw-2.5rem))] max-w-[100vw] flex-col border-l border-dark-600 bg-dark-950 shadow-[-16px_0_48px_-12px_rgba(15,23,42,0.18)] ring-1 ring-zinc-900/[0.04]"
           >
             <div className="flex shrink-0 items-center justify-between gap-2 border-b border-dark-600/80 px-3 py-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
               <p className="truncate text-sm font-semibold tracking-tight text-dark-900">
