@@ -5,20 +5,16 @@ import { APP_AUTHOR, APP_CONTACT_EMAIL, APP_CREDIT_LEAD } from "@/lib/site";
 const linkClass =
   "underline-offset-2 hover:underline decoration-current/60 cursor-help text-inherit";
 
-/** Numele autorului ca link mailto; la hover, tooltip cu adresa de email. */
+/** Numele autorului ca link mailto; tooltip cu email pe întreaga linie (vezi `DiebelCopyrightStrip`). */
 export function DiebelAuthorLink({ className = "" }: { className?: string }) {
   return (
-    <a
-      href={`mailto:${APP_CONTACT_EMAIL}`}
-      title={APP_CONTACT_EMAIL}
-      className={`${linkClass} ${className}`.trim()}
-    >
+    <a href={`mailto:${APP_CONTACT_EMAIL}`} className={`${linkClass} ${className}`.trim()}>
       {APP_AUTHOR}
     </a>
   );
 }
 
-/** Propoziția completă „Aplicația este realizată de Diebel.” cu același comportament la hover pe „Diebel”. */
+/** Propoziția „Aplicația este realizată de Diebel.” — hover cu email pe linia completă din footer. */
 export function AppCreditLine({ className = "" }: { className?: string }) {
   return (
     <span className={className}>
@@ -36,7 +32,9 @@ export function AppCreditLine({ className = "" }: { className?: string }) {
 export function DiebelCopyrightStrip({ className = "" }: { className?: string }) {
   return (
     <p className={`text-dark-500 text-xs text-center leading-snug max-w-lg mx-auto ${className}`.trim()}>
-      © {new Date().getFullYear()} · <AppCreditLine />
+      <span title={APP_CONTACT_EMAIL} className="inline cursor-help">
+        © {new Date().getFullYear()} · <AppCreditLine />
+      </span>
     </p>
   );
 }
