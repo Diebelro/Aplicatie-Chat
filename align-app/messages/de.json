@@ -491,6 +491,201 @@
       "ringPushHint": {
         "noPushServer": "Wenn die andere Person die App nicht geöffnet hat, sieht sie den Anruf vielleicht nicht. Mit offenem Chat oder App funktioniert der Anruf.",
         "noCalleeNotif": "Benachrichtigungen sind auf diesem Gerät nicht aktiv — im Hintergrund kann der Anruf fehlen. Mit geöffneter App klappt es."
+      },
+      "rtc": {
+        "bannerCameraInterrupted": "Kamera wurde unterbrochen (System oder Browser). Tippe auf „Video aktivieren“, sobald die Kamera wieder verfügbar ist.",
+        "bannerCameraRestartFail": "Kamera ließ sich nicht neu starten. Prüfe die Browser-Berechtigungen.",
+        "bannerCameraSoft": "Kamera ist aus — du hörst und sprichst normal weiter. Erlaube die Kamera für diese Website in den Browser-Einstellungen, wenn du Bild willst.",
+        "errorMissingSignalingUrl": "NEXT_PUBLIC_SIGNALING_WS_URL fehlt.",
+        "wsConnectFailMesh": "Keine Verbindung zum WebSocket-Signalisierungsserver. Prüfe, ob `npm run dev:lan` läuft, Firewall und NEXT_PUBLIC_SIGNALING_WS_URL (LAN).",
+        "wsConnectFailP2p": "Keine Verbindung zum WebSocket-Signalisierungsserver. Prüfe `npm run dev:lan`, Firewall (3005/4001) und dass beide Geräte dieselbe LAN-URL nutzen.",
+        "errorOfferStart": "WebRTC-Angebot konnte nicht gestartet werden.",
+        "errorMeshLimit": "In dieser Konferenz sind höchstens 4 Teilnehmende möglich (MESH_LIMIT_EXCEEDED). Bitte einige verlassen oder einen neuen Raum starten.",
+        "bannerConferenceNobody": "Noch niemand ist der Konferenz beigetreten. Sende den „Einladen“-Link oder stelle sicher, dass andere denselben Raum öffnen. Der Timer wurde automatisch gestoppt, damit du nicht hängen bleibst.",
+        "errorWsSignalingMesh": "WebSocket-Signalisierungsfehler — prüfe WS-URL und Firewall.",
+        "errorWsSignalingP2p": "WebSocket-Signalisierungsfehler — prüfe WS-URL, Firewall und ob der Signalisierungsserver läuft.",
+        "bannerNetworkWeak": "Schwaches Netz — Videoauflösung und Bitrate werden für Stabilität reduziert.",
+        "bannerConnectionDelay": "Verbindung ist langsam — kurz warten oder anderes Netz probieren.",
+        "bannerP2pWaitingPeer": "Der zweite Teilnehmer erscheint nicht (nach ~1 Minute meist: niemand im Raum). Prüfe: Hat die andere Person angenommen oder denselben Anruf aus dem Chat geöffnet? Zwei verschiedene Konten nutzen (derselbe Nutzer in zwei Tabs bildet kein Paar). Zoom schließen. Verlassen und erneut versuchen.",
+        "errorWebRtcDisabled": "WebRTC ist deaktiviert oder die Signalisierungs-URL fehlt auf dem Server. Prüfe Vercel (NEXT_PUBLIC_*).",
+        "errorWebRtcNotConfigured": "WebRTC ist nicht konfiguriert: NEXT_PUBLIC_SIGNALING_WS_URL setzen und Signalisierungsserver starten (siehe docs/calls.md).",
+        "callLimitBanner": "Anruflimit ({{maxMin}} Min) — der Anruf wird beendet.",
+        "negotiateOfferDeferred": "Verbindung konnte nicht ausgehandelt werden (angebotenes Offer verschoben).{{detail}}",
+        "negotiateOffer": "Verbindung konnte nicht ausgehandelt werden (Offer).{{detail}}",
+        "negotiateAnswer": "Verbindung konnte nicht ausgehandelt werden (Answer).{{detail}}",
+        "participantLabel": "Teilnehmer {{id}}"
+      },
+      "ui": {
+        "phaseSignalingConnecting": "Verbindung zum Server…",
+        "phaseSignalingConnected": "Raum wird betreten…",
+        "phaseNegotiatingAudio": "Audioverbindung wird aufgebaut…",
+        "phaseNegotiatingVideo": "Videoverbindung wird aufgebaut…",
+        "phasePeerJoined": "Die andere Person ist im Raum…",
+        "phaseWaitingPeer": "Warten auf die andere Person…",
+        "phasePrepMic": "Mikrofon wird vorbereitet…",
+        "phasePrepCamMic": "Kamera und Mikrofon werden vorbereitet…",
+        "phaseConnectingGeneric": "Verbindung wird hergestellt…",
+        "waitingAnswerOrJoinAria": "Warten auf Annahme des Anrufs oder Beitritt zum Raum.",
+        "noVideo": "Kein Video",
+        "noVideoFromPeer": "Kein Video von der anderen Person",
+        "remoteVideoHiddenHint": "Video der anderen Person ist ausgeblendet — du hörst sie weiter.",
+        "participantFallback": "Teilnehmer",
+        "cursorPresenterDefault": "Präsentation",
+        "closeCallAria": "Anruf beenden",
+        "swapLayoutSelfLargeAria": "Tippen, um dich groß in der Ecke zu sehen",
+        "swapLayoutRemoteLargeAria": "Tippen, um die andere Person wieder groß zu sehen",
+        "headerVideoCall": "Videoanruf",
+        "headerAudioCall": "Sprachanruf",
+        "cameraOffYours": "Deine Kamera ist aus",
+        "pipToggleHideAria": "Tippen, um Mini-Vorschau auszublenden",
+        "pipToggleShowAria": "Mini-Vorschau ausblenden",
+        "pipMutedLabelNoCam": "Keine Kamera",
+        "pipMutedLabelOff": "Aus",
+        "remotePlaybackBlocked": "Der Browser kann das Audio der anderen Person blockieren, bis du den Bildschirm berührst. Irgendwo tippen, um fortzufahren.",
+        "permissionScreenTitle": "Was dieser Bildschirm bedeutet",
+        "permissionRetryBtn": "Erneut versuchen (Mikrofon / Kamera erlauben)",
+        "permissionBackLink": "Zurück zu Nachrichten",
+        "permissionFooterNote": "Im Browser können wir nicht erzwingen, dass nur der Hörer wie beim klassischen Telefon genutzt wird — nach Mikrofon-Erlaubnis geht der Ton zum Ausgang, den das Telefon wählt; mit „Lautsprecher“ kannst du umschalten.",
+        "errTitleNegotiation": "Verbindung zwischen den Browsern konnte nicht hergestellt werden",
+        "errTitleInfra": "Anrufe können in dieser Umgebung nicht starten",
+        "errNegotiationIntro": "WebRTC hat die technische Antwort (SDP) abgelehnt. Häufig, wenn die Bestätigung doppelt ankommt oder das Netz die Aushandlung unterbricht — nicht immer fehlt TURN auf dem Server.",
+        "errNegotiationBulletRetry": "Unten auf „Erneut versuchen“ tippen und den Raum erneut betreten.",
+        "errNegotiationBulletSameMode": "Stelle sicher, dass beide denselben Anrufmodus (Audio / Video) nutzen.",
+        "errNegotiationBulletNoDupTabs": "Vermeide zwei Tabs mit demselben Konto im selben Konferenzraum.",
+        "errNegotiationBulletVpn": "Bei striktem Netz oder VPN: ohne VPN oder über mobiles Datennetz probieren.",
+        "errInfraIntro": "Dem Server fehlen noch Variablen für WebSocket-Signalisierung und TURN. Auf Vercel: Settings → Environment Variables (Production und Preview). Lokal: align-app/.env.local.",
+        "errInfraVarsTitle": "Wichtige Variablen",
+        "errInfraDiagnostics": "Server-Diagnose (JSON, ohne Geheimnisse)",
+        "errInfraDiagnosticsHint": "prüfe turnRealmSet, envLayerCompleteForCalls.",
+        "errInfraDevHint": "Lokal: npm run signaling:dev starten, NEXT_PUBLIC_SIGNALING_WS_URL=ws://127.0.0.1:4001, sowie coturn + NEXT_PUBLIC_TURN_URLS mit turn:/turns:, TURN_REALM, TURN_STATIC_SECRET — sonst liefert /api/call/ice-config 500 (TURN nötig).",
+        "errInfraPreviewNote": "Auf Vercel haben Preview und Production getrennte Env — bei Preview dort ebenfalls setzen.",
+        "errInfraCurrentEnv": "Aktuelle Umgebung:",
+        "errGenericProblem": "Beim Anruf ist etwas schiefgelaufen. Bitte erneut versuchen; wenn es bleibt, Admin kontaktieren oder /api/webrtc-env-check im Browser öffnen.",
+        "retryConnectionBtn": "Verbindung erneut versuchen",
+        "confBarMessagesLink": "← Nachrichten",
+        "confConnectingWaitPeers": "Warten auf Teilnehmende…",
+        "confConnecting": "Verbindung wird hergestellt…",
+        "confConnectedCall": "Anruf",
+        "confConnectedConference": "Konferenz",
+        "confEnded": "Anruf beendet",
+        "confInvite": "Einladen",
+        "confInviteCopied": "Link kopiert!",
+        "waitParticipantsGrid": "Warten auf Teilnehmende…",
+        "titleMicQuietMode": "Leiser Modus aktiv — tippen für Ton + normales Mikrofon",
+        "titleMicOn": "Mikrofon einschalten",
+        "titleMicOff": "Mikrofon stummschalten",
+        "titleCamOn": "Kamera einschalten",
+        "titleCamOff": "Kamera ausschalten",
+        "titleRemoteVideoHide": "Video ausblenden (du hörst weiter)",
+        "titleRemoteVideoShow": "Video wieder anzeigen",
+        "titleCameraFlip": "Vorne / hinten — Kamera wechseln",
+        "titleScreenshareStop": "Bildschirmfreigabe stoppen",
+        "titleScreenshareStart": "Bildschirm teilen",
+        "titleSpeakerDefault": "Zurück zur Standardausgabe (Telefon)",
+        "titleSpeaker": "Lautsprecher",
+        "titlePrivacyExit": "Leisen Modus verlassen (Ton + Mikro wie zuvor)",
+        "titlePrivacyEnter": "Leiser Modus: du hörst die andere Person nicht und sie dich nicht (Mikro aus)",
+        "titlePrivacyExitShort": "Leisen Modus verlassen (Ton + Mikro wie zuvor)",
+        "titlePrivacyEnterShort": "Leiser Modus: du hörst andere nicht und sie dich nicht (Mikro aus)",
+        "titleCloseCall": "Anruf beenden",
+        "toggleMiniShow": "Mini-Vorschau anzeigen",
+        "toggleMiniHide": "Mini-Vorschau ausblenden",
+        "audioCallSecureBadge": "Verschlüsselter Sprachanruf",
+        "audioHeaderBackAria": "Zurück",
+        "audioTitleMicQuiet": "Leiser Modus — tippen für normal",
+        "audioTitleMicOn": "Mikrofon einschalten",
+        "audioTitleMicMute": "Stumm",
+        "audioTitleSpeakerDefault": "Standardausgabe (Telefon)",
+        "audioTitlePrivacyExit": "Leisen Modus verlassen",
+        "audioTitlePrivacyEnter": "Leiser Modus: bei dir kein Ton in beide Richtungen (Mikro aus)",
+        "audioTitleClose": "Auflegen",
+        "toolbarMicDiscrete": "Leise (Mic)",
+        "toolbarMicUnmute": "Mic an",
+        "toolbarMicMute": "Stumm",
+        "toolbarVideoStart": "Video starten",
+        "toolbarVideoStop": "Video stoppen",
+        "toolbarFlipTitle": "Vorne / hinten — Kamera wechseln",
+        "toolbarFlipLabel": "Vorne / hinten",
+        "toolbarScreen": "Bildschirm",
+        "toolbarSpeakerDefaultTitle": "Standardausgabe",
+        "toolbarSpeakerOn": "Lautsprecher",
+        "toolbarPhone": "Telefon",
+        "toolbarDiscreteExit": "Leisen Modus verlassen (Ton + Mikro wie zuvor)",
+        "toolbarDiscreteEnter": "Leiser Modus: du hörst andere nicht und sie dich nicht (Mikro aus)",
+        "toolbarNormal": "Normal",
+        "toolbarDiscrete": "Leise",
+        "toolbarClose": "Auflegen"
+      },
+      "mediaHelp": {
+        "insecureContext": {
+          "headline": "Seite ist nicht sicher — ohne HTTPS keine Kamera",
+          "lines": [
+            "Bei http:// oder „Nicht sicher“ blockiert der Browser Kamera und Mikrofon. Das ist kein Diebel-Bug.",
+            "Öffne dieselbe Website mit https:// und Schloss in der Adressleiste, dann den Videoanruf erneut versuchen.",
+            "Wenn du ein Homescreen-Icon hast: entfernen, Website im Browser per https öffnen, dann erneut hinzufügen."
+          ]
+        },
+        "securityError": {
+          "headline": "Browser blockiert Kamera oder Mikrofon (Sicherheit)",
+          "lines": [
+            "Häufig ohne https:// oder ohne Website-Berechtigung. Schloss in der Adressleiste prüfen.",
+            "In Chrome/Edge: Schloss → Websiteberechtigungen → Kamera und Mikrofon → Erlauben.",
+            "Danach: „Erneut versuchen“ oder Anruf neu starten."
+          ]
+        },
+        "overconstrained": {
+          "headline": "Kamera oder Mikrofon ist belegt / unterstützt die Anforderungen nicht",
+          "linesLocalhost": [
+            "Kann passieren, obwohl du „Erlauben“ getippt hast — nicht immer ein Berechtigungsproblem.",
+            "Andere Videoanrufe, Zoom, Discord oder Apps mit Kamera/Mikro schließen, dann „Erneut versuchen“.",
+            "Auf manchen Handys: Seite neu laden, nachdem die Kamera frei ist.",
+            "Auf http://localhost bezieht sich die Edge-Meldung „Verbindung nicht sicher“ auf HTTP; das heißt nicht, dass „Mikrofon: Erlaubt“ falsch ist."
+          ],
+          "linesRemote": [
+            "Kann passieren, obwohl du „Erlauben“ getippt hast — nicht immer ein Berechtigungsproblem.",
+            "Andere Videoanrufe, Zoom, Discord oder Apps mit Kamera/Mikro schließen, dann „Erneut versuchen“.",
+            "Auf manchen Handys: Seite neu laden, nachdem die Kamera frei ist.",
+            "Außerhalb von localhost https:// für diese Website nutzen — sonst blockiert der Browser oft Kamera und Mikrofon."
+          ]
+        },
+        "notFoundLocalhost": {
+          "headline": "Kein Mikrofon oder keine Kamera auf diesem PC gefunden",
+          "lines": [
+            "Im Popup kann „Erlaubt“ stehen, aber das System stellt dem Browser kein Gerät bereit.",
+            "Windows: Einstellungen → Datenschutz → Mikrofon → Zugriff für Desktop-Apps erlauben.",
+            "In Edge: edge://settings/content/microphone — prüfen, ob das Mikrofon global blockiert ist."
+          ]
+        },
+        "notAllowedLocalhost": {
+          "headline": "Liste sagt „Erlauben“, aber der Browser verweigert das Mikrofon",
+          "lines": [
+            "Auf http://localhost kommt das NICHT vom roten „Nicht sicher“-Banner — Mikrofon kann „Erlaubt“ sein, während die Seite „unsicher“ ist.",
+            "edge://settings/content/microphone prüfen (globale Sperren, InPrivate, Firmenrichtlinien).",
+            "Teams / Discord / OBS / andere Tabs mit Kamera schließen, dann „Erneut versuchen“.",
+            "Test: dieselbe URL in Chrome oder einem frischen Edge-Profil öffnen."
+          ]
+        },
+        "localhostGeneric": {
+          "headline": "Localhost: „Nicht sicher“ in Edge ≠ „Mikrofon blockiert“",
+          "lines": [
+            "Bei http://localhost:3005 ist eine HTTP-Warnung normal; Chrome/Edge erlauben Medien-APIs auf localhost trotzdem oft.",
+            "Wenn Mikrofon und Kamera für die Site „Erlaubt“ sind: Gerät freigeben — andere Anrufe oder Apps schließen.",
+            "„Erneut versuchen“ oder Strg+F5. Wenn es bleibt: Fehler in der Konsole (F12) notieren.",
+            "Test vom Handy: nicht http://IP — https mit Domain oder Tunnel (ngrok); unsicheres IP blockiert Medien oft."
+          ]
+        },
+        "default": {
+          "notAllowedHeadline": "Browser blockiert Mikrofon oder Kamera",
+          "notFoundHeadline": "Kein Mikrofon oder keine Kamera gefunden",
+          "genericHeadline": "Mikrofon kann nicht gestartet werden",
+          "lines": [
+            "Der Browser muss Mikrofon und Kamera für diese Website erlauben (1:1 und Konferenz nutzen dieselben Berechtigungen).",
+            "Desktop: Schloss oder „i“ neben der Adresse → Mikrofon und Kamera → „Erlauben“.",
+            "Android (Chrome): Website-Menü → Berechtigungen → Mikrofon / Kamera.",
+            "iPhone (Safari): Einstellungen → Safari → Mikrofon-/Kamera-Zugriff für die Website.",
+            "Danach: hier „Erneut versuchen“ oder Anruf neu starten. In Produktion immer https:// nutzen."
+          ]
+        }
       }
     },
     "feedback": {

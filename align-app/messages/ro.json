@@ -491,6 +491,201 @@
       "ringPushHint": {
         "noPushServer": "Dacă celălalt nu are aplicația deschisă, poate să nu vadă că îl suni. Cu chatul sau aplicația deschisă, apelul merge.",
         "noCalleeNotif": "Celălalt nu are notificări activate pe dispozitiv — în fundal s-ar putea să nu primească apelul. Cu aplicația deschisă merge."
+      },
+      "rtc": {
+        "bannerCameraInterrupted": "Cameră întreruptă (sistem sau browser). Apasă „Pornește video” după ce ai recamera activă.",
+        "bannerCameraRestartFail": "Nu am putut reporni camera. Verifică permisiunile browserului.",
+        "bannerCameraSoft": "Camera nu e activă — auzi și vorbești normal. Permite camera din setările browserului pentru acest site dacă vrei imagine.",
+        "errorMissingSignalingUrl": "NEXT_PUBLIC_SIGNALING_WS_URL lipsă.",
+        "wsConnectFailMesh": "Nu mă pot conecta la serverul WebSocket de semnalizare. Verifică că rulează `npm run dev:lan`, firewall și NEXT_PUBLIC_SIGNALING_WS_URL (LAN).",
+        "wsConnectFailP2p": "Nu mă pot conecta la serverul WebSocket de semnalizare. Verifică `npm run dev:lan`, firewall (3005/4001) și că ambele dispozitive folosesc același URL LAN.",
+        "errorOfferStart": "Nu am putut porni oferta WebRTC.",
+        "errorMeshLimit": "Conferința permite maximum 4 participanți (MESH_LIMIT_EXCEEDED). Lasă câțiva să iasă sau începe o cameră nouă.",
+        "bannerConferenceNobody": "Nu s-a alăturat nimeni la conferință. Trimite linkul „Invită” sau asigură-te că ceilalți deschid aceeași cameră. Timer oprit automat ca să nu rămâi blocat.",
+        "errorWsSignalingMesh": "Eroare WebSocket semnalizare — verifică URL-ul WS și firewall.",
+        "errorWsSignalingP2p": "Eroare WebSocket semnalizare — verifică URL-ul WS, firewall și că serverul de semnalizare rulează.",
+        "bannerNetworkWeak": "Rețea slabă — reduc rezoluția și debitul video pentru continuitate.",
+        "bannerConnectionDelay": "Conexiunea întârzie — mai așteaptă puțin sau încearcă altă rețea.",
+        "bannerP2pWaitingPeer": "Nu apare al doilea participant în apel (de obicei după ~1 minut înseamnă că nu e nimeni în cameră). Verifică: celălalt a acceptat apelul sau a deschis același apel din chat; folosiți două conturi diferite (același user în două taburi nu formează o pereche); închide Zoom. Ieși și încearcă din nou.",
+        "errorWebRtcDisabled": "WebRTC este dezactivat sau lipsește URL semnalizare pe server. Verifică Vercel (NEXT_PUBLIC_*).",
+        "errorWebRtcNotConfigured": "WebRTC nu e configurat: setează NEXT_PUBLIC_SIGNALING_WS_URL și rulează serverul de semnalizare (vezi docs/calls.md).",
+        "callLimitBanner": "Limită apel ({{maxMin}} min) — apelul se închide.",
+        "negotiateOfferDeferred": "Nu am putut negocia conexiunea (offer amânat).{{detail}}",
+        "negotiateOffer": "Nu am putut negocia conexiunea (offer).{{detail}}",
+        "negotiateAnswer": "Nu am putut negocia conexiunea (answer).{{detail}}",
+        "participantLabel": "Participant {{id}}"
+      },
+      "ui": {
+        "phaseSignalingConnecting": "Ne conectăm la server…",
+        "phaseSignalingConnected": "Intrăm în cameră…",
+        "phaseNegotiatingAudio": "Stabilim conexiunea audio…",
+        "phaseNegotiatingVideo": "Stabilim conexiunea video…",
+        "phasePeerJoined": "Celălalt e în cameră…",
+        "phaseWaitingPeer": "Așteptăm celălaltul…",
+        "phasePrepMic": "Pregătim microfonul…",
+        "phasePrepCamMic": "Pregătim camera și microfonul…",
+        "phaseConnectingGeneric": "Se conectează…",
+        "waitingAnswerOrJoinAria": "Așteptăm să răspundă la apel sau să intre în cameră.",
+        "noVideo": "Fără video",
+        "noVideoFromPeer": "Fără video de la celălalt",
+        "remoteVideoHiddenHint": "Video interlocutorului e ascuns — îl auzi în continuare.",
+        "participantFallback": "Participant",
+        "cursorPresenterDefault": "Prezentator",
+        "closeCallAria": "Închide apelul",
+        "swapLayoutSelfLargeAria": "Atinge pentru a te vedea mare în colț",
+        "swapLayoutRemoteLargeAria": "Atinge pentru a vedea din nou celălalt mare",
+        "headerVideoCall": "Apel video",
+        "headerAudioCall": "Apel audio",
+        "cameraOffYours": "Camera ta e oprită",
+        "pipToggleHideAria": "Atinge pentru a ascunde mini-preview",
+        "pipToggleShowAria": "Ascunde mini-preview",
+        "pipMutedLabelNoCam": "Fără cameră",
+        "pipMutedLabelOff": "Oprită",
+        "remotePlaybackBlocked": "Browserul poate bloca sunetul interlocutorului până la o atingere pe ecran. Atinge oriunde pentru a continua.",
+        "permissionScreenTitle": "Ce înseamnă acest ecran",
+        "permissionRetryBtn": "Încearcă din nou (permite microfon / cameră)",
+        "permissionBackLink": "Înapoi la mesaje",
+        "permissionFooterNote": "În browser nu putem forța „doar casca telefonului” ca la apelul clasic — după ce permiți microfonul, vocea merge la ieșirea pe care o alege telefonul; dacă apare butonul „Difuzor”, îl poți folosi ca să comuți unde se aude.",
+        "errTitleNegotiation": "Conexiunea nu s-a legat între browsere",
+        "errTitleInfra": "Apelurile nu pot porni pe acest mediu",
+        "errNegotiationIntro": "Protocolul WebRTC a respins răspunsul tehnic (SDP). Cel mai des apare când mesajul de confirmare ajunge de două ori sau rețeaua a întrerupt negocierea — nu înseamnă neapărat că lipsește TURN de pe server.",
+        "errNegotiationBulletRetry": "Apasă Reîncearcă mai jos, apoi intră din nou în cameră.",
+        "errNegotiationBulletSameMode": "Asigură-te că ambele persoane au deschis același tip de apel (audio / video).",
+        "errNegotiationBulletNoDupTabs": "Evită două tab-uri cu același cont în aceeași cameră de conferință.",
+        "errNegotiationBulletVpn": "Dacă ești pe rețea strictă sau VPN, încearcă fără VPN sau de pe date mobile.",
+        "errInfraIntro": "Serverul nu are (încă) toate variabilele pentru semnalizare WebSocket și TURN. Pe Vercel: Settings → Environment Variables (Production și Preview). Local: align-app/.env.local.",
+        "errInfraVarsTitle": "Variabile esențiale",
+        "errInfraDiagnostics": "Diagnostic server (JSON, fără secrete)",
+        "errInfraDiagnosticsHint": "verifică turnRealmSet, envLayerCompleteForCalls.",
+        "errInfraDevHint": "Dev local: pornește npm run signaling:dev, NEXT_PUBLIC_SIGNALING_WS_URL=ws://127.0.0.1:4001, și coturn + NEXT_PUBLIC_TURN_URLS cu turn:/turns:, TURN_REALM, TURN_STATIC_SECRET — fără ele, /api/call/ice-config răspunde 500 (TURN obligatoriu).",
+        "errInfraPreviewNote": "pe Vercel, Preview și Production au env separate; dacă aici e un preview, trebuie setate și pentru Preview.",
+        "errInfraCurrentEnv": "Mediu curent:",
+        "errGenericProblem": "A apărut o problemă la apel. Poți încerca din nou; dacă se repetă, contactează administratorul sau deschide /api/webrtc-env-check în browser.",
+        "retryConnectionBtn": "Reîncearcă conexiunea",
+        "confBarMessagesLink": "← Mesaje",
+        "confConnectingWaitPeers": "Așteptăm participanții…",
+        "confConnecting": "Se conectează…",
+        "confConnectedCall": "Apel",
+        "confConnectedConference": "Conferință",
+        "confEnded": "Apel încheiat",
+        "confInvite": "Invită",
+        "confInviteCopied": "Link copiat!",
+        "waitParticipantsGrid": "Așteptăm participanți…",
+        "titleMicQuietMode": "Mod discret activ — apasă pentru sunet + microfon normal",
+        "titleMicOn": "Pornește microfonul",
+        "titleMicOff": "Dezactivează microfonul",
+        "titleCamOn": "Pornește camera",
+        "titleCamOff": "Oprește camera",
+        "titleRemoteVideoHide": "Ascunde video interlocutorului (îl auzi în continuare)",
+        "titleRemoteVideoShow": "Arată din nou video interlocutorului",
+        "titleCameraFlip": "Față / spate — comută camera",
+        "titleScreenshareStop": "Oprește ecranul",
+        "titleScreenshareStart": "Partajare ecran",
+        "titleSpeakerDefault": "Revino la ieșirea implicită (telefon)",
+        "titleSpeaker": "Difuzor",
+        "titlePrivacyExit": "Ieși din mod discret (sunet + microfon ca înainte)",
+        "titlePrivacyEnter": "Mod discret: nu auzi celălalt și nici el pe tine (microfon oprit, fără foșnet)",
+        "titlePrivacyExitShort": "Ieși din mod discret (sunet + microfon ca înainte)",
+        "titlePrivacyEnterShort": "Mod discret: nu auzi pe ceilalți și nu te aud (mic oprit)",
+        "titleCloseCall": "Închide apelul",
+        "toggleMiniShow": "Arată mini-preview",
+        "toggleMiniHide": "Ascunde mini-preview",
+        "audioCallSecureBadge": "Apel vocal securizat",
+        "audioHeaderBackAria": "Înapoi",
+        "audioTitleMicQuiet": "Mod discret — apasă pentru normal",
+        "audioTitleMicOn": "Pornește microfonul",
+        "audioTitleMicMute": "Mute",
+        "audioTitleSpeakerDefault": "Ieșire implicită (telefon)",
+        "audioTitlePrivacyExit": "Ieși din mod discret",
+        "audioTitlePrivacyEnter": "Mod discret: fără sunet la amândoi la tine (microfon oprit)",
+        "audioTitleClose": "Închide",
+        "toolbarMicDiscrete": "Discret (mic)",
+        "toolbarMicUnmute": "Pornește mic.",
+        "toolbarMicMute": "Mute",
+        "toolbarVideoStart": "Pornește video",
+        "toolbarVideoStop": "Oprește video",
+        "toolbarFlipTitle": "Față / spate — comută camera",
+        "toolbarFlipLabel": "Față / spate",
+        "toolbarScreen": "Ecran",
+        "toolbarSpeakerDefaultTitle": "Ieșire implicită",
+        "toolbarSpeakerOn": "Difuzor",
+        "toolbarPhone": "Telefon",
+        "toolbarDiscreteExit": "Ieși din mod discret (sunet + microfon ca înainte)",
+        "toolbarDiscreteEnter": "Mod discret: nu auzi pe ceilalți și nu te aud (mic oprit)",
+        "toolbarNormal": "Normal",
+        "toolbarDiscrete": "Discret",
+        "toolbarClose": "Închide"
+      },
+      "mediaHelp": {
+        "insecureContext": {
+          "headline": "Pagina nu e securizată — fără HTTPS nu poate camera",
+          "lines": [
+            "Pe http:// sau când apare „Not secure”, browserul blochează camera și microfonul. Nu e bug în Diebel.",
+            "Intră pe același site cu https:// și lacăt în bara de adresă, apoi încearcă din nou apelul video.",
+            "Dacă ai o „app” pe ecran: șterge iconița, deschide site-ul în browser pe https, apoi adaugă din nou pe ecran."
+          ]
+        },
+        "securityError": {
+          "headline": "Browserul blochează camera sau microfonul (securitate)",
+          "lines": [
+            "Apare des fără https:// sau când site-ul nu are permisiune. Verifică lacătul din adresă.",
+            "În Chrome/Edge: lacăt → Permisiuni pentru acest site → Camera și Microfon → Permite.",
+            "După schimbare: apasă „Încearcă din nou” sau reia apelul."
+          ]
+        },
+        "overconstrained": {
+          "headline": "Camera sau microfonul sunt ocupate / nu suportă setările cerute",
+          "linesLocalhost": [
+            "Poate apărea chiar dacă ai apăsat deja „Permite” — nu e mereu un refuz de permisiune.",
+            "Închide alte apeluri video, Zoom, Discord sau aplicații care folosesc camera sau microfonul, apoi apasă „Încearcă din nou”.",
+            "Pe unele telefoane: repornește pagina după ce ai eliberat camera.",
+            "Pe http://localhost, mesajul Edge „connection isn’t secure” e despre HTTP; nu înseamnă că lista ta „Microfon: Allowed” e falsă."
+          ],
+          "linesRemote": [
+            "Poate apărea chiar dacă ai apăsat deja „Permite” — nu e mereu un refuz de permisiune.",
+            "Închide alte apeluri video, Zoom, Discord sau aplicații care folosesc camera sau microfonul, apoi apasă „Încearcă din nou”.",
+            "Pe unele telefoane: repornește pagina după ce ai eliberat camera.",
+            "Dacă nu ești pe localhost, folosește https:// pentru acest site — altfel browserul poate bloca camera și microfonul."
+          ]
+        },
+        "notFoundLocalhost": {
+          "headline": "Nu s-a găsit microfon sau cameră pe acest PC",
+          "lines": [
+            "În pop-up poate sta „Allowed”, dar sistemul nu expune niciun dispozitiv către browser.",
+            "Windows: Setări → Confidențialitate → Microfon → permite accesul pentru aplicații desktop.",
+            "În Edge: deschide edge://settings/content/microphone și verifică că microfonul nu e blocat global."
+          ]
+        },
+        "notAllowedLocalhost": {
+          "headline": "Lista zice „Allow”, dar browserul tot refuză microfonul",
+          "lines": [
+            "Pe http://localhost asta NU vine din bannerul roșu „Not secure” — acolo ai voie să ai microfon „Allowed” și în același timp pagina „neprotejată”.",
+            "Verifică edge://settings/content/microfon (blocări globale, mod InPrivate, politici firmă).",
+            "Încearcă să închizi Teams / Discord / OBS / alte tab-uri cu cameră, apoi „Încearcă din nou”.",
+            "Ca test: deschide același URL în Chrome sau într-un profil Edge curat."
+          ]
+        },
+        "localhostGeneric": {
+          "headline": "Localhost: „Not secure” în Edge ≠ „ți-am blocat microfonul”",
+          "lines": [
+            "La http://localhost:3005 e normal să vezi avertisment de securitate pentru HTTP; totuși Chrome/Edge tratează localhost ca origine unde media API are voie.",
+            "Dacă ai Microfon și Camera pe „Allowed” pentru site, următorul pas e să eliberezi dispozitivul: închide alte apeluri sau aplicații care îl folosesc.",
+            "Apasă „Încearcă din nou” sau reîncarcă cu Ctrl+F5. Dacă tot nu pornește, notează eroarea din consolă (F12) ca să o putem reproduce.",
+            "Test de pe telefon pe același PC: nu folosi http://IP — folosește https pe domeniu sau un tunel (ngrok); pe IP nesecurizat mobilul blochează media."
+          ]
+        },
+        "default": {
+          "notAllowedHeadline": "Browserul blochează microfonul sau camera",
+          "notFoundHeadline": "Nu s-a găsit microfon sau cameră",
+          "genericHeadline": "Nu putem porni microfonul",
+          "lines": [
+            "Browserul trebuie să permită microfonul și camera pentru acest site (apel 1-la-1 și conferință folosesc aceleași permisiuni).",
+            "Desktop: lacăt sau „i” lângă adresă → Microfon și Cameră → „Permite”.",
+            "Android (Chrome): meniul site-ului → Permisiuni → Microfon / Cameră.",
+            "iPhone (Safari): Setări → Safari → acces microfon / cameră pentru site.",
+            "După schimbare: „Încearcă din nou” aici sau reîncepe apelul. Pe producție folosește mereu https://."
+          ]
+        }
       }
     },
     "feedback": {

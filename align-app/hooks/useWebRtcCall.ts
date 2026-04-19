@@ -9,10 +9,11 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import {
   acquireCallMediaStream,
-  formatMediaPermissionHelp,
   getVideoConstraints,
   isMobileDevice,
 } from "@/lib/webrtc/mediaConstraints";
+import { formatCallMediaPermissionHelp } from "@/lib/i18n/callMediaPermissionHelp";
+import { fillTemplate } from "@/lib/i18n/fillTemplate";
 import {
   applyCodecPreferencesIfSupported,
   setMaxBitrate,
@@ -110,6 +111,11 @@ type CallRuntimeState = {
   connectionPhase: CallConnectionPhase;
 };
 
+export type CallTranslateBundle = {
+  tStr: (path: string) => string;
+  tArray: (path: string) => string[];
+};
+
 export type UseWebRtcCallOptions = {
   roomId: string;
   userId: string;
@@ -117,6 +123,8 @@ export type UseWebRtcCallOptions = {
   audioOnly: boolean;
   isCaller: boolean;
   isConference: boolean;
+  /** Texte apel din `messages/*` (`pages.callRoom.rtc`, `mediaHelp`). */
+  callTranslate: CallTranslateBundle;
   /** Apel încheiat de celălalt sau limită timp — ex. redirecționare la mesaje. */
   onAutoEnded?: () => void;
 };
@@ -134,8 +142,12 @@ export function useWebRtcCall({
   audioOnly,
   isCaller,
   isConference,
+  callTranslate,
   onAutoEnded,
 }: UseWebRtcCallOptions) {
+  const callTrRef = useRef(callTranslate);
+  callTrRef.current = callTranslate;
+
   /** Reîncercare după refuz permisiuni — rerulează efectul (getUserMedia + semnalizare). */
   const [permissionRetryKey, setPermissionRetryKey] = useState(0);
 
@@ -301,8 +313,7 @@ export function useWebRtcCall({
         setState((s) => ({
           ...s,
           videoMuted: true,
-          banner:
-            "Cameră întreruptă (sistem sau browser). Apasă „Pornește video” după ce ai recamera activă.",
+          banner: callTrRef.current.tStr("pages.callRoom.rtc.bannerCameraInterrupted"),
         }));
         const clearEndedVideoSenders = (pc: RTCPeerConnection | null) => {
           if (!pc) return;
@@ -320,7 +331,7 @@ export function useWebRtcCall({
         for (const [, b] of peerMapRef.current) clearEndedVideoSenders(b.pc);
       });
     },
-    [audioOnly]
+    [audioOnly, callTranslate]
   );
 
   const leave = useCallback(() => {
@@ -457,7 +468,7 @@ export function useWebRtcCall({
               setState((s) => ({
                 ...s,
                 videoMuted: true,
-                banner: "Nu am putut reporni camera. Verifică permisiunile browserului.",
+                banner: callTrRef.current.tStr("pages.callRoom.rtc.bannerCameraRestartFail"),
               }));
             }
           })();
@@ -702,7 +713,7 @@ export function useWebRtcCall({
         cameraUnavailable = acquired.cameraUnavailable;
       } catch (e) {
         if (!cancelled) {
-          const help = formatMediaPermissionHelp(e);
+          const help = formatCallMediaPermissionHelp(e, callTrRef.current);
           setState((s) => ({
             ...s,
             status: "permission_help",
@@ -728,7 +739,7 @@ export function useWebRtcCall({
         cameraSoftFailed: softFail,
         banner:
           cameraUnavailable && !audioOnly
-            ? "Camera nu e activă — auzi și vorbești normal. Permite camera din setările browserului pentru acest site dacă vrei imagine."
+            ? callTrRef.current.tStr("pages.callRoom.rtc.bannerCameraSoft")
             : s.banner,
       }));
 
@@ -785,7 +796,7 @@ export function useWebRtcCall({
           setState((s) => ({
             ...s,
             status: "error",
-            error: "NEXT_PUBLIC_SIGNALING_WS_URL lipsă.",
+            error: callTrRef.current.tStr("pages.callRoom.rtc.errorMissingSignalingUrl"),
             connectionPhase: null,
           }));
         }
@@ -805,8 +816,7 @@ export function useWebRtcCall({
         cancelled: () => cancelled,
         maxWsAttempts,
         logLabel: "mesh",
-        finalConnectErrorMessage:
-          "Nu mă pot conecta la serverul WebSocket de semnalizare. Verifică că rulează `npm run dev:lan`, firewall și NEXT_PUBLIC_SIGNALING_WS_URL (LAN).",
+        finalConnectErrorMessage: callTrRef.current.tStr("pages.callRoom.rtc.wsConnectFailMesh"),
         onAbortLocalStream: () => localStream.getTracks().forEach((t) => t.stop()),
       });
       if (!meshWsRes.ok) {
@@ -814,8 +824,7 @@ export function useWebRtcCall({
           setState((s) => ({
             ...s,
             status: "error",
-            error:
-              "Nu mă pot conecta la serverul WebSocket de semnalizare. Verifică că rulează `npm run dev:lan`, firewall și NEXT_PUBLIC_SIGNALING_WS_URL (LAN).",
+            error: callTrRef.current.tStr("pages.callRoom.rtc.wsConnectFailMesh"),
             connectionPhase: null,
           }));
         }
@@ -901,7 +910,12 @@ export function useWebRtcCall({
             } catch (e) {
               if (!cancelled) {
                 const detail = formatRtcNegotiationErrorSuffix(e);
-                setState((s) => ({ ...s, error: `Nu am putut negocia conexiunea (offer amânat).${detail}` }));
+                setState((s) => ({
+                  ...s,
+                  error: fillTemplate(callTrRef.current.tStr("pages.callRoom.rtc.negotiateOfferDeferred"), {
+                    detail: String(detail),
+                  }),
+                }));
               }
             }
           });
@@ -923,7 +937,9 @@ export function useWebRtcCall({
                 ...others,
                 {
                   id: remoteUserId,
-                  displayName: `Participant ${remoteUserId.slice(0, 8)}`,
+                  displayName: fillTemplate(callTrRef.current.tStr("pages.callRoom.rtc.participantLabel"), {
+                    id: remoteUserId.slice(0, 8),
+                  }),
                   stream,
                 },
               ],
@@ -1007,7 +1023,11 @@ export function useWebRtcCall({
               await pc.setLocalDescription(offer);
               ws.send(JSON.stringify({ t: "offer", sdp: offer.sdp ?? "", to: remoteUserId }));
             } catch {
-              if (!cancelled) setState((s) => ({ ...s, error: "Nu am putut porni oferta WebRTC." }));
+              if (!cancelled)
+                setState((s) => ({
+                  ...s,
+                  error: callTrRef.current.tStr("pages.callRoom.rtc.errorOfferStart"),
+                }));
             }
           });
         }
@@ -1029,8 +1049,7 @@ export function useWebRtcCall({
             setState((s) => ({
               ...s,
               status: "error",
-              error:
-                "Conferința permite maximum 4 participanți (MESH_LIMIT_EXCEEDED). Lasă câțiva să iasă sau începe o cameră nouă.",
+              error: callTrRef.current.tStr("pages.callRoom.rtc.errorMeshLimit"),
               connectionPhase: null,
               waitingForPeerInRoom: false,
             }));
@@ -1071,8 +1090,7 @@ export function useWebRtcCall({
             return {
               ...s,
               waitingForPeerInRoom: true,
-              banner:
-                "Nu s-a alăturat nimeni la conferință. Trimite linkul „Invită” sau asigură-te că ceilalți deschid aceeași cameră. Timer oprit automat ca să nu rămâi blocat.",
+              banner: callTrRef.current.tStr("pages.callRoom.rtc.bannerConferenceNobody"),
             };
           });
         }, 90_000);
@@ -1153,7 +1171,12 @@ export function useWebRtcCall({
             } catch (e) {
               if (!cancelled) {
                 const detail = formatRtcNegotiationErrorSuffix(e);
-                setState((s) => ({ ...s, error: `Nu am putut negocia conexiunea (offer).${detail}` }));
+                setState((s) => ({
+                  ...s,
+                  error: fillTemplate(callTrRef.current.tStr("pages.callRoom.rtc.negotiateOffer"), {
+                    detail: String(detail),
+                  }),
+                }));
               }
             }
           });
@@ -1180,7 +1203,9 @@ export function useWebRtcCall({
                 console.warn("[SIGNALING] mesh: setRemoteDescription(answer) failed", e);
                 setState((s) => ({
                   ...s,
-                  error: `Nu am putut negocia conexiunea (answer).${detail}`,
+                  error: fillTemplate(callTrRef.current.tStr("pages.callRoom.rtc.negotiateAnswer"), {
+                    detail: String(detail),
+                  }),
                 }));
               }
             }
@@ -1242,7 +1267,7 @@ export function useWebRtcCall({
         if (!cancelled) {
           setState((s) => ({
             ...s,
-            error: "Eroare WebSocket semnalizare — verifică URL-ul WS și firewall.",
+            error: callTrRef.current.tStr("pages.callRoom.rtc.errorWsSignalingMesh"),
             connectionPhase: null,
           }));
         }
@@ -1280,7 +1305,7 @@ export function useWebRtcCall({
         cameraUnavailable = acquired.cameraUnavailable;
       } catch (e) {
         if (!cancelled) {
-          const help = formatMediaPermissionHelp(e);
+          const help = formatCallMediaPermissionHelp(e, callTrRef.current);
           setState((s) => ({
             ...s,
             status: "permission_help",
@@ -1302,7 +1327,7 @@ export function useWebRtcCall({
       const softFail = !audioOnly && cameraUnavailable;
       const cameraBanner =
         cameraUnavailable && !audioOnly
-          ? "Camera nu e activă — auzi și vorbești normal. Permite camera din setările browserului pentru acest site dacă vrei imagine."
+          ? callTrRef.current.tStr("pages.callRoom.rtc.bannerCameraSoft")
           : null;
       setState((s) => ({
         ...s,
@@ -1369,7 +1394,7 @@ export function useWebRtcCall({
           setState((s) => ({
             ...s,
             status: "error",
-            error: "NEXT_PUBLIC_SIGNALING_WS_URL lipsă.",
+            error: callTrRef.current.tStr("pages.callRoom.rtc.errorMissingSignalingUrl"),
             connectionPhase: null,
           }));
         }
@@ -1394,8 +1419,7 @@ export function useWebRtcCall({
         cancelled: () => cancelled,
         maxWsAttempts,
         logLabel: "p2p",
-        finalConnectErrorMessage:
-          "Nu mă pot conecta la serverul WebSocket de semnalizare. Verifică `npm run dev:lan`, firewall (3005/4001) și că ambele dispozitive folosesc același URL LAN.",
+        finalConnectErrorMessage: callTrRef.current.tStr("pages.callRoom.rtc.wsConnectFailP2p"),
         onAbortLocalStream: () => localStream.getTracks().forEach((t) => t.stop()),
       });
       if (!p2pWsRes.ok) {
@@ -1403,8 +1427,7 @@ export function useWebRtcCall({
           setState((s) => ({
             ...s,
             status: "error",
-            error:
-              "Nu mă pot conecta la serverul WebSocket de semnalizare. Verifică `npm run dev:lan`, firewall (3005/4001) și că ambele dispozitive folosesc același URL LAN.",
+            error: callTrRef.current.tStr("pages.callRoom.rtc.wsConnectFailP2p"),
             connectionPhase: null,
           }));
         }
@@ -1520,7 +1543,7 @@ export function useWebRtcCall({
                 }
                 setState((s) => ({
                   ...s,
-                  banner: "Rețea slabă — reduc rezoluția și debitul video pentru continuitate.",
+                  banner: callTrRef.current.tStr("pages.callRoom.rtc.bannerNetworkWeak"),
                 }));
               } else if (decision.action === "improve") {
                 adaptiveVideoBpsRef.current = Math.min(
@@ -1625,7 +1648,12 @@ export function useWebRtcCall({
             } catch (e) {
               if (!cancelled) {
                 const detail = formatRtcNegotiationErrorSuffix(e);
-                setState((s) => ({ ...s, error: `Nu am putut negocia conexiunea (offer amânat).${detail}` }));
+                setState((s) => ({
+                  ...s,
+                  error: fillTemplate(callTrRef.current.tStr("pages.callRoom.rtc.negotiateOfferDeferred"), {
+                    detail: String(detail),
+                  }),
+                }));
               }
             }
           });
@@ -1728,7 +1756,7 @@ export function useWebRtcCall({
                 if (s.status !== "connecting" && s.status !== "connected") return s;
                 return {
                   ...s,
-                  banner: "Conexiunea întârzie — mai așteaptă puțin sau încearcă altă rețea.",
+                  banner: callTrRef.current.tStr("pages.callRoom.rtc.bannerConnectionDelay"),
                 };
               });
             }, 20_000);
@@ -1814,7 +1842,11 @@ export function useWebRtcCall({
             console.info("[SIGNALING] outbound offer (initial)");
             ws.send(JSON.stringify({ t: "offer", sdp: offer.sdp ?? "", to }));
           } catch {
-            if (!cancelled) setState((s) => ({ ...s, error: "Nu am putut porni oferta WebRTC." }));
+            if (!cancelled)
+              setState((s) => ({
+                ...s,
+                error: callTrRef.current.tStr("pages.callRoom.rtc.errorOfferStart"),
+              }));
           }
         });
       };
@@ -1835,8 +1867,7 @@ export function useWebRtcCall({
               ...s,
               waitingForPeerInRoom: true,
               connectionPhase: "waiting_peer",
-              banner:
-                "Nu apare al doilea participant în apel (de obicei după ~1 minut înseamnă că nu e nimeni în cameră). Verifică: celălalt a acceptat apelul sau a deschis același apel din chat; folosiți două conturi diferite (același user în două taburi nu formează o pereche); închide Zoom. Ieși și încearcă din nou.",
+              banner: callTrRef.current.tStr("pages.callRoom.rtc.bannerP2pWaitingPeer"),
             };
           });
         }, 70_000);
@@ -1944,7 +1975,12 @@ export function useWebRtcCall({
               if (!cancelled) {
                 const detail = formatRtcNegotiationErrorSuffix(e);
                 console.warn("[SIGNALING] p2p: create/set answer after offer failed", e);
-                setState((s) => ({ ...s, error: `Nu am putut negocia conexiunea (offer).${detail}` }));
+                setState((s) => ({
+                  ...s,
+                  error: fillTemplate(callTrRef.current.tStr("pages.callRoom.rtc.negotiateOffer"), {
+                    detail: String(detail),
+                  }),
+                }));
               }
             }
           });
@@ -1969,7 +2005,9 @@ export function useWebRtcCall({
                 console.warn("[SIGNALING] p2p: setRemoteDescription(answer) failed", e);
                 setState((s) => ({
                   ...s,
-                  error: `Nu am putut negocia conexiunea (answer).${detail}`,
+                  error: fillTemplate(callTrRef.current.tStr("pages.callRoom.rtc.negotiateAnswer"), {
+                    detail: String(detail),
+                  }),
                 }));
               }
             }
@@ -2027,7 +2065,7 @@ export function useWebRtcCall({
         if (!cancelled) {
           setState((s) => ({
             ...s,
-            error: "Eroare WebSocket semnalizare — verifică URL-ul WS, firewall și că serverul de semnalizare rulează.",
+            error: callTrRef.current.tStr("pages.callRoom.rtc.errorWsSignalingP2p"),
             connectionPhase: null,
           }));
         }
@@ -2065,8 +2103,7 @@ export function useWebRtcCall({
               setState((s) => ({
                 ...s,
                 status: "error",
-                error:
-                  "WebRTC este dezactivat sau lipsește URL semnalizare pe server. Verifică Vercel (NEXT_PUBLIC_*).",
+                error: callTrRef.current.tStr("pages.callRoom.rtc.errorWebRtcDisabled"),
                 connectionPhase: null,
               }));
             }
@@ -2081,8 +2118,7 @@ export function useWebRtcCall({
         setState((s) => ({
           ...s,
           status: "error",
-          error:
-            "WebRTC nu e configurat: setează NEXT_PUBLIC_SIGNALING_WS_URL și rulează serverul de semnalizare (vezi docs/calls.md).",
+          error: callTrRef.current.tStr("pages.callRoom.rtc.errorWebRtcNotConfigured"),
           connectionPhase: null,
         }));
         return;
@@ -2104,7 +2140,10 @@ export function useWebRtcCall({
       if (callStartRef.current && Date.now() - callStartRef.current > maxMin * 60_000) {
         limitHit = true;
         clearInterval(limitTimer);
-        setState((s) => ({ ...s, banner: `Limită apel (${maxMin} min) — apelul se închide.` }));
+        setState((s) => ({
+          ...s,
+          banner: fillTemplate(callTrRef.current.tStr("pages.callRoom.rtc.callLimitBanner"), { maxMin }),
+        }));
         try {
           const w = wsRef.current;
           if (w && w.readyState === WebSocket.OPEN) {

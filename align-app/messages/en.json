@@ -491,6 +491,201 @@
       "ringPushHint": {
         "noPushServer": "If they don’t have the app open, they might not see that you’re calling. With chat or the app open, the call works.",
         "noCalleeNotif": "They don’t have notifications enabled on this device — they might miss the call in the background. With the app open, it works."
+      },
+      "rtc": {
+        "bannerCameraInterrupted": "Camera was interrupted (system or browser). Tap “Turn on video” after the camera is available again.",
+        "bannerCameraRestartFail": "Could not restart the camera. Check your browser permissions.",
+        "bannerCameraSoft": "Camera is off — you can still hear and speak normally. Allow the camera for this site in your browser settings if you want video.",
+        "errorMissingSignalingUrl": "NEXT_PUBLIC_SIGNALING_WS_URL is missing.",
+        "wsConnectFailMesh": "Could not connect to the WebSocket signaling server. Check that `npm run dev:lan` is running, your firewall, and NEXT_PUBLIC_SIGNALING_WS_URL (LAN).",
+        "wsConnectFailP2p": "Could not connect to the WebSocket signaling server. Check `npm run dev:lan`, firewall (3005/4001), and that both devices use the same LAN URL.",
+        "errorOfferStart": "Could not start the WebRTC offer.",
+        "errorMeshLimit": "This conference supports at most 4 participants (MESH_LIMIT_EXCEEDED). Ask some people to leave or start a new room.",
+        "bannerConferenceNobody": "Nobody joined the conference yet. Send the “Invite” link or make sure others open the same room. The timer stopped automatically so you are not stuck.",
+        "errorWsSignalingMesh": "WebSocket signaling error — check the WS URL and firewall.",
+        "errorWsSignalingP2p": "WebSocket signaling error — check the WS URL, firewall, and that the signaling server is running.",
+        "bannerNetworkWeak": "Weak network — lowering video resolution and bitrate for continuity.",
+        "bannerConnectionDelay": "The connection is slow — wait a bit or try another network.",
+        "bannerP2pWaitingPeer": "The second participant never appears (after ~1 minute this usually means nobody is in the room). Check: the other person accepted the call or opened the same call from chat; use two different accounts (the same user in two tabs does not form a pair); close Zoom. Leave and try again.",
+        "errorWebRtcDisabled": "WebRTC is disabled or the signaling URL is missing on the server. Check Vercel (NEXT_PUBLIC_*).",
+        "errorWebRtcNotConfigured": "WebRTC is not configured: set NEXT_PUBLIC_SIGNALING_WS_URL and run the signaling server (see docs/calls.md).",
+        "callLimitBanner": "Call limit ({{maxMin}} min) — the call is ending.",
+        "negotiateOfferDeferred": "Could not negotiate the connection (deferred offer).{{detail}}",
+        "negotiateOffer": "Could not negotiate the connection (offer).{{detail}}",
+        "negotiateAnswer": "Could not negotiate the connection (answer).{{detail}}",
+        "participantLabel": "Participant {{id}}"
+      },
+      "ui": {
+        "phaseSignalingConnecting": "Connecting to the server…",
+        "phaseSignalingConnected": "Joining the room…",
+        "phaseNegotiatingAudio": "Setting up audio…",
+        "phaseNegotiatingVideo": "Setting up video…",
+        "phasePeerJoined": "The other person is in the room…",
+        "phaseWaitingPeer": "Waiting for the other person…",
+        "phasePrepMic": "Preparing the microphone…",
+        "phasePrepCamMic": "Preparing camera and microphone…",
+        "phaseConnectingGeneric": "Connecting…",
+        "waitingAnswerOrJoinAria": "Waiting for them to answer the call or join the room.",
+        "noVideo": "No video",
+        "noVideoFromPeer": "No video from the other person",
+        "remoteVideoHiddenHint": "Their video is hidden — you can still hear them.",
+        "participantFallback": "Participant",
+        "cursorPresenterDefault": "Presenter",
+        "closeCallAria": "End call",
+        "swapLayoutSelfLargeAria": "Tap to see yourself large in the corner",
+        "swapLayoutRemoteLargeAria": "Tap to see the other person large again",
+        "headerVideoCall": "Video call",
+        "headerAudioCall": "Audio call",
+        "cameraOffYours": "Your camera is off",
+        "pipToggleHideAria": "Tap to hide mini preview",
+        "pipToggleShowAria": "Hide mini preview",
+        "pipMutedLabelNoCam": "No camera",
+        "pipMutedLabelOff": "Off",
+        "remotePlaybackBlocked": "The browser may block the other person’s audio until you tap the screen. Tap anywhere to continue.",
+        "permissionScreenTitle": "What this screen means",
+        "permissionRetryBtn": "Try again (allow microphone / camera)",
+        "permissionBackLink": "Back to messages",
+        "permissionFooterNote": "In the browser we cannot force “earpiece only” like a classic phone call — after you allow the microphone, audio goes to the output the phone chooses; if you see a “Speaker” button, you can use it to change where you hear the call.",
+        "errTitleNegotiation": "The connection could not be established between browsers",
+        "errTitleInfra": "Calls cannot start in this environment",
+        "errNegotiationIntro": "WebRTC rejected the technical response (SDP). This often happens when the confirmation message arrives twice or the network interrupted negotiation — it does not always mean TURN is missing on the server.",
+        "errNegotiationBulletRetry": "Tap Retry below, then join the room again.",
+        "errNegotiationBulletSameMode": "Make sure both people started the same call type (audio / video).",
+        "errNegotiationBulletNoDupTabs": "Avoid two tabs with the same account in the same conference room.",
+        "errNegotiationBulletVpn": "On a strict network or VPN, try without VPN or on mobile data.",
+        "errInfraIntro": "The server does not yet have all variables for WebSocket signaling and TURN. On Vercel: Settings → Environment Variables (Production and Preview). Locally: align-app/.env.local.",
+        "errInfraVarsTitle": "Essential variables",
+        "errInfraDiagnostics": "Server diagnostics (JSON, no secrets)",
+        "errInfraDiagnosticsHint": "check turnRealmSet, envLayerCompleteForCalls.",
+        "errInfraDevHint": "Local dev: run npm run signaling:dev, NEXT_PUBLIC_SIGNALING_WS_URL=ws://127.0.0.1:4001, and coturn + NEXT_PUBLIC_TURN_URLS with turn:/turns:, TURN_REALM, TURN_STATIC_SECRET — without them, /api/call/ice-config returns 500 (TURN required).",
+        "errInfraPreviewNote": "on Vercel, Preview and Production have separate env; if this is a preview, set variables for Preview too.",
+        "errInfraCurrentEnv": "Current environment:",
+        "errGenericProblem": "Something went wrong with the call. You can try again; if it keeps happening, contact an admin or open /api/webrtc-env-check in the browser.",
+        "retryConnectionBtn": "Retry connection",
+        "confBarMessagesLink": "← Messages",
+        "confConnectingWaitPeers": "Waiting for participants…",
+        "confConnecting": "Connecting…",
+        "confConnectedCall": "Call",
+        "confConnectedConference": "Conference",
+        "confEnded": "Call ended",
+        "confInvite": "Invite",
+        "confInviteCopied": "Link copied!",
+        "waitParticipantsGrid": "Waiting for participants…",
+        "titleMicQuietMode": "Quiet mode on — tap for sound + normal microphone",
+        "titleMicOn": "Unmute microphone",
+        "titleMicOff": "Mute microphone",
+        "titleCamOn": "Turn on camera",
+        "titleCamOff": "Turn off camera",
+        "titleRemoteVideoHide": "Hide their video (you still hear them)",
+        "titleRemoteVideoShow": "Show their video again",
+        "titleCameraFlip": "Front / back — switch camera",
+        "titleScreenshareStop": "Stop sharing screen",
+        "titleScreenshareStart": "Share screen",
+        "titleSpeakerDefault": "Back to default output (phone)",
+        "titleSpeaker": "Speaker",
+        "titlePrivacyExit": "Leave quiet mode (sound + mic as before)",
+        "titlePrivacyEnter": "Quiet mode: you don’t hear them and they don’t hear you (mic off, no rustle)",
+        "titlePrivacyExitShort": "Leave quiet mode (sound + mic as before)",
+        "titlePrivacyEnterShort": "Quiet mode: you don’t hear others and they don’t hear you (mic off)",
+        "titleCloseCall": "End call",
+        "toggleMiniShow": "Show mini preview",
+        "toggleMiniHide": "Hide mini preview",
+        "audioCallSecureBadge": "Encrypted voice call",
+        "audioHeaderBackAria": "Back",
+        "audioTitleMicQuiet": "Quiet mode — tap for normal",
+        "audioTitleMicOn": "Unmute microphone",
+        "audioTitleMicMute": "Mute",
+        "audioTitleSpeakerDefault": "Default output (phone)",
+        "audioTitlePrivacyExit": "Leave quiet mode",
+        "audioTitlePrivacyEnter": "Quiet mode: no sound either way on your device (mic off)",
+        "audioTitleClose": "Hang up",
+        "toolbarMicDiscrete": "Quiet (mic)",
+        "toolbarMicUnmute": "Unmute mic",
+        "toolbarMicMute": "Mute",
+        "toolbarVideoStart": "Start video",
+        "toolbarVideoStop": "Stop video",
+        "toolbarFlipTitle": "Front / back — switch camera",
+        "toolbarFlipLabel": "Front / back",
+        "toolbarScreen": "Screen",
+        "toolbarSpeakerDefaultTitle": "Default output",
+        "toolbarSpeakerOn": "Speaker",
+        "toolbarPhone": "Phone",
+        "toolbarDiscreteExit": "Leave quiet mode (sound + mic as before)",
+        "toolbarDiscreteEnter": "Quiet mode: you don’t hear others and they don’t hear you (mic off)",
+        "toolbarNormal": "Normal",
+        "toolbarDiscrete": "Quiet",
+        "toolbarClose": "Hang up"
+      },
+      "mediaHelp": {
+        "insecureContext": {
+          "headline": "Page is not secure — without HTTPS there is no camera",
+          "lines": [
+            "On http:// or when the browser shows “Not secure”, camera and microphone are blocked. This is not a Diebel bug.",
+            "Open the same site with https:// and the padlock in the address bar, then try the video call again.",
+            "If you added a home screen icon: remove it, open the site in the browser on https, then add it again."
+          ]
+        },
+        "securityError": {
+          "headline": "The browser blocks the camera or microphone (security)",
+          "lines": [
+            "Often happens without https:// or when the site has no permission. Check the padlock in the address bar.",
+            "In Chrome/Edge: padlock → Site permissions → Camera and Microphone → Allow.",
+            "After changing: tap “Try again” or restart the call."
+          ]
+        },
+        "overconstrained": {
+          "headline": "Camera or microphone is busy / does not support the requested settings",
+          "linesLocalhost": [
+            "This can happen even if you already tapped “Allow” — it is not always a permission denial.",
+            "Close other video calls, Zoom, Discord, or apps using the camera or microphone, then tap “Try again”.",
+            "On some phones: reload the page after freeing the camera.",
+            "On http://localhost, Edge’s “connection isn’t secure” is about HTTP; it does not mean your “Microphone: Allowed” list is wrong."
+          ],
+          "linesRemote": [
+            "This can happen even if you already tapped “Allow” — it is not always a permission denial.",
+            "Close other video calls, Zoom, Discord, or apps using the camera or microphone, then tap “Try again”.",
+            "On some phones: reload the page after freeing the camera.",
+            "If you are not on localhost, use https:// for this site — otherwise the browser may block camera and microphone."
+          ]
+        },
+        "notFoundLocalhost": {
+          "headline": "No microphone or camera found on this PC",
+          "lines": [
+            "The popup may say “Allowed”, but the system exposes no device to the browser.",
+            "Windows: Settings → Privacy → Microphone → allow desktop apps access.",
+            "In Edge: open edge://settings/content/microphone and check that the microphone is not blocked globally."
+          ]
+        },
+        "notAllowedLocalhost": {
+          "headline": "The list says “Allow”, but the browser still refuses the microphone",
+          "lines": [
+            "On http://localhost this is NOT from the red “Not secure” banner — you can have microphone “Allowed” while the page is “not secure”.",
+            "Check edge://settings/content/microphone (global blocks, InPrivate, corporate policies).",
+            "Try closing Teams / Discord / OBS / other tabs with camera, then “Try again”.",
+            "As a test: open the same URL in Chrome or a clean Edge profile."
+          ]
+        },
+        "localhostGeneric": {
+          "headline": "Localhost: “Not secure” in Edge ≠ “your microphone is blocked”",
+          "lines": [
+            "At http://localhost:3005 it is normal to see an HTTP security warning; Chrome/Edge still treat localhost as an origin where media APIs are allowed.",
+            "If Microphone and Camera are “Allowed” for the site, next free the device: close other calls or apps using it.",
+            "Tap “Try again” or hard-reload with Ctrl+F5. If it still fails, note the console error (F12) so we can reproduce.",
+            "Testing from a phone on the same PC: do not use http://IP — use https on a domain or a tunnel (ngrok); on insecure IP, mobile blocks media."
+          ]
+        },
+        "default": {
+          "notAllowedHeadline": "The browser blocks the microphone or camera",
+          "notFoundHeadline": "No microphone or camera found",
+          "genericHeadline": "We cannot start the microphone",
+          "lines": [
+            "The browser must allow microphone and camera for this site (1:1 calls and conference use the same permissions).",
+            "Desktop: padlock or “i” next to the address → Microphone and Camera → “Allow”.",
+            "Android (Chrome): site menu → Permissions → Microphone / Camera.",
+            "iPhone (Safari): Settings → Safari → microphone / camera access for the site.",
+            "After changing: “Try again” here or restart the call. In production always use https://."
+          ]
+        }
       }
     },
     "feedback": {

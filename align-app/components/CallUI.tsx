@@ -59,33 +59,6 @@ import { markIncomingGrace } from "@/lib/callIncomingGrace";
 import { useVideoRenderable } from "@/hooks/useVideoRenderable";
 import { useOutgoingCallerPoll } from "@/hooks/useOutgoingCallerPoll";
 
-function p2pConnectingSubtitle(
-  audioOnlyCall: boolean,
-  phase: CallConnectionPhase | null,
-  waitingPeer: boolean,
-  isConnectingPrep: boolean
-): string {
-  switch (phase) {
-    case "signaling_connecting":
-      return "Ne conectăm la server…";
-    case "signaling_connected":
-      return "Intrăm în cameră…";
-    case "negotiating":
-      return audioOnlyCall ? "Stabilim conexiunea audio…" : "Stabilim conexiunea video…";
-    case "peer_joined":
-      return "Celălalt e în cameră…";
-    case "waiting_peer":
-      return "Așteptăm celălaltul…";
-    default:
-      break;
-  }
-  if (waitingPeer) return "Așteptăm celălaltul…";
-  if (isConnectingPrep) {
-    return audioOnlyCall ? "Pregătim microfonul…" : "Pregătim camera și microfonul…";
-  }
-  return "Se conectează…";
-}
-
 /** Ieșire audio pentru stream-ul remot + opțiune „nu aud pe aici” (confidențialitate). */
 type RemoteAudioPlayback = {
   sinkId: string;
@@ -208,6 +181,7 @@ function useRemoteVideoElement(ref: RefObject<HTMLVideoElement | null>, stream: 
 
 /** Card mic (conferință / layout clasic). */
 function RemoteVideoCard({ participant }: { participant: RemoteParticipant }) {
+  const { tStr } = useI18n();
   const ref = useRef<HTMLVideoElement>(null);
   const stream = participant.stream ?? null;
   useRemoteVideoElement(ref, stream);
@@ -233,7 +207,7 @@ function RemoteVideoCard({ participant }: { participant: RemoteParticipant }) {
             <span className="text-3xl font-semibold text-white/40">
               {(participant.displayName || "?").slice(0, 1).toUpperCase()}
             </span>
-            <span className="text-xs text-night-400 mt-2">Fără video</span>
+            <span className="text-xs text-night-400 mt-2">{tStr("pages.callRoom.ui.noVideo")}</span>
           </div>
         </>
       ) : (
@@ -241,7 +215,7 @@ function RemoteVideoCard({ participant }: { participant: RemoteParticipant }) {
           <span className="text-3xl font-semibold text-white/40">
             {(participant.displayName || "?").slice(0, 1).toUpperCase()}
           </span>
-          <span className="text-xs">Fără video</span>
+          <span className="text-xs">{tStr("pages.callRoom.ui.noVideo")}</span>
         </div>
       )}
       {stream?.getAudioTracks().length ? <RemoteAudio stream={stream} /> : null}
@@ -260,6 +234,7 @@ function RemoteVideoStage({
   participant: RemoteParticipant;
   overlayHostRef?: Ref<HTMLDivElement>;
 }) {
+  const { tStr } = useI18n();
   const ref = useRef<HTMLVideoElement>(null);
   const stream = participant.stream ?? null;
   useRemoteVideoElement(ref, stream);
@@ -290,7 +265,9 @@ function RemoteVideoStage({
             <div className="h-28 w-28 rounded-full bg-white/10 flex items-center justify-center text-4xl font-light text-white/50 mb-4 ring-2 ring-white/15">
               {(participant.displayName || "?").slice(0, 1).toUpperCase()}
             </div>
-            <p className="text-white/45 text-sm font-medium tracking-wide">Fără video de la celălalt</p>
+            <p className="text-white/45 text-sm font-medium tracking-wide">
+              {tStr("pages.callRoom.ui.noVideoFromPeer")}
+            </p>
           </div>
         </>
       ) : (
@@ -298,7 +275,7 @@ function RemoteVideoStage({
           <div className="h-28 w-28 rounded-full bg-white/10 flex items-center justify-center text-4xl font-light text-white/50 mb-4 ring-2 ring-white/15">
             {(participant.displayName || "?").slice(0, 1).toUpperCase()}
           </div>
-          <p className="text-white/45 text-sm font-medium tracking-wide">Fără video de la celălalt</p>
+          <p className="text-white/45 text-sm font-medium tracking-wide">{tStr("pages.callRoom.ui.noVideoFromPeer")}</p>
         </div>
       )}
       {stream?.getAudioTracks().length ? <RemoteAudio stream={stream} /> : null}
@@ -320,6 +297,7 @@ function RemoteVideoStageOptional({
   videoVisible: boolean;
   variant?: "fullscreen" | "pip";
 }) {
+  const { tStr } = useI18n();
   const stream = participant.stream ?? null;
   if (videoVisible || !stream) {
     return <RemoteVideoStage participant={participant} overlayHostRef={overlayHostRef} />;
@@ -343,7 +321,7 @@ function RemoteVideoStageOptional({
             {(participant.displayName || "?").slice(0, 1).toUpperCase()}
           </div>
           <p className="text-white/45 text-sm font-medium px-6 text-center leading-snug">
-            Video interlocutorului e ascuns — îl auzi în continuare.
+            {tStr("pages.callRoom.ui.remoteVideoHiddenHint")}
           </p>
         </>
       )}
@@ -392,8 +370,40 @@ export default function CallUI({
   isCaller: isCallerProp,
   transientRingNotify = null,
 }: CallUIProps) {
-  const { tStr } = useI18n();
+  const { tStr, tArray } = useI18n();
+  const callTranslate = useMemo(() => ({ tStr, tArray }), [tStr, tArray]);
   const router = useRouter();
+
+  const ui = useCallback((id: string) => tStr(`pages.callRoom.ui.${id}`), [tStr]);
+  const getP2pConnectingSubtitle = useCallback(
+    (
+      audioOnlyCall: boolean,
+      phase: CallConnectionPhase | null,
+      waitingPeer: boolean,
+      isConnectingPrep: boolean
+    ): string => {
+      switch (phase) {
+        case "signaling_connecting":
+          return ui("phaseSignalingConnecting");
+        case "signaling_connected":
+          return ui("phaseSignalingConnected");
+        case "negotiating":
+          return audioOnlyCall ? ui("phaseNegotiatingAudio") : ui("phaseNegotiatingVideo");
+        case "peer_joined":
+          return ui("phasePeerJoined");
+        case "waiting_peer":
+          return ui("phaseWaitingPeer");
+        default:
+          break;
+      }
+      if (waitingPeer) return ui("phaseWaitingPeer");
+      if (isConnectingPrep) {
+        return audioOnlyCall ? ui("phasePrepMic") : ui("phasePrepCamMic");
+      }
+      return ui("phaseConnectingGeneric");
+    },
+    [ui]
+  );
   const [elapsedSec, setElapsedSec] = useState(0);
   /** false = celălalt pe tot ecranul, tu în colț; true = invers */
   const [videoLayoutSwapped, setVideoLayoutSwapped] = useState(false);
@@ -443,6 +453,7 @@ export default function CallUI({
     audioOnly,
     isCaller,
     isConference,
+    callTranslate,
     onAutoEnded: () => {
       markCallEndPosted(roomId);
       markIncomingGrace(roomId, undefined, 8000);
@@ -729,7 +740,7 @@ export default function CallUI({
         detachReceiver = attachCursorReceiver({
           dc,
           overlayHostEl: remoteEl,
-          defaultLabel: "Prezentator",
+          defaultLabel: ui("cursorPresenterDefault"),
         });
       }
       if (isScreenShareActive) {
@@ -761,6 +772,7 @@ export default function CallUI({
     videoLayoutSwapped,
     remote?.id,
     showMiniPreview,
+    ui,
   ]);
 
   const immersiveVideo = !isConference && !audioOnly;
@@ -863,7 +875,7 @@ export default function CallUI({
         <div className="flex flex-col items-center justify-center min-h-[50vh] gap-6 px-5 py-10 text-center bg-night-950">
           <div className="max-w-lg rounded-2xl border border-amber-500/40 bg-amber-500/[0.12] px-6 py-6 text-left shadow-lg shadow-amber-900/20">
             <p className="text-amber-200/80 text-xs font-medium uppercase tracking-wide mb-2">
-              Ce înseamnă acest ecran
+              {ui("permissionScreenTitle")}
             </p>
             <p className="text-amber-50 font-semibold text-lg mb-4">{permissionHelp.headline}</p>
             <ul className="text-amber-100/90 text-sm space-y-3 list-disc pl-5 leading-relaxed">
@@ -872,7 +884,7 @@ export default function CallUI({
               ))}
             </ul>
             <p className="text-amber-200/70 text-xs mt-5 border-t border-amber-500/25 pt-4">
-              În browser nu putem forța „doar casca telefonului” ca la apelul clasic — după ce permiți microfonul, vocea merge la ieșirea pe care o alege telefonul; dacă apare butonul „Difuzor”, îl poți folosi ca să comuți unde se aude.
+              {ui("permissionFooterNote")}
             </p>
           </div>
           <button
@@ -881,14 +893,14 @@ export default function CallUI({
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-500 px-6 py-3.5 text-night-900 font-semibold hover:bg-brand-400 transition active:scale-[0.98]"
           >
             <RefreshCw className="w-5 h-5" aria-hidden />
-            Încearcă din nou (permite microfon / cameră)
+            {ui("permissionRetryBtn")}
           </button>
           <Link
             replace
             href="/app/messages"
             className="text-brand-400 hover:text-brand-300 font-medium hover:underline"
           >
-            Înapoi la mesaje
+            {ui("permissionBackLink")}
           </Link>
         </div>
       </RemotePlaybackContext.Provider>
@@ -903,10 +915,12 @@ export default function CallUI({
       (/\(answer\)|\(offer\)/i.test(errNorm) ||
         /Nu\s+am\s+putut\s+negocia/i.test(errNorm) ||
         /negocia\s+conexiunea/i.test(errNorm) ||
-        /ofert[aă]?\s*WebRTC/i.test(errNorm));
+        /ofert[aă]?\s*WebRTC/i.test(errNorm) ||
+        /Could\s+not\s+negotiate|Couldn't\s+negotiate|Couldn\u0027t\s+negotiate|negotiate\s+the\s+connection|negotiation\s+failed|WebRTC\s+offer|SDP/i.test(errNorm) ||
+        /Verbindung.*(aus)?handel|Angebot.*WebRTC|Antwort.*WebRTC/i.test(errNorm));
     const infraHint =
       typeof error === "string" &&
-      /NEXT_PUBLIC|TURN_|ICE\/TURN|semnalizare|Token semnalizare|WebRTC nu e configurat|WebRTC este dezactivat|Eroare WebSocket|Neautorizat la token|\blips[aă]\b/i.test(
+      /NEXT_PUBLIC|TURN_|ICE\/TURN|semnalizare|signaling|Token semnalizare|signaling token|WebRTC nu e configurat|WebRTC este dezactivat|WebRTC is not configured|WebRTC is disabled|Eroare WebSocket|WebSocket signaling|Neautorizat la token|\blips[aă]\b|missing|TURN_REQUIRED/i.test(
         error
       );
 
@@ -927,38 +941,27 @@ export default function CallUI({
                 <ServerCog className="h-12 w-12 text-red-400/85" aria-hidden />
               )}
               <h2 className="text-lg font-semibold text-white tracking-tight">
-                {negotiationFail ? "Conexiunea nu s-a legat între browsere" : "Apelurile nu pot porni pe acest mediu"}
+                {negotiationFail ? ui("errTitleNegotiation") : ui("errTitleInfra")}
               </h2>
               <p className="text-sm text-night-300/95 font-medium">{error}</p>
             </div>
 
             {negotiationFail ? (
               <div className="mt-6 text-left text-sm text-amber-100/85 space-y-3 leading-relaxed border-t border-amber-500/20 pt-5">
-                <p>
-                  Protocolul WebRTC a respins răspunsul tehnic (SDP). Cel mai des apare când mesajul de confirmare
-                  ajunge de două ori sau rețeaua a întrerupt negocierea — nu înseamnă neapărat că lipsește TURN de pe
-                  server.
-                </p>
+                <p>{ui("errNegotiationIntro")}</p>
                 <ul className="list-disc pl-5 space-y-2">
-                  <li>
-                    Apasă <span className="font-semibold text-amber-50">Reîncearcă</span> mai jos, apoi intră din nou
-                    în cameră.
-                  </li>
-                  <li>Asigură-te că ambele persoane au deschis același tip de apel (audio / video).</li>
-                  <li>Evită două tab-uri cu același cont în aceeași cameră de conferință.</li>
-                  <li>Dacă ești pe rețea strictă sau VPN, încearcă fără VPN sau de pe date mobile.</li>
+                  <li>{ui("errNegotiationBulletRetry")}</li>
+                  <li>{ui("errNegotiationBulletSameMode")}</li>
+                  <li>{ui("errNegotiationBulletNoDupTabs")}</li>
+                  <li>{ui("errNegotiationBulletVpn")}</li>
                 </ul>
               </div>
             ) : (
               <div className="mt-6 text-left text-sm text-night-400 space-y-4 leading-relaxed border-t border-red-500/15 pt-5">
                 {infraHint ? (
                   <>
-                    <p>
-                      Serverul nu are (încă) toate variabilele pentru semnalizare WebSocket și TURN. Pe{" "}
-                      <span className="font-semibold text-night-200">Vercel</span>: Settings → Environment Variables
-                      (Production și Preview). Local: <code className="text-brand-300/90">align-app/.env.local</code>.
-                    </p>
-                    <p className="text-xs text-night-500 uppercase tracking-wide">Variabile esențiale</p>
+                    <p>{ui("errInfraIntro")}</p>
+                    <p className="text-xs text-night-500 uppercase tracking-wide">{ui("errInfraVarsTitle")}</p>
                     <ul className="font-mono text-[11px] sm:text-xs text-brand-200/90 bg-night-900/80 rounded-lg px-3 py-3 space-y-1 border border-night-700/60">
                       <li>NEXT_PUBLIC_SIGNALING_WS_URL</li>
                       <li>NEXT_PUBLIC_TURN_URLS</li>
@@ -966,13 +969,10 @@ export default function CallUI({
                     </ul>
                     {typeof window !== "undefined" && window.location.host ? (
                       <p className="text-xs text-night-500">
-                        Mediu curent:{" "}
+                        {ui("errInfraCurrentEnv")}{" "}
                         <code className="text-night-300 break-all">{window.location.host}</code>
                         {" — "}
-                        <span className="text-night-500">
-                          pe Vercel, Preview și Production au env separate; dacă aici e un preview, trebuie
-                          setate și pentru <strong className="text-night-400">Preview</strong>.
-                        </span>
+                        <span className="text-night-500">{ui("errInfraPreviewNote")}</span>
                       </p>
                     ) : null}
                     <p className="text-xs">
@@ -980,26 +980,15 @@ export default function CallUI({
                         href="/api/webrtc-env-check"
                         className="text-brand-400 hover:text-brand-300 underline underline-offset-2"
                       >
-                        Diagnostic server (JSON, fără secrete)
+                        {ui("errInfraDiagnostics")}
                       </a>
-                      {" — "}verifică <code className="text-night-400">turnRealmSet</code>,{" "}
-                      <code className="text-night-400">envLayerCompleteForCalls</code>.
+                      {" — "}
+                      {ui("errInfraDiagnosticsHint")}
                     </p>
-                    <p className="text-xs text-night-500">
-                      Dev local: pornește{" "}
-                      <code className="text-night-400">npm run signaling:dev</code>,{" "}
-                      <code className="text-night-400">NEXT_PUBLIC_SIGNALING_WS_URL=ws://127.0.0.1:4001</code>, și
-                      coturn + <code className="text-night-400">NEXT_PUBLIC_TURN_URLS</code> cu{" "}
-                      <code className="text-night-400">turn:</code>/<code className="text-night-400">turns:</code>,{" "}
-                      <code className="text-night-400">TURN_REALM</code>, <code className="text-night-400">TURN_STATIC_SECRET</code>{" "}
-                      — fără ele, <code className="text-night-400">/api/call/ice-config</code> răspunde 500 (TURN obligatoriu).
-                    </p>
+                    <p className="text-xs text-night-500">{ui("errInfraDevHint")}</p>
                   </>
                 ) : (
-                  <p>
-                    A apărut o problemă la apel. Poți încerca din nou; dacă se repetă, contactează administratorul sau
-                    deschide <code className="text-brand-300/90">/api/webrtc-env-check</code> în browser.
-                  </p>
+                  <p>{ui("errGenericProblem")}</p>
                 )}
               </div>
             )}
@@ -1011,14 +1000,14 @@ export default function CallUI({
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-500 px-5 py-3 text-night-900 font-semibold hover:bg-brand-400 transition active:scale-[0.98]"
               >
                 <RefreshCw className="w-5 h-5 shrink-0" aria-hidden />
-                Reîncearcă conexiunea
+                {ui("retryConnectionBtn")}
               </button>
               <Link
                 replace
                 href="/app/messages"
                 className="inline-flex items-center justify-center rounded-xl border border-white/15 px-5 py-3 text-white/90 font-medium hover:bg-white/5 transition"
               >
-                Înapoi la mesaje
+                {tStr("pages.callRoom.backMessages")}
               </Link>
             </div>
           </div>
@@ -1043,7 +1032,7 @@ export default function CallUI({
 
   const remotePlaybackHintBanner = remotePlaybackBlockedHint ? (
     <div className="relative z-[240] mx-3 mt-1 rounded-xl bg-amber-500/30 border border-amber-400/50 px-3 py-2 text-xs text-amber-50 shadow-lg backdrop-blur-sm">
-      Browserul poate bloca sunetul interlocutorului până la o atingere pe ecran. Atinge oriunde pentru a continua.
+      {ui("remotePlaybackBlocked")}
     </div>
   ) : null;
 
@@ -1074,7 +1063,7 @@ export default function CallUI({
                       }
                     : undefined
                 }
-                aria-label={canSwapVideoLayout ? "Atinge pentru a te vedea mare în colț" : undefined}
+                aria-label={canSwapVideoLayout ? ui("swapLayoutSelfLargeAria") : undefined}
               >
                 <RemoteVideoStageOptional
                   participant={remote}
@@ -1089,12 +1078,12 @@ export default function CallUI({
                 aria-live="polite"
                 aria-label={
                   !isConference && isConnectingLike
-                    ? p2pConnectingSubtitle(audioOnly, connectionPhase, waitingForPeerInRoom, isConnectingLike)
+                    ? getP2pConnectingSubtitle(audioOnly, connectionPhase, waitingForPeerInRoom, isConnectingLike)
                     : waitingForPeerInRoom
-                      ? "Așteptăm să răspundă la apel sau să intre în cameră."
+                      ? ui("waitingAnswerOrJoinAria")
                       : isConnectingLike
-                        ? "Se conectează…"
-                        : "Așteptăm celălaltul…"
+                        ? ui("phaseConnectingGeneric")
+                        : ui("phaseWaitingPeer")
                 }
               >
                 <div className="h-16 w-16 border-2 border-white/20 border-t-brand-400 rounded-full animate-spin" />
@@ -1116,7 +1105,7 @@ export default function CallUI({
                     }
                   : undefined
               }
-              aria-label={canSwapVideoLayout ? "Atinge pentru a vedea din nou celălalt mare" : undefined}
+              aria-label={canSwapVideoLayout ? ui("swapLayoutRemoteLargeAria") : undefined}
             >
               {localStream && !videoMuted ? (
                 <div id="localShareWrapper" ref={localCursorSendRef} className="absolute inset-0 h-full w-full">
@@ -1134,7 +1123,7 @@ export default function CallUI({
                   <div className="h-28 w-28 rounded-full bg-white/10 flex items-center justify-center ring-2 ring-white/15">
                     <VideoOff className="h-12 w-12 text-white/35" />
                   </div>
-                  <p className="text-white/45 text-sm font-medium mt-4">Camera ta e oprită</p>
+                  <p className="text-white/45 text-sm font-medium mt-4">{ui("cameraOffYours")}</p>
                 </div>
               ) : null}
             </div>
@@ -1155,23 +1144,23 @@ export default function CallUI({
             type="button"
             onClick={handleLeave}
             className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full bg-white/10 backdrop-blur-md hover:bg-white/20 transition"
-            aria-label="Închide apelul"
+            aria-label={ui("closeCallAria")}
           >
             <ChevronLeft className="h-6 w-6" />
           </button>
           <div className="pointer-events-none flex flex-col items-center text-center px-2 min-w-0">
             <span className="font-semibold text-base sm:text-lg truncate max-w-[60vw]">
-              {remote?.displayName || "Apel video"}
+              {remote?.displayName || ui("headerVideoCall")}
             </span>
             <span className="text-xs text-white/55 tabular-nums">
               {callState === "connected"
                 ? fmtCallDuration(elapsedSec)
                 : !isConference && isConnectingLike
-                  ? p2pConnectingSubtitle(audioOnly, connectionPhase, waitingForPeerInRoom, isConnectingLike)
+                  ? getP2pConnectingSubtitle(audioOnly, connectionPhase, waitingForPeerInRoom, isConnectingLike)
                   : waitingForPeerInRoom
-                    ? "Așteptăm celălaltul…"
+                    ? ui("phaseWaitingPeer")
                     : isConnectingLike
-                      ? "Se conectează…"
+                      ? ui("phaseConnectingGeneric")
                       : ""}
             </span>
           </div>
@@ -1207,7 +1196,7 @@ export default function CallUI({
             }}
             role="button"
             tabIndex={0}
-            aria-label="Atinge pentru a ascunde mini-preview"
+            aria-label={ui("pipToggleHideAria")}
           >
             <video
               id="localShareVideo"
@@ -1228,11 +1217,11 @@ export default function CallUI({
             }}
             role="button"
             tabIndex={0}
-            aria-label="Ascunde mini-preview"
+            aria-label={ui("pipToggleShowAria")}
           >
             <VideoOff className={isMobileUi ? "h-8 w-8 text-white/35" : "h-7 w-7 text-white/35"} />
             <span className="text-[9px] leading-tight text-center text-white/50 px-0.5">
-              {cameraSoftFailed ? "Fără cameră" : "Oprită"}
+              {cameraSoftFailed ? ui("pipMutedLabelNoCam") : ui("pipMutedLabelOff")}
             </span>
           </div>
         )}
@@ -1245,7 +1234,7 @@ export default function CallUI({
             }}
             role="button"
             tabIndex={0}
-            aria-label="Ascunde mini-preview"
+            aria-label={ui("pipToggleShowAria")}
           >
             <div className="relative h-full w-full">
               <RemoteVideoStageOptional
@@ -1256,7 +1245,7 @@ export default function CallUI({
               />
             </div>
             <span className="pointer-events-none absolute bottom-1.5 left-2 right-2 truncate text-[10px] font-medium uppercase tracking-wider text-white/80 bg-black/50 px-1.5 py-0.5 rounded max-w-[calc(100%-0.5rem)]">
-              {remote.displayName || "Participant"}
+              {remote.displayName || ui("participantFallback")}
             </span>
           </div>
         )}
@@ -1279,10 +1268,10 @@ export default function CallUI({
             quiet={toolbarQuiet}
             title={
               privacyQuietMode
-                ? "Mod discret activ — apasă pentru sunet + microfon normal"
+                ? ui("titleMicQuietMode")
                 : muted
-                  ? "Pornește microfonul"
-                  : "Dezactivează microfonul"
+                  ? ui("titleMicOn")
+                  : ui("titleMicOff")
             }
             active={!muted}
           >
@@ -1291,7 +1280,7 @@ export default function CallUI({
           <CircleBtn
             onClick={() => setVideoMuted(!videoMuted)}
             quiet={toolbarQuiet}
-            title={videoMuted ? "Pornește camera" : "Oprește camera"}
+            title={videoMuted ? ui("titleCamOn") : ui("titleCamOff")}
             active={!videoMuted}
           >
             {videoMuted ? <VideoOff className="h-6 w-6 sm:h-7 sm:w-7" /> : <Video className="h-6 w-6 sm:h-7 sm:w-7" />}
@@ -1301,7 +1290,7 @@ export default function CallUI({
             onClick={() => setShowMiniPreview((v) => !v)}
             className="pointer-events-auto shrink-0 max-w-[11rem] rounded-xl border border-white/20 bg-white/10 px-2.5 py-2 text-center text-[11px] font-medium leading-tight text-white/90 shadow-sm backdrop-blur-sm transition hover:bg-white/15 active:scale-[0.98] sm:max-w-[14rem] sm:px-3 sm:text-xs"
           >
-            {showMiniPreview ? "Ascunde mini-preview" : "Arată mini-preview"}
+            {showMiniPreview ? ui("toggleMiniHide") : ui("toggleMiniShow")}
           </button>
           {remote ? (
             <CircleBtn
@@ -1309,8 +1298,8 @@ export default function CallUI({
               quiet={toolbarQuiet}
               title={
                 showRemoteParticipantVideo
-                  ? "Ascunde video interlocutorului (îl auzi în continuare)"
-                  : "Arată din nou video interlocutorului"
+                  ? ui("titleRemoteVideoHide")
+                  : ui("titleRemoteVideoShow")
               }
               active={showRemoteParticipantVideo}
             >
@@ -1324,7 +1313,7 @@ export default function CallUI({
           {showCameraFlip && (
             <CircleBtn
               onClick={() => void switchCamera()}
-              title="Față / spate — comută camera"
+              title={ui("titleCameraFlip")}
             >
               <RefreshCw className="h-6 w-6 sm:h-7 sm:w-7" />
             </CircleBtn>
@@ -1332,7 +1321,7 @@ export default function CallUI({
           {screenshareAllowed && (
             <CircleBtn
               onClick={() => void toggleScreenShare()}
-              title={screenSharing ? "Oprește ecranul" : "Partajare ecran"}
+              title={screenSharing ? ui("titleScreenshareStop") : ui("titleScreenshareStart")}
               active={screenSharing}
             >
               <MonitorUp className="h-6 w-6 sm:h-7 sm:w-7" />
@@ -1341,7 +1330,7 @@ export default function CallUI({
           {showSpeakerToggle ? (
             <CircleBtn
               onClick={() => setSpeakerOutputOn((v) => !v)}
-              title={speakerOutputOn ? "Revino la ieșirea implicită (telefon)" : "Difuzor"}
+              title={speakerOutputOn ? ui("titleSpeakerDefault") : ui("titleSpeaker")}
               active={speakerOutputOn}
             >
               {speakerOutputOn ? (
@@ -1355,8 +1344,8 @@ export default function CallUI({
             onClick={togglePrivacyQuietMode}
             title={
               privacyQuietMode
-                ? "Ieși din mod discret (sunet + microfon ca înainte)"
-                : "Mod discret: nu auzi celălalt și nici el pe tine (microfon oprit, fără foșnet)"
+                ? ui("titlePrivacyExit")
+                : ui("titlePrivacyEnter")
             }
             danger={privacyQuietMode}
             active={!privacyQuietMode}
@@ -1367,7 +1356,7 @@ export default function CallUI({
               className="h-6 w-6 sm:h-7 sm:w-7"
             />
           </CircleBtn>
-          <CircleBtn onClick={handleLeave} title="Închide apelul" danger>
+          <CircleBtn onClick={handleLeave} title={ui("titleCloseCall")} danger>
             <PhoneOff className="h-6 w-6 sm:h-7 sm:w-7" />
           </CircleBtn>
         </div>
@@ -1395,20 +1384,20 @@ export default function CallUI({
             type="button"
             onClick={handleLeave}
             className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition"
-            aria-label="Înapoi"
+            aria-label={ui("audioHeaderBackAria")}
           >
             <ChevronLeft className="h-6 w-6" />
           </button>
           <div className="text-center min-w-0 px-2">
-            <p className="font-semibold text-lg truncate">{remote?.displayName || "Apel audio"}</p>
+            <p className="font-semibold text-lg truncate">{remote?.displayName || ui("headerAudioCall")}</p>
             <p className="text-xs text-white/50 tabular-nums">
               {callState === "connected"
                 ? fmtCallDuration(elapsedSec)
                 : !isConference && isConnectingLike
-                  ? p2pConnectingSubtitle(audioOnly, connectionPhase, waitingForPeerInRoom, isConnectingLike)
+                  ? getP2pConnectingSubtitle(audioOnly, connectionPhase, waitingForPeerInRoom, isConnectingLike)
                   : waitingForPeerInRoom
-                    ? "Așteptăm celălaltul…"
-                    : "Se conectează…"}
+                    ? ui("phaseWaitingPeer")
+                    : ui("phaseConnectingGeneric")}
             </p>
           </div>
           <div className="w-11" />
@@ -1432,7 +1421,7 @@ export default function CallUI({
               </span>
             </div>
           </div>
-          <p className="text-white/40 text-sm">Apel vocal securizat</p>
+          <p className="text-white/40 text-sm">{ui("audioCallSecureBadge")}</p>
           {remote?.stream ? <RemoteAudio stream={remote.stream} /> : null}
         </div>
 
@@ -1447,7 +1436,7 @@ export default function CallUI({
         ) : null}
         {remotePlaybackBlockedHint ? (
           <div className="relative z-[240] mx-4 mb-2 rounded-xl bg-amber-500/30 border border-amber-400/50 px-3 py-2 text-xs text-amber-50 shadow-lg">
-            Browserul poate bloca sunetul interlocutorului până la o atingere pe ecran. Atinge oriunde pentru a continua.
+            {ui("remotePlaybackBlocked")}
           </div>
         ) : null}
 
@@ -1459,10 +1448,10 @@ export default function CallUI({
             quiet={toolbarQuiet}
             title={
               privacyQuietMode
-                ? "Mod discret — apasă pentru normal"
+                ? ui("audioTitleMicQuiet")
                 : muted
-                  ? "Pornește microfonul"
-                  : "Mute"
+                  ? ui("audioTitleMicOn")
+                  : ui("audioTitleMicMute")
             }
             active={!muted}
           >
@@ -1471,7 +1460,7 @@ export default function CallUI({
           {showSpeakerToggle ? (
             <CircleBtn
               onClick={() => setSpeakerOutputOn((v) => !v)}
-              title={speakerOutputOn ? "Ieșire implicită (telefon)" : "Difuzor"}
+              title={speakerOutputOn ? ui("audioTitleSpeakerDefault") : ui("titleSpeaker")}
               active={speakerOutputOn}
             >
               {speakerOutputOn ? (
@@ -1485,8 +1474,8 @@ export default function CallUI({
             onClick={togglePrivacyQuietMode}
             title={
               privacyQuietMode
-                ? "Ieși din mod discret"
-                : "Mod discret: fără sunet la amândoi la tine (microfon oprit)"
+                ? ui("audioTitlePrivacyExit")
+                : ui("audioTitlePrivacyEnter")
             }
             danger={privacyQuietMode}
             active={!privacyQuietMode}
@@ -1497,7 +1486,7 @@ export default function CallUI({
               className="h-6 w-6 sm:h-7 sm:w-7"
             />
           </CircleBtn>
-          <CircleBtn onClick={handleLeave} title="Închide" danger>
+          <CircleBtn onClick={handleLeave} title={ui("audioTitleClose")} danger>
             <PhoneOff className="h-6 w-6 sm:h-7 sm:w-7" />
           </CircleBtn>
         </div>
@@ -1512,17 +1501,18 @@ export default function CallUI({
     <div className="flex flex-col min-h-[calc(100dvh-4rem)] sm:min-h-[calc(100vh-5rem)]">
       <div className="flex items-center justify-between border-b border-night-600 py-2 px-3 sm:px-4">
         <Link replace href="/app/messages" onClick={() => leave()} className="text-night-500 hover:text-white text-sm">
-          ← Mesaje
+          {ui("confBarMessagesLink")}
         </Link>
         <span className="text-night-500 text-sm">
           {isConnectingLike &&
             (!isConference
-              ? p2pConnectingSubtitle(audioOnly, connectionPhase, waitingForPeerInRoom, isConnectingLike)
+              ? getP2pConnectingSubtitle(audioOnly, connectionPhase, waitingForPeerInRoom, isConnectingLike)
               : waitingForPeerInRoom
-                ? "Așteptăm participanții…"
-                : "Se conectează…")}
-          {callState === "connected" && (isConference ? "Conferință" : "Apel")}
-          {callState === "ended" && "Apel încheiat"}
+                ? ui("confConnectingWaitPeers")
+                : ui("confConnecting"))}
+          {callState === "connected" &&
+            (isConference ? ui("confConnectedConference") : ui("confConnectedCall"))}
+          {callState === "ended" && ui("confEnded")}
         </span>
         {isConference && callState === "connected" && (
           <button
@@ -1531,12 +1521,12 @@ export default function CallUI({
               const url = typeof window !== "undefined" ? `${window.location.origin}/app/call/${roomId}` : "";
               navigator.clipboard
                 ?.writeText(url)
-                .then(() => alert("Link copiat!"))
+                .then(() => alert(ui("confInviteCopied")))
                 .catch(() => {});
             }}
             className="text-xs text-brand-400 hover:text-brand-300"
           >
-            Invită
+            {ui("confInvite")}
           </button>
         )}
         {!isConference && <span className="w-16" />}
@@ -1573,7 +1563,7 @@ export default function CallUI({
 
         {callState === "connected" && remoteParticipants.length === 0 && (
           <div className="flex items-center justify-center text-night-500 col-span-full min-h-[12rem]">
-            Așteptăm participanți…
+            {ui("waitParticipantsGrid")}
           </div>
         )}
       </div>
@@ -1587,7 +1577,7 @@ export default function CallUI({
           }`}
         >
           {muted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-          {privacyQuietMode ? "Discret (mic)" : muted ? "Pornește mic." : "Mute"}
+          {privacyQuietMode ? ui("toolbarMicDiscrete") : muted ? ui("toolbarMicUnmute") : ui("toolbarMicMute")}
         </button>
         {!audioOnly && (
           <button
@@ -1598,18 +1588,18 @@ export default function CallUI({
             }`}
           >
             {videoMuted ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
-            {videoMuted ? "Pornește video" : "Oprește video"}
+            {videoMuted ? ui("toolbarVideoStart") : ui("toolbarVideoStop")}
           </button>
         )}
         {showCameraFlip && (
           <button
             type="button"
             onClick={() => void switchCamera()}
-            title="Față / spate — comută camera"
+            title={ui("toolbarFlipTitle")}
             className="flex items-center gap-2 rounded-full bg-night-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-night-500"
           >
             <RefreshCw className="w-5 h-5" />
-            Față / spate
+            {ui("toolbarFlipLabel")}
           </button>
         )}
         {!audioOnly && screenshareAllowed && (
@@ -1621,7 +1611,7 @@ export default function CallUI({
             }`}
           >
             <MonitorUp className="w-5 h-5" />
-            Ecran
+            {ui("toolbarScreen")}
           </button>
         )}
         {showSpeakerToggle ? (
@@ -1631,10 +1621,10 @@ export default function CallUI({
             className={`flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium transition ${
               speakerOutputOn ? "bg-brand-500/25 text-brand-200" : "bg-night-600 text-white hover:bg-night-500"
             }`}
-            title={speakerOutputOn ? "Ieșire implicită" : "Difuzor"}
+            title={speakerOutputOn ? ui("toolbarSpeakerDefaultTitle") : ui("titleSpeaker")}
           >
             {speakerOutputOn ? <Volume2 className="w-5 h-5" /> : <Smartphone className="w-5 h-5" />}
-            {speakerOutputOn ? "Difuzor" : "Telefon"}
+            {speakerOutputOn ? ui("toolbarSpeakerOn") : ui("toolbarPhone")}
           </button>
         ) : null}
         <button
@@ -1645,8 +1635,8 @@ export default function CallUI({
           }`}
           title={
             privacyQuietMode
-              ? "Ieși din mod discret (sunet + microfon ca înainte)"
-              : "Mod discret: nu auzi pe ceilalți și nu te aud (mic oprit)"
+              ? ui("toolbarDiscreteExit")
+              : ui("toolbarDiscreteEnter")
           }
         >
           <PrivacyQuietIcon
@@ -1654,7 +1644,7 @@ export default function CallUI({
             showSpeakerToggle={!!showSpeakerToggle}
             className="w-5 h-5"
           />
-          {privacyQuietMode ? "Normal" : "Discret"}
+          {privacyQuietMode ? ui("toolbarNormal") : ui("toolbarDiscrete")}
         </button>
         <button
           type="button"
@@ -1662,7 +1652,7 @@ export default function CallUI({
           className="flex items-center gap-2 rounded-full bg-red-500/25 px-4 py-2.5 text-sm font-medium text-red-300 hover:bg-red-500/35"
         >
           <PhoneOff className="w-5 h-5" />
-          Închide
+          {ui("toolbarClose")}
         </button>
       </div>
     </div>
