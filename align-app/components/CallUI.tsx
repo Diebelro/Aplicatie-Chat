@@ -59,26 +59,29 @@ import { markIncomingGrace } from "@/lib/callIncomingGrace";
 import { useVideoRenderable } from "@/hooks/useVideoRenderable";
 
 function p2pConnectingSubtitle(
+  audioOnlyCall: boolean,
   phase: CallConnectionPhase | null,
   waitingPeer: boolean,
   isConnectingPrep: boolean
 ): string {
   switch (phase) {
     case "signaling_connecting":
-      return "Ne conectăm la serverul de semnalizare…";
+      return "Ne conectăm la server…";
     case "signaling_connected":
-      return "Semnalizare activă — intrăm în cameră…";
+      return "Intrăm în cameră…";
     case "negotiating":
-      return "Negociem conexiunea audio/video…";
+      return audioOnlyCall ? "Stabilim conexiunea audio…" : "Stabilim conexiunea video…";
     case "peer_joined":
-      return "Al doilea participant e în cameră…";
+      return "Celălalt e în cameră…";
     case "waiting_peer":
-      return "Așteptăm celălalt participant…";
+      return "Așteptăm celălaltul…";
     default:
       break;
   }
-  if (waitingPeer) return "Așteptăm celălalt participant…";
-  if (isConnectingPrep) return "Se pregătește camera și microfonul…";
+  if (waitingPeer) return "Așteptăm celălaltul…";
+  if (isConnectingPrep) {
+    return audioOnlyCall ? "Pregătim microfonul…" : "Pregătim camera și microfonul…";
+  }
   return "Se conectează…";
 }
 
@@ -351,7 +354,8 @@ function RemoteVideoStageOptional({
 const MINI_PREVIEW_STORAGE_KEY = "diebel.call.showMiniPreview";
 const OUTGOING_POLL_MS = 550;
 /** După conectare, ascundem bara de controale ca să nu stea peste imagine; tap / mișcare mouse reafișează. */
-const CHROME_AUTO_HIDE_MS = 4500;
+/** Mai lung = mai puțin „intră/iese” bara de controale la fiecare mișcare pe video. */
+const CHROME_AUTO_HIDE_MS = 8000;
 
 /** Mod discret: fără căști (se confundă cu difuzor); Volume2 = sunet activ, EarOff = lângă butonul Difuzor fără dublură. */
 function PrivacyQuietIcon({
@@ -565,6 +569,10 @@ export default function CallUI({
       if (remotePlaybackBlockedHint) {
         setRemotePlaybackBlockedHint(false);
         setPlaybackUnlockKey((k) => k + 1);
+      }
+      /** Pe touch/pen: nu reseta timerul la fiecare glisare pe video — altfel bara „pulsează” haotic. */
+      if (e.type === "pointermove" && (e.pointerType === "touch" || e.pointerType === "pen")) {
+        return;
       }
       if (e.type === "pointermove" && e.pointerType === "mouse") {
         const now = Date.now();
@@ -1124,12 +1132,12 @@ export default function CallUI({
                 <div className="h-16 w-16 border-2 border-white/20 border-t-brand-400 rounded-full animate-spin mb-6" />
                 <p className="text-white/60 text-sm text-center max-w-[min(92vw,22rem)] leading-snug px-3">
                   {!isConference && isConnectingLike
-                    ? p2pConnectingSubtitle(connectionPhase, waitingForPeerInRoom, isConnectingLike)
+                    ? p2pConnectingSubtitle(audioOnly, connectionPhase, waitingForPeerInRoom, isConnectingLike)
                     : waitingForPeerInRoom
-                      ? "Ești singur în cameră. Celălalt trebuie să accepte apelul sau să deschidă același apel din chat (alt cont / alt dispozitiv)."
+                      ? "Așteptăm să răspundă la apel sau să intre în cameră."
                       : isConnectingLike
                         ? "Se conectează…"
-                        : "Așteptăm celălalt participant…"}
+                        : "Așteptăm celălaltul…"}
                 </p>
               </div>
             )
@@ -1200,9 +1208,9 @@ export default function CallUI({
               {callState === "connected"
                 ? fmtCallDuration(elapsedSec)
                 : !isConference && isConnectingLike
-                  ? p2pConnectingSubtitle(connectionPhase, waitingForPeerInRoom, isConnectingLike)
+                  ? p2pConnectingSubtitle(audioOnly, connectionPhase, waitingForPeerInRoom, isConnectingLike)
                   : waitingForPeerInRoom
-                    ? "Așteptăm partenerul…"
+                    ? "Așteptăm celălaltul…"
                     : isConnectingLike
                       ? "Se conectează…"
                       : ""}
@@ -1438,9 +1446,9 @@ export default function CallUI({
               {callState === "connected"
                 ? fmtCallDuration(elapsedSec)
                 : !isConference && isConnectingLike
-                  ? p2pConnectingSubtitle(connectionPhase, waitingForPeerInRoom, isConnectingLike)
+                  ? p2pConnectingSubtitle(audioOnly, connectionPhase, waitingForPeerInRoom, isConnectingLike)
                   : waitingForPeerInRoom
-                    ? "Așteptăm partenerul…"
+                    ? "Așteptăm celălaltul…"
                     : "Se conectează…"}
             </p>
           </div>
@@ -1550,7 +1558,7 @@ export default function CallUI({
         <span className="text-night-500 text-sm">
           {isConnectingLike &&
             (!isConference
-              ? p2pConnectingSubtitle(connectionPhase, waitingForPeerInRoom, isConnectingLike)
+              ? p2pConnectingSubtitle(audioOnly, connectionPhase, waitingForPeerInRoom, isConnectingLike)
               : waitingForPeerInRoom
                 ? "Așteptăm participanții…"
                 : "Se conectează…")}

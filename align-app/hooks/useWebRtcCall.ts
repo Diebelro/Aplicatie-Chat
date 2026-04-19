@@ -1437,6 +1437,8 @@ export function useWebRtcCall({
 
       const startStatsMonitor = () => {
         clearStatsMonitor();
+        /** Apel doar audio: fără getStats / bannere de calitate video — evită spam și mesaje despre „video”. */
+        if (audioOnly) return;
         qualityStatsCursor = emptyQualityStatsCursor();
         p2pQualityState = { badStreak: 0, goodStreak: 0, degradedSteps: 0 };
         p2pLastQualityChangeAtMs = null;
@@ -1544,10 +1546,6 @@ export function useWebRtcCall({
                 if (adaptiveVideoBpsRef.current >= cap * 0.97 && p2pQualityState.degradedSteps === 0) {
                   setState((s) => ({ ...s, banner: null }));
                 }
-              } else if (sample.uplinkLostDelta > 12 && sample.uplinkLostDelta <= 28) {
-                setState((s) => ({ ...s, banner: "Rețea variabilă — optimizare conexiune." }));
-              } else if (!isMobileDevice() && uplinkBitrateRawBps > 0 && uplinkBitrateRawBps < 70_000) {
-                setState((s) => ({ ...s, banner: "Debit video scăzut — verifică rețeaua." }));
               }
 
               patchHostileIceCallQualityOverlay({
@@ -1723,12 +1721,14 @@ export function useWebRtcCall({
               p2pIceStuckHintTimerRef.current = null;
               const cur = pcRef.current;
               if (cancelled || !cur || cur.iceConnectionState !== "checking") return;
+              console.warn(
+                "[RTC] ICE încă în checking după 20s — verifică TURN / NEXT_PUBLIC_TURN_URLS / rețea (4G, Wi‑Fi corporativ)."
+              );
               setState((s) => {
                 if (s.status !== "connecting" && s.status !== "connected") return s;
                 return {
                   ...s,
-                  banner:
-                    "TURN_REQUIRED: ICE încă în verificare — pe 4G / Wi‑Fi corporativ verifică coturn, porturi și NEXT_PUBLIC_TURN_URLS. PHYSICAL NETWORK LIMITATION – NOT FIXABLE IN CODE dacă tot traficul UDP/TLS e blocat la nivel de rețea.",
+                  banner: "Conexiunea întârzie — mai așteaptă puțin sau încearcă altă rețea.",
                 };
               });
             }, 20_000);
