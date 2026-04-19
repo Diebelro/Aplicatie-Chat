@@ -394,6 +394,9 @@ export default function CallUI({
 }: CallUIProps) {
   const { tStr } = useI18n();
   const router = useRouter();
+  /** Evită poll-uri `outgoing-status` care se termină după schimbarea `roomId` și setează stări greșite. */
+  const roomIdLiveRef = useRef(roomId);
+  roomIdLiveRef.current = roomId;
   /** Doar apelant: „respins” explicit vs „nu e disponibil / nu răspunde” (fără respingere explicită). */
   const [outgoingTerminal, setOutgoingTerminal] = useState<null | "rejected" | "unreachable">(null);
   const [elapsedSec, setElapsedSec] = useState(0);
@@ -671,35 +674,49 @@ export default function CallUI({
    * serverless — altfel apelantul vedea „indisponibil” și pierdea UI-ul video înainte de WebRTC.
    */
   const unreachableGraceUntilRef = useRef(0);
+  /** Două poll-uri consecutive „unreachable” înainte de a crede — reduce licăritul false-positive. */
+  const unreachablePollStreakRef = useRef(0);
   useEffect(() => {
+    setOutgoingTerminal(null);
+    unreachablePollStreakRef.current = 0;
     if (!isCaller) {
       unreachableGraceUntilRef.current = 0;
       return;
     }
-    unreachableGraceUntilRef.current = Date.now() + 5000;
+    unreachableGraceUntilRef.current = Date.now() + 10_000;
   }, [isCaller, roomId]);
 
   const fetchOutgoingStatus = useCallback(() => {
-    fetch(`/api/call/outgoing-status?roomId=${encodeURIComponent(roomId)}`, {
+    const queriedRoom = roomIdLiveRef.current;
+    fetch(`/api/call/outgoing-status?roomId=${encodeURIComponent(queriedRoom)}`, {
       headers: getAuthHeaders(),
       credentials: "same-origin",
     })
       .then(async (r) => {
+        if (roomIdLiveRef.current !== queriedRoom) return;
         const d = (await r.json().catch(() => ({}))) as { status?: string };
         if (!r.ok) return;
         if (d?.status === "ringing") {
-          unreachableGraceUntilRef.current = 0;
+          unreachablePollStreakRef.current = 0;
+          /** Nu reseta grace la 0 — altfel următorul „unreachable” scurt după „ringing” blochează al doilea apel. */
+          unreachableGraceUntilRef.current = Date.now() + 8000;
           setOutgoingTerminal(null);
           return;
         }
-        if (d?.status === "rejected") setOutgoingTerminal("rejected");
-        else if (d?.status === "unreachable") {
+        if (d?.status === "rejected") {
+          unreachablePollStreakRef.current = 0;
+          setOutgoingTerminal("rejected");
+          return;
+        }
+        if (d?.status === "unreachable") {
           if (Date.now() < unreachableGraceUntilRef.current) return;
+          unreachablePollStreakRef.current += 1;
+          if (unreachablePollStreakRef.current < 2) return;
           setOutgoingTerminal((prev) => (prev === "rejected" ? "rejected" : "unreachable"));
         }
       })
       .catch(() => {});
-  }, [roomId]);
+  }, []);
 
   useEffect(() => {
     if (!isCaller || callState === "connected") return;
@@ -1128,17 +1145,21 @@ export default function CallUI({
                 />
               </div>
             ) : (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-zinc-900 to-black">
-                <div className="h-16 w-16 border-2 border-white/20 border-t-brand-400 rounded-full animate-spin mb-6" />
-                <p className="text-white/60 text-sm text-center max-w-[min(92vw,22rem)] leading-snug px-3">
-                  {!isConference && isConnectingLike
+              <div
+                className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-zinc-900 to-black"
+                role="status"
+                aria-live="polite"
+                aria-label={
+                  !isConference && isConnectingLike
                     ? p2pConnectingSubtitle(audioOnly, connectionPhase, waitingForPeerInRoom, isConnectingLike)
                     : waitingForPeerInRoom
                       ? "Așteptăm să răspundă la apel sau să intre în cameră."
                       : isConnectingLike
                         ? "Se conectează…"
-                        : "Așteptăm celălaltul…"}
-                </p>
+                        : "Așteptăm celălaltul…"
+                }
+              >
+                <div className="h-16 w-16 border-2 border-white/20 border-t-brand-400 rounded-full animate-spin" />
               </div>
             )
           ) : (
@@ -1183,14 +1204,14 @@ export default function CallUI({
         </div>
 
         <div
-          className={`pointer-events-none absolute inset-x-0 top-0 z-10 h-36 bg-gradient-to-b from-black/85 via-black/40 to-transparent transition-all duration-300 ease-out ${chromeTopClass}`}
+          className={`pointer-events-none absolute inset-x-0 top-0 z-10 h-36 bg-gradient-to-b from-black/85 via-black/40 to-transparent transition-opacity duration-200 ease-out ${chromeTopClass}`}
         />
         <div
-          className={`pointer-events-none absolute inset-x-0 bottom-0 z-10 h-44 bg-gradient-to-t from-black/90 via-black/50 to-transparent transition-all duration-300 ease-out ${chromeBottomClass}`}
+          className={`pointer-events-none absolute inset-x-0 bottom-0 z-10 h-44 bg-gradient-to-t from-black/90 via-black/50 to-transparent transition-opacity duration-200 ease-out ${chromeBottomClass}`}
         />
 
         <header
-          className={`relative z-20 flex items-center justify-between px-2 pt-[max(0.5rem,env(safe-area-inset-top))] pb-1 sm:px-4 transition-all duration-300 ease-out ${chromeTopClass}`}
+          className={`relative z-20 flex items-center justify-between px-2 pt-[max(0.5rem,env(safe-area-inset-top))] pb-1 sm:px-4 transition-opacity duration-200 ease-out ${chromeTopClass}`}
         >
           <button
             type="button"
@@ -1221,14 +1242,14 @@ export default function CallUI({
 
         {banner ? (
           <div
-            className={`relative z-20 mx-3 mt-1 rounded-xl bg-amber-500/20 border border-amber-400/35 px-3 py-2 text-xs text-amber-50 backdrop-blur-sm transition-all duration-300 ease-out ${chromeTopClass}`}
+            className={`relative z-20 mx-3 mt-1 rounded-xl bg-amber-500/20 border border-amber-400/35 px-3 py-2 text-xs text-amber-50 backdrop-blur-sm transition-[opacity,transform] duration-200 ease-out ${chromeTopClass}`}
           >
             {banner}
           </div>
         ) : null}
         {transientRingNotify ? (
           <div
-            className={`relative z-20 mx-3 mt-1 rounded-xl border border-sky-400/30 bg-sky-500/15 px-3 py-2 text-xs text-sky-50/95 backdrop-blur-sm transition-all duration-300 ease-out ${chromeTopClass}`}
+            className={`relative z-20 mx-3 mt-1 max-h-[4.25rem] overflow-y-auto rounded-xl border border-sky-400/30 bg-sky-500/15 px-3 py-2 text-left text-xs leading-snug text-sky-50/95 backdrop-blur-sm transition-opacity duration-200 ease-out break-words ${chromeTopClass}`}
             role="status"
           >
             {transientRingNotify}
@@ -1313,7 +1334,7 @@ export default function CallUI({
 
         <div
           className={`relative z-20 mt-auto flex flex-wrap items-center justify-center gap-2 sm:gap-3 px-3
-            pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-6 transition-all duration-300 ease-out ${chromeBottomClass}`}
+            pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-6 transition-[opacity,transform] duration-200 ease-out ${chromeBottomClass}`}
         >
           <CircleBtn
             onClick={onMicToggle}
@@ -1427,10 +1448,10 @@ export default function CallUI({
           onPointerMove={onImmersivePointer}
         >
         <div
-          className={`pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/60 to-transparent transition-all duration-300 ease-out ${chromeTopClass}`}
+          className={`pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/60 to-transparent transition-opacity duration-200 ease-out ${chromeTopClass}`}
         />
         <header
-          className={`relative z-10 flex items-center justify-between px-2 pt-[max(0.5rem,env(safe-area-inset-top))] sm:px-4 transition-all duration-300 ease-out ${chromeTopClass}`}
+          className={`relative z-10 flex items-center justify-between px-2 pt-[max(0.5rem,env(safe-area-inset-top))] sm:px-4 transition-[opacity,transform] duration-200 ease-out ${chromeTopClass}`}
         >
           <button
             type="button"
@@ -1457,7 +1478,7 @@ export default function CallUI({
 
         {transientRingNotify ? (
           <div
-            className={`relative z-10 mx-4 mt-1 rounded-xl border border-sky-400/30 bg-sky-500/15 px-3 py-2 text-xs text-sky-50/95 transition-all duration-300 ease-out ${chromeTopClass}`}
+            className={`relative z-10 mx-4 mt-1 max-h-[4.25rem] overflow-y-auto rounded-xl border border-sky-400/30 bg-sky-500/15 px-3 py-2 text-left text-xs leading-snug text-sky-50/95 transition-[opacity,transform] duration-200 ease-out break-words ${chromeTopClass}`}
             role="status"
           >
             {transientRingNotify}
@@ -1481,7 +1502,7 @@ export default function CallUI({
 
         {banner ? (
           <div
-            className={`mx-4 mb-2 rounded-xl bg-amber-500/20 border border-amber-400/35 px-3 py-2 text-xs text-amber-50 transition-all duration-300 ease-out ${chromeBottomClass}`}
+            className={`mx-4 mb-2 rounded-xl bg-amber-500/20 border border-amber-400/35 px-3 py-2 text-xs text-amber-50 transition-[opacity,transform] duration-200 ease-out ${chromeBottomClass}`}
           >
             {banner}
           </div>
@@ -1493,7 +1514,7 @@ export default function CallUI({
         ) : null}
 
         <div
-          className={`flex flex-wrap items-center justify-center gap-2 sm:gap-3 px-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-4 transition-all duration-300 ease-out ${chromeBottomClass}`}
+          className={`flex flex-wrap items-center justify-center gap-2 sm:gap-3 px-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-4 transition-[opacity,transform] duration-200 ease-out ${chromeBottomClass}`}
         >
           <CircleBtn
             onClick={onMicToggle}
@@ -1590,7 +1611,7 @@ export default function CallUI({
       ) : null}
       {transientRingNotify ? (
         <div
-          className="mx-4 mt-2 rounded-lg border border-sky-400/30 bg-sky-500/10 px-3 py-2 text-sm text-sky-100/90"
+          className="mx-4 mt-2 max-h-[4.5rem] overflow-y-auto rounded-lg border border-sky-400/30 bg-sky-500/10 px-3 py-2 text-left text-sm leading-snug text-sky-100/90 break-words"
           role="status"
         >
           {transientRingNotify}
