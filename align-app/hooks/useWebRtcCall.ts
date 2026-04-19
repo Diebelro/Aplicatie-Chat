@@ -47,6 +47,8 @@ import {
   applyVideoDegradationPreferenceSafe,
 } from "@/lib/webrtc/videoRtpSenderTune";
 import { fetchRtcIceServers } from "@/lib/webrtc/iceFetch";
+import { RtcIceConfigError } from "@/lib/webrtc/rtcIceConfigError";
+import type { CallErrorInput } from "@/lib/i18n/callApiErrorMap";
 import {
   buildRtcPeerConnectionConfig,
   applyInboundAudioPlayoutHint,
@@ -76,6 +78,22 @@ import {
 } from "@/hooks/call/useWebRtcPeer";
 import { bindP2pCursorDataChannel } from "@/hooks/call/useCallDataChannels";
 import { pushCallDebug } from "@/hooks/call/callDebugLog";
+import type { CallUiPhase } from "@/lib/call/callUiPhase";
+import { applyProCallVideoSenderCaps } from "@/lib/webrtc/proCallVideoSender";
+
+function iceFetchFailurePayload(e: unknown): CallErrorInput {
+  if (e instanceof RtcIceConfigError && e.errorCode) {
+    return { errorCode: e.errorCode, error: e.message };
+  }
+  const msg = e instanceof Error ? e.message : String(e);
+  if (/TURN_REALM|TURN_STATIC_SECRET/i.test(msg)) {
+    return { errorCode: "TURN_NOT_CONFIGURED", error: msg };
+  }
+  if (/TURN_REQUIRED|no usable TURN|relay-only/i.test(msg)) {
+    return { errorCode: "TURN_CONFIG_INVALID", error: msg };
+  }
+  return msg;
+}
 
 export type RemoteParticipant = {
   id: string;
@@ -94,7 +112,7 @@ export type CallConnectionPhase =
 
 type CallRuntimeState = {
   status: "idle" | "connecting" | "connected" | "left" | "error" | "permission_help";
-  error: string | null;
+  error: CallErrorInput;
   /** Ghid permisiuni microfon/cameră — UI prietenos, fără roșu */
   permissionHelp: { headline: string; lines: string[] } | null;
   remoteParticipants: RemoteParticipant[];
@@ -109,6 +127,10 @@ type CallRuntimeState = {
   /** Semnalizare: ești singur în cameră P2P / fără peers mesh — UI arată „așteptăm celălalt”, nu „se conectează”. */
   waitingForPeerInRoom: boolean;
   connectionPhase: CallConnectionPhase;
+  /** Faze UI apel (gate / overlay) — independent de `connectionPhase`. */
+  callUiPhase: CallUiPhase;
+  /** ICE auto-recovery în curs — banner „reconectare”, fără panică. */
+  iceRecoveryInFlight: boolean;
 };
 
 export type CallTranslateBundle = {
@@ -165,6 +187,8 @@ export function useWebRtcCall({
     screenSharing: false,
     waitingForPeerInRoom: false,
     connectionPhase: null,
+    callUiPhase: "idle",
+    iceRecoveryInFlight: false,
   });
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -354,6 +378,8 @@ export function useWebRtcCall({
         cameraSoftFailed: false,
         waitingForPeerInRoom: false,
         connectionPhase: null,
+        callUiPhase: "idle",
+        iceRecoveryInFlight: false,
       }));
     };
     try {
@@ -384,6 +410,8 @@ export function useWebRtcCall({
       cameraSoftFailed: false,
       waitingForPeerInRoom: false,
       connectionPhase: null,
+      callUiPhase: "requesting_permissions",
+      iceRecoveryInFlight: false,
     }));
     setPermissionRetryKey((k) => k + 1);
   }, [cleanupMedia]);
@@ -676,6 +704,14 @@ export function useWebRtcCall({
 
     let cancelled = false;
 
+    setState((s) => ({
+      ...s,
+      status: "connecting",
+      callUiPhase: "requesting_permissions",
+      error: null,
+      permissionHelp: null,
+    }));
+
     /** Conferință mesh (fără SFU): câte un RTCPeerConnection per participant. */
     const runConference = async (signalingBaseUrl: string) => {
       const cfg = getWebrtcPublicConfig();
@@ -693,6 +729,8 @@ export function useWebRtcCall({
         cameraSoftFailed: false,
         waitingForPeerInRoom: false,
         connectionPhase: null,
+        callUiPhase: "requesting_permissions",
+        iceRecoveryInFlight: false,
       }));
 
       for (const [, b] of peerMapRef.current) {
@@ -720,6 +758,8 @@ export function useWebRtcCall({
             error: null,
             permissionHelp: help,
             cameraSoftFailed: false,
+            callUiPhase: "requesting_permissions",
+            iceRecoveryInFlight: false,
           }));
         }
         return;
@@ -741,6 +781,7 @@ export function useWebRtcCall({
           cameraUnavailable && !audioOnly
             ? callTrRef.current.tStr("pages.callRoom.rtc.bannerCameraSoft")
             : s.banner,
+        callUiPhase: "starting_media",
       }));
 
       try {
@@ -761,19 +802,23 @@ export function useWebRtcCall({
       try {
         iceServers = await fetchRtcIceServers(getAuthHeaders);
       } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
         if (!cancelled) {
           setState((s) => ({
             ...s,
             status: "error",
-            error: msg.includes("TURN_REQUIRED") ? msg : `TURN_REQUIRED: ${msg}`,
+            error: iceFetchFailurePayload(e),
             connectionPhase: null,
+            callUiPhase: "failed",
+            iceRecoveryInFlight: false,
           }));
         }
         localStream.getTracks().forEach((t) => t.stop());
         return;
       }
       const rtcPcConfig = buildRtcPeerConnectionConfig(iceServers);
+      if (!cancelled) {
+        setState((s) => ({ ...s, callUiPhase: "connecting" }));
+      }
 
       const meshTok = await fetchCallSignalingToken(getAuthHeaders, false);
       if (!meshTok.ok) {
@@ -781,8 +826,10 @@ export function useWebRtcCall({
           setState((s) => ({
             ...s,
             status: "error",
-            error: meshTok.message,
+            error: meshTok.payload ?? meshTok.message,
             connectionPhase: null,
+            callUiPhase: "failed",
+            iceRecoveryInFlight: false,
           }));
         }
         localStream.getTracks().forEach((t) => t.stop());
@@ -798,6 +845,8 @@ export function useWebRtcCall({
             status: "error",
             error: callTrRef.current.tStr("pages.callRoom.rtc.errorMissingSignalingUrl"),
             connectionPhase: null,
+            callUiPhase: "failed",
+            iceRecoveryInFlight: false,
           }));
         }
         localStream.getTracks().forEach((t) => t.stop());
@@ -826,6 +875,8 @@ export function useWebRtcCall({
             status: "error",
             error: callTrRef.current.tStr("pages.callRoom.rtc.wsConnectFailMesh"),
             connectionPhase: null,
+            callUiPhase: "failed",
+            iceRecoveryInFlight: false,
           }));
         }
         localStream.getTracks().forEach((t) => t.stop());
@@ -888,6 +939,7 @@ export function useWebRtcCall({
         void (async () => {
           await setMaxBitrate(pc, maxVideoBps);
           await applyVideoDegradationPreference(pc, "maintain-framerate");
+          await applyProCallVideoSenderCaps(pc);
         })();
 
         pc.addEventListener("signalingstatechange", () => {
@@ -906,7 +958,7 @@ export function useWebRtcCall({
               if (ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({ t: "answer", sdp: answer.sdp ?? "", to: remoteUserId }));
               }
-              if (!cancelled) setState((s) => ({ ...s, status: "connected" }));
+              if (!cancelled) setState((s) => ({ ...s, status: "connected", callUiPhase: "stable" }));
             } catch (e) {
               if (!cancelled) {
                 const detail = formatRtcNegotiationErrorSuffix(e);
@@ -915,6 +967,8 @@ export function useWebRtcCall({
                   error: fillTemplate(callTrRef.current.tStr("pages.callRoom.rtc.negotiateOfferDeferred"), {
                     detail: String(detail),
                   }),
+                  callUiPhase: "failed",
+                  iceRecoveryInFlight: false,
                 }));
               }
             }
@@ -933,6 +987,7 @@ export function useWebRtcCall({
             return {
               ...s,
               status: "connected",
+              callUiPhase: "stable",
               remoteParticipants: [
                 ...others,
                 {
@@ -980,7 +1035,13 @@ export function useWebRtcCall({
           onHardFail: (msg) => {
             if (cancelled) return;
             console.error("[HOSTILE_ICE][mesh]", remoteUserId, msg);
-            setState((s) => ({ ...s, error: msg, banner: msg }));
+            setState((s) => ({
+              ...s,
+              error: msg,
+              banner: msg,
+              callUiPhase: "failed",
+              iceRecoveryInFlight: false,
+            }));
           },
           onBanner: (m) => {
             if (cancelled) return;
@@ -1007,6 +1068,24 @@ export function useWebRtcCall({
               return offer.sdp ?? null;
             });
           },
+          onRecoveryInFlight: (inFlight) => {
+            if (cancelled) return;
+            setState((s) => {
+              if (inFlight) {
+                return {
+                  ...s,
+                  iceRecoveryInFlight: true,
+                  callUiPhase: s.callUiPhase === "stable" ? "reconnecting" : s.callUiPhase,
+                };
+              }
+              return {
+                ...s,
+                iceRecoveryInFlight: false,
+                callUiPhase:
+                  s.callUiPhase === "reconnecting" && s.status === "connected" ? "stable" : s.callUiPhase,
+              };
+            });
+          },
         });
         const meshBundle = peerMapRef.current.get(remoteUserId);
         if (meshBundle) meshBundle.detachHostileGuards = detachMesh;
@@ -1027,6 +1106,8 @@ export function useWebRtcCall({
                 setState((s) => ({
                   ...s,
                   error: callTrRef.current.tStr("pages.callRoom.rtc.errorOfferStart"),
+                  callUiPhase: "failed",
+                  iceRecoveryInFlight: false,
                 }));
             }
           });
@@ -1052,6 +1133,8 @@ export function useWebRtcCall({
               error: callTrRef.current.tStr("pages.callRoom.rtc.errorMeshLimit"),
               connectionPhase: null,
               waitingForPeerInRoom: false,
+              callUiPhase: "failed",
+              iceRecoveryInFlight: false,
             }));
           }
           return;
@@ -1162,7 +1245,7 @@ export function useWebRtcCall({
               const answer = await pc.createAnswer();
               await pc.setLocalDescription(answer);
               ws.send(JSON.stringify({ t: "answer", sdp: answer.sdp ?? "", to: offerFrom }));
-              setState((s) => ({ ...s, status: "connected" }));
+              setState((s) => ({ ...s, status: "connected", callUiPhase: "stable" }));
               patchHostileIceCallQualityOverlay({
                 glareDetectedCount: bundle.glare.glareDetectedCount,
                 rollbackAttemptedCount: bundle.glare.rollbackAttemptedCount,
@@ -1176,6 +1259,8 @@ export function useWebRtcCall({
                   error: fillTemplate(callTrRef.current.tStr("pages.callRoom.rtc.negotiateOffer"), {
                     detail: String(detail),
                   }),
+                  callUiPhase: "failed",
+                  iceRecoveryInFlight: false,
                 }));
               }
             }
@@ -1196,7 +1281,7 @@ export function useWebRtcCall({
             try {
               await pc.setRemoteDescription({ type: "answer", sdp: m.sdp });
               flushPeerBundleIce(bundle);
-              setState((s) => ({ ...s, status: "connected" }));
+              setState((s) => ({ ...s, status: "connected", callUiPhase: "stable" }));
             } catch (e) {
               if (!cancelled) {
                 const detail = formatRtcNegotiationErrorSuffix(e);
@@ -1206,6 +1291,8 @@ export function useWebRtcCall({
                   error: fillTemplate(callTrRef.current.tStr("pages.callRoom.rtc.negotiateAnswer"), {
                     detail: String(detail),
                   }),
+                  callUiPhase: "failed",
+                  iceRecoveryInFlight: false,
                 }));
               }
             }
@@ -1249,6 +1336,8 @@ export function useWebRtcCall({
               cameraSoftFailed: false,
               waitingForPeerInRoom: false,
               connectionPhase: null,
+              callUiPhase: "idle",
+              iceRecoveryInFlight: false,
             }));
             onAutoEndedRef.current?.();
           } else if (!cancelled) {
@@ -1269,6 +1358,8 @@ export function useWebRtcCall({
             ...s,
             error: callTrRef.current.tStr("pages.callRoom.rtc.errorWsSignalingMesh"),
             connectionPhase: null,
+            callUiPhase: "failed",
+            iceRecoveryInFlight: false,
           }));
         }
       };
@@ -1295,6 +1386,8 @@ export function useWebRtcCall({
         cameraSoftFailed: false,
         waitingForPeerInRoom: false,
         connectionPhase: null,
+        callUiPhase: "requesting_permissions",
+        iceRecoveryInFlight: false,
       }));
 
       let localStream: MediaStream;
@@ -1313,6 +1406,8 @@ export function useWebRtcCall({
             permissionHelp: help,
             cameraSoftFailed: false,
             connectionPhase: null,
+            callUiPhase: "requesting_permissions",
+            iceRecoveryInFlight: false,
           }));
         }
         return;
@@ -1335,6 +1430,7 @@ export function useWebRtcCall({
         videoMuted: videoMutedNow,
         cameraSoftFailed: softFail,
         banner: cameraBanner ?? s.banner,
+        callUiPhase: "starting_media",
       }));
 
       try {
@@ -1355,19 +1451,23 @@ export function useWebRtcCall({
       try {
         iceServers = await fetchRtcIceServers(getAuthHeaders);
       } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
         if (!cancelled) {
           setState((s) => ({
             ...s,
             status: "error",
-            error: msg.includes("TURN_REQUIRED") ? msg : `TURN_REQUIRED: ${msg}`,
+            error: iceFetchFailurePayload(e),
             connectionPhase: null,
+            callUiPhase: "failed",
+            iceRecoveryInFlight: false,
           }));
         }
         localStream.getTracks().forEach((t) => t.stop());
         return;
       }
       const rtcPcConfig = buildRtcPeerConnectionConfig(iceServers);
+      if (!cancelled) {
+        setState((s) => ({ ...s, callUiPhase: "connecting" }));
+      }
       console.info("[ICE] ice-config OK", {
         iceServerEntries: iceServers.length,
         apiIceServerObjects: iceServers.length,
@@ -1379,8 +1479,10 @@ export function useWebRtcCall({
           setState((s) => ({
             ...s,
             status: "error",
-            error: p2pTok.message,
+            error: p2pTok.payload ?? p2pTok.message,
             connectionPhase: null,
+            callUiPhase: "failed",
+            iceRecoveryInFlight: false,
           }));
         }
         localStream.getTracks().forEach((t) => t.stop());
@@ -1396,6 +1498,8 @@ export function useWebRtcCall({
             status: "error",
             error: callTrRef.current.tStr("pages.callRoom.rtc.errorMissingSignalingUrl"),
             connectionPhase: null,
+            callUiPhase: "failed",
+            iceRecoveryInFlight: false,
           }));
         }
         localStream.getTracks().forEach((t) => t.stop());
@@ -1429,6 +1533,8 @@ export function useWebRtcCall({
             status: "error",
             error: callTrRef.current.tStr("pages.callRoom.rtc.wsConnectFailP2p"),
             connectionPhase: null,
+            callUiPhase: "failed",
+            iceRecoveryInFlight: false,
           }));
         }
         localStream.getTracks().forEach((t) => t.stop());
@@ -1622,6 +1728,7 @@ export function useWebRtcCall({
         void (async () => {
           await setMaxBitrate(pc, adaptiveVideoBpsRef.current);
           await applyVideoDegradationPreference(pc, "maintain-framerate");
+          await applyProCallVideoSenderCaps(pc);
         })();
 
         pc.addEventListener("signalingstatechange", () => {
@@ -1644,7 +1751,7 @@ export function useWebRtcCall({
               } else if (ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({ t: "answer", sdp: answer.sdp ?? "" }));
               }
-              if (!cancelled) setState((s) => ({ ...s, status: "connected" }));
+              if (!cancelled) setState((s) => ({ ...s, status: "connected", callUiPhase: "stable" }));
             } catch (e) {
               if (!cancelled) {
                 const detail = formatRtcNegotiationErrorSuffix(e);
@@ -1653,6 +1760,8 @@ export function useWebRtcCall({
                   error: fillTemplate(callTrRef.current.tStr("pages.callRoom.rtc.negotiateOfferDeferred"), {
                     detail: String(detail),
                   }),
+                  callUiPhase: "failed",
+                  iceRecoveryInFlight: false,
                 }));
               }
             }
@@ -1691,6 +1800,7 @@ export function useWebRtcCall({
             ...s,
             status: "connected",
             connectionPhase: null,
+            callUiPhase: "stable",
             remoteParticipants: [
               {
                 id: rid,
@@ -1774,6 +1884,7 @@ export function useWebRtcCall({
             applyPlayoutHintsForAllReceivers(pConn);
             setState((s) => ({ ...s, banner: null, connectionPhase: null }));
             startStatsMonitor();
+            void applyProCallVideoSenderCaps(pConn);
           }
         };
 
@@ -1790,8 +1901,9 @@ export function useWebRtcCall({
               status: "error",
               error: msg,
               connectionPhase: null,
+              callUiPhase: "failed",
+              iceRecoveryInFlight: false,
             }));
-            localStream.getTracks().forEach((t) => t.stop());
           },
           onBanner: (m) => {
             if (cancelled) return;
@@ -1822,6 +1934,24 @@ export function useWebRtcCall({
           onRecoveryPublished: () => {
             p2pQualityFrozenUntilMs = Date.now() + QUALITY_POST_ICE_RECOVERY_FREEZE_MS;
           },
+          onRecoveryInFlight: (inFlight) => {
+            if (cancelled) return;
+            setState((s) => {
+              if (inFlight) {
+                return {
+                  ...s,
+                  iceRecoveryInFlight: true,
+                  callUiPhase: s.callUiPhase === "stable" ? "reconnecting" : s.callUiPhase,
+                };
+              }
+              return {
+                ...s,
+                iceRecoveryInFlight: false,
+                callUiPhase:
+                  s.callUiPhase === "reconnecting" && s.status === "connected" ? "stable" : s.callUiPhase,
+              };
+            });
+          },
         });
 
         if (iceQueueRef.current.length) flushIceQueue(pc);
@@ -1846,6 +1976,8 @@ export function useWebRtcCall({
               setState((s) => ({
                 ...s,
                 error: callTrRef.current.tStr("pages.callRoom.rtc.errorOfferStart"),
+                callUiPhase: "failed",
+                iceRecoveryInFlight: false,
               }));
           }
         });
@@ -1965,7 +2097,7 @@ export function useWebRtcCall({
               } else {
                 ws.send(JSON.stringify({ t: "answer", sdp: answer.sdp ?? "" }));
               }
-              setState((s) => ({ ...s, status: "connected" }));
+              setState((s) => ({ ...s, status: "connected", callUiPhase: "stable" }));
               patchHostileIceCallQualityOverlay({
                 glareDetectedCount: p2pGlareMetrics.glareDetectedCount,
                 rollbackAttemptedCount: p2pGlareMetrics.rollbackAttemptedCount,
@@ -1980,6 +2112,8 @@ export function useWebRtcCall({
                   error: fillTemplate(callTrRef.current.tStr("pages.callRoom.rtc.negotiateOffer"), {
                     detail: String(detail),
                   }),
+                  callUiPhase: "failed",
+                  iceRecoveryInFlight: false,
                 }));
               }
             }
@@ -1998,7 +2132,7 @@ export function useWebRtcCall({
             try {
               await p.setRemoteDescription({ type: "answer", sdp: m.sdp });
               flushIceQueue(p);
-              setState((s) => ({ ...s, status: "connected" }));
+              setState((s) => ({ ...s, status: "connected", callUiPhase: "stable" }));
             } catch (e) {
               if (!cancelled) {
                 const detail = formatRtcNegotiationErrorSuffix(e);
@@ -2008,6 +2142,8 @@ export function useWebRtcCall({
                   error: fillTemplate(callTrRef.current.tStr("pages.callRoom.rtc.negotiateAnswer"), {
                     detail: String(detail),
                   }),
+                  callUiPhase: "failed",
+                  iceRecoveryInFlight: false,
                 }));
               }
             }
@@ -2053,6 +2189,8 @@ export function useWebRtcCall({
               cameraSoftFailed: false,
               waitingForPeerInRoom: false,
               connectionPhase: null,
+              callUiPhase: "idle",
+              iceRecoveryInFlight: false,
             }));
             onAutoEndedRef.current?.();
           }
@@ -2067,6 +2205,8 @@ export function useWebRtcCall({
             ...s,
             error: callTrRef.current.tStr("pages.callRoom.rtc.errorWsSignalingP2p"),
             connectionPhase: null,
+            callUiPhase: "failed",
+            iceRecoveryInFlight: false,
           }));
         }
       };
@@ -2105,6 +2245,8 @@ export function useWebRtcCall({
                 status: "error",
                 error: callTrRef.current.tStr("pages.callRoom.rtc.errorWebRtcDisabled"),
                 connectionPhase: null,
+                callUiPhase: "failed",
+                iceRecoveryInFlight: false,
               }));
             }
             return;
@@ -2120,6 +2262,8 @@ export function useWebRtcCall({
           status: "error",
           error: callTrRef.current.tStr("pages.callRoom.rtc.errorWebRtcNotConfigured"),
           connectionPhase: null,
+          callUiPhase: "failed",
+          iceRecoveryInFlight: false,
         }));
         return;
       }
@@ -2161,6 +2305,8 @@ export function useWebRtcCall({
                 cameraSoftFailed: false,
                 waitingForPeerInRoom: false,
                 connectionPhase: null,
+                callUiPhase: "idle",
+                iceRecoveryInFlight: false,
               }));
               onAutoEndedRef.current?.();
             }, 120);
@@ -2179,6 +2325,8 @@ export function useWebRtcCall({
           cameraSoftFailed: false,
           waitingForPeerInRoom: false,
           connectionPhase: null,
+          callUiPhase: "idle",
+          iceRecoveryInFlight: false,
         }));
         onAutoEndedRef.current?.();
       }
@@ -2227,6 +2375,10 @@ export function useWebRtcCall({
     retryPermissions,
     waitingForPeerInRoom: state.waitingForPeerInRoom,
     connectionPhase: state.connectionPhase,
+    callUiPhase: state.callUiPhase,
+    iceRecoveryInFlight: state.iceRecoveryInFlight,
     cursorDataChannel,
   };
 }
+
+export type { CallErrorInput } from "@/lib/i18n/callApiErrorMap";

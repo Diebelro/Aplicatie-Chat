@@ -27,6 +27,17 @@
       "langPickDe": "Show interface in German"
     },
     "wipBanner": "Work in progress — features may change.",
+    "shellErrors": {
+      "boundaryTitle": "Something went wrong",
+      "boundaryDescription": "An error occurred. You can try again or return to the home page.",
+      "tryAgain": "Try again",
+      "backHome": "Home",
+      "notFoundCode": "404",
+      "notFoundDescription": "This page could not be found.",
+      "notFoundHome": "Back to home",
+      "notFoundTerms": "Terms",
+      "notFoundPrivacy": "Privacy"
+    },
     "months": {
       "1": "January",
       "2": "February",
@@ -515,6 +526,38 @@
         "negotiateAnswer": "Could not negotiate the connection (answer).{{detail}}",
         "participantLabel": "Participant {{id}}"
       },
+      "apiErrors": {
+        "SIGNALING_NOT_CONFIGURED": "Signaling is not configured on the server.",
+        "SIGNALING_TOKEN_INVALID": "Could not authorize signaling. Sign in again if needed.",
+        "SIGNALING_SERVICE_UNAVAILABLE": "Call service is busy. Try again shortly.",
+        "TURN_NOT_CONFIGURED": "TURN relay is not configured (server).",
+        "TURN_CONFIG_INVALID": "TURN configuration is invalid or incomplete.",
+        "CALL_TIMEOUT": "The call timed out.",
+        "NEGOTIATION_FAILED": "The connection could not be negotiated.",
+        "PERMISSION_DENIED": "Microphone or camera access was denied.",
+        "DEVICE_NOT_FOUND": "No suitable microphone or camera was found.",
+        "NETWORK_UNREACHABLE": "Network unreachable. Check your connection.",
+        "UNKNOWN": "Something went wrong with the call."
+      },
+      "incomingOverlay": {
+        "audioCall": "Audio call",
+        "videoCall": "Video call",
+        "ringingSubtitle": "is calling you",
+        "tapForRingtone": "Tap anywhere so the ringtone can play (browser restriction).",
+        "decline": "Decline",
+        "answer": "Answer",
+        "missedCallsLink": "View missed calls",
+        "acceptErrorOpen": "Could not open the call. Try again.",
+        "acceptErrorNetwork": "Network error. Check your connection."
+      },
+      "quickCall": {
+        "sessionLoadFailed": "Session could not be loaded. Reload or sign in, then try the call again.",
+        "ringFailedGeneric": "Could not start the call.",
+        "networkError": "Network error. Check your connection.",
+        "ariaVideoAudio": "Video or audio call",
+        "titleVideo": "Video call",
+        "titleAudio": "Audio call"
+      },
       "ui": {
         "phaseSignalingConnecting": "Connecting to the server…",
         "phaseSignalingConnected": "Joining the room…",
@@ -524,6 +567,12 @@
         "phaseWaitingPeer": "Waiting for the other person…",
         "phasePrepMic": "Preparing the microphone…",
         "phasePrepCamMic": "Preparing camera and microphone…",
+        "phaseRequestingPermissions": "Requesting microphone and camera access…",
+        "phaseStartingMedia": "Starting your camera and microphone…",
+        "reconnectingBanner": "Reconnecting…",
+        "reconnectingSubtitle": "Reconnecting…",
+        "reconnectingLong1": "This is taking longer than usual — the call should resume automatically.",
+        "reconnectingLong2": "Check your internet, VPN, or firewall if it continues.",
         "phaseConnectingGeneric": "Connecting…",
         "waitingAnswerOrJoinAria": "Waiting for them to answer the call or join the room.",
         "noVideo": "No video",

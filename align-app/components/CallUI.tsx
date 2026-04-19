@@ -38,6 +38,7 @@ import {
   type RemoteParticipant,
   type CallConnectionPhase,
 } from "@/hooks/useWebRtcCall";
+import type { CallUiPhase } from "@/lib/call/callUiPhase";
 import { getAuthHeaders } from "@/lib/authClient";
 import { isScreenshareFeatureEnabled } from "@/lib/env/webrtcConfig";
 import {
@@ -48,16 +49,19 @@ import {
   supportsAudioOutputSelection,
 } from "@/lib/webrtc/audioOutput";
 import { isMobileDevice } from "@/lib/webrtc/mediaConstraints";
-import { useI18n } from "@/lib/i18n/context";
+import { useCallRoomTranslate } from "@/lib/i18n/callTranslateSafe";
+import { callErrorRawForHints, resolveCallDisplayedError } from "@/lib/i18n/callApiErrorMap";
 import {
   attachCursorReceiver,
   attachCursorSender,
   setCursorEnabled,
 } from "@/lib/webrtc/cursorOverlay";
 import { markCallEndPosted, shouldSkipDuplicateCallEnd } from "@/lib/callEndDedup";
-import { markIncomingGrace } from "@/lib/callIncomingGrace";
+import { markIncomingGrace, POST_HANGUP_INCOMING_GRACE_MS } from "@/lib/callIncomingGrace";
 import { useVideoRenderable } from "@/hooks/useVideoRenderable";
 import { useOutgoingCallerPoll } from "@/hooks/useOutgoingCallerPoll";
+import { DiebelWordmark } from "@/components/DiebelWordmark";
+import { emit } from "@/lib/telemetry/callTelemetry";
 
 /** Ieșire audio pentru stream-ul remot + opțiune „nu aud pe aici” (confidențialitate). */
 type RemoteAudioPlayback = {
@@ -181,7 +185,7 @@ function useRemoteVideoElement(ref: RefObject<HTMLVideoElement | null>, stream: 
 
 /** Card mic (conferință / layout clasic). */
 function RemoteVideoCard({ participant }: { participant: RemoteParticipant }) {
-  const { tStr } = useI18n();
+  const { tStr } = useCallRoomTranslate();
   const ref = useRef<HTMLVideoElement>(null);
   const stream = participant.stream ?? null;
   useRemoteVideoElement(ref, stream);
@@ -196,7 +200,9 @@ function RemoteVideoCard({ participant }: { participant: RemoteParticipant }) {
             autoPlay
             playsInline
             muted
-            className="absolute inset-0 h-full w-full object-cover"
+            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ease-out ${
+              hasRenderableVideo ? "opacity-100" : "opacity-0"
+            }`}
           />
           <div
             className={`absolute inset-0 z-10 flex flex-col items-center justify-center bg-black transition-opacity duration-300 ease-out pointer-events-none ${
@@ -234,7 +240,7 @@ function RemoteVideoStage({
   participant: RemoteParticipant;
   overlayHostRef?: Ref<HTMLDivElement>;
 }) {
-  const { tStr } = useI18n();
+  const { tStr } = useCallRoomTranslate();
   const ref = useRef<HTMLVideoElement>(null);
   const stream = participant.stream ?? null;
   useRemoteVideoElement(ref, stream);
@@ -254,7 +260,9 @@ function RemoteVideoStage({
             autoPlay
             playsInline
             muted
-            className="absolute inset-0 h-full w-full object-cover"
+            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ease-out ${
+              hasRenderableVideo ? "opacity-100" : "opacity-0"
+            }`}
           />
           <div
             className={`absolute inset-0 z-10 flex flex-col items-center justify-center bg-black transition-opacity duration-300 ease-out pointer-events-none ${
@@ -297,7 +305,7 @@ function RemoteVideoStageOptional({
   videoVisible: boolean;
   variant?: "fullscreen" | "pip";
 }) {
-  const { tStr } = useI18n();
+  const { tStr } = useCallRoomTranslate();
   const stream = participant.stream ?? null;
   if (videoVisible || !stream) {
     return <RemoteVideoStage participant={participant} overlayHostRef={overlayHostRef} />;
@@ -350,6 +358,42 @@ function PrivacyQuietIcon({
   return <Volume2 className={className} />;
 }
 
+/** Banner + indicii reconectare (fără blur); aria-live pe container. */
+function ReconnectHintPanel({
+  active,
+  iceRecoveryInFlight,
+  long1,
+  long2,
+  ui,
+  className,
+  bannerClassName,
+}: {
+  active: boolean;
+  iceRecoveryInFlight: boolean;
+  long1: boolean;
+  long2: boolean;
+  ui: (id: string) => string;
+  className: string;
+  bannerClassName: string;
+}) {
+  if (!active) return null;
+  return (
+    <div role="status" aria-live="polite" className={className}>
+      {iceRecoveryInFlight ? <div className={bannerClassName}>{ui("reconnectingBanner")}</div> : null}
+      {long1 || long2 ? (
+        <div className="mt-1.5 space-y-1 px-0.5">
+          {long1 ? (
+            <p className="text-[11px] leading-snug text-sky-100/90">{ui("reconnectingLong1")}</p>
+          ) : null}
+          {long2 ? (
+            <p className="text-[11px] leading-snug text-sky-100/85">{ui("reconnectingLong2")}</p>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 type CallUIProps = {
   roomId: string;
   userId: string;
@@ -370,11 +414,13 @@ export default function CallUI({
   isCaller: isCallerProp,
   transientRingNotify = null,
 }: CallUIProps) {
-  const { tStr, tArray } = useI18n();
-  const callTranslate = useMemo(() => ({ tStr, tArray }), [tStr, tArray]);
+  const callTranslate = useCallRoomTranslate();
   const router = useRouter();
 
-  const ui = useCallback((id: string) => tStr(`pages.callRoom.ui.${id}`), [tStr]);
+  const ui = useCallback(
+    (id: string) => callTranslate.tStr(`pages.callRoom.ui.${id}`),
+    [callTranslate]
+  );
   const getP2pConnectingSubtitle = useCallback(
     (
       audioOnlyCall: boolean,
@@ -445,6 +491,8 @@ export default function CallUI({
     retryPermissions,
     waitingForPeerInRoom,
     connectionPhase,
+    callUiPhase,
+    iceRecoveryInFlight,
     cursorDataChannel,
   } = useWebRtcCall({
     roomId,
@@ -456,7 +504,7 @@ export default function CallUI({
     callTranslate,
     onAutoEnded: () => {
       markCallEndPosted(roomId);
-      markIncomingGrace(roomId, undefined, 8000);
+      markIncomingGrace(roomId, undefined, POST_HANGUP_INCOMING_GRACE_MS);
       void fetch("/api/call/end", {
         method: "POST",
         headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
@@ -466,6 +514,46 @@ export default function CallUI({
       router.replace("/app/messages");
     },
   });
+
+  const errorBackMessagesRef = useRef<HTMLAnchorElement | null>(null);
+
+  useLayoutEffect(() => {
+    if (!error) return;
+    const id = window.requestAnimationFrame(() => {
+      errorBackMessagesRef.current?.focus();
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [error]);
+
+  const prevCallUiPhaseRef = useRef(callUiPhase);
+  useEffect(() => {
+    const prev = prevCallUiPhaseRef.current;
+    const next = callUiPhase;
+    if (prev !== "reconnecting" && next === "reconnecting") emit("CALL_RECONNECTING_START");
+    if (prev === "reconnecting" && next !== "reconnecting") emit("CALL_RECONNECTING_END");
+    if (prev !== "failed" && next === "failed") emit("CALL_FAILED");
+    prevCallUiPhaseRef.current = next;
+  }, [callUiPhase]);
+
+  const [reconnectStartedAt, setReconnectStartedAt] = useState<number | null>(null);
+  const [, setReconnectTick] = useState(0);
+
+  useEffect(() => {
+    if (callUiPhase === "reconnecting") {
+      setReconnectStartedAt((t) => (t == null ? Date.now() : t));
+      const id = window.setInterval(() => setReconnectTick((n) => n + 1), 1000);
+      return () => window.clearInterval(id);
+    }
+    setReconnectStartedAt(null);
+    setReconnectTick(0);
+  }, [callUiPhase]);
+
+  const reconnectElapsedMs =
+    callUiPhase === "reconnecting" && reconnectStartedAt != null ? Date.now() - reconnectStartedAt : 0;
+
+  const showReconnectLong1 = callUiPhase === "reconnecting" && reconnectElapsedMs >= 8000;
+  const showReconnectLong2 = callUiPhase === "reconnecting" && reconnectElapsedMs >= 20000;
+  const reconnectPanelActive = iceRecoveryInFlight || showReconnectLong1 || showReconnectLong2;
 
   const outgoingTerminal = useOutgoingCallerPoll({
     roomId,
@@ -479,6 +567,29 @@ export default function CallUI({
     callState === "outgoing" ||
     callState === "incoming" ||
     callState === "reconnecting";
+
+  /** Linie status header (P2P imersiv video/audio): include reconectare. */
+  const p2pImmersiveHeaderStatusText = useMemo(() => {
+    if (callUiPhase === "reconnecting") return ui("reconnectingSubtitle");
+    if (callState === "connected") return fmtCallDuration(elapsedSec);
+    if (!isConference && isConnectingLike) {
+      return getP2pConnectingSubtitle(audioOnly, connectionPhase, waitingForPeerInRoom, isConnectingLike);
+    }
+    if (waitingForPeerInRoom) return ui("phaseWaitingPeer");
+    if (isConnectingLike) return ui("phaseConnectingGeneric");
+    return "";
+  }, [
+    callUiPhase,
+    callState,
+    isConference,
+    isConnectingLike,
+    audioOnly,
+    connectionPhase,
+    waitingForPeerInRoom,
+    getP2pConnectingSubtitle,
+    ui,
+    elapsedSec,
+  ]);
 
   /** Pe telefon comutăm față/spate prin facingMode chiar dacă enumerateDevices raportează un singur videoinput. */
   const showCameraFlip = !audioOnly && (canSwitchCamera || isMobileDevice());
@@ -697,7 +808,7 @@ export default function CallUI({
     leave();
     if (shouldSkipDuplicateCallEnd(roomId)) return;
     markCallEndPosted(roomId);
-    markIncomingGrace(roomId, undefined, 8000);
+    markIncomingGrace(roomId, undefined, POST_HANGUP_INCOMING_GRACE_MS);
     void fetch("/api/call/end", {
       method: "POST",
       headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
@@ -708,7 +819,7 @@ export default function CallUI({
 
   const handleLeave = () => {
     markCallEndPosted(roomId);
-    markIncomingGrace(roomId, undefined, 8000);
+    markIncomingGrace(roomId, undefined, POST_HANGUP_INCOMING_GRACE_MS);
     leave();
     void fetch("/api/call/end", {
       method: "POST",
@@ -778,6 +889,43 @@ export default function CallUI({
   const immersiveVideo = !isConference && !audioOnly;
   const immersiveAudio = !isConference && audioOnly;
 
+  const callStartupOverlayLabel = useCallback(
+    (phase: CallUiPhase) => {
+      switch (phase) {
+        case "requesting_permissions":
+          return ui("phaseRequestingPermissions");
+        case "starting_media":
+          return ui("phaseStartingMedia");
+        case "connecting":
+          if (isConference && waitingForPeerInRoom) return ui("confConnectingWaitPeers");
+          if (isConference) return ui("confConnecting");
+          return getP2pConnectingSubtitle(audioOnly, connectionPhase, waitingForPeerInRoom, true);
+        case "reconnecting":
+          return ui("reconnectingSubtitle");
+        default:
+          return ui("phaseConnectingGeneric");
+      }
+    },
+    [ui, audioOnly, connectionPhase, waitingForPeerInRoom, getP2pConnectingSubtitle, isConference]
+  );
+
+  const showCallStartupOverlay =
+    (immersiveVideo || immersiveAudio) &&
+    callUiPhase !== "idle" &&
+    callUiPhase !== "stable" &&
+    callUiPhase !== "reconnecting" &&
+    callUiPhase !== "failed";
+
+  /** Evită același text în header și în overlay-ul central (pornire apel / permisiuni). */
+  const hideImmersiveHeaderStatusForStartupOverlay = showCallStartupOverlay;
+
+  const showConferenceStartupOverlay =
+    isConference &&
+    callUiPhase !== "idle" &&
+    callUiPhase !== "stable" &&
+    callUiPhase !== "reconnecting" &&
+    callUiPhase !== "failed";
+
   const canSwapVideoLayout = Boolean(remote && localStream);
   const toggleVideoLayout = useCallback(() => {
     if (!remote || !localStream) return;
@@ -844,11 +992,11 @@ export default function CallUI({
   if (outgoingTerminal === "rejected") {
     return (
       <RemotePlaybackContext.Provider value={remotePlayback}>
-        <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4 px-4 text-center">
-          <p className="text-red-400 font-medium">{tStr("pages.callRoom.outgoingRejectedTitle")}</p>
-          <p className="text-night-500 text-sm max-w-md">{tStr("pages.callRoom.outgoingRejectedBody")}</p>
+        <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center gap-4 bg-night-950 px-4 text-center text-white">
+          <p className="text-red-400 font-medium">{callTranslate.tStr("pages.callRoom.outgoingRejectedTitle")}</p>
+          <p className="text-night-500 text-sm max-w-md">{callTranslate.tStr("pages.callRoom.outgoingRejectedBody")}</p>
           <Link replace href="/app/messages" className="text-brand-400 hover:underline mt-2">
-            {tStr("pages.callRoom.backMessages")}
+            {callTranslate.tStr("pages.callRoom.backMessages")}
           </Link>
         </div>
       </RemotePlaybackContext.Provider>
@@ -858,11 +1006,11 @@ export default function CallUI({
   if (outgoingTerminal === "unreachable") {
     return (
       <RemotePlaybackContext.Provider value={remotePlayback}>
-        <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4 px-4 text-center">
-          <p className="text-amber-400 font-medium">{tStr("pages.callRoom.outgoingUnreachableTitle")}</p>
-          <p className="text-night-500 text-sm max-w-md">{tStr("pages.callRoom.outgoingUnreachableBody")}</p>
+        <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center gap-4 bg-night-950 px-4 text-center text-white">
+          <p className="text-amber-400 font-medium">{callTranslate.tStr("pages.callRoom.outgoingUnreachableTitle")}</p>
+          <p className="text-night-500 text-sm max-w-md">{callTranslate.tStr("pages.callRoom.outgoingUnreachableBody")}</p>
           <Link replace href="/app/messages" className="text-brand-400 hover:underline mt-2">
-            {tStr("pages.callRoom.backMessages")}
+            {callTranslate.tStr("pages.callRoom.backMessages")}
           </Link>
         </div>
       </RemotePlaybackContext.Provider>
@@ -872,7 +1020,7 @@ export default function CallUI({
   if (permissionHelp) {
     return (
       <RemotePlaybackContext.Provider value={remotePlayback}>
-        <div className="flex flex-col items-center justify-center min-h-[50vh] gap-6 px-5 py-10 text-center bg-night-950">
+        <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center gap-6 overflow-y-auto bg-night-950 px-5 py-10 text-center text-white">
           <div className="max-w-lg rounded-2xl border border-amber-500/40 bg-amber-500/[0.12] px-6 py-6 text-left shadow-lg shadow-amber-900/20">
             <p className="text-amber-200/80 text-xs font-medium uppercase tracking-wide mb-2">
               {ui("permissionScreenTitle")}
@@ -908,10 +1056,10 @@ export default function CallUI({
   }
 
   if (error) {
-    const errNorm = typeof error === "string" ? error.normalize("NFKC") : "";
+    const errorRaw = callErrorRawForHints(error);
+    const errNorm = errorRaw.normalize("NFKC");
     /** Erori SDP / createAnswer / setRemoteDescription — nu sunt „lipsesc variabile pe Vercel”. */
     const negotiationFail =
-      typeof error === "string" &&
       (/\(answer\)|\(offer\)/i.test(errNorm) ||
         /Nu\s+am\s+putut\s+negocia/i.test(errNorm) ||
         /negocia\s+conexiunea/i.test(errNorm) ||
@@ -919,14 +1067,14 @@ export default function CallUI({
         /Could\s+not\s+negotiate|Couldn't\s+negotiate|Couldn\u0027t\s+negotiate|negotiate\s+the\s+connection|negotiation\s+failed|WebRTC\s+offer|SDP/i.test(errNorm) ||
         /Verbindung.*(aus)?handel|Angebot.*WebRTC|Antwort.*WebRTC/i.test(errNorm));
     const infraHint =
-      typeof error === "string" &&
-      /NEXT_PUBLIC|TURN_|ICE\/TURN|semnalizare|signaling|Token semnalizare|signaling token|WebRTC nu e configurat|WebRTC este dezactivat|WebRTC is not configured|WebRTC is disabled|Eroare WebSocket|WebSocket signaling|Neautorizat la token|\blips[aă]\b|missing|TURN_REQUIRED/i.test(
-        error
+      /NEXT_PUBLIC|TURN_|ICE\/TURN|semnalizare|signaling|Token semnalizare|signaling token|WebRTC nu e configurat|WebRTC este dezactivat|WebRTC is not configured|WebRTC is disabled|Eroare WebSocket|WebSocket signaling|Neautorizat la token|\blips[aă]\b|missing|TURN_REQUIRED|Signalisierungs-Token|Signaling token was rejected|Unauthorized\.|Too many requests\.|User not found\.|Semnalizare neconfigurată|Signaling is not configured|Signalisierung ist nicht konfiguriert|SIGNALING_|TURN_NOT|TURN_CONFIG/i.test(
+        errorRaw
       );
+    const errorDisplay = resolveCallDisplayedError(error, (path) => callTranslate.tStr(path));
 
     return (
       <RemotePlaybackContext.Provider value={remotePlayback}>
-        <div className="flex min-h-[50vh] items-center justify-center bg-night-950 px-4 py-10">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center overflow-y-auto bg-night-950 px-4 py-10 text-white">
           <div
             className={`w-full max-w-lg rounded-2xl border px-6 py-8 shadow-xl ${
               negotiationFail
@@ -943,7 +1091,7 @@ export default function CallUI({
               <h2 className="text-lg font-semibold text-white tracking-tight">
                 {negotiationFail ? ui("errTitleNegotiation") : ui("errTitleInfra")}
               </h2>
-              <p className="text-sm text-night-300/95 font-medium">{error}</p>
+              <p className="text-sm text-night-300/95 font-medium">{errorDisplay}</p>
             </div>
 
             {negotiationFail ? (
@@ -1003,11 +1151,12 @@ export default function CallUI({
                 {ui("retryConnectionBtn")}
               </button>
               <Link
+                ref={errorBackMessagesRef}
                 replace
                 href="/app/messages"
                 className="inline-flex items-center justify-center rounded-xl border border-white/15 px-5 py-3 text-white/90 font-medium hover:bg-white/5 transition"
               >
-                {tStr("pages.callRoom.backMessages")}
+                {callTranslate.tStr("pages.callRoom.backMessages")}
               </Link>
             </div>
           </div>
@@ -1077,13 +1226,15 @@ export default function CallUI({
                 role="status"
                 aria-live="polite"
                 aria-label={
-                  !isConference && isConnectingLike
-                    ? getP2pConnectingSubtitle(audioOnly, connectionPhase, waitingForPeerInRoom, isConnectingLike)
-                    : waitingForPeerInRoom
-                      ? ui("waitingAnswerOrJoinAria")
-                      : isConnectingLike
-                        ? ui("phaseConnectingGeneric")
-                        : ui("phaseWaitingPeer")
+                  callUiPhase === "reconnecting"
+                    ? ui("reconnectingSubtitle")
+                    : !isConference && isConnectingLike
+                      ? getP2pConnectingSubtitle(audioOnly, connectionPhase, waitingForPeerInRoom, isConnectingLike)
+                      : waitingForPeerInRoom
+                        ? ui("waitingAnswerOrJoinAria")
+                        : isConnectingLike
+                          ? ui("phaseConnectingGeneric")
+                          : ui("phaseWaitingPeer")
                 }
               >
                 <div className="h-16 w-16 border-2 border-white/20 border-t-brand-400 rounded-full animate-spin" />
@@ -1128,6 +1279,20 @@ export default function CallUI({
               ) : null}
             </div>
           )}
+          {showCallStartupOverlay ? (
+            <div
+              className="absolute inset-0 z-[15] flex flex-col items-center justify-center gap-5 bg-night-950 px-6 text-center pointer-events-none"
+              role="status"
+              aria-live="polite"
+            >
+              <DiebelWordmark variant="header" withMark className="text-white/90 [&_svg]:max-h-10" />
+              <div
+                className="h-12 w-12 border-2 border-white/20 border-t-brand-400 rounded-full animate-spin shrink-0"
+                aria-hidden
+              />
+              <p className="text-sm text-white/75 max-w-sm leading-relaxed">{callStartupOverlayLabel(callUiPhase)}</p>
+            </div>
+          ) : null}
         </div>
 
         <div
@@ -1152,21 +1317,22 @@ export default function CallUI({
             <span className="font-semibold text-base sm:text-lg truncate max-w-[60vw]">
               {remote?.displayName || ui("headerVideoCall")}
             </span>
-            <span className="text-xs text-white/55 tabular-nums">
-              {callState === "connected"
-                ? fmtCallDuration(elapsedSec)
-                : !isConference && isConnectingLike
-                  ? getP2pConnectingSubtitle(audioOnly, connectionPhase, waitingForPeerInRoom, isConnectingLike)
-                  : waitingForPeerInRoom
-                    ? ui("phaseWaitingPeer")
-                    : isConnectingLike
-                      ? ui("phaseConnectingGeneric")
-                      : ""}
-            </span>
+            {!hideImmersiveHeaderStatusForStartupOverlay && p2pImmersiveHeaderStatusText ? (
+              <span className="text-xs text-white/55 tabular-nums">{p2pImmersiveHeaderStatusText}</span>
+            ) : null}
           </div>
           <div className="w-11 shrink-0" aria-hidden />
         </header>
 
+        <ReconnectHintPanel
+          active={reconnectPanelActive}
+          iceRecoveryInFlight={iceRecoveryInFlight}
+          long1={showReconnectLong1}
+          long2={showReconnectLong2}
+          ui={ui}
+          className={`relative z-20 mx-3 mt-1 transition-[opacity,transform] duration-200 ease-out ${chromeTopClass}`}
+          bannerClassName="rounded-xl border border-sky-500/40 bg-sky-950/95 px-3 py-2 text-xs text-sky-50"
+        />
         {banner ? (
           <div
             className={`relative z-20 mx-3 mt-1 rounded-xl bg-amber-500/20 border border-amber-400/35 px-3 py-2 text-xs text-amber-50 backdrop-blur-sm transition-[opacity,transform] duration-200 ease-out ${chromeTopClass}`}
@@ -1390,19 +1556,22 @@ export default function CallUI({
           </button>
           <div className="text-center min-w-0 px-2">
             <p className="font-semibold text-lg truncate">{remote?.displayName || ui("headerAudioCall")}</p>
-            <p className="text-xs text-white/50 tabular-nums">
-              {callState === "connected"
-                ? fmtCallDuration(elapsedSec)
-                : !isConference && isConnectingLike
-                  ? getP2pConnectingSubtitle(audioOnly, connectionPhase, waitingForPeerInRoom, isConnectingLike)
-                  : waitingForPeerInRoom
-                    ? ui("phaseWaitingPeer")
-                    : ui("phaseConnectingGeneric")}
-            </p>
+            {!hideImmersiveHeaderStatusForStartupOverlay && p2pImmersiveHeaderStatusText ? (
+              <p className="text-xs text-white/50 tabular-nums">{p2pImmersiveHeaderStatusText}</p>
+            ) : null}
           </div>
           <div className="w-11" />
         </header>
 
+        <ReconnectHintPanel
+          active={reconnectPanelActive}
+          iceRecoveryInFlight={iceRecoveryInFlight}
+          long1={showReconnectLong1}
+          long2={showReconnectLong2}
+          ui={ui}
+          className={`relative z-10 mx-4 mt-1 transition-[opacity,transform] duration-200 ease-out ${chromeTopClass}`}
+          bannerClassName="rounded-xl border border-sky-500/40 bg-sky-950/95 px-3 py-2 text-xs text-sky-50"
+        />
         {transientRingNotify ? (
           <div
             className={`relative z-10 mx-4 mt-1 max-h-[4.25rem] overflow-y-auto rounded-xl border border-sky-400/30 bg-sky-500/15 px-3 py-2 text-left text-xs leading-snug text-sky-50/95 transition-[opacity,transform] duration-200 ease-out break-words ${chromeTopClass}`}
@@ -1412,7 +1581,21 @@ export default function CallUI({
           </div>
         ) : null}
 
-        <div className="flex flex-1 flex-col items-center justify-center px-6 -mt-8">
+        <div className="relative flex flex-1 flex-col items-center justify-center px-6 -mt-8">
+          {showCallStartupOverlay ? (
+            <div
+              className="absolute inset-0 z-[15] flex flex-col items-center justify-center gap-5 bg-night-950 px-6 text-center pointer-events-none"
+              role="status"
+              aria-live="polite"
+            >
+              <DiebelWordmark variant="header" withMark className="text-white/90 [&_svg]:max-h-10" />
+              <div
+                className="h-12 w-12 border-2 border-white/20 border-t-brand-400 rounded-full animate-spin shrink-0"
+                aria-hidden
+              />
+              <p className="text-sm text-white/75 max-w-sm leading-relaxed">{callStartupOverlayLabel(callUiPhase)}</p>
+            </div>
+          ) : null}
           <div className="relative mb-8">
             <div className="absolute inset-0 rounded-full bg-brand-500/20 blur-3xl scale-150" />
             <div className="relative flex h-36 w-36 sm:h-44 sm:w-44 items-center justify-center rounded-full bg-gradient-to-br from-white/15 to-white/5 ring-2 ring-white/20 shadow-2xl">
@@ -1498,19 +1681,23 @@ export default function CallUI({
   /* ——— Conferință sau fallback ——— */
   return (
     <RemotePlaybackContext.Provider value={remotePlayback}>
-    <div className="flex flex-col min-h-[calc(100dvh-4rem)] sm:min-h-[calc(100vh-5rem)]">
-      <div className="flex items-center justify-between border-b border-night-600 py-2 px-3 sm:px-4">
+    <div className="fixed inset-0 z-[200] flex flex-col bg-night-950 text-night-100 overflow-hidden">
+      <div className="flex items-center justify-between border-b border-night-600 py-2 px-3 sm:px-4 shrink-0">
         <Link replace href="/app/messages" onClick={() => leave()} className="text-night-500 hover:text-white text-sm">
           {ui("confBarMessagesLink")}
         </Link>
         <span className="text-night-500 text-sm">
-          {isConnectingLike &&
-            (!isConference
-              ? getP2pConnectingSubtitle(audioOnly, connectionPhase, waitingForPeerInRoom, isConnectingLike)
-              : waitingForPeerInRoom
-                ? ui("confConnectingWaitPeers")
-                : ui("confConnecting"))}
+          {callUiPhase === "reconnecting"
+            ? ui("reconnectingSubtitle")
+            : !showConferenceStartupOverlay &&
+                isConnectingLike &&
+                (!isConference
+                  ? getP2pConnectingSubtitle(audioOnly, connectionPhase, waitingForPeerInRoom, isConnectingLike)
+                  : waitingForPeerInRoom
+                    ? ui("confConnectingWaitPeers")
+                    : ui("confConnecting"))}
           {callState === "connected" &&
+            callUiPhase !== "reconnecting" &&
             (isConference ? ui("confConnectedConference") : ui("confConnectedCall"))}
           {callState === "ended" && ui("confEnded")}
         </span>
@@ -1532,6 +1719,15 @@ export default function CallUI({
         {!isConference && <span className="w-16" />}
       </div>
 
+      <ReconnectHintPanel
+        active={reconnectPanelActive}
+        iceRecoveryInFlight={iceRecoveryInFlight}
+        long1={showReconnectLong1}
+        long2={showReconnectLong2}
+        ui={ui}
+        className="mx-4 mt-2"
+        bannerClassName="rounded-lg border border-sky-500/40 bg-sky-950/95 px-3 py-2 text-sm text-sky-50"
+      />
       {banner ? (
         <div className="mx-4 mt-2 rounded-lg bg-amber-500/15 border border-amber-500/40 px-3 py-2 text-sm text-amber-100">
           {banner}
@@ -1547,11 +1743,28 @@ export default function CallUI({
       ) : null}
       {remotePlaybackHintBanner}
 
-      <div
-        className={`grid flex-1 min-h-0 gap-3 p-3 sm:p-4 overflow-auto ${
-          isConference ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 max-w-3xl mx-auto w-full"
-        }`}
-      >
+      <div className="relative flex flex-1 min-h-0 flex-col">
+        {showConferenceStartupOverlay ? (
+          <div
+            className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 bg-night-950 px-5 text-center pointer-events-none"
+            role="status"
+            aria-live="polite"
+          >
+            <DiebelWordmark variant="header" withMark className="text-white/90 [&_svg]:max-h-9" />
+            <div
+              className="h-10 w-10 border-2 border-white/20 border-t-brand-400 rounded-full animate-spin shrink-0"
+              aria-hidden
+            />
+            <p className="text-sm text-white/70 max-w-sm leading-relaxed">
+              {callStartupOverlayLabel(callUiPhase)}
+            </p>
+          </div>
+        ) : null}
+        <div
+          className={`grid flex-1 min-h-0 gap-3 p-3 sm:p-4 overflow-auto ${
+            isConference ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 max-w-3xl mx-auto w-full"
+          }`}
+        >
         <div className="relative rounded-2xl overflow-hidden bg-night-800 border border-white/10 aspect-video shadow-lg">
           <video ref={bindLocalVideoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
           <audio ref={bindLocalAudioRef} autoPlay playsInline muted className="hidden" />
@@ -1567,8 +1780,9 @@ export default function CallUI({
           </div>
         )}
       </div>
+      </div>
 
-      <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 border-t border-night-600 bg-night-950/90 py-3 px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <div className="flex flex-wrap shrink-0 items-center justify-center gap-2 sm:gap-3 border-t border-night-600 bg-night-950/90 py-3 px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <button
           type="button"
           onClick={onMicToggle}

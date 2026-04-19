@@ -27,6 +27,17 @@
       "langPickDe": "Afișează interfața în germană"
     },
     "wipBanner": "Site în lucru — funcționalitățile pot fi modificate.",
+    "shellErrors": {
+      "boundaryTitle": "Ceva nu a mers bine",
+      "boundaryDescription": "A apărut o eroare. Poți încerca din nou sau reveni la pagina principală.",
+      "tryAgain": "Încearcă din nou",
+      "backHome": "Pagina principală",
+      "notFoundCode": "404",
+      "notFoundDescription": "Această pagină nu a fost găsită.",
+      "notFoundHome": "Înapoi acasă",
+      "notFoundTerms": "Termeni",
+      "notFoundPrivacy": "Confidențialitate"
+    },
     "months": {
       "1": "Ianuarie",
       "2": "Februarie",
@@ -515,6 +526,38 @@
         "negotiateAnswer": "Nu am putut negocia conexiunea (answer).{{detail}}",
         "participantLabel": "Participant {{id}}"
       },
+      "apiErrors": {
+        "SIGNALING_NOT_CONFIGURED": "Semnalizarea nu e configurată pe server.",
+        "SIGNALING_TOKEN_INVALID": "Nu s-a putut autoriza semnalizarea. Ieși și intră din nou dacă e nevoie.",
+        "SIGNALING_SERVICE_UNAVAILABLE": "Serviciul de apel e ocupat. Încearcă din nou în câteva momente.",
+        "TURN_NOT_CONFIGURED": "TURN (relay) nu e configurat pe server.",
+        "TURN_CONFIG_INVALID": "Configurația TURN e invalidă sau incompletă.",
+        "CALL_TIMEOUT": "Apelul a expirat.",
+        "NEGOTIATION_FAILED": "Conexiunea nu s-a putut negocia.",
+        "PERMISSION_DENIED": "Acces la microfon sau cameră refuzat.",
+        "DEVICE_NOT_FOUND": "Nu s-a găsit microfon sau cameră potrivită.",
+        "NETWORK_UNREACHABLE": "Rețea indisponibilă. Verifică conexiunea.",
+        "UNKNOWN": "A apărut o problemă la apel."
+      },
+      "incomingOverlay": {
+        "audioCall": "Apel audio",
+        "videoCall": "Apel video",
+        "ringingSubtitle": "te sună",
+        "tapForRingtone": "Apasă oriunde pe ecran ca să se audă soneria (blocaj browser).",
+        "decline": "Respinge",
+        "answer": "Răspunde",
+        "missedCallsLink": "Vezi apeluri pierdute",
+        "acceptErrorOpen": "Nu s-a putut deschide apelul. Reîncearcă.",
+        "acceptErrorNetwork": "Eroare rețea. Verifică conexiunea."
+      },
+      "quickCall": {
+        "sessionLoadFailed": "Nu s-a încărcat sesiunea. Reîncarcă pagina sau intră din nou în cont, apoi încearcă apelul.",
+        "ringFailedGeneric": "Nu am putut porni apelul.",
+        "networkError": "Eroare rețea. Verifică conexiunea.",
+        "ariaVideoAudio": "Apel video sau audio",
+        "titleVideo": "Apel video",
+        "titleAudio": "Apel audio"
+      },
       "ui": {
         "phaseSignalingConnecting": "Ne conectăm la server…",
         "phaseSignalingConnected": "Intrăm în cameră…",
@@ -524,6 +567,12 @@
         "phaseWaitingPeer": "Așteptăm celălaltul…",
         "phasePrepMic": "Pregătim microfonul…",
         "phasePrepCamMic": "Pregătim camera și microfonul…",
+        "phaseRequestingPermissions": "Cerem acces la microfon și cameră…",
+        "phaseStartingMedia": "Pornim camera și microfonul…",
+        "reconnectingBanner": "Se reconectează…",
+        "reconnectingSubtitle": "Reconectare…",
+        "reconnectingLong1": "Durează mai mult decât de obicei — apelul ar trebui să revină singur.",
+        "reconnectingLong2": "Verifică internetul / VPN / firewall dacă persistă.",
         "phaseConnectingGeneric": "Se conectează…",
         "waitingAnswerOrJoinAria": "Așteptăm să răspundă la apel sau să intre în cameră.",
         "noVideo": "Fără video",

@@ -27,6 +27,17 @@
       "langPickDe": "Oberfläche auf Deutsch"
     },
     "wipBanner": "Website in Arbeit — Funktionen können sich ändern.",
+    "shellErrors": {
+      "boundaryTitle": "Etwas ist schiefgelaufen",
+      "boundaryDescription": "Es ist ein Fehler aufgetreten. Sie können es erneut versuchen oder zur Startseite zurückkehren.",
+      "tryAgain": "Erneut versuchen",
+      "backHome": "Startseite",
+      "notFoundCode": "404",
+      "notFoundDescription": "Diese Seite wurde nicht gefunden.",
+      "notFoundHome": "Zur Startseite",
+      "notFoundTerms": "Nutzungsbedingungen",
+      "notFoundPrivacy": "Datenschutz"
+    },
     "months": {
       "1": "Januar",
       "2": "Februar",
@@ -515,6 +526,38 @@
         "negotiateAnswer": "Verbindung konnte nicht ausgehandelt werden (Answer).{{detail}}",
         "participantLabel": "Teilnehmer {{id}}"
       },
+      "apiErrors": {
+        "SIGNALING_NOT_CONFIGURED": "Signalisierung auf dem Server nicht konfiguriert.",
+        "SIGNALING_TOKEN_INVALID": "Signalisierung nicht autorisiert. Ggf. neu anmelden.",
+        "SIGNALING_SERVICE_UNAVAILABLE": "Anrufdienst ausgelastet. Kurz warten und erneut versuchen.",
+        "TURN_NOT_CONFIGURED": "TURN-Relay auf dem Server nicht konfiguriert.",
+        "TURN_CONFIG_INVALID": "TURN-Konfiguration ungültig oder unvollständig.",
+        "CALL_TIMEOUT": "Zeitüberschreitung beim Anruf.",
+        "NEGOTIATION_FAILED": "Verbindung konnte nicht ausgehandelt werden.",
+        "PERMISSION_DENIED": "Mikrofon- oder Kamerazugriff verweigert.",
+        "DEVICE_NOT_FOUND": "Kein passendes Mikrofon oder keine Kamera gefunden.",
+        "NETWORK_UNREACHABLE": "Netzwerk nicht erreichbar.",
+        "UNKNOWN": "Beim Anruf ist ein Fehler aufgetreten."
+      },
+      "incomingOverlay": {
+        "audioCall": "Audioanruf",
+        "videoCall": "Videoanruf",
+        "ringingSubtitle": "ruft an",
+        "tapForRingtone": "Tippe irgendwo, damit der Klingelton spielt (Browser).",
+        "decline": "Ablehnen",
+        "answer": "Annehmen",
+        "missedCallsLink": "Entgangene Anrufe",
+        "acceptErrorOpen": "Anruf konnte nicht geöffnet werden. Erneut versuchen.",
+        "acceptErrorNetwork": "Netzwerkfehler. Verbindung prüfen."
+      },
+      "quickCall": {
+        "sessionLoadFailed": "Sitzung nicht geladen. Seite neu laden oder anmelden, dann erneut versuchen.",
+        "ringFailedGeneric": "Anruf konnte nicht gestartet werden.",
+        "networkError": "Netzwerkfehler. Verbindung prüfen.",
+        "ariaVideoAudio": "Video- oder Audioanruf",
+        "titleVideo": "Videoanruf",
+        "titleAudio": "Audioanruf"
+      },
       "ui": {
         "phaseSignalingConnecting": "Verbindung zum Server…",
         "phaseSignalingConnected": "Raum wird betreten…",
@@ -524,6 +567,12 @@
         "phaseWaitingPeer": "Warten auf die andere Person…",
         "phasePrepMic": "Mikrofon wird vorbereitet…",
         "phasePrepCamMic": "Kamera und Mikrofon werden vorbereitet…",
+        "phaseRequestingPermissions": "Zugriff auf Mikrofon und Kamera wird angefordert…",
+        "phaseStartingMedia": "Kamera und Mikrofon werden gestartet…",
+        "reconnectingBanner": "Verbindung wird wiederhergestellt…",
+        "reconnectingSubtitle": "Wiederverbindung…",
+        "reconnectingLong1": "Das dauert ungewöhnlich lange — der Anruf sollte automatisch weitergehen.",
+        "reconnectingLong2": "Prüfen Sie Internet, VPN oder Firewall, falls es weiterhin hakt.",
         "phaseConnectingGeneric": "Verbindung wird hergestellt…",
         "waitingAnswerOrJoinAria": "Warten auf Annahme des Anrufs oder Beitritt zum Raum.",
         "noVideo": "Kein Video",

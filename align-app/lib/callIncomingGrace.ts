@@ -3,6 +3,9 @@
  * (serverless / eventual consistency). Suprimă UI + sonerie fără a depinde de click-uri în Vercel.
  */
 
+/** După încheiere apel: poll-ul poate mai vedea pending 1–15s; fără grace suficient reapare overlay + sonerie de câteva ori pe mobil. */
+export const POST_HANGUP_INCOMING_GRACE_MS = 22_000;
+
 const STORAGE_KEY = "diebel_incoming_grace_v1";
 
 type GraceEntry = { roomId: string; pendingSince?: string; until: number };
@@ -38,7 +41,7 @@ function pruneExpired(map: GraceStore): void {
   }
 }
 
-export function markIncomingGrace(roomId: string, pendingSince?: string, ms = 8000): void {
+export function markIncomingGrace(roomId: string, pendingSince?: string, ms = POST_HANGUP_INCOMING_GRACE_MS): void {
   if (typeof window === "undefined" || !roomId.trim()) return;
   const map = readStore();
   pruneExpired(map);

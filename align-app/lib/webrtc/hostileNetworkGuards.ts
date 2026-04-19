@@ -141,6 +141,8 @@ export type HostileGuardsInput = {
   createIceRestartOffer: (pc: RTCPeerConnection) => Promise<string | null>;
   /** Invoked once when an ICE-restart offer is published after auto-recovery (quality freeze). */
   onRecoveryPublished?: () => void;
+  /** ICE auto-recovery (re-fetch TURN + restart) — pentru banner „reconectare”, fără overlay complet. */
+  onRecoveryInFlight?: (inFlight: boolean) => void;
 };
 
 export function attachHostileNetworkGuards(input: HostileGuardsInput): () => void {
@@ -154,6 +156,7 @@ export function attachHostileNetworkGuards(input: HostileGuardsInput): () => voi
     publishIceRestartOffer,
     createIceRestartOffer,
     onRecoveryPublished,
+    onRecoveryInFlight,
   } = input;
   let disposed = false;
   let recoverySlotConsumed = false;
@@ -267,6 +270,7 @@ export function attachHostileNetworkGuards(input: HostileGuardsInput): () => voi
     recoveryInFlight = true;
     recoverySlotConsumed = true;
     lastRestartReason = reason;
+    onRecoveryInFlight?.(true);
     onBanner(`TURN_REQUIRED: reîncerc ICE (${reason})…`);
     publishDiag({
       ...diag(),
@@ -294,6 +298,7 @@ export function attachHostileNetworkGuards(input: HostileGuardsInput): () => voi
       hardFail(`${HOSTILE_ICE_ERROR.ICE_RESTART_FAILED}: ${msg}`);
     } finally {
       recoveryInFlight = false;
+      onRecoveryInFlight?.(false);
     }
   }
 

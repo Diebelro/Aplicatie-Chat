@@ -24,10 +24,10 @@
 |-----------|---------|------|
 | `DATABASE_URL` | `postgresql://user:pass@host/db?sslmode=require` | Conectare la PostgreSQL (Neon/Vercel Postgres) |
 | `NEXTAUTH_SECRET` | string lung aleatoriu (min 32 caractere) | Pentru sesiuni; generezi cu `openssl rand -base64 32` |
-| `NEXTAUTH_URL` | `https://numele-proiectului.vercel.app` | URL-ul public al site-ului (fără slash la final) |
+| `NEXTAUTH_URL` | `https://chat.diebel.ro` | URL canonic public (fără slash la final) |
 | `NEXT_PUBLIC_APP_URL` | același ca `NEXTAUTH_URL` | Pentru link-uri în email, OAuth, etc. |
 
-După primul deploy, copiază URL-ul real (ex. `https://align-xxx.vercel.app`) și pune-l în `NEXTAUTH_URL` și `NEXT_PUBLIC_APP_URL`, apoi **Redeploy**.
+Producția DIEBEL folosește domeniul **`https://chat.diebel.ro`** (proiect Vercel `aplicatie-chat`). URL-urile `*.vercel.app` sunt secundare (preview / debugging), nu înlocuiesc `chat.diebel.ro` în env. După schimbarea env: **Redeploy**.
 
 Opțional (dacă le folosești):
 

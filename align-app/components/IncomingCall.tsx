@@ -16,6 +16,8 @@ import { markCallEndPosted, shouldSkipDuplicateCallEnd } from "@/lib/callEndDedu
 import { CALL_POLL_429_BACKOFF_MS } from "@/lib/callOutgoingConstants";
 import { startIncomingRingtone, stopIncomingRingtone } from "@/lib/callRingtone";
 import { isBrowserPushPrimaryPath } from "@/lib/browserPushConstants";
+import { useCallRoomTranslate } from "@/lib/i18n/callTranslateSafe";
+import { resolveCallDisplayedError, type CallErrorPayload } from "@/lib/i18n/callApiErrorMap";
 
 /**
  * Soneria „incoming” e înainte de join în camera WebRTC — nu folosește `callState` din `useWebRtcCall`
@@ -45,6 +47,7 @@ interface IncomingCallData {
 export default function IncomingCall() {
   const router = useRouter();
   const pathname = usePathname();
+  const callT = useCallRoomTranslate();
   /** Pe pagina de apel nu mai arătăm overlay / sunet — evită „sună continuu” după Răspunde. */
   const onCallPage = pathname?.startsWith("/app/call") ?? false;
 
@@ -140,10 +143,11 @@ export default function IncomingCall() {
           return;
         }
         if (clearIncomingDebounceRef.current != null) return;
+        /** Mai lung decât poll-ul vizibil (~800ms): evită „clip” null→același apel→sonerie de la capăt. */
         clearIncomingDebounceRef.current = window.setTimeout(() => {
           clearIncomingDebounceRef.current = null;
           setIncoming(null);
-        }, 500);
+        }, 1600);
       })
       .catch(() => {});
   }, [cancelScheduledClearIncoming]);
@@ -285,9 +289,9 @@ export default function IncomingCall() {
       credentials: "same-origin",
     })
       .then(async (r) => {
-        const d = await r.json().catch(() => ({}));
+        const d = (await r.json().catch(() => ({}))) as CallErrorPayload & { roomId?: string; audioOnly?: boolean };
         if (!r.ok) {
-          setActionError((d.error as string) || `Eroare ${r.status}. Încearcă din nou.`);
+          setActionError(resolveCallDisplayedError(d, callT.tStr));
           return;
         }
         if (d.roomId) {
@@ -298,10 +302,10 @@ export default function IncomingCall() {
           /** Nu setIncoming(null) înainte de navigare — altfel dispare overlay-ul și se vede o clipă pagina de dedesubt (ex. mesaje). */
           router.push(`/app/call/${d.roomId}${q}`);
         } else {
-          setActionError("Nu s-a putut deschide apelul. Reîncearcă.");
+          setActionError(callT.tStr("pages.callRoom.incomingOverlay.acceptErrorOpen"));
         }
       })
-      .catch(() => setActionError("Eroare rețea. Verifică conexiunea."))
+      .catch(() => setActionError(callT.tStr("pages.callRoom.incomingOverlay.acceptErrorNetwork")))
       .finally(() => setLoading(false));
   };
 
@@ -344,18 +348,21 @@ export default function IncomingCall() {
 
   if (onCallPage || !incoming) return null;
 
+  const displayName =
+    incoming.fromName.trim() !== "" ? incoming.fromName : callT.tStr("pages.callRoom.fallbackUserName");
+
   return (
     <div className="fixed inset-0 z-[220] flex flex-col items-center justify-center bg-night-900 min-h-screen p-6">
       <p className="text-night-400 text-base mb-2">
-        {incoming.audioOnly ? "Apel audio" : "Apel video"}
+        {incoming.audioOnly
+          ? callT.tStr("pages.callRoom.incomingOverlay.audioCall")
+          : callT.tStr("pages.callRoom.incomingOverlay.videoCall")}
       </p>
-      <p className="text-2xl md:text-3xl font-semibold text-white mb-2 text-center">
-        {incoming.fromName}
-      </p>
-      <p className="text-lg text-night-400 mb-8">te sună</p>
+      <p className="text-2xl md:text-3xl font-semibold text-white mb-2 text-center">{displayName}</p>
+      <p className="text-lg text-night-400 mb-8">{callT.tStr("pages.callRoom.incomingOverlay.ringingSubtitle")}</p>
       {ringNeedsTap && (
         <p className="text-night-500 text-sm text-center max-w-sm mb-4 px-2">
-          Apasă oriunde pe ecran ca să se audă soneria (blocaj browser).
+          {callT.tStr("pages.callRoom.incomingOverlay.tapForRingtone")}
         </p>
       )}
       {actionError && (
@@ -371,7 +378,7 @@ export default function IncomingCall() {
           className="flex flex-col items-center gap-3 px-8 py-5 rounded-full bg-red-500/25 text-red-400 hover:bg-red-500/35 transition disabled:opacity-50 min-w-[140px]"
         >
           <PhoneOff className="w-12 h-12" />
-          <span className="text-base font-medium">Respinge</span>
+          <span className="text-base font-medium">{callT.tStr("pages.callRoom.incomingOverlay.decline")}</span>
         </button>
         <button
           type="button"
@@ -380,7 +387,7 @@ export default function IncomingCall() {
           className="flex flex-col items-center gap-3 px-8 py-5 rounded-full bg-green-500/25 text-green-400 hover:bg-green-500/35 transition disabled:opacity-50 min-w-[140px]"
         >
           <Phone className="w-12 h-12" />
-          <span className="text-base font-medium">Răspunde</span>
+          <span className="text-base font-medium">{callT.tStr("pages.callRoom.incomingOverlay.answer")}</span>
         </button>
       </div>
       <p className="mt-10 text-center">
@@ -388,7 +395,7 @@ export default function IncomingCall() {
           href="/app/missed-calls"
           className="text-sm text-night-500 hover:text-brand-400 underline underline-offset-2"
         >
-          Vezi apeluri pierdute
+          {callT.tStr("pages.callRoom.incomingOverlay.missedCallsLink")}
         </Link>
       </p>
     </div>

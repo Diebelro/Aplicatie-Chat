@@ -1,0 +1,14 @@
+---
+description: Test „pe net” și producție = exclusiv chat.diebel.ro; deploy la proiectul Vercel corect
+alwaysApply: true
+---
+
+# Producție și test pe internet — **https://chat.diebel.ro**
+
+- Când utilizatorul spune **„test pe net”**, **„în producție”**, **„live”**, **„pe telefon ca lumea”** sau echivalent: **URL-ul de referință este mereu `https://chat.diebel.ro`**. Nu propune ca destinație principală URL-uri `*.vercel.app` (ex. `align-app-delta`, `align-…`, `aplicatie-chat-…`) — acelea sunt doar artefacte Vercel, nu produsul final.
+- **Folderul cod:** `align-app` (nume intern repo). **Domeniul utilizatorilor:** `chat.diebel.ro`. Nu confunda numele folderului cu URL-ul public.
+- **Vercel:** domeniul `chat.diebel.ro` este legat de proiectul **`aplicatie-chat`**, cu **Root Directory** = `align-app`. Deploy-ul care actualizează **chat.diebel.ro** trebuie să țintească **`aplicatie-chat`**, nu proiectul separat `align-app`.
+- **Comandă recomandată de deploy producție (din `align-app`):** `npm run deploy:chat` (echivalent: din rădăcina repo-ului `Aplicatie Chat`, `npx vercel deploy --prod --yes` cu `.vercel` legat de `aplicatie-chat`).
+- **Evită:** `npx vercel deploy --prod` doar din `align-app` **fără** `--cwd ..` către repo-ul părinte — poate ținti proiectul greșit sau calea `align-app/align-app`.
+- **Env / link-uri în răspunsuri:** pentru producție, menționează `NEXTAUTH_URL`, `NEXT_PUBLIC_APP_URL`, `PUBLIC_APP_URL` aliniate cu **`https://chat.diebel.ro`** unde e relevant.
+- **Constantă în cod:** `CHAT_PRODUCTION_URL` în `lib/appUrl.ts` — folosește-o pentru fallback-uri canonice, nu hostname-uri Vercel ad-hoc.

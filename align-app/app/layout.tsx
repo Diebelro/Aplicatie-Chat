@@ -3,17 +3,17 @@ import "./globals.css";
 import { Providers } from "@/components/Providers";
 import { DisableDevTools } from "@/components/DisableDevTools";
 import { PwaServiceWorkerRegister } from "@/components/PwaServiceWorkerRegister";
-import { getPublicAppUrl } from "@/lib/appUrl";
+import { getPublicAppUrl, CHAT_PRODUCTION_URL } from "@/lib/appUrl";
 
 const siteUrlRaw = getPublicAppUrl();
 let metadataBaseUrl =
   siteUrlRaw.startsWith("http://localhost") || siteUrlRaw.startsWith("http://127.0.0.1")
     ? (process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ||
         process.env.NEXTAUTH_URL?.replace(/\/$/, "") ||
-        "https://align-app-delta.vercel.app")
+        CHAT_PRODUCTION_URL)
     : siteUrlRaw.replace(/\/$/, "");
 if (!metadataBaseUrl.trim() || !/^https?:\/\//i.test(metadataBaseUrl.trim())) {
-  metadataBaseUrl = "https://chat.diebel.ro";
+  metadataBaseUrl = CHAT_PRODUCTION_URL;
 }
 
 const defaultTitle = "Diebel — Same intent. Real connections.";

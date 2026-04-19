@@ -17,38 +17,48 @@ import { isWebPushConfigured } from "@/lib/webPushEnv";
 import { sendIncomingCallWebPush } from "@/lib/webPushSend";
 import { rateLimitAllow } from "@/lib/callRateLimit";
 import { resolveRequestUserId } from "@/lib/sessionAuth";
+import { callApiErrorJson } from "@/lib/call/callApiJsonError";
 
 /** Sună pe toId: înregistrează apelul în așteptare ca celălalt să vadă „X te sună”. */
 export async function POST(request: NextRequest) {
   const userId = await resolveRequestUserId(request);
   if (!userId) {
-    return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
+    return NextResponse.json(
+      callApiErrorJson("SIGNALING_TOKEN_INVALID", { error: "Neautorizat." }),
+      { status: 401 }
+    );
   }
 
   if (!rateLimitAllow(`call-ring:${userId}`, 5, 60_000)) {
-    return NextResponse.json({ error: "Prea multe apeluri. Încearcă mai târziu." }, { status: 429 });
+    return NextResponse.json(
+      callApiErrorJson("SIGNALING_SERVICE_UNAVAILABLE", { error: "Prea multe apeluri. Încearcă mai târziu." }),
+      { status: 429 }
+    );
   }
 
   if (!(await callApiCallerUserExists(userId))) {
-    return NextResponse.json({ error: "Utilizator negăsit." }, { status: 404 });
+    return NextResponse.json(callApiErrorJson("UNKNOWN", { error: "Utilizator negăsit." }), { status: 404 });
   }
 
   let body: { toId?: string; roomId?: string; audioOnly?: boolean };
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Body invalid." }, { status: 400 });
+    return NextResponse.json(callApiErrorJson("UNKNOWN", { error: "Body invalid." }), { status: 400 });
   }
   const toId = body.toId;
   if (!toId || typeof toId !== "string") {
-    return NextResponse.json({ error: "Lipsește toId." }, { status: 400 });
+    return NextResponse.json(callApiErrorJson("UNKNOWN", { error: "Lipsește toId." }), { status: 400 });
   }
   const me = await resolveUserDtoForRing(userId);
   if (!me) {
-    return NextResponse.json({ error: "Utilizator negăsit." }, { status: 404 });
+    return NextResponse.json(callApiErrorJson("UNKNOWN", { error: "Utilizator negăsit." }), { status: 404 });
   }
   if (!(await callApiCallerUserExists(toId))) {
-    return NextResponse.json({ error: "Utilizatorul sunat nu există." }, { status: 404 });
+    return NextResponse.json(
+      callApiErrorJson("UNKNOWN", { error: "Utilizatorul sunat nu există." }),
+      { status: 404 }
+    );
   }
 
   const roomId = body.roomId ?? getVideoRoomId(me.id, toId);
@@ -70,10 +80,10 @@ export async function POST(request: NextRequest) {
     } catch (e) {
       console.error("[api/call/ring] prismaUpsertPendingIncomingCall", e);
       return NextResponse.json(
-        {
+        callApiErrorJson("SIGNALING_SERVICE_UNAVAILABLE", {
           error:
             "Serverul nu a putut înregistra apelul (bază de date). Verifică migrările și DATABASE_URL pe Vercel, apoi reîncearcă.",
-        },
+        }),
         { status: 503 }
       );
     }
@@ -90,7 +100,7 @@ export async function POST(request: NextRequest) {
 
   /** Android: FCM. iOS: APNs VoIP. Browser: Web Push (VAPID) + fallback la poll /api/call/incoming. */
   if (isPrismaAvailable()) {
-    const callerName = me.name ?? me.username ?? "Apel";
+    const callerName = me.name ?? me.username ?? "Call";
     const pushData = { roomId, callerId: me.id, callerName, audioOnly };
     const fcmServer = isFcmConfigured();
     const voipServer = isApnsVoipConfigured();

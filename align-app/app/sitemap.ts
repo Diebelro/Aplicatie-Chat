@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { getPublicAppUrl } from "@/lib/appUrl";
+import { getPublicAppUrl, CHAT_PRODUCTION_URL } from "@/lib/appUrl";
 
 function siteOrigin(): string {
   const u = getPublicAppUrl();
@@ -7,7 +7,7 @@ function siteOrigin(): string {
     return (
       process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ||
       process.env.NEXTAUTH_URL?.replace(/\/$/, "") ||
-      "https://align-app-delta.vercel.app"
+      CHAT_PRODUCTION_URL
     );
   }
   return u.replace(/\/$/, "");

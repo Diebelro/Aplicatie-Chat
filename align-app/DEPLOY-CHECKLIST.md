@@ -2,8 +2,8 @@
 
 ## 1. Deploy (hosting)
 
-- [ ] **Vercel:** fie `vercel login` + `npx vercel --prod` din `align-app`, fie conectezi repo-ul (GitHub etc.) în Vercel și faci deploy din dashboard.
-- [ ] După primul deploy, notează URL-ul de producție (ex. `https://align-app.vercel.app` sau domeniul tău).
+- [ ] **Vercel:** proiectul care servește **https://chat.diebel.ro** este **`aplicatie-chat`** (Root Directory `align-app`). Deploy CLI: din `align-app` rulează **`npm run deploy:chat`** (sau din rădăcina repo-ului `npx vercel deploy --prod` cu `.vercel` legat de `aplicatie-chat`). Nu confunda cu proiectul separat `align-app` pe Vercel.
+- [ ] URL public de producție: **`https://chat.diebel.ro`** — `NEXTAUTH_URL` / `NEXT_PUBLIC_APP_URL` aliniate cu el.
 
 ---
 

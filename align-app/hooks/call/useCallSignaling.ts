@@ -2,12 +2,13 @@
 
 import { signalingWsConnectUrl } from "@/lib/webrtc/signaling";
 import { pushCallDebug } from "@/hooks/call/callDebugLog";
+import type { CallErrorPayload } from "@/lib/i18n/callApiErrorMap";
 
 export type SignalingGetAuthHeaders = () => HeadersInit;
 
 export type SignalingTokenResult =
   | { ok: true; token: string }
-  | { ok: false; status: number; message: string };
+  | { ok: false; status: number; message: string; errorCode?: string; payload?: CallErrorPayload };
 
 /**
  * `GET /api/call/signaling-token` — logică aliniată cu mesh + P2P din useWebRtcCall
@@ -23,8 +24,13 @@ export async function fetchCallSignalingToken(
     cache: "no-store",
   });
   if (!tokRes.ok) {
-    const errBody = await tokRes.json().catch(() => ({}));
-    const apiErr = (errBody as { error?: string }).error?.trim();
+    const errBody = (await tokRes.json().catch(() => ({}))) as {
+      error?: string;
+      errorCode?: string;
+      message?: string;
+    };
+    const apiErr = errBody.error?.trim();
+    const errorCode = errBody.errorCode?.trim();
     let msg = apiErr || "Token semnalizare respins.";
     if (tokRes.status === 401) {
       msg = apiErr || "Neautorizat la token semnalizare — ieși și intră din nou în cont.";
@@ -37,11 +43,22 @@ export async function fetchCallSignalingToken(
     }
     const message =
       process.env.NODE_ENV === "development" ? `[${tokRes.status}] ${msg}` : msg;
-    return { ok: false, status: tokRes.status, message };
+    const payload: CallErrorPayload = {
+      ...(errorCode ? { errorCode } : {}),
+      error: message,
+      ...(errBody.message ? { message: errBody.message } : {}),
+    };
+    return { ok: false, status: tokRes.status, message, errorCode, payload };
   }
   const { token } = (await tokRes.json()) as { token?: string };
   if (!token) {
-    return { ok: false, status: tokRes.status, message: "Token semnalizare lipsă." };
+    return {
+      ok: false,
+      status: tokRes.status,
+      message: "Token semnalizare lipsă.",
+      errorCode: "SIGNALING_TOKEN_INVALID",
+      payload: { errorCode: "SIGNALING_TOKEN_INVALID", error: "Token semnalizare lipsă." },
+    };
   }
   return { ok: true, token };
 }

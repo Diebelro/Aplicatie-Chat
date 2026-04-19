@@ -58,7 +58,9 @@ function runList(target) {
 function main() {
   if (!existsSync(join(root, ".vercel", "project.json"))) {
     console.error(
-      "Lipsește .vercel/project.json. Rulează din align-app:\n  npx vercel link --yes --scope <team> --project align-app\n"
+      "Lipsește .vercel/project.json. Producție chat.diebel.ro = proiect Vercel **aplicatie-chat**.\n" +
+        "  Din rădăcina repo-ului: npx vercel link --yes --project aplicatie-chat\n" +
+        "  Sau din align-app: păstrează link la aplicatie-chat; `npm run vercel:assert-call-env` citește .vercel din acest folder.\n"
     );
     process.exit(1);
   }

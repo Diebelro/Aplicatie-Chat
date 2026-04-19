@@ -38,6 +38,8 @@ jobs:
           cache: npm
           cache-dependency-path: align-app/package-lock.json
       - run: npm ci
+      # Paritate chei între ro/en/de pentru tot `messages/*.json` (include `pages.callRoom`).
+      - run: npm run verify-i18n
       - run: npm run test
 
   build:

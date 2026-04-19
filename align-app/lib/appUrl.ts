@@ -19,7 +19,10 @@ function trimEnv(value: string | undefined): string {
   return (value ?? "").trim().replace(/\/$/, "");
 }
 
-const CHAT_PUBLIC_FALLBACK = "https://chat.diebel.ro";
+/** Domeniul canonic public al aplicației (test „pe net”, SEO, metadata). Nu folosi URL-uri `*.vercel.app` pentru asta. */
+export const CHAT_PRODUCTION_URL = "https://chat.diebel.ro";
+
+const CHAT_PUBLIC_FALLBACK = CHAT_PRODUCTION_URL;
 
 /** Apex diebel.ro / www → chat (cert + vhost aplicație). */
 function normalizeApexDiebelForEmail(url: string): string {

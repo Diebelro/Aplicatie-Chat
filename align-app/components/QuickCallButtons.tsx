@@ -8,10 +8,11 @@ import { getStoredUserRaw } from "@/lib/store";
 import { fetchWithAuthRetry, getAuthHeaders } from "@/lib/authClient";
 import { getVideoRoomId } from "@/lib/videoCall";
 import { markCallEndPosted } from "@/lib/callEndDedup";
-import { markIncomingGrace } from "@/lib/callIncomingGrace";
+import { markIncomingGrace, POST_HANGUP_INCOMING_GRACE_MS } from "@/lib/callIncomingGrace";
 import type { RingNotifySnapshot } from "@/lib/callRingNotifySnapshot";
 import { RING_PUSH_HINT_SESSION_KEY, getRingNotifyHintKey } from "@/lib/callRingNotifySnapshot";
-import { useI18n } from "@/lib/i18n/context";
+import { useCallRoomTranslate } from "@/lib/i18n/callTranslateSafe";
+import { resolveCallDisplayedError } from "@/lib/i18n/callApiErrorMap";
 
 async function resolveMyIdForCall(): Promise<string | null> {
   const raw = getStoredUserRaw();
@@ -43,7 +44,7 @@ type QuickCallButtonsProps = {
  * Folosit în Mesaje, liste; nu propaga click către Link părinte.
  */
 export function QuickCallButtons({ toUserId, size = "md", className = "" }: QuickCallButtonsProps) {
-  const { tStr } = useI18n();
+  const callT = useCallRoomTranslate();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [callHint, setCallHint] = useState<string | null>(null);
@@ -63,7 +64,7 @@ export function QuickCallButtons({ toUserId, size = "md", className = "" }: Quic
 
   const retractRing = (roomId: string) => {
     markCallEndPosted(roomId);
-    markIncomingGrace(roomId, undefined, 8000);
+    markIncomingGrace(roomId, undefined, POST_HANGUP_INCOMING_GRACE_MS);
     void fetch("/api/call/end", {
       method: "POST",
       headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
@@ -78,7 +79,7 @@ export function QuickCallButtons({ toUserId, size = "md", className = "" }: Quic
     setCallHint(null);
     const myId = await resolveMyIdForCall();
     if (!myId) {
-      setCallHint("Nu s-a încărcat sesiunea. Reîncarcă pagina sau intră din nou în cont, apoi încearcă apelul.");
+      setCallHint(callT.tStr("pages.callRoom.quickCall.sessionLoadFailed"));
       return;
     }
     setBusy(true);
@@ -92,9 +93,10 @@ export function QuickCallButtons({ toUserId, size = "md", className = "" }: Quic
         body: JSON.stringify({ toId: targetAtStart, audioOnly }),
       });
       if (!res.ok) {
-        const j = (await res.json().catch(() => ({}))) as { error?: string };
-        const msg = typeof j.error === "string" && j.error.trim() ? j.error.trim() : "Nu am putut porni apelul.";
-        setCallHint(msg);
+        const j = (await res.json().catch(() => ({}))) as { error?: string; errorCode?: string };
+        setCallHint(
+          resolveCallDisplayedError(j, callT.tStr) || callT.tStr("pages.callRoom.quickCall.ringFailedGeneric")
+        );
         return;
       }
       if (!stillThisTarget()) {
@@ -117,7 +119,7 @@ export function QuickCallButtons({ toUserId, size = "md", className = "" }: Quic
       keepBusyUntilUnmount = true;
       router.push(`/app/call/${roomIdForRing}${audioOnly ? "?audio=1&from=ring" : "?from=ring"}`);
     } catch {
-      setCallHint("Eroare rețea. Verifică conexiunea.");
+      setCallHint(callT.tStr("pages.callRoom.quickCall.networkError"));
     } finally {
       if (!keepBusyUntilUnmount) setBusy(false);
     }
@@ -144,14 +146,14 @@ export function QuickCallButtons({ toUserId, size = "md", className = "" }: Quic
           onTouchStart={(e) => e.stopPropagation()}
           onKeyDown={(e) => e.stopPropagation()}
           role="group"
-          aria-label="Apel video sau audio"
+          aria-label={callT.tStr("pages.callRoom.quickCall.ariaVideoAudio")}
         >
           <button
             type="button"
             disabled={busy}
             onClick={() => void start(false)}
             className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-dark-600 hover:bg-brand-500/20 active:scale-90 flex items-center justify-center text-brand-400 border-2 border-brand-500/40 transition-[transform,background-color] duration-75 touch-none shrink-0 disabled:opacity-50"
-            title="Apel video"
+            title={callT.tStr("pages.callRoom.quickCall.titleVideo")}
           >
             <Video className="w-6 h-6 sm:w-7 sm:h-7" />
           </button>
@@ -160,7 +162,7 @@ export function QuickCallButtons({ toUserId, size = "md", className = "" }: Quic
             disabled={busy}
             onClick={() => void start(true)}
             className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-sky-500/15 hover:bg-sky-500/25 active:scale-90 flex items-center justify-center text-sky-600 border-2 border-sky-500/40 transition-[transform,background-color] duration-75 touch-none shrink-0 disabled:opacity-50"
-            title="Apel audio"
+            title={callT.tStr("pages.callRoom.quickCall.titleAudio")}
           >
             <Phone className="w-6 h-6 sm:w-7 sm:h-7" />
           </button>
@@ -186,14 +188,14 @@ export function QuickCallButtons({ toUserId, size = "md", className = "" }: Quic
         onTouchStart={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
         role="group"
-        aria-label="Apel video sau audio"
+        aria-label={callT.tStr("pages.callRoom.quickCall.ariaVideoAudio")}
       >
         <button
           type="button"
           disabled={busy}
           onClick={() => void start(false)}
           className={`flex items-center justify-center ${btn} bg-brand-500/15 text-brand-400 hover:bg-brand-500/25 border border-brand-500/35 transition touch-manipulation disabled:opacity-50`}
-          title="Apel video"
+          title={callT.tStr("pages.callRoom.quickCall.titleVideo")}
         >
           <Video className={icon} />
         </button>
@@ -202,7 +204,7 @@ export function QuickCallButtons({ toUserId, size = "md", className = "" }: Quic
           disabled={busy}
           onClick={() => void start(true)}
           className={`flex items-center justify-center ${btn} bg-sky-500/15 text-sky-600 hover:bg-sky-500/25 border border-sky-500/40 transition touch-manipulation disabled:opacity-50`}
-          title="Apel audio"
+          title={callT.tStr("pages.callRoom.quickCall.titleAudio")}
         >
           <Phone className={icon} />
         </button>

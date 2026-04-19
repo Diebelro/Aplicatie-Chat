@@ -27,6 +27,7 @@ EnvironmentFile=-/srv/aplicatie-chat/align-app/.env.signaling
 # .env.signaling (exemplu conținut minim):
 #   SIGNALING_TOKEN_SECRET=<min 16; același secret folosit la generarea tokenului în Next / Vercel>
 #   (opțional) NEXTAUTH_SECRET=... dacă vrei fallback identic cu aplicația
+#   (opțional) SIGNALING_ALLOWED_ORIGINS=https://chat.diebel.ro — allowlist Origin handshake WS (vezi server/call-signaling-server.mjs)
 #
 # TURN_AUTH_SECRET: folosit de aplicația Next (ex. /api/call/signaling-token, ice-config), NU de acest proces Node.
 # Îl documentăm aici doar pentru aliniere cu variabilele din Vercel; nu e necesar în .env.signaling pentru WS.

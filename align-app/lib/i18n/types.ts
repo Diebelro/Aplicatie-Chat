@@ -19,11 +19,25 @@ export interface CookieConsentTranslations {
   marketingDesc: string;
 }
 
+/** Erori globale Next.js (`app/error.tsx`, `app/not-found.tsx`). */
+export interface ShellErrorTranslations {
+  boundaryTitle: string;
+  boundaryDescription: string;
+  tryAgain: string;
+  backHome: string;
+  notFoundCode: string;
+  notFoundDescription: string;
+  notFoundHome: string;
+  notFoundTerms: string;
+  notFoundPrivacy: string;
+}
+
 export interface CommonTranslations {
   buttons: Record<string, string>;
   labels: Record<string, string>;
   /** Mesaj bandă „site în lucru” (NEXT_PUBLIC_SHOW_WIP_BANNER) */
   wipBanner: string;
+  shellErrors: ShellErrorTranslations;
 }
 
 export interface DiebelPromoTranslations {

@@ -151,6 +151,8 @@ Documentează în PR output-ul `ufw status verbose` (fără IP-uri sensibile dac
    SIGNALING_MSG_BURST_PER_10S=100
    SIGNALING_MAX_MSG_BYTES=65536
    SIGNALING_HEARTBEAT_TTL_MS=75000
+   # opțional: allowlist Origin handshake WS (URL-ul paginii app, ex. https://chat.diebel.ro)
+   # SIGNALING_ALLOWED_ORIGINS=https://chat.diebel.ro,https://www.chat.diebel.ro
    ```
 
 3. Copiază unitatea din `turn/call-signaling.service.example` în `/etc/systemd/system/call-signaling.service`, ajustează `User` / `WorkingDirectory` / `ExecStart`.

@@ -9,18 +9,22 @@ import {
 import { resolveRequestUserId } from "@/lib/sessionAuth";
 import { clearPendingIncomingForCallee, clearPendingIncomingForRoom } from "@/lib/callPending";
 import { canAccessRoom } from "@/lib/videoCall";
+import { callApiErrorJson } from "@/lib/call/callApiJsonError";
 
 /** Încheie apelul: curăță pending pentru tine și, dacă trimiți roomId valid, pentru întreg apelul (nu mai „sună” la celălalt). */
 export async function POST(request: NextRequest) {
   const userId = await resolveRequestUserId(request);
   if (!userId) {
-    return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
+    return NextResponse.json(
+      callApiErrorJson("SIGNALING_TOKEN_INVALID", { error: "Neautorizat." }),
+      { status: 401 }
+    );
   }
   const okUser =
     (await findUserOrPrisma(userId)) != null ||
     (isPrismaAvailable() ? await prismaUserRowExists(userId) : !!findUserById(userId));
   if (!okUser) {
-    return NextResponse.json({ error: "Utilizator negăsit." }, { status: 404 });
+    return NextResponse.json(callApiErrorJson("UNKNOWN", { error: "Utilizator negăsit." }), { status: 404 });
   }
   let body: { roomId?: string; recordMissedForCallee?: boolean } = {};
   try {

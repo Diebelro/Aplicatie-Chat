@@ -4,7 +4,7 @@ import { resolveRequestUserId } from "@/lib/sessionAuth";
 import { getPendingIncomingForCallee } from "@/lib/callPending";
 import { findUserById } from "@/lib/store";
 import { rateLimitAllow } from "@/lib/callRateLimit";
-import { callPollJsonResponse } from "@/lib/callPollHttp";
+import { callPollErrorResponse, callPollJsonResponse } from "@/lib/callPollHttp";
 
 export const dynamic = "force-dynamic";
 
@@ -16,17 +16,17 @@ const RATE_MAX_PER_USER = 300;
 export async function GET(request: NextRequest) {
   const userId = await resolveRequestUserId(request);
   if (!userId) {
-    return callPollJsonResponse({ error: "Neautorizat." }, 401);
+    return callPollErrorResponse("SIGNALING_TOKEN_INVALID", "Neautorizat.", 401);
   }
   if (!rateLimitAllow(`call-incoming:${userId}`, RATE_MAX_PER_USER, RATE_WINDOW_MS)) {
-    return callPollJsonResponse({ error: "Prea multe cereri." }, 429);
+    return callPollErrorResponse("SIGNALING_SERVICE_UNAVAILABLE", "Prea multe cereri.", 429);
   }
   const user = await findUserOrPrisma(userId);
   const exists =
     user != null ||
     (isPrismaAvailable() ? await prismaUserRowExists(userId) : !!findUserById(userId));
   if (!exists) {
-    return callPollJsonResponse({ error: "Utilizator negăsit." }, 404);
+    return callPollErrorResponse("UNKNOWN", "Utilizator negăsit.", 404);
   }
   const pending = await getPendingIncomingForCallee(userId);
   if (!pending) {
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
   return callPollJsonResponse({
     incoming: {
       fromId: pending.fromId,
-      fromName: fromUser?.name ?? fromUser?.username ?? "Cineva",
+      fromName: fromUser?.name ?? fromUser?.username ?? "",
       roomId: pending.roomId,
       audioOnly: pending.audioOnly,
       pendingSince: pending.pendingSince,

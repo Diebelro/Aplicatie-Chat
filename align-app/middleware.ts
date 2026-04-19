@@ -37,34 +37,70 @@ function isPrivateOrLocalHostname(hostname: string): boolean {
   return false;
 }
 
-export function middleware(request: NextRequest) {
+/**
+ * Sesiunea app = cookie `align_sid` + `/api/me` (nu JWT NextAuth de la login email/parolă).
+ * Folosim fetch intern: matcher-ul exclude `/api/*`, deci request-ul la `/api/me` nu re-intră în middleware.
+ */
+async function adminAccessDecision(request: NextRequest): Promise<"allow" | "login" | "app"> {
+  const meUrl = new URL("/api/me", request.url);
+  let res: Response;
+  try {
+    res = await fetch(meUrl, {
+      headers: {
+        cookie: request.headers.get("cookie") ?? "",
+      },
+      cache: "no-store",
+    });
+  } catch {
+    return "login";
+  }
+  if (res.status === 401 || res.status === 403) return "login";
+  if (!res.ok) return "login";
+  let data: { user?: { role?: string } };
+  try {
+    data = (await res.json()) as { user?: { role?: string } };
+  } catch {
+    return "login";
+  }
+  if (!data?.user) return "login";
+  const role = data.user.role ?? "USER";
+  if (role === "ADMIN" || role === "SUPERADMIN") return "allow";
+  return "app";
+}
+
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  /** Preview / monitorizare: publice (și dacă matcher-ul s-ar schimba). */
-  if (
-    pathname === "/api/healthz" ||
-    pathname.startsWith("/api/healthz/") ||
-    pathname === "/api/db-ping" ||
-    pathname.startsWith("/api/db-ping/")
-  ) {
-    return NextResponse.next();
+
+  if (shouldForceHttpsRedirect()) {
+    const host = request.headers.get("host") ?? "";
+    if (!isLocalDevHost(host) && !isPrivateOrLocalHostname(hostWithoutPort(host))) {
+      const proto = request.headers.get("x-forwarded-proto");
+      const urlLooksHttp = request.nextUrl.protocol === "http:";
+      const forwardedHttp = proto === "http";
+      if (forwardedHttp || (proto == null && urlLooksHttp)) {
+        const url = request.nextUrl.clone();
+        url.protocol = "https:";
+        return NextResponse.redirect(url, 308);
+      }
+    }
   }
 
-  if (!shouldForceHttpsRedirect()) return NextResponse.next();
-  const host = request.headers.get("host") ?? "";
-  if (isLocalDevHost(host)) return NextResponse.next();
-  if (isPrivateOrLocalHostname(hostWithoutPort(host))) return NextResponse.next();
-  const proto = request.headers.get("x-forwarded-proto");
-  const urlLooksHttp = request.nextUrl.protocol === "http:";
-  const forwardedHttp = proto === "http";
-  if (forwardedHttp || (proto == null && urlLooksHttp)) {
-    const url = request.nextUrl.clone();
-    url.protocol = "https:";
-    return NextResponse.redirect(url, 308);
+  if (pathname.startsWith("/admin") && !pathname.startsWith("/admin/setup")) {
+    const decision = await adminAccessDecision(request);
+    if (decision === "login") {
+      const u = new URL("/login", request.url);
+      u.searchParams.set("redirect", `${pathname}${request.nextUrl.search}`);
+      return NextResponse.redirect(u);
+    }
+    if (decision === "app") {
+      return NextResponse.redirect(new URL("/app", request.url));
+    }
   }
+
   return NextResponse.next();
 }
 
-/** Fără `/api/*` — evită orice logică pe Route Handlers (healthz, db-ping, auth, etc.). */
+/** Fără `/api/*` — evită logică pe Route Handlers; exclude și ca fetch din middleware la `/api/me` să nu re-invoce middleware. */
 export const config = {
   matcher: [
     "/((?!\\.well-known/|api/|_next/static|_next/image|favicon.ico|manifest.webmanifest|manifest.json|sw.js|robots.txt|sitemap.xml).*)",

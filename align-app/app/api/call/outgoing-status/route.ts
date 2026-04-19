@@ -11,7 +11,7 @@ import { callApiCallerUserExists } from "@/lib/callCallerExists";
 import { getPendingIncomingForCallee } from "@/lib/callPending";
 import { parseVideoRoomId } from "@/lib/videoCall";
 import { rateLimitAllow } from "@/lib/callRateLimit";
-import { callPollJsonResponse } from "@/lib/callPollHttp";
+import { callPollErrorResponse, callPollJsonResponse } from "@/lib/callPollHttp";
 
 export const dynamic = "force-dynamic";
 
@@ -34,17 +34,17 @@ export async function GET(request: NextRequest) {
     userId = request.headers.get("x-user-id")?.trim() || null;
   }
   if (!userId) {
-    return callPollJsonResponse({ error: "Neautorizat." }, 401);
+    return callPollErrorResponse("SIGNALING_TOKEN_INVALID", "Neautorizat.", 401);
   }
   if (!rateLimitAllow(`call-outst:${userId}`, RATE_MAX_PER_USER, RATE_WINDOW_MS)) {
-    return callPollJsonResponse({ error: "Prea multe cereri." }, 429);
+    return callPollErrorResponse("SIGNALING_SERVICE_UNAVAILABLE", "Prea multe cereri.", 429);
   }
   if (!(await callApiCallerUserExists(userId))) {
-    return callPollJsonResponse({ error: "Utilizator negăsit." }, 404);
+    return callPollErrorResponse("UNKNOWN", "Utilizator negăsit.", 404);
   }
   const roomId = request.nextUrl.searchParams.get("roomId");
   if (!roomId) {
-    return callPollJsonResponse({ error: "Lipsește roomId." }, 400);
+    return callPollErrorResponse("UNKNOWN", "Lipsește roomId.", 400);
   }
 
   const rejectedInMem = isRoomRejected(roomId);
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
   if (pair) {
     const [a, b] = pair;
     if (a !== userId && b !== userId) {
-      return callPollJsonResponse({ error: "Nu ai acces la acest roomId." }, 403);
+      return callPollErrorResponse("UNKNOWN", "Nu ai acces la acest roomId.", 403);
     }
     const calleeId = a === userId ? b : a;
     const pending = await getPendingIncomingForCallee(calleeId);

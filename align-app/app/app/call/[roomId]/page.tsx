@@ -12,8 +12,10 @@ import { canAccessRoom, isConferenceRoomId } from "@/lib/videoCall";
 import { displayName } from "@/lib/displayName";
 import CallUI from "@/components/CallUI";
 import { useI18n } from "@/lib/i18n/context";
+import { useCallRoomTranslate } from "@/lib/i18n/callTranslateSafe";
+import { resolveCallDisplayedError, type CallErrorPayload } from "@/lib/i18n/callApiErrorMap";
 import { shouldSkipDuplicateCallEnd } from "@/lib/callEndDedup";
-import { markIncomingGrace } from "@/lib/callIncomingGrace";
+import { markIncomingGrace, POST_HANGUP_INCOMING_GRACE_MS } from "@/lib/callIncomingGrace";
 import { RING_PUSH_HINT_SESSION_KEY, isRingNotifyHintKey } from "@/lib/callRingNotifySnapshot";
 
 function getStoredUser(): User | null {
@@ -29,6 +31,7 @@ function getStoredUser(): User | null {
 
 export default function CallPage() {
   const { tStr } = useI18n();
+  const callT = useCallRoomTranslate();
   const params = useParams();
   const searchParams = useSearchParams();
   const roomId = (params?.roomId as string) ?? "";
@@ -185,7 +188,7 @@ export default function CallPage() {
       window.clearTimeout(tid);
       if (!armed) return;
       if (shouldSkipDuplicateCallEnd(roomId)) return;
-      markIncomingGrace(roomId, undefined, 8000);
+      markIncomingGrace(roomId, undefined, POST_HANGUP_INCOMING_GRACE_MS);
       if (!callSessionStartedRef.current) {
         void fetch("/api/call/end", {
           method: "POST",
@@ -215,7 +218,7 @@ export default function CallPage() {
     const body = JSON.stringify({ roomId });
     const flush = () => {
       if (shouldSkipDuplicateCallEnd(roomId)) return;
-      markIncomingGrace(roomId, undefined, 8000);
+      markIncomingGrace(roomId, undefined, POST_HANGUP_INCOMING_GRACE_MS);
       if (!callSessionStartedRef.current) {
         try {
           void fetch("/api/call/end", {
@@ -289,9 +292,9 @@ export default function CallPage() {
       credentials: "same-origin",
     })
       .then(async (r) => {
-        const d = await r.json().catch(() => ({}));
+        const d = (await r.json().catch(() => ({}))) as CallErrorPayload & { roomId?: string; audioOnly?: boolean };
         if (!r.ok) {
-          setPushGateError((d.error as string) || tStr("pages.callRoom.pushAnswerExpired"));
+          setPushGateError(resolveCallDisplayedError(d, callT.tStr) || tStr("pages.callRoom.pushAnswerExpired"));
           return;
         }
         const accRoom = d.roomId as string | undefined;

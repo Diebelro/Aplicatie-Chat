@@ -13,7 +13,7 @@ import { track } from "@/lib/tracking";
 import { displayName } from "@/lib/displayName";
 import { getAuthHeaders, fetchWithAuthRetry } from "@/lib/authClient";
 import { markCallEndPosted } from "@/lib/callEndDedup";
-import { markIncomingGrace } from "@/lib/callIncomingGrace";
+import { markIncomingGrace, POST_HANGUP_INCOMING_GRACE_MS } from "@/lib/callIncomingGrace";
 import { messageAttachmentProxyPath, shouldProxyChatAttachment } from "@/lib/chatAttachmentProxy";
 import {
   ALIGN_LOCATION_CONTENT_TYPE,
@@ -918,7 +918,7 @@ export default function ChatPage() {
 
       const retractRingIfAbandoned = () => {
         markCallEndPosted(roomIdForRing);
-        markIncomingGrace(roomIdForRing, undefined, 8000);
+        markIncomingGrace(roomIdForRing, undefined, POST_HANGUP_INCOMING_GRACE_MS);
         void fetch("/api/call/end", {
           method: "POST",
           headers: { ...getAuthHeaders(), "Content-Type": "application/json" },

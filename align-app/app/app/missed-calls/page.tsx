@@ -96,7 +96,12 @@ export default function MissedCallsPage() {
                       m.audioOnly
                         ? tStr("pages.missedCalls.callAudioFrom")
                         : tStr("pages.missedCalls.callVideoFrom"),
-                      { name: m.fromName }
+                      {
+                        name:
+                          m.fromName.trim() !== ""
+                            ? m.fromName
+                            : tStr("pages.callRoom.fallbackUserName"),
+                      }
                     )}
                   </p>
                   <p className="text-dark-500 text-sm">{formatWhen(m.at)}</p>

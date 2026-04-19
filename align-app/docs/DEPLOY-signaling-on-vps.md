@@ -12,6 +12,7 @@ Serverul WebSocket este **`align-app/server/call-signaling-server.mjs`** (proces
 | WebSocket | **`ws.WebSocketServer({ server, path: "/ws" })`** |
 | Health | HTTP **`GET /health`** → **200** body **`ok`** |
 | Autentificare | Query **`?token=`** la URL-ul WS; token HMAC verificat cu **`SIGNALING_TOKEN_SECRET`** sau **`NEXTAUTH_SECRET`** (min 16) |
+| Origine (prod) | Opțional **`SIGNALING_ALLOWED_ORIGINS`**: lista de **`Origin`** acceptate la handshake (ex. `https://chat.diebel.ro`). Gol = orice Origin (implicit). Vezi mai jos. |
 
 **Variabile:** `SIGNALING_TOKEN_SECRET` (sau `NEXTAUTH_SECRET`) sunt **obligatorii** pentru serverul WS.  
 **`TURN_AUTH_SECRET`** este pentru **Next.js** (API-uri precum `/api/call/signaling-token`, ice/TURN) — **nu** este citit de `call-signaling-server.mjs`; păstrează-l **identic între Vercel și secretele API**, nu neapărat în `.env.signaling`.
@@ -48,6 +49,17 @@ SIGNALING_TOKEN_SECRET=acelasi_secret_ca_in_vercel_sau_nextauth_min_16
 ```
 
 Opțional același `NEXTAUTH_SECRET` ca în Vercel, dacă nu folosești `SIGNALING_TOKEN_SECRET` separat.
+
+**Origine WebSocket în producție:** browserul trimite header **`Origin`** egal cu **URL-ul paginii** (ex. `https://chat.diebel.ro`), nu cu `wss://ws.diebel.ro`. Dacă activezi allowlist-ul, include **toate** URL-urile de unde se deschide app-ul (www și non-www separate; preview Vercel dacă testezi apeluri de acolo):
+
+```env
+# opțional — virgulă, fără spații obligatorii (sau cu spații la margini, sunt tăiate)
+SIGNALING_ALLOWED_ORIGINS=https://chat.diebel.ro,https://www.chat.diebel.ro
+# opțional, doar cu allowlist: respinge handshake fără Origin (nu folosi dacă același WS e folosit de app nativă fără Origin)
+# SIGNALING_REQUIRE_BROWSER_ORIGIN=1
+```
+
+După `systemctl restart call-signaling`, în log ar trebui să vezi fie lista de origini, fie mesajul că nu există restricție. Dacă apelul pică imediat după ce ai setat allowlist-ul, verifică că **exact** `Origin`-ul din DevTools (Network → WS → Request Headers) apare în listă.
 
 ```bash
 chmod 640 /srv/aplicatie-chat/align-app/.env.signaling

@@ -16,6 +16,11 @@
  * Env proces: SIGNALING_TOKEN_SECRET (sau NEXTAUTH_SECRET), SIGNALING_PORT (default 4001), NODE_ENV
  * Opțional: SIGNALING_MAX_CONN_PER_IP, SIGNALING_MSG_BURST_PER_10S, SIGNALING_MAX_MSG_BYTES, SIGNALING_HEARTBEAT_TTL_MS,
  * SIGNALING_MAX_CONFERENCE_PEERS (implicit 6) pentru camere `align-conf-*`
+ *
+ * Origine handshake (browser): header `Origin` = pagina care deschide WS (ex. https://chat.diebel.ro), nu hostul WSS.
+ * SIGNALING_ALLOWED_ORIGINS — listă separată prin virgulă (ex. https://chat.diebel.ro,https://www.chat.diebel.ro).
+ *   Gol = nu respinge după Origin (implicit; compatibil clienți fără header Origin).
+ * SIGNALING_REQUIRE_BROWSER_ORIGIN=1 — cu allowlist setată: respinge conexiuni fără Origin valid (nu folosi dacă ai clienți nativi pe același endpoint).
  */
 import { WebSocketServer } from "ws";
 import { createServer } from "http";
@@ -203,6 +208,43 @@ function decIp(ip) {
   else ipConnCount.set(ip, n);
 }
 
+/**
+ * @returns {Set<string> | null} null = fără restricție după Origin
+ */
+function parseSignalingAllowedOrigins() {
+  const raw = process.env.SIGNALING_ALLOWED_ORIGINS?.trim();
+  if (!raw) return null;
+  const set = new Set();
+  for (const part of raw.split(",")) {
+    const s = part.trim();
+    if (!s) continue;
+    try {
+      set.add(new URL(s).origin);
+    } catch {
+      logWarn(`SIGNALING_ALLOWED_ORIGINS: intrare invalidă ignorată: "${s}"`);
+    }
+  }
+  return set.size > 0 ? set : null;
+}
+
+const SIGNALING_ALLOWED_ORIGIN_SET = parseSignalingAllowedOrigins();
+
+/**
+ * @param {string} [originHeader] — `info.origin` din `ws` (poate lipsi la clienți non-browser)
+ */
+function isWsOriginAllowed(originHeader) {
+  if (!SIGNALING_ALLOWED_ORIGIN_SET) return true;
+  const o = originHeader?.trim() || "";
+  if (!o || o === "null") {
+    return process.env.SIGNALING_REQUIRE_BROWSER_ORIGIN !== "1";
+  }
+  try {
+    return SIGNALING_ALLOWED_ORIGIN_SET.has(new URL(o).origin);
+  } catch {
+    return false;
+  }
+}
+
 const DEV_LAN_SUMMARY = !IS_PROD && process.env.ALIGN_DEV_LAN === "1";
 
 const server = createServer((req, res) => {
@@ -243,7 +285,19 @@ const server = createServer((req, res) => {
   res.end();
 });
 
-const wss = new WebSocketServer({ server, path: "/ws" });
+const wss = new WebSocketServer({
+  server,
+  path: "/ws",
+  verifyClient(info) {
+    if (!IS_PROD) return true;
+    const origin = typeof info.origin === "string" ? info.origin : "";
+    if (!isWsOriginAllowed(origin)) {
+      logWarn(`respinge handshake WS: Origin nepermis (${origin ? `"${origin}"` : "lipsește"})`);
+      return false;
+    }
+    return true;
+  },
+});
 
 wss.on("connection", (ws, req) => {
   const ip = clientIp(req);
@@ -445,5 +499,17 @@ server.listen(PORT, LISTEN_HOST, () => {
     }
   } else {
     logWarn(`WS pornit pe port ${PORT} (TLS la reverse proxy: wss://ws.diebel.ro → 127.0.0.1:${PORT}/ws)`);
+    if (SIGNALING_ALLOWED_ORIGIN_SET) {
+      logWarn(
+        `Allowlist Origin: ${[...SIGNALING_ALLOWED_ORIGIN_SET].join(", ")}` +
+          (process.env.SIGNALING_REQUIRE_BROWSER_ORIGIN === "1"
+            ? " (SIGNALING_REQUIRE_BROWSER_ORIGIN=1: fără Origin valid → respingere)"
+            : "")
+      );
+    } else {
+      logWarn(
+        "Nicio restricție Origin (SIGNALING_ALLOWED_ORIGINS gol). Pentru hardening în prod, setează ex. SIGNALING_ALLOWED_ORIGINS=https://chat.diebel.ro"
+      );
+    }
   }
 });
