@@ -564,7 +564,7 @@ export default function AppLayout({
               href="/privacy"
               className="text-xs font-medium text-brand-400 hover:text-brand-300 hover:underline"
             >
-              Privacy Policy
+              {tStr("legal.links.privacy")}
             </Link>
             <LanguageSwitcher compact />
             <DiebelCopyrightStrip className="mt-1 px-2" />
@@ -572,9 +572,10 @@ export default function AppLayout({
         ) : (
           <div
             className={
-              isMessagesListRoute
+              (isMessagesListRoute
                 ? "mt-3 pt-2 border-t border-dark-700/70 shrink-0 flex flex-col items-center gap-2 sm:gap-3 lg:mt-10 lg:pt-4 lg:gap-4"
-                : "mt-6 sm:mt-10 pt-3 sm:pt-4 border-t border-dark-700/80 shrink-0 flex flex-col items-center gap-3 sm:gap-4"
+                : "mt-6 sm:mt-10 pt-3 sm:pt-4 border-t border-dark-700/80 shrink-0 flex flex-col items-center gap-3 sm:gap-4") +
+              " bg-dark-900 relative z-[1]"
             }
           >
             <p

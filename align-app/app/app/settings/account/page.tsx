@@ -5,7 +5,6 @@ import Link from "next/link";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
 import { getAuthHeaders } from "@/lib/authClient";
-import { LegalDocLinks } from "@/components/LegalDocLinks";
 import { useI18n } from "@/lib/i18n/context";
 import { formatTpl } from "@/lib/i18n/formatTpl";
 import { translateApiErrorMessage } from "@/lib/i18n/translateApiError";
@@ -439,7 +438,10 @@ export default function AccountSettingsPage() {
           <div>
             <button
               type="button"
-              className="px-4 py-2 rounded-lg bg-dark-700 text-dark-500 border border-dark-600 hover:bg-dark-600 transition text-sm"
+              disabled
+              title={tStr("pages.account.exportDisabledTitle")}
+              aria-label={tStr("pages.account.exportDisabledTitle")}
+              className="px-4 py-2 rounded-lg bg-dark-800 text-dark-500 border border-dark-600 opacity-60 cursor-not-allowed text-sm"
             >
               {tStr("pages.account.exportData")}
             </button>
@@ -456,11 +458,6 @@ export default function AccountSettingsPage() {
             <p className="text-dark-500 text-xs mt-1">{tStr("pages.account.deleteAccountHint")}</p>
           </div>
         </div>
-      </section>
-
-      <section className="mt-10 pt-6 border-t border-dark-600">
-        <h3 className="text-sm font-medium text-dark-400 mb-3">{tStr("pages.account.legalDocs")}</h3>
-        <LegalDocLinks privacyLinkLabel="Privacy Policy" />
       </section>
 
       {deleteConfirmOpen && (

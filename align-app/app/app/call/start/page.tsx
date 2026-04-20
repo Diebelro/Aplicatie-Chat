@@ -178,7 +178,7 @@ export default function StartConferencePage() {
   );
 
   return (
-    <div className="min-h-[100dvh] bg-night-900 text-white px-4 py-8 pb-16">
+    <div className="bg-night-900 text-white px-4 py-8 pb-24 sm:pb-28">
       <div className="max-w-lg mx-auto">
         <Link href="/app/messages" className="text-brand-400 text-sm hover:underline inline-flex items-center gap-1">
           ← Înapoi la mesaje
@@ -352,7 +352,7 @@ export default function StartConferencePage() {
           </button>
         </div>
 
-        <p className="mt-8 text-night-500 text-xs leading-relaxed">
+        <p className="mt-8 mb-2 text-night-500 text-xs leading-relaxed max-w-lg">
           Dacă refuzi odată permisiunea, browserul rămâne pe „Blocat” până o schimbi din lacătul de lângă adresă. Pentru apeluri deja începute, în ecranul galben există și „Încearcă din nou”.
         </p>
       </div>
