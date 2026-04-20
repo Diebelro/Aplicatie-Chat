@@ -8,7 +8,7 @@ import { getAuthHeaders } from "@/lib/authClient";
 import { useI18n } from "@/lib/i18n/context";
 import { formatTpl } from "@/lib/i18n/formatTpl";
 import { translateApiErrorMessage } from "@/lib/i18n/translateApiError";
-import { performClientLogout } from "@/lib/clientLogout";
+import { requestOpenLogoutDialog } from "@/lib/logoutDialogEvent";
 import { AppProLoading } from "@/components/AppProLoading";
 
 export default function AccountSettingsPage() {
@@ -39,6 +39,8 @@ export default function AccountSettingsPage() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [subscriptionPlan, setSubscriptionPlan] = useState<string | null>(null);
+  const [exportingData, setExportingData] = useState(false);
+  const [exportDataError, setExportDataError] = useState("");
 
   useEffect(() => {
     fetch("/api/me", { headers: getAuthHeaders() })
@@ -182,6 +184,41 @@ export default function AccountSettingsPage() {
           setAllowFriendRequests(d.settings.allowFriendRequests !== false);
         }
       });
+  };
+
+  const downloadMyData = () => {
+    setExportDataError("");
+    setExportingData(true);
+    fetch("/api/me/export", { headers: getAuthHeaders() })
+      .then(async (r) => {
+        if (!r.ok) {
+          let msg = "";
+          try {
+            const d = (await r.json()) as { error?: string };
+            const raw = String(d.error ?? "").trim();
+            msg = raw ? translateApiErrorMessage(raw, tStr) || raw : "";
+          } catch {
+            msg = "";
+          }
+          setExportDataError(msg || tStr("pages.account.exportFailed"));
+          return;
+        }
+        const blob = await r.blob();
+        const cd = r.headers.get("Content-Disposition");
+        const m = cd?.match(/filename="([^"]+)"/);
+        const filename = m?.[1] ?? "align-date-personale.json";
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        a.rel = "noopener";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      })
+      .catch(() => setExportDataError(tStr("pages.account.exportFailed")))
+      .finally(() => setExportingData(false));
   };
 
   const deleteAccount = () => {
@@ -424,7 +461,7 @@ export default function AccountSettingsPage() {
         <p className="text-dark-500 text-sm mb-4">{tStr("pages.account.sessionHint")}</p>
         <button
           type="button"
-          onClick={() => void performClientLogout()}
+          onClick={() => requestOpenLogoutDialog()}
           className="px-4 py-2.5 rounded-xl border border-dark-600 text-sm font-medium text-dark-500 hover:bg-dark-700 transition"
         >
           {tStr("appNav.logout")}
@@ -438,14 +475,14 @@ export default function AccountSettingsPage() {
           <div>
             <button
               type="button"
-              disabled
-              title={tStr("pages.account.exportDisabledTitle")}
-              aria-label={tStr("pages.account.exportDisabledTitle")}
-              className="px-4 py-2 rounded-lg bg-dark-800 text-dark-500 border border-dark-600 opacity-60 cursor-not-allowed text-sm"
+              onClick={downloadMyData}
+              disabled={exportingData}
+              className="px-4 py-2 rounded-lg bg-brand-500/20 text-brand-400 border border-brand-500/40 hover:bg-brand-500/30 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition"
             >
-              {tStr("pages.account.exportData")}
+              {exportingData ? tStr("pages.account.exportPreparing") : tStr("pages.account.exportData")}
             </button>
             <p className="text-dark-500 text-xs mt-1">{tStr("pages.account.exportHint")}</p>
+            {exportDataError && <p className="text-red-400 text-xs mt-1">{exportDataError}</p>}
           </div>
           <div>
             <button

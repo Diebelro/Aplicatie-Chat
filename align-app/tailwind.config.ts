@@ -28,6 +28,9 @@ const config: Config = {
           800: "#ffffff",
           700: "#f4f4f5",
           600: "#e4e4e7",
+          /** Lipsiserau din temă → utilitare `text-dark-100/200` nu aveau culoare (text invizibil pe panouri albe). */
+          200: "#334155",
+          100: "#0f172a",
           /** Text pe fundal deschis: contrast suficient, fără „look disabled”. */
           500: "#475569",
           400: "#64748b",

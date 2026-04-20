@@ -18,6 +18,7 @@ import { getAuthHeaders } from "@/lib/authClient";
 import { MAX_PROFILE_SEARCH_RADIUS_KM } from "@/lib/profileSearchConstants";
 import { useI18n } from "@/lib/i18n/context";
 import { formatTpl } from "@/lib/i18n/formatTpl";
+import { translateApiErrorMessage } from "@/lib/i18n/translateApiError";
 import { AppProLoading } from "@/components/AppProLoading";
 
 /** Culori pentru cele 3 stări pe profil – fără suprapuneri, un singur state per card. */
@@ -115,10 +116,17 @@ export default function ProfilesPage() {
   const [profiles, setProfiles] = useState<ProfileWithOnline[]>([]);
   const [loading, setLoading] = useState(true);
   const [myLocationEnabled, setMyLocationEnabled] = useState(false);
+  const [locationBannerError, setLocationBannerError] = useState("");
+  const [locationSaving, setLocationSaving] = useState(false);
   const [filters, setFilters] = useSearchFilters(locale);
 
   const enableLocation = () => {
-    if (!navigator.geolocation) return;
+    setLocationBannerError("");
+    if (!navigator.geolocation) {
+      setLocationBannerError(tStr("pages.profiles.locationUnavailable"));
+      return;
+    }
+    setLocationSaving(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         fetch("/api/me/location", {
@@ -129,8 +137,22 @@ export default function ProfilesPage() {
             longitude: pos.coords.longitude,
             location_enabled: true,
           }),
-        }).then((r) => {
-          if (r.ok) {
+        })
+          .then(async (r) => {
+            if (!r.ok) {
+              let msg = "";
+              try {
+                const d = (await r.json()) as { error?: string };
+                msg = String(d.error ?? "").trim();
+              } catch {
+                msg = "";
+              }
+              setLocationBannerError(
+                (msg ? translateApiErrorMessage(msg, tStr) || msg : "") || tStr("pages.profiles.locationSaveFailed")
+              );
+              return;
+            }
+            setLocationBannerError("");
             setMyLocationEnabled(true);
             const raw = getStoredUserRaw();
             if (raw) {
@@ -139,15 +161,24 @@ export default function ProfilesPage() {
                 const next = { ...u, location_enabled: true, latitude: pos.coords.latitude, longitude: pos.coords.longitude };
                 if (typeof localStorage !== "undefined") localStorage.setItem("align_user", JSON.stringify(next));
                 if (typeof sessionStorage !== "undefined") sessionStorage.setItem("align_user", JSON.stringify(next));
-              } catch {}
+              } catch {
+                /* ignore */
+              }
             }
-          }
-          fetch(`/api/profiles${buildQuery(filters)}`, { headers: getAuthHeaders() })
-            .then((res) => res.json())
-            .then((d) => { if (d.profiles) setProfiles(d.profiles); if (d.myLocationEnabled != null) setMyLocationEnabled(d.myLocationEnabled); });
-        });
+            fetch(`/api/profiles${buildQuery(filters)}`, { headers: getAuthHeaders() })
+              .then((res) => res.json())
+              .then((d) => {
+                if (d.profiles) setProfiles(d.profiles);
+                if (d.myLocationEnabled != null) setMyLocationEnabled(d.myLocationEnabled);
+              });
+          })
+          .finally(() => setLocationSaving(false));
       },
-      () => {}
+      () => {
+        setLocationSaving(false);
+        setLocationBannerError(tStr("pages.profiles.locationBrowserDenied"));
+      },
+      { enableHighAccuracy: true, timeout: 20_000, maximumAge: 0 }
     );
   };
 
@@ -231,18 +262,39 @@ export default function ProfilesPage() {
     <div>
       <h2 className="app-pro-page-title mb-4">{tStr("pages.profiles.title")}</h2>
 
-      {!myLocationEnabled && (
-        <div className="mb-4 p-4 rounded-xl bg-dark-800 border border-amber-500/50 flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-dark-200">{tStr("pages.profiles.enableLocationHint")}</p>
-          <button
-            type="button"
-            onClick={enableLocation}
-            className="px-4 py-2 rounded-lg bg-brand-500 text-white text-sm font-medium hover:bg-brand-600 transition"
-          >
-            {tStr("pages.profiles.enableLocationBtn")}
-          </button>
+      <div
+        className={`mb-4 p-4 rounded-xl border flex flex-wrap items-center justify-between gap-3 ${
+          myLocationEnabled ? "bg-emerald-50 border-emerald-300/80" : "bg-dark-800 border-amber-500/50"
+        }`}
+        role="status"
+        aria-live="polite"
+      >
+        <div className="min-w-0 flex-1 space-y-1">
+          <p className={`text-sm font-medium leading-snug ${myLocationEnabled ? "text-emerald-900" : "text-dark-100"}`}>
+            {myLocationEnabled ? tStr("pages.profiles.locationActiveTitle") : tStr("pages.profiles.enableLocationHint")}
+          </p>
+          <p className={`text-xs leading-relaxed ${myLocationEnabled ? "text-emerald-800/90" : "text-dark-500"}`}>
+            {myLocationEnabled ? tStr("pages.profiles.locationActiveHint") : tStr("pages.profiles.enableLocationSubhint")}
+          </p>
+          {locationBannerError ? <p className="text-xs text-red-600 pt-0.5">{locationBannerError}</p> : null}
         </div>
-      )}
+        <button
+          type="button"
+          onClick={enableLocation}
+          disabled={locationSaving}
+          className={`shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed ${
+            myLocationEnabled
+              ? "bg-emerald-600 text-white hover:bg-emerald-700 border border-emerald-700"
+              : "bg-brand-500 text-white hover:bg-brand-600"
+          }`}
+        >
+          {locationSaving
+            ? tStr("pages.profiles.locationSaving")
+            : myLocationEnabled
+              ? tStr("pages.profiles.locationUpdateBtn")
+              : tStr("pages.profiles.enableLocationBtn")}
+        </button>
+      </div>
 
       <div className="app-pro-panel mb-6 p-4 sm:p-5">
         <p className="app-pro-lead mb-3">{tStr("pages.profiles.filterHint")}</p>

@@ -2,10 +2,11 @@
 
 import { useEffect, useState, useRef, useMemo } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
 import { fetchWithAuthRetry, getAuthHeaders } from "@/lib/authClient";
+import { requestOpenLogoutDialog } from "@/lib/logoutDialogEvent";
 import { useI18n } from "@/lib/i18n/context";
 import { formatTpl } from "@/lib/i18n/formatTpl";
 import { translateApiErrorMessage } from "@/lib/i18n/translateApiError";
@@ -180,8 +181,6 @@ export default function ProfilePage() {
   const [message, setMessage] = useState<"saved" | "error" | "not_on_server" | null>(null);
   const [errorDetail, setErrorDetail] = useState<string>("");
   const [serverHasUser, setServerHasUser] = useState(true);
-  const [logoutAllLoading, setLogoutAllLoading] = useState(false);
-  const router = useRouter();
   const searchParams = useSearchParams();
   const hasUnsavedChanges = useRef(false);
   const initialFormDone = useRef(false);
@@ -805,28 +804,10 @@ export default function ProfilePage() {
           </p>
           <button
             type="button"
-            disabled={logoutAllLoading}
-            onClick={async () => {
-              setLogoutAllLoading(true);
-              try {
-                const res = await fetch("/api/auth/logout-all", {
-                  method: "POST",
-                  credentials: "include",
-                  headers: getAuthHeaders(),
-                });
-                if (res.ok) {
-                  localStorage.removeItem("align_user");
-                  sessionStorage.removeItem("align_user");
-                  router.push("/login");
-                  router.refresh();
-                }
-              } finally {
-                setLogoutAllLoading(false);
-              }
-            }}
-            className="!h-11 !min-h-[44px] !max-h-[44px] !py-0 px-4 rounded-xl bg-dark-700 hover:bg-dark-600 border border-dark-600 text-zinc-900 font-medium text-sm transition disabled:opacity-50"
+            onClick={() => requestOpenLogoutDialog()}
+            className="!h-11 !min-h-[44px] !max-h-[44px] !py-0 px-4 rounded-xl bg-dark-700 hover:bg-dark-600 border border-dark-600 text-zinc-900 font-medium text-sm transition"
           >
-            {logoutAllLoading ? tStr("pages.profile.logoutAllBusy") : tStr("pages.profile.logoutAllBtn")}
+            {tStr("pages.profile.accountLogoutBtn")}
           </button>
         </section>
       </form>

@@ -1,12 +1,7 @@
 import { signOut } from "next-auth/react";
+import { getAuthHeaders } from "@/lib/authClient";
 
-/** Închide sesiunea Diebel (cookie) + NextAuth și golește storage-ul client; apoi navigare hard la landing. */
-export async function performClientLogout(): Promise<void> {
-  try {
-    await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
-  } catch {
-    /* ignore */
-  }
+async function clearClientSessionAndGoHome(): Promise<void> {
   try {
     await signOut({ redirect: false });
   } catch {
@@ -28,4 +23,28 @@ export async function performClientLogout(): Promise<void> {
     sessionStorage.removeItem(k);
   });
   window.location.assign("/");
+}
+
+/** Închide sesiunea curentă (cookie + token) + NextAuth + storage; apoi redirect la landing. */
+export async function performClientLogout(): Promise<void> {
+  try {
+    await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+  } catch {
+    /* ignore */
+  }
+  await clearClientSessionAndGoHome();
+}
+
+/** Închide toate sesiunile utilizatorului + NextAuth + storage; apoi redirect la landing. */
+export async function performClientLogoutAllDevices(): Promise<void> {
+  try {
+    await fetch("/api/auth/logout-all", {
+      method: "POST",
+      credentials: "include",
+      headers: { ...getAuthHeaders() } as Record<string, string>,
+    });
+  } catch {
+    /* ignore */
+  }
+  await clearClientSessionAndGoHome();
 }

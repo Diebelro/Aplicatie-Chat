@@ -33,7 +33,8 @@ import { displayName } from "@/lib/displayName";
 import { LegalDocLinks } from "@/components/LegalDocLinks";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useI18n } from "@/lib/i18n/context";
-import { performClientLogout } from "@/lib/clientLogout";
+import { LogoutChoiceModal } from "@/components/LogoutChoiceModal";
+import { LOGOUT_DIALOG_OPEN_EVENT, requestOpenLogoutDialog } from "@/lib/logoutDialogEvent";
 import { DiebelWordmark } from "@/components/DiebelWordmark";
 import { DiebelCopyrightStrip } from "@/components/DiebelAuthorCredit";
 
@@ -53,6 +54,7 @@ export default function AppLayout({
   /** Puls scurt pe badge mesaje când crește necititul (se diferențiază vizual de toast-ul de match). */
   const [messageBadgePing, setMessageBadgePing] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const matchSeenInitializedRef = useRef(false);
   const prevUnreadRef = useRef<number | null>(null);
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -372,9 +374,11 @@ export default function AppLayout({
     return () => window.removeEventListener("keydown", onKey);
   }, [mobileMenuOpen]);
 
-  const logout = () => {
-    void performClientLogout();
-  };
+  useEffect(() => {
+    const onOpenLogout = () => setLogoutDialogOpen(true);
+    window.addEventListener(LOGOUT_DIALOG_OPEN_EVENT, onOpenLogout);
+    return () => window.removeEventListener(LOGOUT_DIALOG_OPEN_EVENT, onOpenLogout);
+  }, []);
 
   if (loading || !user) {
     return (
@@ -516,7 +520,7 @@ export default function AppLayout({
             </Link>
             <button
               type="button"
-              onClick={logout}
+              onClick={requestOpenLogoutDialog}
               className="shrink-0 text-dark-400 hover:text-red-400 text-sm font-medium transition px-2 py-1.5 rounded-lg hover:bg-dark-700/80"
             >
               {tStr("appNav.logout")}
@@ -758,8 +762,8 @@ export default function AppLayout({
                 <MobileNavButton
                   icon={<LogOut className="h-5 w-5" aria-hidden />}
                   onClick={() => {
-                    logout();
                     setMobileMenuOpen(false);
+                    requestOpenLogoutDialog();
                   }}
                 >
                   {tStr("appNav.logout")}
@@ -780,6 +784,7 @@ export default function AppLayout({
       <Watermark />
       <ServiceWorkerAndPush />
       <IncomingCall />
+      <LogoutChoiceModal open={logoutDialogOpen} onClose={() => setLogoutDialogOpen(false)} />
     </div>
   );
 }

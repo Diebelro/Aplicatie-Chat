@@ -81,6 +81,22 @@ export interface LegalTranslations {
   cookiesTitle: string;
 }
 
+/** Dialog unificat: ieșire dispozitiv curent vs toate dispozitivele. */
+export interface LogoutDialogTranslations {
+  title: string;
+  intro: string;
+  thisDevice: string;
+  thisDeviceHint: string;
+  allDevices: string;
+  allDevicesHint: string;
+  confirmAllTitle: string;
+  confirmAllBody: string;
+  confirmAllBtn: string;
+  back: string;
+  cancel: string;
+  busy: string;
+}
+
 /** Meniu principal aplicație autentificată (/app). */
 export interface AppNavTranslations {
   loading: string;
@@ -121,6 +137,7 @@ export interface Translations {
   legal: LegalTranslations;
   home: HomeTranslations;
   diebelPromo: DiebelPromoTranslations;
+  logoutDialog: LogoutDialogTranslations;
   appNav: AppNavTranslations;
   pages: PagesTranslations;
 }
