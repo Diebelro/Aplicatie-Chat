@@ -196,8 +196,8 @@ function callVideoFramingClasses(): { fit: string; zoom: string } {
   }
   return {
     fit: "object-contain object-center",
-    /* 1.28 încă lăsa mult pillarbox; 1.52 umple mai mult latul (taie ușor sus/jos față de contain pur). */
-    zoom: "scale-[1.52] origin-center will-change-transform",
+    /* Încercare mai agresivă pe lat — aproape de cover dar plecând de la contain. */
+    zoom: "scale-[1.82] origin-center will-change-transform",
   };
 }
 
