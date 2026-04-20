@@ -40,7 +40,8 @@ export default function AccountSettingsPage() {
   const [deleting, setDeleting] = useState(false);
   const [subscriptionPlan, setSubscriptionPlan] = useState<string | null>(null);
   const [exportingData, setExportingData] = useState(false);
-  const [exportDataError, setExportDataError] = useState("");
+  /** Mesaj discret după eșec (fără roșu / fără text tehnic din API). */
+  const [exportCalmNotice, setExportCalmNotice] = useState("");
 
   useEffect(() => {
     fetch("/api/me", { headers: getAuthHeaders() })
@@ -187,22 +188,15 @@ export default function AccountSettingsPage() {
   };
 
   const downloadMyData = () => {
-    setExportDataError("");
+    setExportCalmNotice("");
     setExportingData(true);
     fetch("/api/me/export", { headers: getAuthHeaders() })
       .then(async (r) => {
         if (!r.ok) {
-          let msg = "";
-          try {
-            const d = (await r.json()) as { error?: string };
-            const raw = String(d.error ?? "").trim();
-            msg = raw ? translateApiErrorMessage(raw, tStr) || raw : "";
-          } catch {
-            msg = "";
-          }
-          setExportDataError(msg || tStr("pages.account.exportFailed"));
+          setExportCalmNotice(tStr("pages.account.exportUnavailableCalm"));
           return;
         }
+        setExportCalmNotice("");
         const blob = await r.blob();
         const cd = r.headers.get("Content-Disposition");
         const m = cd?.match(/filename="([^"]+)"/);
@@ -217,7 +211,7 @@ export default function AccountSettingsPage() {
         a.remove();
         URL.revokeObjectURL(url);
       })
-      .catch(() => setExportDataError(tStr("pages.account.exportFailed")))
+      .catch(() => setExportCalmNotice(tStr("pages.account.exportUnavailableCalm")))
       .finally(() => setExportingData(false));
   };
 
@@ -468,32 +462,45 @@ export default function AccountSettingsPage() {
         </button>
       </section>
 
-      {/* D) GDPR */}
+      {/* D) Date cont + ștergere */}
       <section className="app-pro-panel p-6">
-        <h2 className="app-pro-section-title mb-4">{tStr("pages.account.gdprTitle")}</h2>
-        <div className="space-y-4">
-          <div>
-            <button
-              type="button"
-              onClick={downloadMyData}
-              disabled={exportingData}
-              className="px-4 py-2 rounded-lg bg-brand-500/20 text-brand-400 border border-brand-500/40 hover:bg-brand-500/30 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition"
-            >
-              {exportingData ? tStr("pages.account.exportPreparing") : tStr("pages.account.exportData")}
-            </button>
-            <p className="text-dark-500 text-xs mt-1">{tStr("pages.account.exportHint")}</p>
-            {exportDataError && <p className="text-red-400 text-xs mt-1">{exportDataError}</p>}
-          </div>
-          <div>
-            <button
-              type="button"
-              onClick={() => setDeleteConfirmOpen(true)}
-              className="px-4 py-2 rounded-lg bg-red-500/20 text-red-400 border border-red-500/50 hover:bg-red-500/30 transition text-sm"
-            >
-              {tStr("pages.account.deleteAccount")}
-            </button>
-            <p className="text-dark-500 text-xs mt-1">{tStr("pages.account.deleteAccountHint")}</p>
-          </div>
+        <h2 className="app-pro-section-title mb-1">{tStr("pages.account.exportSectionTitle")}</h2>
+        <p className="text-dark-400 text-xs mb-3">{tStr("pages.account.exportGdprFootnote")}</p>
+        <p className="text-dark-500 text-sm leading-relaxed mb-4">{tStr("pages.account.exportLead")}</p>
+        <div>
+          <button
+            type="button"
+            onClick={downloadMyData}
+            disabled={exportingData}
+            className="px-4 py-2.5 rounded-lg bg-brand-500 text-zinc-900 font-medium text-sm hover:bg-brand-600 disabled:opacity-60 disabled:cursor-not-allowed transition"
+          >
+            {exportingData ? tStr("pages.account.exportPreparing") : tStr("pages.account.exportData")}
+          </button>
+          {exportCalmNotice ? (
+            <p className="text-dark-500 text-sm mt-3 max-w-md" role="status">
+              {exportCalmNotice}
+            </p>
+          ) : null}
+        </div>
+        <details className="mt-5 group max-w-md">
+          <summary className="cursor-pointer text-sm text-dark-500 hover:text-zinc-900 underline decoration-dark-400/60 underline-offset-2 list-none [&::-webkit-details-marker]:hidden flex items-center gap-1">
+            <span>{tStr("pages.account.exportIncludesToggle")}</span>
+          </summary>
+          <p className="mt-2 text-xs text-dark-500 leading-relaxed pl-0 border-l-2 border-dark-600 pl-3">
+            {tStr("pages.account.exportIncludesBody")}
+          </p>
+        </details>
+
+        <div className="mt-8 pt-6 border-t border-dark-600">
+          <h3 className="text-base font-semibold text-zinc-900 mb-2">{tStr("pages.account.deleteAccountSectionTitle")}</h3>
+          <button
+            type="button"
+            onClick={() => setDeleteConfirmOpen(true)}
+            className="px-4 py-2 rounded-lg bg-red-500/20 text-red-400 border border-red-500/50 hover:bg-red-500/30 transition text-sm"
+          >
+            {tStr("pages.account.deleteAccount")}
+          </button>
+          <p className="text-dark-500 text-xs mt-2">{tStr("pages.account.deleteAccountHint")}</p>
         </div>
       </section>
 
