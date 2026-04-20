@@ -1658,6 +1658,34 @@ export async function prismaHasBlockBetween(userId1: string, userId2: string): P
   return !!a || !!b;
 }
 
+/** Utilizatori pe care i-am blocat eu (blockerId = mine). Pentru listă în UI + deblocare. */
+export async function prismaListUsersIBlocked(
+  blockerId: string
+): Promise<{ id: string; username: string | null; profileName: string | null }[]> {
+  const rows = await prisma.block.findMany({
+    where: { blockerId },
+    orderBy: { createdAt: "desc" },
+    select: {
+      blockedId: true,
+      blocked: {
+        select: {
+          id: true,
+          profile: { select: { username: true, name: true, realName: true } },
+        },
+      },
+    },
+  });
+  return rows.map((r) => {
+    const p = r.blocked.profile;
+    const profileName = (p?.realName?.trim() || p?.name?.trim() || "") || null;
+    return {
+      id: r.blockedId,
+      username: p?.username?.trim() || null,
+      profileName,
+    };
+  });
+}
+
 /** Returns user IDs that are in a block relation with userId (blocked by me or have blocked me). */
 export async function prismaGetBlockedUserIds(userId: string): Promise<string[]> {
   const rows = await prisma.block.findMany({

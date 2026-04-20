@@ -58,7 +58,13 @@ export async function GET(request: NextRequest) {
       const blocked = await prismaHasBlockBetween(userId, withId);
       if (blocked) {
         return NextResponse.json(
-          { messages: [], areFriends: false, matchId: null, currentUserId: userId },
+          {
+            messages: [],
+            areFriends: false,
+            matchId: null,
+            currentUserId: userId,
+            conversationBlocked: true,
+          },
           { headers: { "Cache-Control": "no-store, no-cache, must-revalidate" } }
         );
       }
@@ -89,7 +95,13 @@ export async function GET(request: NextRequest) {
       });
       const matchId = await prismaGetMatchIdBetween(userId, withId);
       return NextResponse.json(
-        { messages, areFriends: !!matchId, matchId, currentUserId: userId },
+        {
+          messages,
+          areFriends: !!matchId,
+          matchId,
+          currentUserId: userId,
+          conversationBlocked: false,
+        },
         { headers: { "Cache-Control": "no-store, no-cache, must-revalidate" } }
       );
     } catch (err) {

@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback, useLayoutEffect } from "react";
+import { useEffect, useState, useRef, useCallback, useLayoutEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Send, Video, Phone, Check, Loader2, Paperclip, X, FileText, MapPin } from "lucide-react";
+import { Send, Video, Phone, Check, Loader2, Paperclip, X, FileText, MapPin, MoreHorizontal } from "lucide-react";
 import type { Gender, User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
 import { getVideoRoomId } from "@/lib/videoCall";
@@ -202,6 +202,14 @@ export default function ChatPage() {
   /** Afișat după ring reușit dacă push către destinatar probabil lipsește. */
   const [ringPushHint, setRingPushHint] = useState<string | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
+  const [chatOverflowOpen, setChatOverflowOpen] = useState(false);
+  const [blockedUsersList, setBlockedUsersList] = useState<{ id: string; username: string | null; profileName: string | null }[]>(
+    []
+  );
+  const [blockedListLoading, setBlockedListLoading] = useState(false);
+  const [conversationBlocked, setConversationBlocked] = useState(false);
+  const [chatInfoMessage, setChatInfoMessage] = useState<string | null>(null);
+  const overflowMenuRef = useRef<HTMLDivElement>(null);
   const [pendingAttachment, setPendingAttachment] = useState<{
     url: string;
     contentType: string;
@@ -301,6 +309,7 @@ export default function ChatPage() {
       );
       const data = await res.json();
       if (res.ok) {
+        setConversationBlocked(!!(data as { conversationBlocked?: boolean }).conversationBlocked);
         const incoming = (data.messages || []) as Message[];
         setMessages((prev) => {
           const pending = prev.filter(
@@ -340,11 +349,42 @@ export default function ChatPage() {
     [otherId, tStr]
   );
 
+  const loadBlockedList = useCallback(async () => {
+    setBlockedListLoading(true);
+    try {
+      const r = await fetchWithAuthRetry("/api/blocks", { cache: "no-store" });
+      const d = (await r.json().catch(() => ({}))) as { blocked?: { id: string; username: string | null; profileName: string | null }[] };
+      if (r.ok && Array.isArray(d.blocked)) {
+        setBlockedUsersList(d.blocked);
+      }
+    } finally {
+      setBlockedListLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!chatOverflowOpen) return;
+    void loadBlockedList();
+  }, [chatOverflowOpen, loadBlockedList]);
+
+  useEffect(() => {
+    if (!chatOverflowOpen) return;
+    const onDown = (e: MouseEvent) => {
+      const el = overflowMenuRef.current;
+      if (el && !el.contains(e.target as Node)) setChatOverflowOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [chatOverflowOpen]);
+
   useEffect(() => {
     initialScrollDoneRef.current = false;
     otherPollTickRef.current = 0;
     prevMessageCountRef.current = 0;
     pinListToBottomUntilRef.current = 0;
+    setConversationBlocked(false);
+    setChatOverflowOpen(false);
+    setChatInfoMessage(null);
     if (typeof window !== "undefined") {
       window.scrollTo({ top: 0, left: 0, behavior: "instant" });
     }
@@ -619,6 +659,7 @@ export default function ChatPage() {
 
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (conversationBlocked) return;
     const hasText = text.trim().length > 0;
     const hasAttach = !!pendingAttachment;
     if ((!hasText && !hasAttach) || sending || sendingLocation) return;
@@ -861,6 +902,7 @@ export default function ChatPage() {
   };
 
   const shareCurrentLocation = () => {
+    if (conversationBlocked) return;
     if (sending || sendingLocation || uploadingAttachment) return;
     if (pendingAttachment) {
       setIsPaywallError(false);
@@ -911,6 +953,7 @@ export default function ChatPage() {
   const ringAndGoCall = useCallback(
     async (audioOnly: boolean) => {
       if (!callerId) return;
+      if (conversationBlocked) return;
       const sessionOtherId = otherId;
       const roomIdForRing = getVideoRoomId(callerId, sessionOtherId);
       const stillThisChat = () =>
@@ -964,7 +1007,7 @@ export default function ChatPage() {
         setCalling(null);
       }
     },
-    [callerId, otherId, router, tStr]
+    [callerId, otherId, router, tStr, conversationBlocked]
   );
 
   if (loading) {
@@ -988,6 +1031,17 @@ export default function ChatPage() {
     other && typeof other.distanceKm === "number" ? formatChatDistanceKm(other.distanceKm, locale, tStr) : null;
 
   const locShareDialogTheme = locationShareConfirmTheme(me?.gender, other?.gender);
+
+  const blockedRowLabel = (row: { id: string; username: string | null; profileName: string | null }) => {
+    const raw = (row.username?.trim() || row.profileName?.trim() || "").trim();
+    if (!raw) return tStr("pages.chat.profileFallback");
+    return displayName(raw);
+  };
+  const iHaveBlockedOther = useMemo(
+    () => blockedUsersList.some((b) => b.id === otherId),
+    [blockedUsersList, otherId]
+  );
+  const composerLocked = conversationBlocked;
 
   return (
     <div className="flex flex-col flex-1 min-h-0 w-full min-w-0 max-w-full">
@@ -1064,75 +1118,191 @@ export default function ChatPage() {
           </div>
         </div>
         {callerId && (
-        <div className="flex flex-wrap gap-2 pt-2 border-t border-dark-600 mt-2">
-          <button
-            type="button"
-            disabled={actionBusy}
-            onClick={async () => {
-              if (!confirm(tStr("pages.chat.blockConfirm"))) return;
-              setActionBusy(true);
-              try {
-                const res = await fetch("/api/block", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-                  body: JSON.stringify({ targetUserId: otherId }),
-                });
-                if (res.ok) router.replace("/app/profiles");
-                else {
-                  const j = await res.json();
-                  const raw = String(j.error ?? "").trim();
-                  setSendError(translateApiErrorMessage(raw, tStr) || raw || tStr("pages.chat.errGeneric"));
-                }
-              } finally {
-                setActionBusy(false);
-              }
-            }}
-            className="text-sm text-dark-400 hover:text-amber-400 transition disabled:opacity-50"
-          >
-            {tStr("pages.chat.block")}
-          </button>
-          <button
-            type="button"
-            disabled={actionBusy}
-            onClick={async () => {
-              const reason = window.prompt(tStr("pages.chat.reportPrompt"));
-              if (reason === null) return;
-              setActionBusy(true);
-              try {
-                const res = await fetch("/api/report", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-                  body: JSON.stringify({
-                    targetUserId: otherId,
-                    reason: reason || tStr("pages.chat.reportDefaultReason"),
-                  }),
-                });
-                if (res.ok) setSendError(null);
-                else {
-                  const j = await res.json();
-                  const raw = String(j.error ?? "").trim();
-                  setSendError(translateApiErrorMessage(raw, tStr) || raw || tStr("pages.chat.errGeneric"));
-                }
-              } finally {
-                setActionBusy(false);
-              }
-            }}
-            className="text-sm text-dark-400 hover:text-amber-400 transition disabled:opacity-50"
-          >
-            {tStr("pages.profiles.reportTitle")}
-          </button>
-          {matchId && (
+          <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-dark-600 mt-2">
+            <div className="relative" ref={overflowMenuRef}>
+              <button
+                type="button"
+                disabled={actionBusy}
+                onClick={() => setChatOverflowOpen((v) => !v)}
+                className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-xl text-dark-400 hover:text-zinc-900 hover:bg-dark-800/80 border border-dark-600 transition disabled:opacity-50 touch-manipulation"
+                aria-expanded={chatOverflowOpen}
+                aria-haspopup="true"
+                aria-label={tStr("pages.chat.overflowMenuAria")}
+              >
+                <MoreHorizontal className="w-5 h-5" aria-hidden />
+              </button>
+              {chatOverflowOpen ? (
+                <div
+                  className="absolute right-0 top-full z-[130] mt-1 min-w-[min(92vw,280px)] max-w-[min(92vw,320px)] max-h-[min(72dvh,440px)] overflow-y-auto rounded-xl border border-dark-600 bg-night-950 shadow-2xl py-1 text-sm text-zinc-100"
+                  role="menu"
+                >
+                  {otherUser ? (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      disabled={actionBusy || iHaveBlockedOther}
+                      className="w-full px-3 py-2.5 text-left hover:bg-dark-800/90 disabled:opacity-45 disabled:cursor-not-allowed"
+                      onClick={async () => {
+                        if (!confirm(tStr("pages.chat.blockConfirm"))) return;
+                        setActionBusy(true);
+                        try {
+                          const res = await fetch("/api/block", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+                            body: JSON.stringify({ targetUserId: otherId }),
+                          });
+                          if (res.ok) {
+                            setSendError(null);
+                            setChatInfoMessage(tStr("pages.chat.blockSuccessStay"));
+                            setChatOverflowOpen(false);
+                            await loadBlockedList();
+                            await fetchMessages({ markConversationRead: false });
+                          } else {
+                            const j = await res.json();
+                            const raw = String(j.error ?? "").trim();
+                            setSendError(translateApiErrorMessage(raw, tStr) || raw || tStr("pages.chat.errGeneric"));
+                          }
+                        } finally {
+                          setActionBusy(false);
+                        }
+                      }}
+                    >
+                      {tStr("pages.chat.overflowBlockUser")}
+                    </button>
+                  ) : null}
+                  <div className="border-t border-dark-600 px-2 py-2" role="presentation">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-dark-500 px-1 pb-1.5">
+                      {tStr("pages.chat.blockedUsersHeading")}
+                    </p>
+                    {blockedListLoading ? (
+                      <p className="text-dark-500 px-2 py-1 text-xs">{tStr("pages.chat.loading")}</p>
+                    ) : blockedUsersList.length === 0 ? (
+                      <p className="text-dark-500 px-2 py-1 text-xs">{tStr("pages.chat.blockedUsersEmpty")}</p>
+                    ) : (
+                      <ul className="space-y-0.5">
+                        {blockedUsersList.map((row) => (
+                          <li
+                            key={row.id}
+                            className="flex items-center justify-between gap-2 rounded-lg px-1 py-1 hover:bg-dark-800/70"
+                          >
+                            <span className="truncate min-w-0 text-xs text-zinc-200">{blockedRowLabel(row)}</span>
+                            <button
+                              type="button"
+                              disabled={actionBusy}
+                              className="shrink-0 rounded-lg border border-dark-500 px-2 py-1 text-[11px] font-medium text-amber-200/95 hover:bg-dark-700 disabled:opacity-50"
+                              onClick={async () => {
+                                const name = blockedRowLabel(row);
+                                if (!confirm(formatTpl(tStr("pages.chat.unblockConfirm"), { name }))) return;
+                                setActionBusy(true);
+                                try {
+                                  const res = await fetch("/api/unblock", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+                                    body: JSON.stringify({ targetUserId: row.id }),
+                                  });
+                                  if (res.ok) {
+                                    setSendError(null);
+                                    await loadBlockedList();
+                                    if (row.id === otherId) {
+                                      await fetchMessages({ markConversationRead: false });
+                                    }
+                                  } else {
+                                    const j = await res.json();
+                                    const raw = String(j.error ?? "").trim();
+                                    setSendError(
+                                      translateApiErrorMessage(raw, tStr) || raw || tStr("pages.chat.errGeneric")
+                                    );
+                                  }
+                                } finally {
+                                  setActionBusy(false);
+                                }
+                              }}
+                            >
+                              {tStr("pages.chat.unblockUser")}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  {otherUser ? (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      disabled={actionBusy}
+                      className="w-full px-3 py-2.5 text-left hover:bg-dark-800/90 border-t border-dark-600"
+                      onClick={async () => {
+                        const reason = window.prompt(tStr("pages.chat.reportPrompt"));
+                        if (reason === null) return;
+                        setActionBusy(true);
+                        try {
+                          const res = await fetch("/api/report", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+                            body: JSON.stringify({
+                              targetUserId: otherId,
+                              reason: reason || tStr("pages.chat.reportDefaultReason"),
+                            }),
+                          });
+                          if (res.ok) {
+                            setSendError(null);
+                            setChatOverflowOpen(false);
+                          } else {
+                            const j = await res.json();
+                            const raw = String(j.error ?? "").trim();
+                            setSendError(translateApiErrorMessage(raw, tStr) || raw || tStr("pages.chat.errGeneric"));
+                          }
+                        } finally {
+                          setActionBusy(false);
+                        }
+                      }}
+                    >
+                      {tStr("pages.chat.overflowReport")}
+                    </button>
+                  ) : null}
+                  {matchId ? (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      disabled={actionBusy}
+                      className="w-full px-3 py-2.5 text-left hover:bg-dark-800/90 border-t border-dark-600 text-amber-200/95"
+                      onClick={async () => {
+                        if (!confirm(tStr("pages.chat.unmatchConfirm"))) return;
+                        setActionBusy(true);
+                        try {
+                          const res = await fetch("/api/unmatch", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+                            body: JSON.stringify({ matchId }),
+                          });
+                          if (res.ok) router.replace("/app/profiles");
+                          else {
+                            const j = await res.json();
+                            const raw = String(j.error ?? "").trim();
+                            setSendError(translateApiErrorMessage(raw, tStr) || raw || tStr("pages.chat.errGeneric"));
+                          }
+                        } finally {
+                          setActionBusy(false);
+                        }
+                      }}
+                    >
+                      {tStr("pages.chat.overflowUnmatch")}
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
             <button
               type="button"
               disabled={actionBusy}
               onClick={async () => {
-                if (!confirm(tStr("pages.chat.unmatchConfirm"))) return;
+                if (!confirm(tStr("pages.chat.deleteConversationConfirm"))) return;
                 setActionBusy(true);
                 try {
-                  const res = await fetch("/api/unmatch", {
+                  const res = await fetch("/api/conversations/delete", {
                     method: "POST",
                     headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-                    body: JSON.stringify({ matchId }),
+                    body: JSON.stringify({ conversationId: otherId }),
                   });
                   if (res.ok) router.replace("/app/profiles");
                   else {
@@ -1146,36 +1316,9 @@ export default function ChatPage() {
               }}
               className="text-sm text-dark-400 hover:text-red-400 transition disabled:opacity-50"
             >
-              {tStr("pages.chat.unmatch")}
+              {tStr("pages.chat.deleteConversation")}
             </button>
-          )}
-          <button
-            type="button"
-            disabled={actionBusy}
-            onClick={async () => {
-              if (!confirm(tStr("pages.chat.deleteConversationConfirm"))) return;
-              setActionBusy(true);
-              try {
-                const res = await fetch("/api/conversations/delete", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-                  body: JSON.stringify({ conversationId: otherId }),
-                });
-                if (res.ok) router.replace("/app/profiles");
-                else {
-                  const j = await res.json();
-                  const raw = String(j.error ?? "").trim();
-                  setSendError(translateApiErrorMessage(raw, tStr) || raw || tStr("pages.chat.errGeneric"));
-                }
-              } finally {
-                setActionBusy(false);
-              }
-            }}
-            className="text-sm text-dark-400 hover:text-red-400 transition disabled:opacity-50"
-          >
-            {tStr("pages.chat.deleteConversation")}
-          </button>
-        </div>
+          </div>
         )}
       </div>
 
@@ -1188,6 +1331,14 @@ export default function ChatPage() {
             {fetchError}
           </p>
         )}
+        {conversationBlocked ? (
+          <p
+            className="text-amber-100/95 text-sm mx-1 px-3 py-2 rounded-xl bg-amber-500/20 border border-amber-400/45 leading-snug"
+            role="status"
+          >
+            {tStr("pages.chat.conversationBlockedBanner")}
+          </p>
+        ) : null}
         {messages.length === 0 && (
           <p className="text-center text-dark-500 text-sm">
             {tStr("pages.chat.emptyMessages")}
@@ -1388,6 +1539,11 @@ export default function ChatPage() {
             {ringPushHint}
           </p>
         ) : null}
+        {chatInfoMessage ? (
+          <p className="text-emerald-600/95 text-sm px-1" role="status">
+            {chatInfoMessage}
+          </p>
+        ) : null}
         {pendingAttachment && (
           <div className="flex items-center gap-2 text-sm text-dark-300">
             {isImageType(pendingAttachment.contentType) ? (
@@ -1443,7 +1599,7 @@ export default function ChatPage() {
                 }
                 fileInputRef.current?.click();
               }}
-              disabled={uploadingAttachment || sending || sendingLocation}
+              disabled={composerLocked || uploadingAttachment || sending || sendingLocation}
               className={`min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-dark-700 hover:bg-dark-600 active:bg-dark-600 text-dark-300 disabled:opacity-50 transition shrink-0 touch-manipulation ${!uploadConfigured ? "opacity-60" : ""}`}
               title={
                 uploadConfigured
@@ -1457,7 +1613,7 @@ export default function ChatPage() {
             <button
               type="button"
               onClick={() => shareCurrentLocation()}
-              disabled={uploadingAttachment || sending || sendingLocation}
+              disabled={composerLocked || uploadingAttachment || sending || sendingLocation}
               className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-dark-700 hover:bg-dark-600 active:bg-dark-600 text-emerald-400 disabled:opacity-50 transition shrink-0 touch-manipulation"
               title={tStr("pages.chat.sendLocationTitle")}
               aria-label={tStr("pages.chat.sendLocationAria")}
@@ -1472,7 +1628,7 @@ export default function ChatPage() {
               <>
                 <button
                   type="button"
-                  disabled={!!calling || sending || uploadingAttachment || sendingLocation}
+                  disabled={composerLocked || !!calling || sending || uploadingAttachment || sendingLocation}
                   onClick={() => void ringAndGoCall(false)}
                   className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-brand-500/25 text-brand-400 hover:bg-brand-500/35 border border-brand-500/40 disabled:opacity-50 transition shrink-0 touch-manipulation"
                   title={tStr("pages.chat.videoCallTitle")}
@@ -1482,7 +1638,7 @@ export default function ChatPage() {
                 </button>
                 <button
                   type="button"
-                  disabled={!!calling || sending || uploadingAttachment || sendingLocation}
+                  disabled={composerLocked || !!calling || sending || uploadingAttachment || sendingLocation}
                   onClick={() => void ringAndGoCall(true)}
                   className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-sky-500/15 text-sky-600 hover:bg-sky-500/25 border border-sky-500/40 disabled:opacity-50 transition shrink-0 touch-manipulation"
                   title={tStr("pages.chat.audioCallTitle")}
@@ -1502,15 +1658,23 @@ export default function ChatPage() {
               onChange={(e) => {
                 setText(e.target.value);
                 setSendError(null);
+                setChatInfoMessage(null);
               }}
               placeholder={tStr("pages.chat.placeholder")}
-              className="min-w-0 flex-1 min-h-[44px] text-base bg-dark-800 border border-dark-600 rounded-xl px-3 sm:px-4 py-3 text-zinc-900 placeholder:text-dark-400 focus:outline-none focus:ring-2 focus:ring-brand-500 touch-manipulation"
+              disabled={composerLocked}
+              className="min-w-0 flex-1 min-h-[44px] text-base bg-dark-800 border border-dark-600 rounded-xl px-3 sm:px-4 py-3 text-zinc-900 placeholder:text-dark-400 focus:outline-none focus:ring-2 focus:ring-brand-500 touch-manipulation disabled:opacity-55"
               autoComplete="off"
               enterKeyHint="send"
             />
             <button
               type="submit"
-              disabled={(!text.trim() && !pendingAttachment) || sending || uploadingAttachment || sendingLocation}
+              disabled={
+                composerLocked ||
+                (!text.trim() && !pendingAttachment) ||
+                sending ||
+                uploadingAttachment ||
+                sendingLocation
+              }
               className="min-h-[44px] min-w-[48px] sm:min-w-[44px] flex items-center justify-center rounded-xl bg-brand-500 hover:bg-brand-400 active:bg-brand-400 text-dark-900 disabled:opacity-50 transition shrink-0 touch-manipulation px-3 sm:px-0"
               aria-label={tStr("pages.chat.sendAria")}
             >
