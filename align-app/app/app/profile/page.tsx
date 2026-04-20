@@ -450,7 +450,14 @@ export default function ProfilePage() {
       {!serverHasUser && (
         <div className="mt-4 p-4 rounded-xl bg-amber-500/10 border border-amber-500/40 text-amber-950 text-sm">
           <strong>{tStr("pages.profile.serverMissingBold")}</strong> {tStr("pages.profile.serverMissingLine")}{" "}
-          <Link href="/login" className="underline">{tStr("pages.profile.serverMissingLogout")}</Link> {tStr("pages.profile.serverMissingMid")}{" "}
+          <button
+            type="button"
+            onClick={() => requestOpenLogoutDialog()}
+            className="underline cursor-pointer bg-transparent border-0 p-0 font-inherit text-inherit hover:text-amber-800"
+          >
+            {tStr("pages.profile.serverMissingLogout")}
+          </button>{" "}
+          {tStr("pages.profile.serverMissingMid")}{" "}
           <Link href="/signup" className="underline">{tStr("pages.profile.serverMissingSignup")}</Link> {tStr("pages.profile.serverMissingEnd")}
         </div>
       )}
@@ -776,14 +783,30 @@ export default function ProfilePage() {
           <p className="text-red-400 text-sm">
             {translateApiErrorMessage(errorDetail, tStr) || errorDetail || tStr("pages.profile.errSave")}
             {/sesiune|session|Sitzung|ieși|sign out|log ?out|Abmelden|cookie/i.test(errorDetail) && (
-              <>{" "}<Link href="/login" className="underline font-medium">{tStr("pages.profile.loginNowLink")}</Link></>
+              <>
+                {" "}
+                <button
+                  type="button"
+                  onClick={() => requestOpenLogoutDialog()}
+                  className="underline font-medium cursor-pointer bg-transparent border-0 p-0 text-inherit hover:text-red-300"
+                >
+                  {tStr("pages.profile.loginNowLink")}
+                </button>
+              </>
             )}
           </p>
         )}
         {message === "not_on_server" && (
           <p className="text-red-400 text-sm">
             {tStr("pages.profile.errNotOnServerLine1")}{" "}
-            <Link href="/login" className="underline">{tStr("pages.profile.linkLogout")}</Link> {tStr("pages.profile.errNotOnServerBetween")}{" "}
+            <button
+              type="button"
+              onClick={() => requestOpenLogoutDialog()}
+              className="underline cursor-pointer bg-transparent border-0 p-0 text-inherit hover:text-red-300"
+            >
+              {tStr("pages.profile.linkLogout")}
+            </button>{" "}
+            {tStr("pages.profile.errNotOnServerBetween")}{" "}
             <Link href="/signup" className="underline">{tStr("pages.profile.linkSignup")}</Link> {tStr("pages.profile.errNotOnServerEnd")}
           </p>
         )}
