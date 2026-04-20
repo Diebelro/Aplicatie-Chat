@@ -276,6 +276,11 @@ export default function ProfilesPage() {
           <p className={`text-xs leading-relaxed ${myLocationEnabled ? "text-emerald-800/90" : "text-dark-500"}`}>
             {myLocationEnabled ? tStr("pages.profiles.locationActiveHint") : tStr("pages.profiles.enableLocationSubhint")}
           </p>
+          {myLocationEnabled ? (
+            <p className="text-[11px] leading-snug text-emerald-800/75 max-w-md">
+              {tStr("pages.profiles.locationSavedPermissionNote")}
+            </p>
+          ) : null}
           {locationBannerError ? <p className="text-xs text-red-600 pt-0.5">{locationBannerError}</p> : null}
         </div>
         <button
