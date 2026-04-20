@@ -1063,49 +1063,6 @@ export default function ChatPage() {
             </p>
           </div>
         </div>
-        {otherUser && (
-          <div className="flex flex-wrap items-center gap-2 min-w-0">
-            <span className="text-xs text-dark-500 shrink-0">{tStr("pages.chat.callLabel")}</span>
-            {!callerId ? (
-              <span className="text-xs text-amber-400/90 max-w-[min(100%,220px)]">
-                {tStr("pages.chat.loadingAccountId")}
-              </span>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  disabled={!!calling}
-                  onClick={() => void ringAndGoCall(false)}
-                  className="flex min-h-[44px] items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl bg-brand-500/25 text-brand-400 hover:bg-brand-500/35 border border-brand-500/40 transition disabled:opacity-50 touch-manipulation shrink-0"
-                  title={tStr("pages.chat.videoCallTitle")}
-                >
-                  <Video className="w-5 h-5 shrink-0" />
-                  <span className="text-sm font-medium whitespace-nowrap">{tStr("pages.chat.video")}</span>
-                </button>
-                <button
-                  type="button"
-                  disabled={!!calling}
-                  onClick={() => void ringAndGoCall(true)}
-                  className="flex min-h-[44px] items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl bg-sky-500/15 text-sky-400 hover:bg-sky-500/25 border border-sky-500/40 transition disabled:opacity-50 touch-manipulation shrink-0"
-                  title={tStr("pages.chat.audioCallTitle")}
-                >
-                  <Phone className="w-5 h-5 shrink-0" />
-                  <span className="text-sm font-medium whitespace-nowrap">{tStr("pages.chat.audio")}</span>
-                </button>
-              </>
-            )}
-            {calling && (
-              <p className="w-full basis-full text-xs text-dark-500" role="status" aria-live="polite">
-                {tStr("pages.chat.callingInProgress")}
-              </p>
-            )}
-            {ringPushHint && (
-              <p className="w-full text-xs text-amber-400/95 leading-snug mt-1" role="status">
-                {ringPushHint}
-              </p>
-            )}
-          </div>
-        )}
         {callerId && (
         <div className="flex flex-wrap gap-2 pt-2 border-t border-dark-600 mt-2">
           <button
@@ -1416,6 +1373,21 @@ export default function ChatPage() {
             )}
           </div>
         )}
+        {otherUser && !callerId && (
+          <p className="text-xs text-amber-400/90" role="status">
+            {tStr("pages.chat.loadingAccountId")}
+          </p>
+        )}
+        {otherUser && callerId && calling ? (
+          <p className="text-xs text-dark-500" role="status" aria-live="polite">
+            {tStr("pages.chat.callingInProgress")}
+          </p>
+        ) : null}
+        {otherUser && callerId && ringPushHint ? (
+          <p className="text-xs text-amber-400/95 leading-snug" role="status">
+            {ringPushHint}
+          </p>
+        ) : null}
         {pendingAttachment && (
           <div className="flex items-center gap-2 text-sm text-dark-300">
             {isImageType(pendingAttachment.contentType) ? (
