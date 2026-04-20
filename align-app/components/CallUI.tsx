@@ -183,6 +183,17 @@ function useRemoteVideoElement(ref: RefObject<HTMLVideoElement | null>, stream: 
   }, [stream]);
 }
 
+/**
+ * Pe ecran lat, `object-cover` taie prea mult din portret — `contain` arată tot cadrul (remote + preview local).
+ * Pe telefon rămâne `cover` ca să umple bine tile-ul / PiP-ul mic.
+ *
+ * Producție (înghețat): preview local fără `scale-x-[-1]` — aceeași orientare ca stream-ul trimis.
+ * Opțional viitor: mirror doar pentru self-view pe mobil (`isMobileDevice()`) dacă produsul cere UX „selfie”.
+ */
+function callVideoObjectFitClass(): "object-cover" | "object-contain object-center" {
+  return isMobileDevice() ? "object-cover" : "object-contain object-center";
+}
+
 /** Card mic (conferință / layout clasic). */
 function RemoteVideoCard({ participant }: { participant: RemoteParticipant }) {
   const { tStr } = useCallRoomTranslate();
@@ -190,6 +201,7 @@ function RemoteVideoCard({ participant }: { participant: RemoteParticipant }) {
   const stream = participant.stream ?? null;
   useRemoteVideoElement(ref, stream);
   const hasRenderableVideo = useVideoRenderable(ref, stream);
+  const remoteFit = callVideoObjectFitClass();
 
   return (
     <div className="relative isolate overflow-hidden rounded-2xl bg-black border border-white/10 aspect-video shadow-xl">
@@ -200,7 +212,7 @@ function RemoteVideoCard({ participant }: { participant: RemoteParticipant }) {
             autoPlay
             playsInline
             muted
-            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ease-out ${
+            className={`absolute inset-0 h-full w-full ${remoteFit} transition-opacity duration-500 ease-out ${
               hasRenderableVideo ? "opacity-100" : "opacity-0"
             }`}
           />
@@ -245,6 +257,7 @@ function RemoteVideoStage({
   const stream = participant.stream ?? null;
   useRemoteVideoElement(ref, stream);
   const hasRenderableVideo = useVideoRenderable(ref, stream);
+  const remoteFit = callVideoObjectFitClass();
 
   return (
     <div
@@ -260,7 +273,7 @@ function RemoteVideoStage({
             autoPlay
             playsInline
             muted
-            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ease-out ${
+            className={`absolute inset-0 h-full w-full ${remoteFit} transition-opacity duration-500 ease-out ${
               hasRenderableVideo ? "opacity-100" : "opacity-0"
             }`}
           />
@@ -1266,7 +1279,7 @@ export default function CallUI({
                     autoPlay
                     playsInline
                     muted
-                    className="absolute inset-0 h-full w-full object-cover scale-x-[-1]"
+                    className={`absolute inset-0 h-full w-full ${callVideoObjectFitClass()}`}
                   />
                 </div>
               ) : localStream && videoMuted ? (
@@ -1370,7 +1383,7 @@ export default function CallUI({
               autoPlay
               playsInline
               muted
-              className="h-full w-full object-cover scale-x-[-1]"
+              className={`h-full w-full ${callVideoObjectFitClass()}`}
             />
           </div>
         )}
@@ -1766,7 +1779,13 @@ export default function CallUI({
           }`}
         >
         <div className="relative rounded-2xl overflow-hidden bg-night-800 border border-white/10 aspect-video shadow-lg">
-          <video ref={bindLocalVideoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
+          <video
+            ref={bindLocalVideoRef}
+            autoPlay
+            playsInline
+            muted
+            className={`w-full h-full ${callVideoObjectFitClass()}`}
+          />
           <audio ref={bindLocalAudioRef} autoPlay playsInline muted className="hidden" />
         </div>
 
