@@ -184,14 +184,20 @@ function useRemoteVideoElement(ref: RefObject<HTMLVideoElement | null>, stream: 
 }
 
 /**
- * Pe ecran lat, `object-cover` taie prea mult din portret — `contain` arată tot cadrul (remote + preview local).
- * Pe telefon rămâne `cover` ca să umple bine tile-ul / PiP-ul mic.
+ * Pe ecran lat: `object-contain` arată tot cadrul dar imaginea e îngustă (pillarbox). Mic `scale` în
+ * container `overflow-hidden` umple mai mult ecranul fără tăierea agresivă a lui `object-cover` pur.
+ * Pe telefon: `object-cover` fără zoom suplimentar.
  *
- * Producție (înghețat): preview local fără `scale-x-[-1]` — aceeași orientare ca stream-ul trimis.
- * Opțional viitor: mirror doar pentru self-view pe mobil (`isMobileDevice()`) dacă produsul cere UX „selfie”.
+ * Preview local fără oglindire — aceeași orientare ca stream-ul trimis.
  */
-function callVideoObjectFitClass(): "object-cover" | "object-contain object-center" {
-  return isMobileDevice() ? "object-cover" : "object-contain object-center";
+function callVideoFramingClasses(): { fit: string; zoom: string } {
+  if (isMobileDevice()) {
+    return { fit: "object-cover", zoom: "" };
+  }
+  return {
+    fit: "object-contain object-center",
+    zoom: "scale-[1.28] origin-center will-change-transform",
+  };
 }
 
 /** Card mic (conferință / layout clasic). */
@@ -201,7 +207,7 @@ function RemoteVideoCard({ participant }: { participant: RemoteParticipant }) {
   const stream = participant.stream ?? null;
   useRemoteVideoElement(ref, stream);
   const hasRenderableVideo = useVideoRenderable(ref, stream);
-  const remoteFit = callVideoObjectFitClass();
+  const { fit: remoteFit, zoom: remoteZoom } = callVideoFramingClasses();
 
   return (
     <div className="relative isolate overflow-hidden rounded-2xl bg-black border border-white/10 aspect-video shadow-xl">
@@ -212,7 +218,7 @@ function RemoteVideoCard({ participant }: { participant: RemoteParticipant }) {
             autoPlay
             playsInline
             muted
-            className={`absolute inset-0 h-full w-full ${remoteFit} transition-opacity duration-500 ease-out ${
+            className={`absolute inset-0 h-full w-full ${remoteFit} ${remoteZoom} transition-opacity duration-500 ease-out ${
               hasRenderableVideo ? "opacity-100" : "opacity-0"
             }`}
           />
@@ -257,13 +263,13 @@ function RemoteVideoStage({
   const stream = participant.stream ?? null;
   useRemoteVideoElement(ref, stream);
   const hasRenderableVideo = useVideoRenderable(ref, stream);
-  const remoteFit = callVideoObjectFitClass();
+  const { fit: remoteFit, zoom: remoteZoom } = callVideoFramingClasses();
 
   return (
     <div
       id="remoteShareWrapper"
       ref={overlayHostRef}
-      className="absolute inset-0 isolate h-full w-full bg-black"
+      className="absolute inset-0 isolate h-full w-full overflow-hidden bg-black"
     >
       {stream ? (
         <>
@@ -273,7 +279,7 @@ function RemoteVideoStage({
             autoPlay
             playsInline
             muted
-            className={`absolute inset-0 h-full w-full ${remoteFit} transition-opacity duration-500 ease-out ${
+            className={`absolute inset-0 h-full w-full ${remoteFit} ${remoteZoom} transition-opacity duration-500 ease-out ${
               hasRenderableVideo ? "opacity-100" : "opacity-0"
             }`}
           />
@@ -901,6 +907,8 @@ export default function CallUI({
 
   const immersiveVideo = !isConference && !audioOnly;
   const immersiveAudio = !isConference && audioOnly;
+  /** O singură evaluare per render pentru preview local (immersive + grid). */
+  const callVideoFraming = callVideoFramingClasses();
 
   const callStartupOverlayLabel = useCallback(
     (phase: CallUiPhase) => {
@@ -1272,14 +1280,18 @@ export default function CallUI({
               aria-label={canSwapVideoLayout ? ui("swapLayoutRemoteLargeAria") : undefined}
             >
               {localStream && !videoMuted ? (
-                <div id="localShareWrapper" ref={localCursorSendRef} className="absolute inset-0 h-full w-full">
+                <div
+                  id="localShareWrapper"
+                  ref={localCursorSendRef}
+                  className="absolute inset-0 h-full w-full overflow-hidden"
+                >
                   <video
                     id="localShareVideo"
                     ref={bindLocalVideoRef}
                     autoPlay
                     playsInline
                     muted
-                    className={`absolute inset-0 h-full w-full ${callVideoObjectFitClass()}`}
+                    className={`absolute inset-0 h-full w-full ${callVideoFraming.fit} ${callVideoFraming.zoom}`}
                   />
                 </div>
               ) : localStream && videoMuted ? (
@@ -1383,7 +1395,7 @@ export default function CallUI({
               autoPlay
               playsInline
               muted
-              className={`h-full w-full ${callVideoObjectFitClass()}`}
+              className={`h-full w-full ${callVideoFraming.fit} ${callVideoFraming.zoom}`}
             />
           </div>
         )}
@@ -1784,7 +1796,7 @@ export default function CallUI({
             autoPlay
             playsInline
             muted
-            className={`w-full h-full ${callVideoObjectFitClass()}`}
+            className={`w-full h-full ${callVideoFraming.fit} ${callVideoFraming.zoom}`}
           />
           <audio ref={bindLocalAudioRef} autoPlay playsInline muted className="hidden" />
         </div>
