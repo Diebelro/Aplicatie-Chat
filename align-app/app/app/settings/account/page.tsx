@@ -464,9 +464,8 @@ export default function AccountSettingsPage() {
 
       {/* D) Date cont + ștergere */}
       <section className="app-pro-panel p-6">
-        <h2 className="app-pro-section-title mb-1">{tStr("pages.account.exportSectionTitle")}</h2>
-        <p className="text-dark-400 text-xs mb-3">{tStr("pages.account.exportGdprFootnote")}</p>
-        <p className="text-dark-500 text-sm leading-relaxed mb-4">{tStr("pages.account.exportLead")}</p>
+        <h2 className="app-pro-section-title mb-3">{tStr("pages.account.exportSectionTitle")}</h2>
+        <p className="text-dark-500 text-sm leading-snug mb-4 max-w-sm">{tStr("pages.account.exportLead")}</p>
         <div>
           <button
             type="button"
@@ -477,19 +476,16 @@ export default function AccountSettingsPage() {
             {exportingData ? tStr("pages.account.exportPreparing") : tStr("pages.account.exportData")}
           </button>
           {exportCalmNotice ? (
-            <p className="text-dark-500 text-sm mt-3 max-w-md" role="status">
+            <p className="text-dark-500 text-sm mt-2 max-w-sm" role="status">
               {exportCalmNotice}
             </p>
           ) : null}
         </div>
-        <details className="mt-5 group max-w-md">
-          <summary className="cursor-pointer text-sm text-dark-500 hover:text-zinc-900 underline decoration-dark-400/60 underline-offset-2 list-none [&::-webkit-details-marker]:hidden flex items-center gap-1">
-            <span>{tStr("pages.account.exportIncludesToggle")}</span>
-          </summary>
-          <p className="mt-2 text-xs text-dark-500 leading-relaxed pl-0 border-l-2 border-dark-600 pl-3">
-            {tStr("pages.account.exportIncludesBody")}
-          </p>
-        </details>
+        <p className="text-xs text-dark-400 mt-3">
+          <Link href="/privacy" className="underline hover:text-zinc-900">
+            {tStr("legal.links.privacy")}
+          </Link>
+        </p>
 
         <div className="mt-8 pt-6 border-t border-dark-600">
           <h3 className="text-base font-semibold text-zinc-900 mb-2">{tStr("pages.account.deleteAccountSectionTitle")}</h3>
