@@ -831,6 +831,7 @@
       "exportData": "Meine Daten herunterladen",
       "exportPreparing": "Wird vorbereitet…",
       "exportUnavailableCalm": "Gerade nicht möglich. Später erneut versuchen.",
+      "exportRateLimitedCalm": "Du hast kürzlich exportiert. Bitte ein paar Minuten warten und erneut versuchen.",
       "deleteAccountSectionTitle": "Konto löschen",
       "deleteAccount": "Konto löschen",
       "deleteAccountHint": "Die Löschung ist dauerhaft. Dein Passwort wird abgefragt.",

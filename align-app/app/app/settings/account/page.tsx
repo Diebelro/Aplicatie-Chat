@@ -190,8 +190,12 @@ export default function AccountSettingsPage() {
   const downloadMyData = () => {
     setExportCalmNotice("");
     setExportingData(true);
-    fetch("/api/me/export", { headers: getAuthHeaders() })
+    fetch("/api/me/export", { credentials: "include", headers: getAuthHeaders() })
       .then(async (r) => {
+        if (r.status === 429) {
+          setExportCalmNotice(tStr("pages.account.exportRateLimitedCalm"));
+          return;
+        }
         if (!r.ok) {
           setExportCalmNotice(tStr("pages.account.exportUnavailableCalm"));
           return;

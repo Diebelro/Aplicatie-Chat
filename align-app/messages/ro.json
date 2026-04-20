@@ -831,6 +831,7 @@
       "exportData": "Descarcă datele mele",
       "exportPreparing": "Se pregătește…",
       "exportUnavailableCalm": "Nu merge acum. Încearcă mai târziu.",
+      "exportRateLimitedCalm": "Ai descărcat de curând datele. Așteaptă câteva minute, apoi încearcă din nou.",
       "deleteAccountSectionTitle": "Ștergere cont",
       "deleteAccount": "Șterge contul",
       "deleteAccountHint": "Ștergerea este permanentă. Va fi cerută parola.",

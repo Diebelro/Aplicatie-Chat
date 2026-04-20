@@ -831,6 +831,7 @@
       "exportData": "Download my data",
       "exportPreparing": "Preparing…",
       "exportUnavailableCalm": "Not available right now. Try again later.",
+      "exportRateLimitedCalm": "You downloaded recently. Wait a few minutes, then try again.",
       "deleteAccountSectionTitle": "Delete account",
       "deleteAccount": "Delete account",
       "deleteAccountHint": "Deletion is permanent. Your password will be required.",

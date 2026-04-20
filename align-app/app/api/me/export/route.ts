@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUserId } from "@/lib/sessionAuth";
+
+/** Exportul poate fi greu (multe tabele); pe Vercel evităm timeout prematur. */
+export const maxDuration = 60;
 import { isPrismaAvailable } from "@/lib/repo-prisma";
 import { prisma } from "@/lib/db";
 import { findUserById } from "@/lib/store";
@@ -293,7 +296,8 @@ export async function GET(req: NextRequest) {
         "Cache-Control": "no-store",
       },
     });
-  } catch {
+  } catch (err) {
+    console.error("[api/me/export]", err);
     return NextResponse.json({ error: "Eroare server." }, { status: 500 });
   }
 }
