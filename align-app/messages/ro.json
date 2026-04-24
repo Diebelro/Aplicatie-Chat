@@ -146,6 +146,9 @@
       "offline": "Offline",
       "reviewSwipeTitle": "Recenzează swipe (like/pass)",
       "reviewSwipeHint": "Recenzează swipe (like/pass) — se salvează doar dacă alegi din nou",
+      "swipeDecisionShort": "Like / pass",
+      "swipeDecisionTitle": "Vezi ce ai ales (like sau pass) și schimbă dacă vrei — același flux ca înainte.",
+      "swipeDecisionAria": "Decizie like sau pass pentru {{name}}",
       "messageTitle": "Mesaj"
     },
     "missedCalls": {

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
-import { MessageCircle, History, Loader2 } from "lucide-react";
+import { MessageCircle, Vote, Loader2 } from "lucide-react";
 import type { User } from "@/lib/store";
 import { SilhouetteAvatar } from "@/components/SilhouetteAvatar";
 import { QuickCallButtons } from "@/components/QuickCallButtons";
@@ -164,10 +164,14 @@ export default function MatchesPage() {
                     <QuickCallButtons toUserId={u.id} size="md" />
                     <Link
                       href={`/app/review-swipes?focus=${encodeURIComponent(u.id)}`}
-                      className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-amber-400/90 hover:bg-amber-500/15 active:bg-amber-500/25 transition touch-manipulation"
-                      title={tStr("pages.matches.reviewSwipeHint")}
+                      className="min-h-[44px] min-w-[3rem] sm:min-w-[5.25rem] shrink-0 flex flex-col sm:flex-row items-center justify-center gap-0.5 px-1.5 sm:px-2 rounded-lg text-amber-400/90 hover:bg-amber-500/15 active:bg-amber-500/25 transition touch-manipulation"
+                      title={tStr("pages.matches.swipeDecisionTitle")}
+                      aria-label={formatTpl(tStr("pages.matches.swipeDecisionAria"), { name: matchLabel })}
                     >
-                      <History className="w-5 h-5" />
+                      <Vote className="w-5 h-5 shrink-0" aria-hidden />
+                      <span className="text-[9px] sm:text-[11px] font-medium text-amber-200/95 leading-tight text-center max-w-[3.25rem] sm:max-w-[4.5rem] line-clamp-2">
+                        {tStr("pages.matches.swipeDecisionShort")}
+                      </span>
                     </Link>
                     <Link
                       href={`/app/chat/${u.id}`}

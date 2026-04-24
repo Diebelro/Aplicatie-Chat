@@ -15,7 +15,6 @@ import {
   CreditCard,
   Settings,
   LogOut,
-  History,
   Shield,
   Lightbulb,
   PhoneMissed,
@@ -422,7 +421,6 @@ export default function AppLayout({
   const navDesktopMapActive = path.startsWith("/app/map");
   const navDesktopPremiumActive = path.startsWith("/app/premium");
   const navDesktopCallActive = path.startsWith("/app/call");
-  const navDesktopReviewActive = path.startsWith("/app/review-swipes");
   const navDesktopMissedActive = path.startsWith("/app/missed-calls");
   /** Nu folosi startsWith("/app/profile") — include greșit `/app/profiles`. */
   const navDesktopProfileActive = path === "/app/profile" || path.startsWith("/app/profile/");
@@ -499,13 +497,6 @@ export default function AppLayout({
             </Link>
             <Link href="/app/matches" className={desktopNavItemClass(navDesktopMatchesActive)}>
               {tStr("appNav.matches")}
-            </Link>
-            <Link
-              href="/app/review-swipes"
-              className={desktopNavItemClass(navDesktopReviewActive, "amber")}
-              title={tStr("appNav.reviewSwipesTitle")}
-            >
-              {tStr("appNav.reviewSwipes")}
             </Link>
             <Link href="/app/map" className={desktopNavItemClass(navDesktopMapActive)}>
               {tStr("appNav.map")}
@@ -738,14 +729,6 @@ export default function AppLayout({
                   icon={<Video className="h-5 w-5" aria-hidden />}
                 >
                   {tStr("appNav.conference")}
-                </MobileNavRow>
-                <MobileNavRow
-                  href="/app/review-swipes"
-                  onNavigate={() => setMobileMenuOpen(false)}
-                  tone="amber"
-                  icon={<History className="h-5 w-5" aria-hidden />}
-                >
-                  {tStr("appNav.reviewSwipes")}
                 </MobileNavRow>
                 <MobileNavRow
                   href="/app/map"

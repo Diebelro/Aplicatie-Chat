@@ -146,6 +146,9 @@
       "offline": "Offline",
       "reviewSwipeTitle": "Review swipe (like/pass)",
       "reviewSwipeHint": "Review swipe (like/pass) — saved only when you choose again",
+      "swipeDecisionShort": "Like / pass",
+      "swipeDecisionTitle": "See your like or pass and change it if you want — same flow as before.",
+      "swipeDecisionAria": "Like or pass decision for {{name}}",
       "messageTitle": "Message"
     },
     "missedCalls": {

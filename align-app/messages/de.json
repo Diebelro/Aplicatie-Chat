@@ -146,6 +146,9 @@
       "offline": "Offline",
       "reviewSwipeTitle": "Swipe prüfen (Like/Nein)",
       "reviewSwipeHint": "Swipe prüfen — gespeichert nur, wenn du erneut wählst",
+      "swipeDecisionShort": "Like / Nein",
+      "swipeDecisionTitle": "Sieh deine Entscheidung (Like oder Nein) und ändere sie bei Bedarf — gleicher Ablauf wie zuvor.",
+      "swipeDecisionAria": "Like- oder Nein-Entscheidung für {{name}}",
       "messageTitle": "Nachricht"
     },
     "missedCalls": {
