@@ -24,3 +24,5 @@ Endpoint public pentru smoke-test, verificare deploy și debugging. **Nu** love�
 Antet recomandat: răspunsul folosește `Cache-Control: no-store`.
 
 Pentru verificări care includ DB și URL-uri, folosiți **`GET /api/healthz`** (contract separat).
+
+Flux operațional scurt: **`docs/OPERATIONS.md`**.

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { enforceIpRateLimit } from "@/lib/apiRateLimitGate";
 import { hashPassword } from "@/lib/auth";
 import { findResetToken, markTokenUsed } from "@/lib/passwordReset";
 import {
@@ -23,6 +24,8 @@ function clientIp(request: Request): string {
 }
 
 export async function POST(request: Request) {
+  const limited = enforceIpRateLimit(request, "/api/auth/reset-password");
+  if (limited) return limited;
   try {
     const body = await request.json().catch(() => ({}));
     const token = String(body.token ?? "").trim();

@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
+import { enforceIpRateLimit } from "@/lib/apiRateLimitGate";
 import { validateResetToken } from "@/lib/passwordReset";
 import { isPrismaAvailable, prismaFindValidPasswordResetToken } from "@/lib/repo-prisma";
 
 export async function GET(request: Request) {
+  const limited = enforceIpRateLimit(request, "/api/auth/validate-reset-token");
+  if (limited) return limited;
   try {
     const { searchParams } = new URL(request.url);
     const token = searchParams.get("token") ?? "";

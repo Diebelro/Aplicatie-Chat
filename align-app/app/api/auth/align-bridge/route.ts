@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { enforceIpRateLimit } from "@/lib/apiRateLimitGate";
+import { logServerError } from "@/lib/serverLog";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
 import { createSessionAsync, SESSION_COOKIE, getSessionCookieOptions } from "@/lib/sessions";
@@ -16,6 +18,8 @@ function getClientIp(request: Request): string {
  * După OAuth (NextAuth), creăm sesiunea Align (`align_sid`) folosită de restul API-urilor.
  */
 export async function GET(request: Request) {
+  const limited = enforceIpRateLimit(request, "/api/auth/align-bridge");
+  if (limited) return limited;
   const session = await getServerSession(authOptions);
   const userId = (session?.user as { id?: string } | undefined)?.id;
   if (!userId || !session) {
@@ -49,7 +53,7 @@ export async function GET(request: Request) {
     });
     return res;
   } catch (e) {
-    console.error("[align-bridge]", e);
+    logServerError("align-bridge", e);
     return NextResponse.redirect(new URL("/login?reason=oauth_failed", request.url));
   }
 }

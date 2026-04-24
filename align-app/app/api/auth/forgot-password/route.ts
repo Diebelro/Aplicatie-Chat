@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { enforceIpRateLimit } from "@/lib/apiRateLimitGate";
+import { logServerError } from "@/lib/serverLog";
 import { getPublicAppUrl } from "@/lib/appUrl";
 import { normalizeAuthEmail } from "@/lib/auth";
 import { sendPasswordResetEmail } from "@/lib/email";
@@ -17,6 +19,8 @@ export const runtime = "nodejs";
  * Nu dezvăluim dacă emailul există. Dacă Resend nu e configurat, tot returnăm ok (dev: logăm link în consolă).
  */
 export async function POST(request: Request) {
+  const limited = enforceIpRateLimit(request, "/api/auth/forgot-password");
+  if (limited) return limited;
   try {
     const body = await request.json().catch(() => ({}));
     const email = normalizeAuthEmail(String(body.email ?? ""));
@@ -38,7 +42,7 @@ export async function POST(request: Request) {
           resolvedEmail = u.email;
         }
       } catch (err) {
-        console.error("[forgot-password] Prisma", err);
+        logServerError("forgot-password:prisma", err);
         return NextResponse.json(
           { error: "Eroare la baza de date. Încearcă mai târziu." },
           { status: 503 }
@@ -64,7 +68,7 @@ export async function POST(request: Request) {
         const t = await prismaCreatePasswordResetToken(userId);
         token = t.token;
       } catch (err) {
-        console.error("[forgot-password] create token", err);
+        logServerError("forgot-password:create-token", err);
         return NextResponse.json({ ok: true });
       }
     } else {
@@ -101,7 +105,7 @@ export async function POST(request: Request) {
       devResetLink ? { ok: true, devResetLink } : { ok: true }
     );
   } catch (err) {
-    console.error("[forgot-password]", err);
+    logServerError("forgot-password", err);
     return NextResponse.json(
       { error: "Eroare la trimitere." },
       { status: 500 }

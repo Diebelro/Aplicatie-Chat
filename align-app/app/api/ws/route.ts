@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { enforceIpRateLimit } from "@/lib/apiRateLimitGate";
 
 /**
  * Semnalizarea WebRTC **nu** rulează aici: pe Vercel (serverless) Route Handlers
@@ -18,7 +19,9 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export function GET() {
+export function GET(request: Request) {
+  const limited = enforceIpRateLimit(request, "/api/ws");
+  if (limited) return limited;
   const examples: Record<string, string> = {
     productionWss: "wss://ws.diebel.ro/ws",
     note: "În producție folosește wss://; tokenul se pune automat din /api/call/signaling-token.",

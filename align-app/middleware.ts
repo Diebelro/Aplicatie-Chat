@@ -1,6 +1,17 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+/** Blochează probe comune fără a lăsa Next să consume cicluri (scanneri, CVE-uri vechi). */
+function isKnownMaliciousProbePath(pathname: string): boolean {
+  const p = pathname.toLowerCase();
+  if (p === "/.env" || p.startsWith("/.env.")) return true;
+  if (p === "/.git" || p.startsWith("/.git/")) return true;
+  if (p.includes("wp-admin") || p.includes("wp-login")) return true;
+  if (p.includes("phpmyadmin") || p.includes("xmlrpc.php")) return true;
+  if (p.includes("vendor/phpunit")) return true;
+  return false;
+}
+
 /** http→https ca media + WebSocket să nu rămână pe „Not secure”. Dezactivezi cu DISABLE_FORCE_HTTPS_REDIRECT=1. */
 function shouldForceHttpsRedirect(): boolean {
   if (process.env.NODE_ENV !== "production") return false;
@@ -50,6 +61,7 @@ async function adminAccessDecision(request: NextRequest): Promise<"allow" | "log
         cookie: request.headers.get("cookie") ?? "",
       },
       cache: "no-store",
+      signal: AbortSignal.timeout(8000),
     });
   } catch {
     return "login";
@@ -70,6 +82,10 @@ async function adminAccessDecision(request: NextRequest): Promise<"allow" | "log
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  if (isKnownMaliciousProbePath(pathname)) {
+    return new NextResponse(null, { status: 404 });
+  }
 
   if (shouldForceHttpsRedirect()) {
     const host = request.headers.get("host") ?? "";

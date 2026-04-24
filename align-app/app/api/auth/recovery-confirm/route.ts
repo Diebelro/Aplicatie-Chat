@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
+import { enforceIpRateLimit } from "@/lib/apiRateLimitGate";
 import { getAuthenticatedUserId } from "@/lib/sessionAuth";
 import { confirmRecovery } from "@/lib/recoverySessions";
 
 export async function POST(request: Request) {
+  const limited = enforceIpRateLimit(request, "/api/auth/recovery-confirm");
+  if (limited) return limited;
   try {
     const userId = await getAuthenticatedUserId(request);
     if (!userId) {

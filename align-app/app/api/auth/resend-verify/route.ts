@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { enforceIpRateLimit } from "@/lib/apiRateLimitGate";
+import { logServerError } from "@/lib/serverLog";
 import { getPublicAppUrl } from "@/lib/appUrl";
 import { sendEmailVerificationEmail } from "@/lib/email";
 import {
@@ -7,6 +9,8 @@ import {
 } from "@/lib/repo-prisma";
 
 export async function POST(request: Request) {
+  const limited = enforceIpRateLimit(request, "/api/auth/resend-verify");
+  if (limited) return limited;
   try {
     const body = await request.json().catch(() => ({}));
     const token = String(body.token ?? "").trim();
@@ -45,7 +49,7 @@ export async function POST(request: Request) {
     }
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error("[resend-verify]", err);
+    logServerError("resend-verify", err);
     return NextResponse.json({ error: "Eroare la retrimitere." }, { status: 500 });
   }
 }

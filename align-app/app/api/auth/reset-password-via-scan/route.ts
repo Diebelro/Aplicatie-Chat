@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { enforceIpRateLimit } from "@/lib/apiRateLimitGate";
 import { consumeRecoverySession } from "@/lib/recoverySessions";
 import { findUserById, setPassword } from "@/lib/store";
 import { hashPassword } from "@/lib/auth";
@@ -10,6 +11,8 @@ import {
 import { createDevice as createDeviceRecord, findDevice } from "@/lib/devices";
 
 export async function POST(request: Request) {
+  const limited = enforceIpRateLimit(request, "/api/auth/reset-password-via-scan");
+  if (limited) return limited;
   try {
     const body = await request.json().catch(() => ({}));
     const sessionId = String(body.sessionId ?? "").trim();

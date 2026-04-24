@@ -56,6 +56,11 @@ tsconfig.json
 tailwind.config.ts  
 README.md  
 
+## Operations & production audit
+- **`docs/OPERATIONS.md`** — cum rulezi local, env critice, verificare deploy, triaj incidente.
+- **`docs/PRODUCTION-AUDIT.md`** — audit intern (structură, auth, rate limit, WebRTC, riscuri).
+- **`docs/API-HEALTH.md`** — contract `GET /api/health` pentru monitoare.
+
 ## Documentation
 All technical and operational documentation is located in the `/docs` directory. It includes:
 
