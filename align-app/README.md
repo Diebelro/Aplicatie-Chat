@@ -19,6 +19,10 @@ The platform is initially launched in Romania, with infrastructure hosted in Ger
 
 Voice and video calls require **coturn + TURN env** on the server. **`GET /api/call/ice-config` returns 500 if TURN is misconfigured — by design.** See **`docs/TURN-MANDATORY.md`** and **`docs/HOSTILE-NETWORKS-WEBRTC.md`** (ICE restarts, timeouts, diagnostics).
 
+## GET `/api/health` (smoke / deploy)
+
+Public JSON fără DB — metadata build și mediu. **Monitoare:** verificați HTTP **200** și în corp `status === "ok"`. Detalii: **`docs/API-HEALTH.md`**. Verificări cu DB: **`/api/healthz`**.
+
 ## Technology Stack
 - Next.js (App Router)
 - TypeScript

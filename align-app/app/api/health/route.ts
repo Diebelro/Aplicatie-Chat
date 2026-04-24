@@ -16,6 +16,9 @@ function resolveNodeRuntime(): string {
 /**
  * Health public pentru smoke-test / verificare deploy. Fără DB, fără secrete, fără git la runtime.
  * Metadata commit injectată la build (next.config.js → NEXT_PUBLIC_BUILD_COMMIT_*).
+ *
+ * Contract JSON: vezi `docs/API-HEALTH.md`. Pentru monitoare (UptimeRobot etc.): HTTP **200** și
+ * `status === "ok"` în corp — nu vă bazați pe câmpuri vechi (`ok`, `database`).
  */
 export async function GET() {
   const full = (process.env.NEXT_PUBLIC_BUILD_COMMIT_FULL || "unknown").toLowerCase();
@@ -43,6 +46,7 @@ export async function GET() {
   }
 
   return NextResponse.json(body, {
+    status: 200,
     headers: {
       "Cache-Control": "no-store",
     },
