@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { fetchWithAuthRetry } from "@/lib/authClient";
+import { markSectionReviewed } from "@/lib/adminModerationCheckpoint";
 import { Clock, ShieldAlert, Trash2, ExternalLink } from "lucide-react";
 
 type UserRow = {
@@ -44,6 +45,7 @@ export default function AdminUsersPage() {
             createdAt: u.createdAt ? new Date(u.createdAt).toLocaleString("ro-RO") : "",
           }))
         );
+        markSectionReviewed("users");
       })
       .catch(() => setError("Eroare incarcare."))
       .finally(() => setLoading(false));

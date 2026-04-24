@@ -24,19 +24,33 @@ export async function GET(request: NextRequest) {
   }
 
   const rawSince = request.nextUrl.searchParams.get("since");
-  let since = rawSince ? new Date(rawSince) : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  if (Number.isNaN(since.getTime())) {
-    since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  let sinceDefault = rawSince ? new Date(rawSince) : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  if (Number.isNaN(sinceDefault.getTime())) {
+    sinceDefault = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   }
   const oldest = new Date(Date.now() - MAX_SINCE_AGE_MS);
-  if (since < oldest) since = oldest;
+  if (sinceDefault < oldest) sinceDefault = oldest;
+
+  function parseSinceParam(name: string, fallback: Date): Date {
+    const raw = request.nextUrl.searchParams.get(name);
+    if (!raw) return fallback;
+    const d = new Date(raw);
+    if (Number.isNaN(d.getTime())) return fallback;
+    return d < oldest ? oldest : d;
+  }
+
+  const sinceByKind = {
+    users: parseSinceParam("sinceUsers", sinceDefault),
+    reports: parseSinceParam("sinceReports", sinceDefault),
+    feedback: parseSinceParam("sinceFeedback", sinceDefault),
+  };
 
   const [summary, pendingBanAppeals] = await Promise.all([
-    prismaGetAdminModerationSummary(since),
+    prismaGetAdminModerationSummary(sinceByKind),
     prismaCountPendingBanAppeals(),
   ]);
   return NextResponse.json({
-    since: since.toISOString(),
+    since: sinceDefault.toISOString(),
     ...summary,
     pendingBanAppeals,
     attentionCount:

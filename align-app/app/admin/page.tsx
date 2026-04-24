@@ -6,6 +6,7 @@ import { fetchWithAuthRetry } from "@/lib/authClient";
 import {
   markModerationReviewedNow,
   readModerationSince,
+  readSinceFor,
   ADMIN_MODERATION_CHECKPOINT_KEY,
 } from "@/lib/adminModerationCheckpoint";
 import { Users, Flag, ShieldAlert, Sparkles, Scale, MessageSquareText } from "lucide-react";
@@ -37,9 +38,13 @@ export default function AdminDashboardPage() {
 
   const load = useCallback(() => {
     setError(null);
-    const since = readModerationSince();
     setHasCheckpoint(typeof window !== "undefined" && !!localStorage.getItem(ADMIN_MODERATION_CHECKPOINT_KEY));
-    const q = new URLSearchParams({ since: since.toISOString() });
+    const q = new URLSearchParams({
+      since: readModerationSince().toISOString(),
+      sinceUsers: readSinceFor("users").toISOString(),
+      sinceReports: readSinceFor("reports").toISOString(),
+      sinceFeedback: readSinceFor("feedback").toISOString(),
+    });
     fetchWithAuthRetry("/api/admin/summary?" + q)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("Eroare"))))
       .then((d: Summary) => setSummary(d))

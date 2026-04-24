@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type Ref } from "react";
 import Link from "next/link";
 import { Users, PhoneMissed, MessageCircle } from "lucide-react";
 import type { User } from "@/lib/store";
@@ -13,6 +13,7 @@ import { useI18n } from "@/lib/i18n/context";
 import { formatTpl } from "@/lib/i18n/formatTpl";
 import { intlLocaleTag } from "@/lib/i18n/intlLocale";
 import { AppProLoading } from "@/components/AppProLoading";
+import { useMarkConversationReadWhenVisible } from "@/lib/useMarkConversationReadWhenVisible";
 
 type OtherWithMeta = User & { online?: boolean; distanceKm?: number; lastActivityAt?: number };
 
@@ -30,6 +31,117 @@ function formatDistance(km: number | undefined): string {
   if (km == null) return "";
   if (km < 1) return `${Math.round(km * 1000)} m`;
   return `${(Math.round(km * 10) / 10).toFixed(1).replace(".", ",")} km`;
+}
+
+function MessagesConversationRow({
+  item,
+  formatTime,
+  formatDistance: fmtKm,
+  tStr,
+  formatTpl,
+  onMarkedRead,
+}: {
+  item: ConversationItem;
+  formatTime: (iso: string) => string;
+  formatDistance: (km: number | undefined) => string;
+  tStr: (path: string) => string;
+  formatTpl: (path: string, vars: Record<string, string | number>) => string;
+  onMarkedRead: (otherId: string) => void;
+}) {
+  const { otherUser, lastMessage, receivedCount, unreadCount, noMessagesYet } = item;
+  const rowRef = useMarkConversationReadWhenVisible(otherUser.id, unreadCount, () => onMarkedRead(otherUser.id));
+  const isPlatformNotice = !!(lastMessage as Message & { isPlatformNotice?: boolean }).isPlatformNotice;
+  const preview = noMessagesYet
+    ? tStr("pages.messages.sendMessage")
+    : isPlatformNotice
+      ? tStr("pages.messages.platformNotice")
+      : lastMessage.text.length > 50
+        ? lastMessage.text.slice(0, 50) + "…"
+        : lastMessage.text;
+  const otherLabel = displayName(otherUser.username ?? otherUser.name);
+  return (
+    <li
+      ref={rowRef as Ref<HTMLLIElement>}
+      className="flex items-stretch rounded-xl bg-dark-800 border border-dark-600 shadow-sm hover:border-dark-500 active:bg-dark-700/80 transition overflow-hidden touch-manipulation"
+    >
+      <Link
+        href={`/app/user/${otherUser.id}`}
+        title={tStr("pages.messages.viewProfileTitle")}
+        aria-label={formatTpl(tStr("pages.messages.viewProfileAria"), { name: otherLabel })}
+        className="flex shrink-0 items-center justify-center py-3 pl-3 pr-2 sm:py-4 sm:pl-4 sm:pr-2 hover:bg-dark-700/50 active:bg-dark-700/70 transition"
+      >
+        <div className="relative w-12 h-12 shrink-0 rounded-full overflow-hidden bg-brand-500/20">
+          <SilhouetteAvatar
+            photoUrl={otherUser.photos?.[0]}
+            gender={otherUser.gender}
+            name={otherUser.name}
+            className="w-full h-full text-brand-400"
+            imgClassName="w-full h-full object-cover"
+          />
+          {unreadCount > 0 && (
+            <span
+              className="absolute -top-1 -right-1 min-w-[1.25rem] h-5 px-1.5 rounded-full bg-brand-500 text-dark-900 text-xs font-semibold flex items-center justify-center pointer-events-none"
+              title={formatTpl(tStr("pages.messages.unreadTitle"), { n: unreadCount })}
+            >
+              {unreadCount > 99 ? "99+" : unreadCount}
+            </span>
+          )}
+        </div>
+      </Link>
+      <Link
+        href={`/app/chat/${otherUser.id}`}
+        title={tStr("pages.messages.openChatButtonTitle")}
+        aria-label={formatTpl(tStr("pages.messages.openChatAria"), { name: otherLabel })}
+        className="flex shrink-0 items-center justify-center py-3 px-2 sm:py-4 sm:px-2.5 border-l border-dark-600 bg-dark-800 hover:bg-dark-700/50 active:bg-dark-700/70 transition touch-manipulation"
+      >
+        <span className="flex items-center justify-center w-9 h-9 min-w-[36px] min-h-[36px] rounded-lg bg-brand-500/15 text-brand-400 border border-brand-500/35">
+          <MessageCircle className="w-4 h-4" aria-hidden />
+        </span>
+      </Link>
+      <Link
+        href={`/app/chat/${otherUser.id}`}
+        aria-label={formatTpl(tStr("pages.messages.openChatAria"), { name: otherLabel })}
+        className="flex flex-1 items-center gap-3 sm:gap-4 min-h-[56px] min-w-0 py-3 pr-2 sm:py-4 sm:pr-3 hover:bg-dark-700/50 active:bg-dark-700/70 transition"
+      >
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="font-medium text-zinc-900 truncate">{otherLabel}</span>
+            {otherUser.online && (
+              <span className="shrink-0 w-2 h-2 rounded-full bg-green-400" title={tStr("pages.messages.online")} />
+            )}
+          </div>
+          <p className="text-sm text-dark-500 truncate mt-0.5">{preview}</p>
+          <p className="text-xs text-dark-400 mt-1 flex flex-wrap gap-x-1 gap-y-0 items-center">
+            {unreadCount > 0 && (
+              <span className="text-brand-400">
+                {unreadCount}{" "}
+                {unreadCount === 1 ? tStr("pages.messages.unreadOne") : tStr("pages.messages.unreadMany")}
+              </span>
+            )}
+            {unreadCount > 0 && (receivedCount > 0 || otherUser.distanceKm != null || otherUser.online != null) && <span>·</span>}
+            {receivedCount > 0 && (
+              <span>
+                {receivedCount}{" "}
+                {receivedCount === 1 ? tStr("pages.messages.receivedOne") : tStr("pages.messages.receivedMany")}
+              </span>
+            )}
+            {(receivedCount > 0 || unreadCount > 0) && (otherUser.distanceKm != null || otherUser.online != null) && <span>·</span>}
+            {otherUser.distanceKm != null && <span>{fmtKm(otherUser.distanceKm)}</span>}
+            {otherUser.distanceKm != null && otherUser.online != null && <span>·</span>}
+            {otherUser.online != null && (
+              <span>{otherUser.online ? tStr("pages.messages.online") : tStr("pages.messages.offline")}</span>
+            )}
+          </p>
+        </div>
+        <span className="text-xs text-dark-500 shrink-0 self-start pt-1 sm:self-center sm:pt-0">
+          {formatTime(lastMessage.at)}
+        </span>
+      </Link>
+      <div className="flex items-center px-2 sm:px-2.5 border-l border-dark-600 bg-dark-800 shrink-0">
+        <QuickCallButtons toUserId={otherUser.id} size="sm" />
+      </div>
+    </li>
+  );
 }
 
 export default function MessagesPage() {
@@ -85,6 +197,12 @@ export default function MessagesPage() {
       .then((res) => res.json())
       .then((data) => { if (data.friends) setFriends(data.friends); });
   };
+
+  const handleConversationMarkedRead = useCallback((otherId: string) => {
+    setConversations((prev) =>
+      prev.map((c) => (c.otherUser.id === otherId ? { ...c, unreadCount: 0 } : c))
+    );
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -242,109 +360,17 @@ export default function MessagesPage() {
         </div>
       ) : (
         <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-y-contain pb-2 sm:pb-3 scrollbar-app -mr-1 pr-1">
-          {conversations.map(({ otherUser, lastMessage, receivedCount, unreadCount, noMessagesYet }) => {
-            const isPlatformNotice = !!(lastMessage as Message & { isPlatformNotice?: boolean }).isPlatformNotice;
-            const preview = noMessagesYet
-              ? tStr("pages.messages.sendMessage")
-              : isPlatformNotice
-                ? tStr("pages.messages.platformNotice")
-                : lastMessage.text.length > 50
-                  ? lastMessage.text.slice(0, 50) + "…"
-                  : lastMessage.text;
-            const otherLabel = displayName(otherUser.username ?? otherUser.name);
-            return (
-              <li
-                key={otherUser.id}
-                className="flex items-stretch rounded-xl bg-dark-800 border border-dark-600 shadow-sm hover:border-dark-500 active:bg-dark-700/80 transition overflow-hidden touch-manipulation"
-              >
-                <Link
-                  href={`/app/user/${otherUser.id}`}
-                  title={tStr("pages.messages.viewProfileTitle")}
-                  aria-label={formatTpl(tStr("pages.messages.viewProfileAria"), { name: otherLabel })}
-                  className="flex shrink-0 items-center justify-center py-3 pl-3 pr-2 sm:py-4 sm:pl-4 sm:pr-2 hover:bg-dark-700/50 active:bg-dark-700/70 transition"
-                >
-                  <div className="relative w-12 h-12 shrink-0 rounded-full overflow-hidden bg-brand-500/20">
-                    <SilhouetteAvatar
-                      photoUrl={otherUser.photos?.[0]}
-                      gender={otherUser.gender}
-                      name={otherUser.name}
-                      className="w-full h-full text-brand-400"
-                      imgClassName="w-full h-full object-cover"
-                    />
-                    {unreadCount > 0 && (
-                      <span
-                        className="absolute -top-1 -right-1 min-w-[1.25rem] h-5 px-1.5 rounded-full bg-brand-500 text-dark-900 text-xs font-semibold flex items-center justify-center pointer-events-none"
-                        title={formatTpl(tStr("pages.messages.unreadTitle"), { n: unreadCount })}
-                      >
-                        {unreadCount > 99 ? "99+" : unreadCount}
-                      </span>
-                    )}
-                  </div>
-                </Link>
-                <Link
-                  href={`/app/chat/${otherUser.id}`}
-                  title={tStr("pages.messages.openChatButtonTitle")}
-                  aria-label={formatTpl(tStr("pages.messages.openChatAria"), { name: otherLabel })}
-                  className="flex shrink-0 items-center justify-center py-3 px-2 sm:py-4 sm:px-2.5 border-l border-dark-600 bg-dark-800 hover:bg-dark-700/50 active:bg-dark-700/70 transition touch-manipulation"
-                >
-                  <span className="flex items-center justify-center w-9 h-9 min-w-[36px] min-h-[36px] rounded-lg bg-brand-500/15 text-brand-400 border border-brand-500/35">
-                    <MessageCircle className="w-4 h-4" aria-hidden />
-                  </span>
-                </Link>
-                <Link
-                  href={`/app/chat/${otherUser.id}`}
-                  aria-label={formatTpl(tStr("pages.messages.openChatAria"), { name: otherLabel })}
-                  className="flex flex-1 items-center gap-3 sm:gap-4 min-h-[56px] min-w-0 py-3 pr-2 sm:py-4 sm:pr-3 hover:bg-dark-700/50 active:bg-dark-700/70 transition"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-zinc-900 truncate">{otherLabel}</span>
-                      {otherUser.online && (
-                        <span
-                          className="shrink-0 w-2 h-2 rounded-full bg-green-400"
-                          title={tStr("pages.messages.online")}
-                        />
-                      )}
-                    </div>
-                    <p className="text-sm text-dark-500 truncate mt-0.5">{preview}</p>
-                    <p className="text-xs text-dark-400 mt-1 flex flex-wrap gap-x-1 gap-y-0 items-center">
-                      {unreadCount > 0 && (
-                        <span className="text-brand-400">
-                          {unreadCount}{" "}
-                          {unreadCount === 1
-                            ? tStr("pages.messages.unreadOne")
-                            : tStr("pages.messages.unreadMany")}
-                        </span>
-                      )}
-                      {unreadCount > 0 && (receivedCount > 0 || otherUser.distanceKm != null || otherUser.online != null) && <span>·</span>}
-                      {receivedCount > 0 && (
-                        <span>
-                          {receivedCount}{" "}
-                          {receivedCount === 1
-                            ? tStr("pages.messages.receivedOne")
-                            : tStr("pages.messages.receivedMany")}
-                        </span>
-                      )}
-                      {(receivedCount > 0 || unreadCount > 0) && (otherUser.distanceKm != null || otherUser.online != null) && <span>·</span>}
-                      {otherUser.distanceKm != null && <span>{formatDistance(otherUser.distanceKm)}</span>}
-                      {otherUser.distanceKm != null && otherUser.online != null && <span>·</span>}
-                      {otherUser.online != null && (
-                        <span>
-                          {otherUser.online ? tStr("pages.messages.online") : tStr("pages.messages.offline")}
-                        </span>
-                      )}
-                    </p>
-                  </div>
-                  <span className="text-xs text-dark-500 shrink-0 self-start pt-1 sm:self-center sm:pt-0">
-                    {formatTime(lastMessage.at)}
-                  </span>
-                </Link>
-                <div className="flex items-center px-2 sm:px-2.5 border-l border-dark-600 bg-dark-800 shrink-0">
-                  <QuickCallButtons toUserId={otherUser.id} size="sm" />
-                </div>
-              </li>
-            );
-          })}
+          {conversations.map((item) => (
+            <MessagesConversationRow
+              key={item.otherUser.id}
+              item={item}
+              formatTime={formatTime}
+              formatDistance={formatDistance}
+              tStr={tStr}
+              formatTpl={formatTpl}
+              onMarkedRead={handleConversationMarkedRead}
+            />
+          ))}
         </ul>
       )}
     </div>

@@ -13,6 +13,7 @@ import { fetchWithAuthRetry } from "@/lib/authClient";
 import {
   ADMIN_CHECKPOINT_UPDATED_EVENT,
   readModerationSince,
+  readSinceFor,
 } from "@/lib/adminModerationCheckpoint";
 
 /** Date necesare pentru badge-ul Admin + badge-uri pe secțiuni (același fetch). */
@@ -53,8 +54,12 @@ export function AdminModerationSummaryProvider({ children }: { children: ReactNo
   const [data, setData] = useState<AdminModerationSummaryClient | null>(null);
 
   const reload = useCallback(() => {
-    const since = readModerationSince();
-    const q = new URLSearchParams({ since: since.toISOString() });
+    const q = new URLSearchParams({
+      since: readModerationSince().toISOString(),
+      sinceUsers: readSinceFor("users").toISOString(),
+      sinceReports: readSinceFor("reports").toISOString(),
+      sinceFeedback: readSinceFor("feedback").toISOString(),
+    });
     void fetchWithAuthRetry("/api/admin/summary?" + q.toString())
       .then((r) => (r.ok ? r.json() : null))
       .then((raw) => {

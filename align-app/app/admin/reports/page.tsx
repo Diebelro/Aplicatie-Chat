@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { fetchWithAuthRetry } from "@/lib/authClient";
+import { markSectionReviewed } from "@/lib/adminModerationCheckpoint";
 import { AlertTriangle } from "lucide-react";
 
 type Report = {
@@ -34,6 +35,7 @@ export default function AdminReportsPage() {
               : "",
           }))
         );
+        markSectionReviewed("reports");
       })
       .catch(() => setError("Nu s-au putut incarca rapoartele."))
       .finally(() => setLoading(false));

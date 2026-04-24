@@ -1986,8 +1986,14 @@ export type AdminModerationSummary = {
   newAppFeedbackSince: number;
 };
 
-/** Rezumat pentru dashboard moderare. `since` = începutul ferestrei „ce e nou de când am verificat”. */
-export async function prismaGetAdminModerationSummary(since: Date): Promise<AdminModerationSummary> {
+export type AdminModerationSinceByKind = {
+  users: Date;
+  reports: Date;
+  feedback: Date;
+};
+
+/** Rezumat pentru dashboard moderare — `since` per tip (înscrieri / rapoarte / feedback app). */
+export async function prismaGetAdminModerationSummary(since: AdminModerationSinceByKind): Promise<AdminModerationSummary> {
   const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const fifteenDaysAgo = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000);
@@ -2019,9 +2025,9 @@ export async function prismaGetAdminModerationSummary(since: Date): Promise<Admi
     prisma.report.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
     prisma.report.count({ where: { createdAt: { gte: fifteenDaysAgo } } }),
     prisma.report.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
-    prisma.user.count({ where: { createdAt: { gte: since } } }),
-    prisma.report.count({ where: { createdAt: { gte: since } } }),
-    prisma.appFeedback.count({ where: { createdAt: { gte: since } } }),
+    prisma.user.count({ where: { createdAt: { gte: since.users } } }),
+    prisma.report.count({ where: { createdAt: { gte: since.reports } } }),
+    prisma.appFeedback.count({ where: { createdAt: { gte: since.feedback } } }),
   ]);
   return {
     totalUsers,

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { fetchWithAuthRetry } from "@/lib/authClient";
+import { markSectionReviewed } from "@/lib/adminModerationCheckpoint";
 
 type Row = {
   id: string;
@@ -25,7 +26,10 @@ export default function AdminAppFeedbackPage() {
         if (!r.ok) throw new Error(typeof d.error === "string" ? d.error : "Eroare");
         return d.items as Row[];
       })
-      .then((list) => setItems(Array.isArray(list) ? list : []))
+      .then((list) => {
+        setItems(Array.isArray(list) ? list : []);
+        markSectionReviewed("feedback");
+      })
       .catch((e: Error) => setErr(e.message))
       .finally(() => setLoading(false));
   }, []);
