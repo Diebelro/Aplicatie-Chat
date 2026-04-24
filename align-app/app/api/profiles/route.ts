@@ -18,7 +18,6 @@ import {
   filterUsers,
   findUserById,
   getTrustScore,
-  type Gender,
 } from "@/lib/store";
 import {
   isPrismaAvailable,
@@ -30,48 +29,8 @@ import {
   type FeedFilters,
 } from "@/lib/repo-prisma";
 import { resolveRequestUserId } from "@/lib/sessionAuth";
-import { parseMaxDistanceKmQuery } from "@/lib/profileSearchConstants";
+import { parseDiscoverSearchFilters } from "@/lib/discoverSearchParams";
 import { normalizeProfileSortBy, sortProfileCandidates } from "@/lib/profileSort";
-
-function parseFilters(searchParams: URLSearchParams): {
-  gender?: Gender | "";
-  minAge?: number;
-  maxAge?: number;
-  maxDistanceKm?: number;
-  country?: string;
-  city?: string;
-  onlineOnly?: boolean;
-  name?: string;
-} {
-  const gender = searchParams.get("gender") ?? "";
-  const minAge = searchParams.get("minAge");
-  const maxAge = searchParams.get("maxAge");
-  const maxDistanceKmParam = searchParams.get("maxDistanceKm");
-  const country = searchParams.get("country") ?? "";
-  const city = searchParams.get("city") ?? "";
-  const onlineOnly = searchParams.get("onlineOnly") === "true" || searchParams.get("onlineOnly") === "1";
-  const name = searchParams.get("name") ?? "";
-  const minAgeNum = minAge != null && minAge !== "" ? Number(minAge) : NaN;
-  const maxAgeNum = maxAge != null && maxAge !== "" ? Number(maxAge) : NaN;
-  const minAgeOk = !Number.isNaN(minAgeNum) && minAgeNum >= 1 && minAgeNum <= 100;
-  const maxAgeOk = !Number.isNaN(maxAgeNum) && maxAgeNum >= 1 && maxAgeNum <= 100;
-  let finalMin = minAgeOk ? minAgeNum : undefined;
-  let finalMax = maxAgeOk ? maxAgeNum : undefined;
-  if (finalMin != null && finalMax != null && finalMin > finalMax) finalMax = finalMin;
-
-  const maxDist = parseMaxDistanceKmQuery(maxDistanceKmParam);
-
-  return {
-    ...(gender && { gender: gender as Gender | "" }),
-    ...(finalMin != null && { minAge: finalMin }),
-    ...(finalMax != null && { maxAge: finalMax }),
-    ...(maxDist !== undefined && { maxDistanceKm: maxDist }),
-    ...(country.trim() && { country: country.trim() }),
-    ...(city.trim() && { city: city.trim() }),
-    ...(onlineOnly && { onlineOnly: true }),
-    ...(name.trim() && { name: name.trim() }),
-  };
-}
 
 const ONLINE_MS = 60 * 1000;
 const NEW_PROFILE_MS = 7 * 24 * 60 * 60 * 1000; // 7 zile
@@ -104,7 +63,7 @@ export async function GET(request: NextRequest) {
 
   if (isPrismaAvailable()) {
     try {
-      const filters: FeedFilters = parseFilters(request.nextUrl.searchParams);
+      const filters: FeedFilters = parseDiscoverSearchFilters(request.nextUrl.searchParams);
       const candidates = await prismaGetFeedCandidates(userId, filters, { includeSwiped: true });
       const myLoc = await prismaGetMyLocation(userId);
       const matchPartnerIds = await prismaGetMutualMatchPartnerIds(userId);
@@ -157,7 +116,7 @@ export async function GET(request: NextRequest) {
   const all = getAllUsersExcept(userId);
   const dislikedIds = getDislikedUserIds(userId);
   const allExceptDisliked = all.filter((u) => !dislikedIds.has(u.id));
-  const filters = parseFilters(request.nextUrl.searchParams);
+  const filters = parseDiscoverSearchFilters(request.nextUrl.searchParams);
   const sortKey = normalizeProfileSortBy(request.nextUrl.searchParams.get("sortBy"));
   let filtered = filterUsers(allExceptDisliked, userId, filters);
   filtered = sortProfileCandidates(filtered, sortKey, {

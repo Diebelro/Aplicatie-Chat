@@ -5,10 +5,12 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
-import { fetchWithAuthRetry, getAuthHeaders } from "@/lib/authClient";
+import { fetchWithAuthRetry } from "@/lib/authClient";
 import { requestOpenLogoutDialog } from "@/lib/logoutDialogEvent";
 import { useI18n } from "@/lib/i18n/context";
 import { formatTpl } from "@/lib/i18n/formatTpl";
+import { intlLocaleTag } from "@/lib/i18n/intlLocale";
+import type { Locale } from "@/lib/i18n/types";
 import { translateApiErrorMessage } from "@/lib/i18n/translateApiError";
 import { MAX_PHOTOS, resizeImageAsDataUrl } from "@/lib/profilePhotoUtils";
 import { ProfilePhotosGallery } from "@/components/profile/ProfilePhotosGallery";
@@ -77,6 +79,19 @@ function computeAgeFromBirthDate(birthDateStr: string): number | null {
   return age >= 0 && age <= 120 ? age : null;
 }
 
+/** Dată nașterii pentru rezumat (nu ISO brut): „5 iunie 1992” / locale. */
+function formatBirthDateForSummary(isoYmd: string, locale: Locale): string {
+  const t = isoYmd.trim();
+  if (t.length < 10) return "";
+  const d = new Date(`${t.slice(0, 10)}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString(intlLocaleTag(locale), { day: "numeric", month: "long", year: "numeric" });
+}
+
+function profileLabel(tStr: (path: string) => string, path: string): string {
+  return tStr(path).replace(/:\s*$/, "").trim();
+}
+
 function PrivacySettingsSection() {
   const { tStr } = useI18n();
   const [allowFriendRequests, setAllowFriendRequests] = useState(true);
@@ -85,7 +100,7 @@ function PrivacySettingsSection() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/me/settings", { headers: getAuthHeaders() })
+    fetchWithAuthRetry("/api/me/settings", { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => {
         if (d.settings) {
@@ -99,9 +114,9 @@ function PrivacySettingsSection() {
   }, []);
 
   const update = (key: string, value: boolean) => {
-    fetch("/api/me/settings", {
+    fetchWithAuthRetry("/api/me/settings", {
       method: "PATCH",
-      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ [key]: value }),
     })
       .then((r) => r.json())
@@ -150,7 +165,7 @@ function PrivacySettingsSection() {
 }
 
 export default function ProfilePage() {
-  const { tStr } = useI18n();
+  const { tStr, locale } = useI18n();
   const monthLabels = useMemo(
     () => ["", ...Array.from({ length: 12 }, (_, i) => tStr(`common.months.${i + 1}`))],
     [tStr]
@@ -290,19 +305,11 @@ export default function ProfilePage() {
       if (eyeColor.trim()) payload.eyeColor = eyeColor.trim();
       if (hairColor.trim()) payload.hairColor = hairColor.trim();
       const patchBody = JSON.stringify(payload);
-      const patchHeaders = { "Content-Type": "application/json", ...getAuthHeaders() } as Record<string, string>;
-      const doPatch = () =>
-        fetch("/api/me", {
-          method: "PATCH",
-          headers: patchHeaders,
-          body: patchBody,
-          credentials: "include",
-        });
-      let res = await doPatch();
-      if (res.status === 401) {
-        await new Promise((r) => setTimeout(r, 450));
-        res = await doPatch();
-      }
+      const res = await fetchWithAuthRetry("/api/me", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: patchBody,
+      });
       const data = await res.json();
       if (res.status === 404) {
         setMessage("not_on_server");
@@ -364,7 +371,7 @@ export default function ProfilePage() {
         saveTimeoutRef.current = null;
       }
     };
-  }, [name, bio, birthDate, gender, city, postalCode, educationLevel, occupation, maritalStatus, wantsChildren, height, weight, bodyType, eyeColor, hairColor, clothingStyle, distinctiveFeatures, photos]);
+  }, [name, bio, birthDate, gender, city, postalCode, educationLevel, occupation, maritalStatus, wantsChildren, height, weight, bodyType, eyeColor, hairColor, clothingStyle, distinctiveFeatures, physicalAsset, physicalAssetDetail, photos]);
 
   useEffect(() => {
     const flushSave = () => {
@@ -442,6 +449,140 @@ export default function ProfilePage() {
   }
 
   const physicalOptGroup: ProfileOptGroup = gender === "male" ? "physicalMale" : "physicalFemale";
+
+  const birthTrim = birthDate.trim();
+  const birthHuman = formatBirthDateForSummary(birthTrim, locale);
+  const ageYears = birthTrim ? computeAgeFromBirthDate(birthTrim) : null;
+
+  const profileSummaryRows: { key: string; label: string; value: React.ReactNode }[] = [];
+  if (name.trim()) {
+    profileSummaryRows.push({ key: "name", label: profileLabel(tStr, "pages.profile.lblFirstName"), value: name.trim() });
+  }
+  if (gender) {
+    profileSummaryRows.push({
+      key: "gender",
+      label: profileLabel(tStr, "pages.profile.lblGender"),
+      value:
+        gender === "male"
+          ? tStr("pages.signup.genderMale")
+          : gender === "female"
+            ? tStr("pages.signup.genderFemale")
+            : tStr("pages.signup.genderOther"),
+    });
+  }
+  if (birthHuman) {
+    profileSummaryRows.push({ key: "birth", label: profileLabel(tStr, "pages.profile.lblBirth"), value: birthHuman });
+  }
+  if (ageYears != null) {
+    profileSummaryRows.push({
+      key: "age",
+      label: profileLabel(tStr, "pages.profile.lblAge"),
+      value: formatTpl(tStr("pages.userPublic.ageYears"), { n: ageYears }),
+    });
+  }
+  if (city.trim()) {
+    profileSummaryRows.push({ key: "city", label: profileLabel(tStr, "pages.profile.lblCity"), value: city.trim() });
+  }
+  if (postalCode.trim()) {
+    profileSummaryRows.push({
+      key: "postal",
+      label: profileLabel(tStr, "pages.profile.lblPostal"),
+      value: postalCode.trim(),
+    });
+  }
+  if (height.trim()) {
+    profileSummaryRows.push({
+      key: "height",
+      label: profileLabel(tStr, "pages.profile.lblHeight"),
+      value: formatTpl(tStr("pages.userPublic.heightCm"), { n: height.trim() }),
+    });
+  }
+  if (weight.trim()) {
+    profileSummaryRows.push({
+      key: "weight",
+      label: profileLabel(tStr, "pages.profile.lblWeight"),
+      value: formatTpl(tStr("pages.userPublic.weightKg"), { n: weight.trim() }),
+    });
+  }
+  if (bodyType.trim()) {
+    profileSummaryRows.push({
+      key: "body",
+      label: profileLabel(tStr, "pages.profile.lblBody"),
+      value: trOpt(tStr, "bodyType", bodyType.trim()),
+    });
+  }
+  if (eyeColor.trim()) {
+    profileSummaryRows.push({
+      key: "eye",
+      label: profileLabel(tStr, "pages.profile.lblEyes"),
+      value: trOpt(tStr, "eye", eyeColor.trim()),
+    });
+  }
+  if (hairColor.trim()) {
+    profileSummaryRows.push({
+      key: "hair",
+      label: profileLabel(tStr, "pages.profile.lblHair"),
+      value: trOpt(tStr, "hair", hairColor.trim()),
+    });
+  }
+  if (clothingStyle.trim()) {
+    profileSummaryRows.push({
+      key: "clothing",
+      label: profileLabel(tStr, "pages.profile.lblClothing"),
+      value: trOpt(tStr, "clothing", clothingStyle.trim()),
+    });
+  }
+  if (distinctiveFeatures.trim()) {
+    profileSummaryRows.push({
+      key: "features",
+      label: profileLabel(tStr, "pages.profile.lblFeatures"),
+      value: distinctiveFeatures.trim(),
+    });
+  }
+  if (physicalAsset.trim()) {
+    const assetText = trOpt(tStr, physicalOptGroup, physicalAsset.trim());
+    const detail = physicalAssetDetail.trim();
+    profileSummaryRows.push({
+      key: "physical",
+      label: profileLabel(tStr, "pages.profile.lblPhysical"),
+      value: detail ? `${assetText} (${detail})` : assetText,
+    });
+  }
+  if (educationLevel.trim()) {
+    profileSummaryRows.push({
+      key: "edu",
+      label: profileLabel(tStr, "pages.profile.lblEdu"),
+      value: trOpt(tStr, "education", educationLevel.trim()),
+    });
+  }
+  if (occupation.trim()) {
+    profileSummaryRows.push({
+      key: "occ",
+      label: profileLabel(tStr, "pages.profile.lblOcc"),
+      value: occupation.trim(),
+    });
+  }
+  if (maritalStatus.trim()) {
+    profileSummaryRows.push({
+      key: "marital",
+      label: profileLabel(tStr, "pages.profile.lblMarital"),
+      value: trOpt(tStr, "marital", maritalStatus.trim()),
+    });
+  }
+  if (wantsChildren.trim()) {
+    profileSummaryRows.push({
+      key: "children",
+      label: profileLabel(tStr, "pages.profile.lblChildren"),
+      value: trOpt(tStr, "wantsChildren", wantsChildren.trim()),
+    });
+  }
+  if (bio.trim()) {
+    profileSummaryRows.push({
+      key: "bio",
+      label: profileLabel(tStr, "pages.profile.lblBio"),
+      value: <span className="whitespace-pre-wrap">{bio.trim()}</span>,
+    });
+  }
 
   return (
     <div>
@@ -525,44 +666,20 @@ export default function ProfilePage() {
         );
       })()}
 
-      {/* Rezumat profil: doar câmpurile completate */}
-      {(name.trim() || bio.trim() || birthDate.trim() || gender || city.trim() || postalCode.trim() || educationLevel.trim() || occupation.trim() || maritalStatus.trim() || wantsChildren.trim() || (birthDate.trim() && computeAgeFromBirthDate(birthDate.trim()) != null) || height.trim() || weight.trim() || bodyType.trim() || eyeColor.trim() || hairColor.trim() || clothingStyle.trim() || distinctiveFeatures.trim() || physicalAsset.trim() || physicalAssetDetail.trim()) && (
+      {/* Rezumat profil: rânduri separate, etichete + valori (fără concatenare inline) */}
+      {profileSummaryRows.length > 0 && (
         <section className="mt-4 p-4 rounded-2xl bg-dark-800/50 border border-dark-600 max-w-2xl">
-          <h3 className="text-sm font-semibold text-zinc-900 mb-3">{tStr("pages.profile.summaryTitle")}</h3>
-          <dl className="space-y-1.5 text-sm">
-            {name.trim() && <><dt className="text-dark-500 inline">{tStr("pages.profile.lblFirstName")} </dt><dd className="inline text-dark-200">{name.trim()}</dd></>}
-            {gender && <><dt className="text-dark-500 inline">{tStr("pages.profile.lblGender")} </dt><dd className="inline text-dark-200">{gender === "male" ? tStr("pages.signup.genderMale") : gender === "female" ? tStr("pages.signup.genderFemale") : tStr("pages.signup.genderOther")}</dd></>}
-            {birthDate.trim() && <><dt className="text-dark-500 inline">{tStr("pages.profile.lblBirth")} </dt><dd className="inline text-dark-200">{birthDate.trim()}</dd></>}
-            {city.trim() && <><dt className="text-dark-500 inline">{tStr("pages.profile.lblCity")} </dt><dd className="inline text-dark-200">{city.trim()}</dd></>}
-            {postalCode.trim() && <><dt className="text-dark-500 inline">{tStr("pages.profile.lblPostal")} </dt><dd className="inline text-dark-200">{postalCode.trim()}</dd></>}
-            {educationLevel.trim() && <><dt className="text-dark-500 inline">{tStr("pages.profile.lblEdu")} </dt><dd className="inline text-dark-200">{trOpt(tStr, "education", educationLevel.trim())}</dd></>}
-            {occupation.trim() && <><dt className="text-dark-500 inline">{tStr("pages.profile.lblOcc")} </dt><dd className="inline text-dark-200">{occupation.trim()}</dd></>}
-            {maritalStatus.trim() && <><dt className="text-dark-500 inline">{tStr("pages.profile.lblMarital")} </dt><dd className="inline text-dark-200">{trOpt(tStr, "marital", maritalStatus.trim())}</dd></>}
-            {wantsChildren.trim() && <><dt className="text-dark-500 inline">{tStr("pages.profile.lblChildren")} </dt><dd className="inline text-dark-200">{trOpt(tStr, "wantsChildren", wantsChildren.trim())}</dd></>}
-            {birthDate.trim() && computeAgeFromBirthDate(birthDate.trim()) != null && (
-              <>
-                <dt className="text-dark-500 inline">{tStr("pages.profile.lblAge")} </dt>
-                <dd className="inline text-dark-200">
-                  {formatTpl(tStr("pages.userPublic.ageYears"), { n: computeAgeFromBirthDate(birthDate.trim())! })}
-                </dd>
-              </>
-            )}
-            {height.trim() && <><dt className="text-dark-500 inline">{tStr("pages.profile.lblHeight")} </dt><dd className="inline text-dark-200">{formatTpl(tStr("pages.userPublic.heightCm"), { n: height.trim() })}</dd></>}
-            {weight.trim() && <><dt className="text-dark-500 inline">{tStr("pages.profile.lblWeight")} </dt><dd className="inline text-dark-200">{formatTpl(tStr("pages.userPublic.weightKg"), { n: weight.trim() })}</dd></>}
-            {bodyType.trim() && <><dt className="text-dark-500 inline">{tStr("pages.profile.lblBody")} </dt><dd className="inline text-dark-200">{trOpt(tStr, "bodyType", bodyType.trim())}</dd></>}
-            {eyeColor.trim() && <><dt className="text-dark-500 inline">{tStr("pages.profile.lblEyes")} </dt><dd className="inline text-dark-200">{trOpt(tStr, "eye", eyeColor.trim())}</dd></>}
-            {hairColor.trim() && <><dt className="text-dark-500 inline">{tStr("pages.profile.lblHair")} </dt><dd className="inline text-dark-200">{trOpt(tStr, "hair", hairColor.trim())}</dd></>}
-            {clothingStyle.trim() && <><dt className="text-dark-500 inline">{tStr("pages.profile.lblClothing")} </dt><dd className="inline text-dark-200">{trOpt(tStr, "clothing", clothingStyle.trim())}</dd></>}
-            {distinctiveFeatures.trim() && <><dt className="text-dark-500 inline">{tStr("pages.profile.lblFeatures")} </dt><dd className="inline text-dark-200">{distinctiveFeatures.trim()}</dd></>}
-            {physicalAsset.trim() && (
-              <>
-                <dt className="text-dark-500 inline">{tStr("pages.profile.lblPhysical")} </dt>
-                <dd className="inline text-dark-200">
-                  {trOpt(tStr, physicalOptGroup, physicalAsset.trim())}{physicalAssetDetail.trim() ? ` (${physicalAssetDetail.trim()})` : ""}
-                </dd>
-              </>
-            )}
-            {bio.trim() && <><dt className="text-dark-500 block mt-2">{tStr("pages.profile.lblBio")} </dt><dd className="text-dark-200 block">{bio.trim()}</dd></>}
+          <h3 className="text-sm font-semibold text-zinc-900 mb-1">{tStr("pages.profile.summaryTitle")}</h3>
+          <dl className="mt-2 divide-y divide-dark-600/50">
+            {profileSummaryRows.map((row) => (
+              <div
+                key={row.key}
+                className="grid grid-cols-1 gap-1 py-2.5 first:pt-0 sm:grid-cols-[minmax(0,11rem)_minmax(0,1fr)] sm:gap-x-4 sm:gap-y-0"
+              >
+                <dt className="text-dark-500 text-sm font-medium">{row.label}</dt>
+                <dd className="text-dark-200 text-sm break-words">{row.value}</dd>
+              </div>
+            ))}
           </dl>
         </section>
       )}

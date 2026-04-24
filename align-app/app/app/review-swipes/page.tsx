@@ -8,7 +8,7 @@ import type { User } from "@/lib/store";
 import { SilhouetteAvatar } from "@/components/SilhouetteAvatar";
 import { OptimizedImage } from "@/components/OptimizedImage";
 import { displayName } from "@/lib/displayName";
-import { getAuthHeaders } from "@/lib/authClient";
+import { fetchWithAuthRetry } from "@/lib/authClient";
 import { track } from "@/lib/tracking";
 import { useI18n } from "@/lib/i18n/context";
 import { formatTpl } from "@/lib/i18n/formatTpl";
@@ -33,7 +33,7 @@ export default function ReviewSwipesPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/swipes/review-queue", { headers: getAuthHeaders(), credentials: "same-origin" });
+      const res = await fetchWithAuthRetry("/api/swipes/review-queue", { cache: "no-store" });
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || tStr("pages.reviewSwipes.errGeneric"));
@@ -80,10 +80,9 @@ export default function ReviewSwipesPage() {
     if (!current || busy) return;
     setBusy(true);
     try {
-      const res = await fetch("/api/swipe", {
+      const res = await fetchWithAuthRetry("/api/swipe", {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ toId: current.id, liked }),
       });
       const data = await res.json().catch(() => ({}));

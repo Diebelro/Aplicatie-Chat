@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
-import { getAuthHeaders } from "@/lib/authClient";
+import { fetchWithAuthRetry } from "@/lib/authClient";
 import { getProfileImageUrl } from "@/lib/profileImage";
 import { SilhouetteAvatar } from "@/components/SilhouetteAvatar";
 import IncomingCall from "@/components/IncomingCall";
@@ -37,6 +37,32 @@ import { LogoutChoiceModal } from "@/components/LogoutChoiceModal";
 import { LOGOUT_DIALOG_OPEN_EVENT, requestOpenLogoutDialog } from "@/lib/logoutDialogEvent";
 import { DiebelWordmark } from "@/components/DiebelWordmark";
 import { DiebelCopyrightStrip } from "@/components/DiebelAuthorCredit";
+
+type DesktopNavTone = "default" | "brand" | "amber" | "admin";
+
+/** Rută activă în header: doar linie 1px (border-b). Fără fundal / ring / shadow pentru evidențierea activă. */
+function desktopNavItemClass(active: boolean, tone: DesktopNavTone = "default"): string {
+  const line = `border-b ${active ? "border-brand-500" : "border-transparent"}`;
+  if (tone === "brand") {
+    return `shrink-0 pb-0.5 text-sm font-medium transition-colors ${line} text-brand-600 hover:text-brand-500`;
+  }
+  const text =
+    tone === "amber"
+      ? "text-amber-400/90 hover:text-amber-300"
+      : tone === "admin"
+        ? "text-red-300 hover:text-red-200"
+        : "text-dark-400 hover:text-zinc-900";
+  return `shrink-0 pb-0.5 transition-colors text-sm ${line} ${text}`;
+}
+
+/** Tab-uri bară jos: același semn — doar linie 1px sub tab-ul activ. */
+function mobileTabClass(active: boolean): string {
+  return (
+    "relative flex flex-col items-center justify-center gap-0.5 min-h-[50px] min-w-[58px] py-1.5 px-2.5 rounded-2xl " +
+    "transition-colors duration-200 touch-manipulation active:scale-[0.97] text-dark-400 border-b " +
+    (active ? "border-brand-500" : "border-transparent hover:text-dark-900")
+  );
+}
 
 export default function AppLayout({
   children,
@@ -95,13 +121,7 @@ export default function AppLayout({
       let cancelled = false;
       void (async () => {
         try {
-          let res = await fetch("/api/me", { credentials: "include" });
-          if (cancelled) return;
-          if (res.status === 401) {
-            await new Promise((r) => setTimeout(r, 400));
-            if (cancelled) return;
-            res = await fetch("/api/me", { credentials: "include" });
-          }
+          const res = await fetchWithAuthRetry("/api/me", { cache: "no-store" });
           if (cancelled) return;
           if (res.ok) {
             const data = await res.json();
@@ -139,17 +159,12 @@ export default function AppLayout({
           if (!cancelled) router.replace("/cont-blocat");
           return;
         }
-        let res = await fetch("/api/me", { headers: getAuthHeaders(), credentials: "include" });
+        const res = await fetchWithAuthRetry("/api/me", { cache: "no-store" });
         if (cancelled) return;
         if (res.status === 401) {
-          await new Promise((r) => setTimeout(r, 400));
-          res = await fetch("/api/me", { headers: getAuthHeaders(), credentials: "include" });
-          if (cancelled) return;
-          if (res.status === 401) {
-            if (!cancelled) setUser(u as User);
-            setLoading(false);
-            return;
-          }
+          if (!cancelled) setUser(u as User);
+          setLoading(false);
+          return;
         }
         if (!res.ok) {
           if (!cancelled) setUser(u as User);
@@ -189,7 +204,7 @@ export default function AppLayout({
   useEffect(() => {
     if (!user?.id || (user.photos?.length ?? 0) > 0) return;
     let cancelled = false;
-    fetch("/api/me", { headers: getAuthHeaders(), credentials: "include" })
+    fetchWithAuthRetry("/api/me", { cache: "no-store" })
       .then((r) => (cancelled ? null : r.ok ? r.json() : null))
       .then((data) => {
         if (cancelled || !data?.user) return;
@@ -238,7 +253,7 @@ export default function AppLayout({
   useEffect(() => {
     if (!user?.id) return;
     const tick = () => {
-      fetch("/api/heartbeat", { method: "POST", headers: getAuthHeaders() }).catch(() => {});
+      void fetchWithAuthRetry("/api/heartbeat", { method: "POST" }).catch(() => {});
     };
     tick();
     heartbeatRef.current = setInterval(tick, 5000);
@@ -252,20 +267,20 @@ export default function AppLayout({
 
   // Total mesaje necitite pentru badge la Mesaje
   const fetchUnread = () => {
-    fetch("/api/me/unread", { headers: getAuthHeaders() })
+    fetchWithAuthRetry("/api/me/unread", { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => { if (d.totalUnread != null) setTotalUnread(d.totalUnread); })
       .catch(() => {});
   };
   const fetchMissed = () => {
-    fetch("/api/call/missed", { headers: getAuthHeaders() })
+    fetchWithAuthRetry("/api/call/missed", { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => { if (d.missed) setMissedCallsCount(d.missed.length); })
       .catch(() => {});
   };
   const fetchMatchesForNotification = () => {
-    fetch("/api/matches", { headers: getAuthHeaders() })
-      .then((r) => r.ok ? r.json() : null)
+    fetchWithAuthRetry("/api/matches", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         const list = data?.matches as Array<{ id: string; username?: string; name?: string }> | undefined;
         if (!list || !Array.isArray(list)) return;
@@ -398,14 +413,22 @@ export default function AppLayout({
   /** Listă conversații (nu chat deschis): footer mai compact pe ecran mic. */
   const isMessagesListRoute = path === "/app/messages";
   const navDiscoverActive = path === "/app" || path.startsWith("/app/profiles");
-  const navMessagesActive = path.startsWith("/app/messages");
+  const navMessagesActive = path.startsWith("/app/messages") || path.startsWith("/app/chat/");
   const navMatchesActive = path.startsWith("/app/matches");
-
-  const mobileTabBase =
-    "flex flex-col items-center justify-center gap-0.5 min-h-[50px] min-w-[58px] py-1.5 px-2.5 rounded-2xl transition-all duration-200 touch-manipulation active:scale-[0.97]";
-  const mobileTabInactive = "text-dark-400 hover:text-dark-900 hover:bg-dark-800/70";
-  const mobileTabActive =
-    "text-brand-600 font-semibold bg-brand-500/12 ring-1 ring-brand-500/25 shadow-sm shadow-brand-500/10";
+  const navDesktopDiscoverActive = path === "/app";
+  const navDesktopProfilesActive = path.startsWith("/app/profiles");
+  const navDesktopMessagesActive = path.startsWith("/app/messages") || path.startsWith("/app/chat/");
+  const navDesktopMatchesActive = path.startsWith("/app/matches");
+  const navDesktopMapActive = path.startsWith("/app/map");
+  const navDesktopPremiumActive = path.startsWith("/app/premium");
+  const navDesktopCallActive = path.startsWith("/app/call");
+  const navDesktopReviewActive = path.startsWith("/app/review-swipes");
+  const navDesktopMissedActive = path.startsWith("/app/missed-calls");
+  /** Nu folosi startsWith("/app/profile") — include greșit `/app/profiles`. */
+  const navDesktopProfileActive = path === "/app/profile" || path.startsWith("/app/profile/");
+  const navDesktopFeedbackActive = path.startsWith("/app/settings/feedback");
+  const navDesktopAccountActive = path.startsWith("/app/settings/account");
+  const navDesktopAdminActive = path.startsWith("/admin");
 
   /** Logo → /app: pe Discover ești deja acolo — fără acțiune pare „link mort”. Derulăm sus + închidem meniul mobil. */
   const onDiebelLogoNavClick = (e: MouseEvent<HTMLAnchorElement>) => {
@@ -433,16 +456,19 @@ export default function AppLayout({
           </Link>
           {/* Desktop: linkuri în zonă scrollabilă; avatar + profil + Ieșire mereu vizibile în dreapta (nu dispar în overflow). */}
           <nav className="hidden lg:flex min-w-0 flex-1 flex-wrap items-center content-start gap-x-2.5 gap-y-1.5 py-0.5 [&_a]:whitespace-nowrap">
-            <Link href="/app/profile" className="px-3 py-1.5 rounded-lg bg-brand-500/20 text-brand-400 hover:bg-brand-500/30 font-medium text-sm transition shrink-0">
+            <Link href="/app/profile" className={desktopNavItemClass(navDesktopProfileActive, "brand")}>
               {tStr("appNav.completeProfile")}
             </Link>
-            <Link href="/app" className="shrink-0 text-dark-400 hover:text-zinc-900 transition">
+            <Link href="/app" className={desktopNavItemClass(navDesktopDiscoverActive)}>
               {tStr("appNav.discover")}
             </Link>
-            <Link href="/app/profiles" className="shrink-0 text-dark-400 hover:text-zinc-900 transition">
+            <Link href="/app/profiles" className={desktopNavItemClass(navDesktopProfilesActive)}>
               {tStr("appNav.allProfiles")}
             </Link>
-            <Link href="/app/messages" className="shrink-0 text-dark-400 hover:text-zinc-900 transition relative inline-flex items-center">
+            <Link
+              href="/app/messages"
+              className={`${desktopNavItemClass(navDesktopMessagesActive)} relative inline-flex items-center`}
+            >
               {tStr("appNav.messages")}
               {totalUnread > 0 && (
                 <span
@@ -458,46 +484,49 @@ export default function AppLayout({
               )}
             </Link>
             {missedCallsCount > 0 && (
-              <Link href="/app/missed-calls" className="shrink-0 text-amber-400 hover:text-amber-300 transition relative inline-flex items-center text-sm">
+              <Link
+                href="/app/missed-calls"
+                className={`${desktopNavItemClass(navDesktopMissedActive, "amber")} relative inline-flex items-center`}
+              >
                 {tStr("appNav.missedCalls")}
                 <span className="ml-1.5 min-w-[1.25rem] h-5 px-1.5 rounded-full bg-amber-500/30 text-amber-400 text-xs font-semibold flex items-center justify-center">
                   {missedCallsCount > 99 ? "99+" : missedCallsCount}
                 </span>
               </Link>
             )}
-            <Link href="/app/call/start" className="shrink-0 text-dark-400 hover:text-zinc-900 transition text-sm">
+            <Link href="/app/call/start" className={desktopNavItemClass(navDesktopCallActive)}>
               {tStr("appNav.conference")}
             </Link>
-            <Link href="/app/matches" className="shrink-0 text-dark-400 hover:text-zinc-900 transition">
+            <Link href="/app/matches" className={desktopNavItemClass(navDesktopMatchesActive)}>
               {tStr("appNav.matches")}
             </Link>
             <Link
               href="/app/review-swipes"
-              className="shrink-0 text-amber-400/90 hover:text-amber-300 transition text-sm"
+              className={desktopNavItemClass(navDesktopReviewActive, "amber")}
               title={tStr("appNav.reviewSwipesTitle")}
             >
               {tStr("appNav.reviewSwipes")}
             </Link>
-            <Link href="/app/map" className="shrink-0 text-dark-400 hover:text-zinc-900 transition">
+            <Link href="/app/map" className={desktopNavItemClass(navDesktopMapActive)}>
               {tStr("appNav.map")}
             </Link>
-            <Link href="/app/premium" className="shrink-0 text-amber-400 hover:text-amber-300 transition text-sm">
+            <Link href="/app/premium" className={desktopNavItemClass(navDesktopPremiumActive, "amber")}>
               {tStr("appNav.premium")}
             </Link>
             {isAdmin && (
               <Link
                 href="/admin"
-                className="shrink-0 text-red-300 hover:text-red-200 transition text-sm inline-flex items-center gap-1"
+                className={`${desktopNavItemClass(navDesktopAdminActive, "admin")} inline-flex items-center gap-1`}
                 title={tStr("appNav.adminPanelTitle")}
               >
                 <Shield className="w-4 h-4 shrink-0" aria-hidden />
                 {tStr("appNav.admin")}
               </Link>
             )}
-            <Link href="/app/settings/feedback" className="shrink-0 text-dark-400 hover:text-zinc-900 transition text-sm">
+            <Link href="/app/settings/feedback" className={desktopNavItemClass(navDesktopFeedbackActive)}>
               {tStr("appNav.suggestions")}
             </Link>
-            <Link href="/app/settings/account" className="text-dark-400 hover:text-zinc-900 transition text-sm shrink-0">
+            <Link href="/app/settings/account" className={desktopNavItemClass(navDesktopAccountActive)}>
               {tStr("appNav.accountSettings")}
             </Link>
           </nav>
@@ -605,20 +634,20 @@ export default function AppLayout({
       >
         <Link
           href="/app"
-          className={`${mobileTabBase} ${navDiscoverActive ? mobileTabActive : mobileTabInactive}`}
+          className={mobileTabClass(navDiscoverActive)}
           title={tStr("appNav.discover")}
           aria-current={navDiscoverActive ? "page" : undefined}
         >
-          <Compass className={`w-6 h-6 shrink-0 ${navDiscoverActive ? "drop-shadow-sm" : ""}`} />
+          <Compass className="w-6 h-6 shrink-0" />
           <span className="text-[11px] leading-tight">{tStr("appNav.discover")}</span>
         </Link>
         <Link
           href="/app/messages"
-          className={`${mobileTabBase} relative ${navMessagesActive ? mobileTabActive : mobileTabInactive}`}
+          className={`${mobileTabClass(navMessagesActive)} relative`}
           title={tStr("appNav.messages")}
           aria-current={navMessagesActive ? "page" : undefined}
         >
-          <MessageCircle className={`w-6 h-6 shrink-0 ${navMessagesActive ? "drop-shadow-sm" : ""}`} />
+          <MessageCircle className="w-6 h-6 shrink-0" />
           <span className="text-[11px] leading-tight">{tStr("appNav.messages")}</span>
           {totalUnread > 0 && (
             <span
@@ -635,11 +664,11 @@ export default function AppLayout({
         </Link>
         <Link
           href="/app/matches"
-          className={`${mobileTabBase} ${navMatchesActive ? mobileTabActive : mobileTabInactive}`}
+          className={mobileTabClass(navMatchesActive)}
           title={tStr("appNav.matches")}
           aria-current={navMatchesActive ? "page" : undefined}
         >
-          <Heart className={`w-6 h-6 shrink-0 ${navMatchesActive ? "drop-shadow-sm" : ""}`} />
+          <Heart className="w-6 h-6 shrink-0" />
           <span className="text-[11px] leading-tight">{tStr("appNav.matches")}</span>
         </Link>
       </nav>

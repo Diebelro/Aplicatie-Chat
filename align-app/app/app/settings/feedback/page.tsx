@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useLayoutEffect } from "react";
 import Link from "next/link";
-import { getAuthHeaders } from "@/lib/authClient";
+import { fetchWithAuthRetry } from "@/lib/authClient";
 import { clearFeedbackDraft, readFeedbackDraft, writeFeedbackDraft } from "@/lib/formDrafts";
 import { useI18n } from "@/lib/i18n/context";
 import { formatTpl } from "@/lib/i18n/formatTpl";
@@ -34,9 +34,9 @@ export default function AppFeedbackPage() {
     setBusy(true);
     try {
       const pageUrl = typeof window !== "undefined" ? `${window.location.pathname}${window.location.search}` : "";
-      const res = await fetch("/api/feedback", {
+      const res = await fetchWithAuthRetry("/api/feedback", {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: message.trim(),
           pageUrl: pageUrl.slice(0, 2000),

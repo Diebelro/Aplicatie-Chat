@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
-import { getAuthHeaders } from "@/lib/authClient";
+import { fetchWithAuthRetry } from "@/lib/authClient";
 import { useI18n } from "@/lib/i18n/context";
 import { formatTpl } from "@/lib/i18n/formatTpl";
 import { translateApiErrorMessage } from "@/lib/i18n/translateApiError";
@@ -26,6 +26,7 @@ export default function AccountSettingsPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [passwordBusy, setPasswordBusy] = useState(false);
 
   const [showDistance, setShowDistance] = useState(true);
   const [showOnline, setShowOnline] = useState(true);
@@ -33,55 +34,79 @@ export default function AccountSettingsPage() {
   const [allowReadReceipts, setAllowReadReceipts] = useState(true);
   const [allowFriendRequests, setAllowFriendRequests] = useState(true);
   const [privacyLoading, setPrivacyLoading] = useState(true);
+  const [privacyError, setPrivacyError] = useState("");
 
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteError, setDeleteError] = useState("");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [subscriptionPlan, setSubscriptionPlan] = useState<string | null>(null);
-  const [exportingData, setExportingData] = useState(false);
-  /** Mesaj discret după eșec (fără roșu / fără text tehnic din API). */
-  const [exportCalmNotice, setExportCalmNotice] = useState("");
 
   useEffect(() => {
-    fetch("/api/me", { headers: getAuthHeaders() })
-      .then((r) => r.json())
-      .then((d) => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const r = await fetchWithAuthRetry("/api/me", { cache: "no-store" });
+        const d = (await r.json().catch(() => ({}))) as { user?: User };
+        if (cancelled || !r.ok) return;
         if (d.user) {
-          const u = d.user as User;
+          const u = d.user;
           setUser(u);
           setRealName(u.real_name ?? "");
           setUsername(u.username ?? u.name ?? "");
           setEmail(u.email ?? "");
         }
-      })
-      .catch(() => {});
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
-    fetch("/api/me/subscription", { headers: getAuthHeaders() })
-      .then((r) => r.json())
-      .then((d) => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const r = await fetchWithAuthRetry("/api/me/subscription", { cache: "no-store" });
+        const d = (await r.json().catch(() => ({}))) as { planId?: string; premiumPermanent?: boolean };
+        if (cancelled || !r.ok) return;
         if (d.planId) setSubscriptionPlan(d.planId);
         else if (d.premiumPermanent) setSubscriptionPlan("lifetime");
-      })
-      .catch(() => {});
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
-    fetch("/api/me/settings", { headers: getAuthHeaders() })
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.settings) {
-          setShowDistance(d.settings.show_distance !== false);
-          setShowOnline(d.settings.show_online !== false);
-          setAllowVisitVisibility(d.settings.allowVisitVisibility !== false);
-          setAllowReadReceipts(d.settings.allowReadReceipts !== false);
-          setAllowFriendRequests(d.settings.allowFriendRequests !== false);
+    let cancelled = false;
+    void (async () => {
+      try {
+        const r = await fetchWithAuthRetry("/api/me/settings", { cache: "no-store" });
+        const d = (await r.json().catch(() => ({}))) as { settings?: Record<string, unknown> };
+        if (cancelled) return;
+        if (r.ok && d.settings) {
+          const s = d.settings;
+          setShowDistance(s.show_distance !== false);
+          setShowOnline(s.show_online !== false);
+          setAllowVisitVisibility(s.allowVisitVisibility !== false);
+          setAllowReadReceipts(s.allowReadReceipts !== false);
+          setAllowFriendRequests(s.allowFriendRequests !== false);
         }
-        setPrivacyLoading(false);
-      })
-      .catch(() => setPrivacyLoading(false));
+      } catch {
+        /* ignore */
+      } finally {
+        if (!cancelled) setPrivacyLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const checkUsername = (value: string) => {
@@ -92,33 +117,45 @@ export default function AccountSettingsPage() {
     }
     setUsernameCheck("checking");
     const uid = user?.id ?? "";
-    fetch(`/api/check-username?value=${encodeURIComponent(v)}&excludeUserId=${encodeURIComponent(uid)}`, { headers: getAuthHeaders() })
-      .then((r) => r.json())
-      .then((d) => {
+    void (async () => {
+      try {
+        const r = await fetchWithAuthRetry(
+          `/api/check-username?value=${encodeURIComponent(v)}&excludeUserId=${encodeURIComponent(uid)}`,
+          { cache: "no-store" }
+        );
+        const d = (await r.json().catch(() => ({}))) as { available?: boolean };
+        if (!r.ok) {
+          setUsernameCheck("idle");
+          return;
+        }
         if (d.available) setUsernameCheck("available");
         else setUsernameCheck("taken");
-      })
-      .catch(() => setUsernameCheck("idle"));
+      } catch {
+        setUsernameCheck("idle");
+      }
+    })();
   };
 
   const savePersonal = () => {
-    setPersonalError("");
-    setPersonalSave(true);
-    fetch("/api/me", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-      body: JSON.stringify({
-        real_name: realName.trim() || null,
-        username: username.trim().toLowerCase(),
-        email: email.trim().toLowerCase(),
-      }),
-    })
-      .then((r) => r.json())
-      .then((d) => {
-        setPersonalSave(false);
-        if (d.error) {
-          const raw = String(d.error).trim();
-          setPersonalError(raw ? translateApiErrorMessage(raw, tStr) || raw : "");
+    void (async () => {
+      setPersonalError("");
+      setPersonalSave(true);
+      try {
+        const r = await fetchWithAuthRetry("/api/me", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            real_name: realName.trim() || null,
+            username: username.trim().toLowerCase(),
+            email: email.trim().toLowerCase(),
+          }),
+        });
+        const d = (await r.json().catch(() => ({}))) as { error?: string; user?: User };
+        if (!r.ok || d.error) {
+          const raw = String(d.error ?? "").trim();
+          setPersonalError(
+            raw ? translateApiErrorMessage(raw, tStr) || raw : tStr("pages.account.errNetwork")
+          );
           return;
         }
         if (d.user) {
@@ -131,12 +168,18 @@ export default function AccountSettingsPage() {
                 const next = { ...prev, ...d.user };
                 localStorage.setItem("align_user", JSON.stringify(next));
                 sessionStorage.setItem("align_user", JSON.stringify(next));
-              } catch {}
+              } catch {
+                /* ignore */
+              }
             }
           }
         }
-      })
-      .catch(() => setPersonalSave(false));
+      } catch {
+        setPersonalError(tStr("pages.account.errNetwork"));
+      } finally {
+        setPersonalSave(false);
+      }
+    })();
   };
 
   const updatePassword = () => {
@@ -150,73 +193,58 @@ export default function AccountSettingsPage() {
       setPasswordError(tStr("pages.account.passwordMismatch"));
       return;
     }
-    fetch("/api/me/password", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-      body: JSON.stringify({ oldPassword, newPassword }),
-    })
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.error) {
-          const raw = String(d.error).trim();
-          setPasswordError(raw ? translateApiErrorMessage(raw, tStr) || raw : "");
+    void (async () => {
+      setPasswordBusy(true);
+      try {
+        const r = await fetchWithAuthRetry("/api/me/password", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ oldPassword, newPassword }),
+        });
+        const d = (await r.json().catch(() => ({}))) as { error?: string };
+        if (!r.ok || d.error) {
+          const raw = String(d.error ?? "").trim();
+          setPasswordError(
+            raw ? translateApiErrorMessage(raw, tStr) || raw : tStr("pages.account.errNetwork")
+          );
           return;
         }
         setPasswordSuccess(true);
         setOldPassword("");
         setNewPassword("");
         setConfirmPassword("");
-      });
+      } catch {
+        setPasswordError(tStr("pages.account.errNetwork"));
+      } finally {
+        setPasswordBusy(false);
+      }
+    })();
   };
 
   const updatePrivacy = (key: string, value: boolean) => {
-    fetch("/api/me/settings", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-      body: JSON.stringify({ [key]: value }),
-    })
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.settings) {
-          setShowDistance(d.settings.show_distance !== false);
-          setShowOnline(d.settings.show_online !== false);
-          setAllowVisitVisibility(d.settings.allowVisitVisibility !== false);
-          setAllowReadReceipts(d.settings.allowReadReceipts !== false);
-          setAllowFriendRequests(d.settings.allowFriendRequests !== false);
-        }
-      });
-  };
-
-  const downloadMyData = () => {
-    setExportCalmNotice("");
-    setExportingData(true);
-    fetch("/api/me/export", { credentials: "include", headers: getAuthHeaders() })
-      .then(async (r) => {
-        if (r.status === 429) {
-          setExportCalmNotice(tStr("pages.account.exportRateLimitedCalm"));
+    void (async () => {
+      setPrivacyError("");
+      try {
+        const r = await fetchWithAuthRetry("/api/me/settings", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ [key]: value }),
+        });
+        const d = (await r.json().catch(() => ({}))) as { settings?: Record<string, unknown> };
+        if (!r.ok || !d.settings) {
+          setPrivacyError(tStr("pages.account.privacyUpdateFailed"));
           return;
         }
-        if (!r.ok) {
-          setExportCalmNotice(tStr("pages.account.exportUnavailableCalm"));
-          return;
-        }
-        setExportCalmNotice("");
-        const blob = await r.blob();
-        const cd = r.headers.get("Content-Disposition");
-        const m = cd?.match(/filename="([^"]+)"/);
-        const filename = m?.[1] ?? "align-date-personale.json";
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = filename;
-        a.rel = "noopener";
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-      })
-      .catch(() => setExportCalmNotice(tStr("pages.account.exportUnavailableCalm")))
-      .finally(() => setExportingData(false));
+        const s = d.settings;
+        setShowDistance(s.show_distance !== false);
+        setShowOnline(s.show_online !== false);
+        setAllowVisitVisibility(s.allowVisitVisibility !== false);
+        setAllowReadReceipts(s.allowReadReceipts !== false);
+        setAllowFriendRequests(s.allowFriendRequests !== false);
+      } catch {
+        setPrivacyError(tStr("pages.account.errNetwork"));
+      }
+    })();
   };
 
   const deleteAccount = () => {
@@ -224,25 +252,32 @@ export default function AccountSettingsPage() {
       setDeleteError(tStr("pages.account.deletePasswordRequired"));
       return;
     }
-    setDeleting(true);
-    setDeleteError("");
-    fetch("/api/me/delete-account", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-      body: JSON.stringify({ password: deletePassword }),
-    })
-      .then((r) => r.json())
-      .then((d) => {
-        setDeleting(false);
-        if (d.error) {
-          setDeleteError(d.error);
+    void (async () => {
+      setDeleting(true);
+      setDeleteError("");
+      try {
+        const r = await fetchWithAuthRetry("/api/me/delete-account", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ password: deletePassword }),
+        });
+        const d = (await r.json().catch(() => ({}))) as { error?: string };
+        if (!r.ok || d.error) {
+          const raw = typeof d.error === "string" ? d.error.trim() : "";
+          setDeleteError(
+            raw ? translateApiErrorMessage(raw, tStr) || raw : tStr("pages.account.errNetwork")
+          );
           return;
         }
         localStorage.removeItem("align_user");
         sessionStorage.removeItem("align_user");
         window.location.href = "/login";
-      })
-      .catch(() => setDeleting(false));
+      } catch {
+        setDeleteError(tStr("pages.account.errNetwork"));
+      } finally {
+        setDeleting(false);
+      }
+    })();
   };
 
   const inputClass = "w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-zinc-900 placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500";
@@ -391,9 +426,10 @@ export default function AccountSettingsPage() {
           <button
             type="button"
             onClick={updatePassword}
-            className="px-4 py-2 rounded-lg bg-brand-500 text-zinc-900 font-medium hover:bg-brand-600 transition"
+            disabled={passwordBusy}
+            className="px-4 py-2 rounded-lg bg-brand-500 text-zinc-900 font-medium hover:bg-brand-600 disabled:opacity-50 transition"
           >
-            {tStr("pages.account.updatePasswordBtn")}
+            {passwordBusy ? tStr("pages.account.passwordSaving") : tStr("pages.account.updatePasswordBtn")}
           </button>
         </div>
       </section>
@@ -405,6 +441,11 @@ export default function AccountSettingsPage() {
           <p className="text-dark-500 text-sm">{tStr("pages.account.privacyLoading")}</p>
         ) : (
           <div className="space-y-3">
+            {privacyError ? (
+              <p className="text-amber-500 text-sm mb-1" role="alert">
+                {privacyError}
+              </p>
+            ) : null}
             <label className="flex items-center gap-3 cursor-pointer">
               <input
                 type="checkbox"
@@ -466,42 +507,22 @@ export default function AccountSettingsPage() {
         </button>
       </section>
 
-      {/* D) Date cont + ștergere */}
+      {/* Ștergere cont + politică (fără export date în UI — drepturile sunt în politică / contact) */}
       <section className="app-pro-panel p-6">
-        <h2 className="app-pro-section-title mb-3">{tStr("pages.account.exportSectionTitle")}</h2>
-        <p className="text-dark-500 text-sm leading-snug mb-4 max-w-sm">{tStr("pages.account.exportLead")}</p>
-        <div>
-          <button
-            type="button"
-            onClick={downloadMyData}
-            disabled={exportingData}
-            className="px-4 py-2.5 rounded-lg bg-brand-500 text-zinc-900 font-medium text-sm hover:bg-brand-600 disabled:opacity-60 disabled:cursor-not-allowed transition"
-          >
-            {exportingData ? tStr("pages.account.exportPreparing") : tStr("pages.account.exportData")}
-          </button>
-          {exportCalmNotice ? (
-            <p className="text-dark-500 text-sm mt-2 max-w-sm" role="status">
-              {exportCalmNotice}
-            </p>
-          ) : null}
-        </div>
-        <p className="text-xs text-dark-400 mt-3">
+        <h2 className="app-pro-section-title mb-3">{tStr("pages.account.deleteAccountSectionTitle")}</h2>
+        <button
+          type="button"
+          onClick={() => setDeleteConfirmOpen(true)}
+          className="px-4 py-2 rounded-lg bg-red-500/20 text-red-400 border border-red-500/50 hover:bg-red-500/30 transition text-sm"
+        >
+          {tStr("pages.account.deleteAccount")}
+        </button>
+        <p className="text-dark-500 text-xs mt-2">{tStr("pages.account.deleteAccountHint")}</p>
+        <p className="text-xs text-dark-400 mt-4">
           <Link href="/privacy" className="underline hover:text-zinc-900">
             {tStr("legal.links.privacy")}
           </Link>
         </p>
-
-        <div className="mt-8 pt-6 border-t border-dark-600">
-          <h3 className="text-base font-semibold text-zinc-900 mb-2">{tStr("pages.account.deleteAccountSectionTitle")}</h3>
-          <button
-            type="button"
-            onClick={() => setDeleteConfirmOpen(true)}
-            className="px-4 py-2 rounded-lg bg-red-500/20 text-red-400 border border-red-500/50 hover:bg-red-500/30 transition text-sm"
-          >
-            {tStr("pages.account.deleteAccount")}
-          </button>
-          <p className="text-dark-500 text-xs mt-2">{tStr("pages.account.deleteAccountHint")}</p>
-        </div>
       </section>
 
       {deleteConfirmOpen && (

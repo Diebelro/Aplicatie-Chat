@@ -14,7 +14,8 @@ import { SilhouetteAvatar } from "@/components/SilhouetteAvatar";
 import { AddFriendButton } from "@/components/AddFriendButton";
 import { getSmallCardState, FRIEND_CARD_COLORS } from "@/lib/friendCardStates";
 import { displayName } from "@/lib/displayName";
-import { getAuthHeaders } from "@/lib/authClient";
+import { fetchWithAuthRetry } from "@/lib/authClient";
+import { buildDiscoverApiQuery } from "@/lib/discoverSearchParams";
 import { MAX_PROFILE_SEARCH_RADIUS_KM } from "@/lib/profileSearchConstants";
 import { useI18n } from "@/lib/i18n/context";
 import { formatTpl } from "@/lib/i18n/formatTpl";
@@ -78,27 +79,6 @@ function formatDistance(km: number | undefined): string {
   return `${(Math.round(km * 10) / 10).toFixed(1).replace(".", ",")} km`;
 }
 
-function buildQuery(f: SearchFilters): string {
-  const p = new URLSearchParams();
-  if (f.gender) p.set("gender", f.gender);
-  if (f.minAge) p.set("minAge", f.minAge);
-  if (f.maxAge) p.set("maxAge", f.maxAge);
-  const md = f.maxDistanceKm.trim();
-  if (md !== "" && md !== "0") {
-    const n = Number(md);
-    if (!Number.isNaN(n) && n > 0) {
-      p.set("maxDistanceKm", String(Math.min(MAX_PROFILE_SEARCH_RADIUS_KM, n)));
-    }
-  }
-  if (f.country.trim()) p.set("country", f.country.trim());
-  if (f.city.trim()) p.set("city", f.city.trim());
-  if (f.onlineOnly) p.set("onlineOnly", "true");
-  if (f.name.trim()) p.set("name", f.name.trim());
-  if (f.sortBy) p.set("sortBy", f.sortBy);
-  const q = p.toString();
-  return q ? `?${q}` : "";
-}
-
 export default function ProfilesPage() {
   const { tStr, locale } = useI18n();
   const getDistanceDisplay = useCallback(
@@ -122,7 +102,7 @@ export default function ProfilesPage() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    fetch(`/api/profiles${buildQuery(filters)}`, { headers: getAuthHeaders() })
+    fetchWithAuthRetry(`/api/profiles${buildDiscoverApiQuery(filters)}`, { cache: "no-store" })
       .then(async (res) => {
         const data = await res.json();
         if (!res.ok) return { profiles: [] as ProfileWithOnline[] };
@@ -139,7 +119,7 @@ export default function ProfilesPage() {
   useEffect(() => {
     if (profiles.length === 0) return;
     const t = setInterval(() => {
-      fetch(`/api/profiles${buildQuery(filters)}`, { headers: getAuthHeaders() })
+      fetchWithAuthRetry(`/api/profiles${buildDiscoverApiQuery(filters)}`, { cache: "no-store" })
         .then((res) => res.json())
         .then((d) => {
           if (d.profiles) setProfiles(d.profiles);
@@ -150,7 +130,7 @@ export default function ProfilesPage() {
 
   useEffect(() => {
     const onConversationRead = () => {
-      fetch(`/api/profiles${buildQuery(filters)}`, { headers: getAuthHeaders() })
+      fetchWithAuthRetry(`/api/profiles${buildDiscoverApiQuery(filters)}`, { cache: "no-store" })
         .then((res) => res.json())
         .then((d) => { if (d.profiles) setProfiles(d.profiles); });
     };
@@ -159,9 +139,9 @@ export default function ProfilesPage() {
   }, [filters.gender, filters.minAge, filters.maxAge, filters.maxDistanceKm, filters.country, filters.city, filters.onlineOnly, filters.name, filters.sortBy]);
 
   const handleDelete = async (userId: string) => {
-    await fetch("/api/swipe", {
+    await fetchWithAuthRetry("/api/swipe", {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ toId: userId, liked: false }),
     });
     setProfiles((prev) => prev.filter((u) => u.id !== userId));
@@ -169,9 +149,9 @@ export default function ProfilesPage() {
 
   const handleBlock = async (userId: string) => {
     if (!confirm(tStr("pages.profiles.blockConfirm"))) return;
-    const res = await fetch("/api/block", {
+    const res = await fetchWithAuthRetry("/api/block", {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ targetUserId: userId }),
     });
     if (res.ok) setProfiles((prev) => prev.filter((u) => u.id !== userId));
@@ -180,9 +160,9 @@ export default function ProfilesPage() {
   const handleReport = async (userId: string) => {
     const reason = window.prompt(tStr("pages.profiles.reportPrompt"));
     if (reason === null) return;
-    await fetch("/api/report", {
+    await fetchWithAuthRetry("/api/report", {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         targetUserId: userId,
         reason: reason || tStr("pages.profiles.reportReasonDefault"),
@@ -272,12 +252,14 @@ export default function ProfilesPage() {
             />
           </div>
           <div className="w-full max-w-xs">
-            <label className="block text-xs text-dark-500 mb-1">
-              {tStr("pages.profiles.maxDistLabel")}{" "}
+            <label className="block text-xs text-dark-500 mb-1">{tStr("pages.discover.maxDistKm")}</label>
+            <p className="text-xs text-dark-400 mb-1.5 tabular-nums">
               {(Number(filters.maxDistanceKm) || 0) <= 0
-                ? "—"
-                : `${Math.min(MAX_PROFILE_SEARCH_RADIUS_KM, Number(filters.maxDistanceKm) || 0)} km`}
-            </label>
+                ? tStr("pages.discover.distanceFilterOff")
+                : formatTpl(tStr("pages.discover.distanceFilterActiveKm"), {
+                    n: Math.min(MAX_PROFILE_SEARCH_RADIUS_KM, Number(filters.maxDistanceKm) || 0),
+                  })}
+            </p>
             <input
               type="range"
               min={0}
@@ -497,7 +479,7 @@ export default function ProfilesPage() {
                   userId={u.id}
                   friendStatus={u.friendStatus ?? null}
                   onStatusChange={() => {
-                    fetch(`/api/profiles${buildQuery(filters)}`, { headers: getAuthHeaders() })
+                    fetchWithAuthRetry(`/api/profiles${buildDiscoverApiQuery(filters)}`, { cache: "no-store" })
                       .then(async (res) => res.ok && (await res.json()).profiles)
                       .then((list) => list && setProfiles(list));
                   }}

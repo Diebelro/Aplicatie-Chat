@@ -1,16 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
-import { MessageCircle, History } from "lucide-react";
+import { MessageCircle, History, Loader2 } from "lucide-react";
 import type { User } from "@/lib/store";
 import { SilhouetteAvatar } from "@/components/SilhouetteAvatar";
 import { QuickCallButtons } from "@/components/QuickCallButtons";
 import { displayName } from "@/lib/displayName";
-import { getAuthHeaders } from "@/lib/authClient";
+import { fetchWithAuthRetry } from "@/lib/authClient";
 import { useI18n } from "@/lib/i18n/context";
 import { formatTpl } from "@/lib/i18n/formatTpl";
-import { AppProLoading } from "@/components/AppProLoading";
 
 type MatchWithMeta = User & { online?: boolean; distanceKm?: number; distanceHidden?: boolean };
 
@@ -20,93 +19,170 @@ function formatDistance(km: number | undefined): string {
   return `${(Math.round(km * 10) / 10).toFixed(1).replace(".", ",")} km`;
 }
 
+/** Online primii; apoi activitate recentă; același id = ordine stabilă. */
+function sortMatchesForDisplay(list: MatchWithMeta[]): MatchWithMeta[] {
+  return [...list].sort((a, b) => {
+    const ao = a.online ? 1 : 0;
+    const bo = b.online ? 1 : 0;
+    if (bo !== ao) return bo - ao;
+    const ta = a.last_active ?? 0;
+    const tb = b.last_active ?? 0;
+    if (tb !== ta) return tb - ta;
+    return a.id.localeCompare(b.id);
+  });
+}
+
 export default function MatchesPage() {
   const { tStr } = useI18n();
   const [matches, setMatches] = useState<MatchWithMeta[]>([]);
-  const [loading, setLoading] = useState(true);
-  useEffect(() => {
-    (async () => {
-      const matchRes = await fetch("/api/matches", { headers: getAuthHeaders() });
-      if (matchRes.ok) {
-        const data = await matchRes.json();
-        setMatches(data.matches || []);
-      }
-      setLoading(false);
-    })();
-  }, []);
+  const [inFlight, setInFlight] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
+  const matchesRef = useRef<MatchWithMeta[]>([]);
+  matchesRef.current = matches;
 
-  if (loading) {
-    return <AppProLoading label={tStr("appNav.loading")} />;
-  }
+  const fetchMatches = useCallback(
+    async (silent: boolean) => {
+      if (!silent) setInFlight(true);
+      setLoadError(null);
+      try {
+        const matchRes = await fetchWithAuthRetry("/api/matches", { cache: "no-store" });
+        if (!mountedRef.current) return;
+        if (!matchRes.ok) {
+          if (silent) return;
+          setLoadError(tStr("pages.matches.loadError"));
+          setMatches([]);
+          return;
+        }
+        const data = await matchRes.json();
+        const raw = (data.matches || []) as MatchWithMeta[];
+        setMatches(sortMatchesForDisplay(raw));
+      } catch {
+        if (!mountedRef.current) return;
+        if (silent) return;
+        setLoadError(tStr("pages.matches.loadError"));
+        setMatches([]);
+      } finally {
+        if (mountedRef.current) setInFlight(false);
+      }
+    },
+    [tStr]
+  );
+
+  useEffect(() => {
+    mountedRef.current = true;
+    void fetchMatches(false);
+    return () => {
+      mountedRef.current = false;
+    };
+  }, [fetchMatches]);
+
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState !== "visible") return;
+      const silent = matchesRef.current.length > 0;
+      void fetchMatches(silent);
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [fetchMatches]);
+
+  const showListOverlay = inFlight && matches.length === 0;
 
   return (
     <div>
       <h2 className="app-pro-page-title mb-6">{tStr("pages.matches.title")}</h2>
-      {matches.length === 0 ? (
-        <div className="app-pro-empty">
-          <p className="app-pro-lead">{tStr("pages.matches.empty")}</p>
-        </div>
-      ) : (
-        <ul className="space-y-4">
-          {matches.map((u) => {
-            const matchLabel = displayName(u.username ?? u.name);
-            return (
-            <li
-              key={u.id}
-              className="flex items-stretch rounded-xl bg-dark-800 border border-dark-600 shadow-sm hover:border-dark-500 overflow-hidden touch-manipulation"
+
+      <div className="relative min-h-[min(280px,45vh)]">
+        {showListOverlay && (
+          <div
+            className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 rounded-xl bg-dark-900/55 backdrop-blur-[2px] border border-dark-600/50"
+            role="status"
+            aria-live="polite"
+            aria-busy="true"
+          >
+            <Loader2 className="h-7 w-7 animate-spin text-brand-500 shrink-0" aria-hidden />
+            <span className="text-xs text-dark-400 px-4 text-center">{tStr("pages.matches.loadingList")}</span>
+          </div>
+        )}
+
+        {loadError && matches.length === 0 ? (
+          <div className="app-pro-empty flex flex-col items-center gap-4 py-10">
+            <p className="app-pro-lead text-center max-w-md">{loadError}</p>
+            <button
+              type="button"
+              onClick={() => void fetchMatches(false)}
+              className="px-4 py-2 rounded-lg bg-brand-500 text-white hover:bg-brand-600 transition-colors"
             >
-              <Link
-                href={`/app/user/${u.id}`}
-                className="flex flex-1 min-w-0 items-center gap-4 p-4 min-h-[56px] hover:bg-dark-700/50 active:bg-dark-700/70 transition"
-                aria-label={formatTpl(tStr("pages.matches.viewProfileAria"), { name: matchLabel })}
-              >
-                <div className="w-12 h-12 rounded-full overflow-hidden bg-brand-500/20 flex items-center justify-center shrink-0">
-                  <SilhouetteAvatar
-                    photoUrl={u.photos?.[0]}
-                    gender={u.gender}
-                    name={u.name}
-                    className="w-full h-full text-brand-400"
-                    imgClassName="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium text-zinc-900">{matchLabel}</p>
-                  <p className="text-sm text-dark-500 line-clamp-1">{u.bio || "—"}</p>
-                  <p className="text-xs text-dark-400 mt-1">
-                    {u.distanceHidden || u.distanceKm == null
-                      ? tStr("pages.matches.distanceHidden")
-                      : u.distanceKm < 1
-                        ? tStr("pages.matches.nearby")
-                        : formatDistance(u.distanceKm)}
-                    <span className="mx-2">·</span>
-                    <span className={u.online ? "text-green-400" : "text-dark-500"}>
-                      {u.online ? tStr("pages.matches.online") : tStr("pages.matches.offline")}
-                    </span>
-                  </p>
-                </div>
-              </Link>
-              <div className="shrink-0 flex items-center gap-2 px-3 border-l border-dark-600 bg-dark-800">
-                <QuickCallButtons toUserId={u.id} size="md" />
-                <Link
-                  href={`/app/review-swipes?focus=${encodeURIComponent(u.id)}`}
-                  className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-amber-400/90 hover:bg-amber-500/15 active:bg-amber-500/25 transition touch-manipulation"
-                  title={tStr("pages.matches.reviewSwipeHint")}
+              {tStr("common.shellErrors.tryAgain")}
+            </button>
+          </div>
+        ) : matches.length === 0 ? (
+          <div className="app-pro-empty">
+            <p className="app-pro-lead">{tStr("pages.matches.empty")}</p>
+          </div>
+        ) : (
+          <ul className="space-y-4">
+            {matches.map((u) => {
+              const matchLabel = displayName(u.username ?? u.name);
+              return (
+                <li
+                  key={u.id}
+                  className="flex items-stretch rounded-xl bg-dark-800 border border-dark-600 shadow-sm hover:border-dark-500 overflow-hidden touch-manipulation"
                 >
-                  <History className="w-5 h-5" />
-                </Link>
-                <Link
-                  href={`/app/chat/${u.id}`}
-                  className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-brand-400 hover:bg-brand-500/20 active:bg-brand-500/30 transition touch-manipulation"
-                  title={tStr("pages.matches.messageTitle")}
-                >
-                  <MessageCircle className="w-5 h-5" />
-                </Link>
-              </div>
-            </li>
-            );
-          })}
-        </ul>
-      )}
+                  <Link
+                    href={`/app/user/${u.id}`}
+                    className="flex flex-1 min-w-0 items-center gap-4 p-4 min-h-[56px] hover:bg-dark-700/50 active:bg-dark-700/70 transition"
+                    aria-label={formatTpl(tStr("pages.matches.viewProfileAria"), { name: matchLabel })}
+                  >
+                    <div className="w-12 h-12 rounded-full overflow-hidden bg-brand-500/20 flex items-center justify-center shrink-0">
+                      <SilhouetteAvatar
+                        photoUrl={u.photos?.[0]}
+                        gender={u.gender}
+                        name={u.name}
+                        className="w-full h-full text-brand-400"
+                        imgClassName="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-zinc-900">{matchLabel}</p>
+                      <p className="text-sm text-dark-500 line-clamp-1">{u.bio || "—"}</p>
+                      <p className="text-xs text-dark-400 mt-1">
+                        {u.distanceHidden || u.distanceKm == null
+                          ? tStr("pages.matches.distanceHidden")
+                          : u.distanceKm < 1
+                            ? tStr("pages.matches.nearby")
+                            : formatDistance(u.distanceKm)}
+                        <span className="mx-2">·</span>
+                        <span className={u.online ? "text-green-400" : "text-dark-500"}>
+                          {u.online ? tStr("pages.matches.online") : tStr("pages.matches.offline")}
+                        </span>
+                      </p>
+                    </div>
+                  </Link>
+                  <div className="shrink-0 flex items-center gap-2 px-3 border-l border-dark-600 bg-dark-800">
+                    <QuickCallButtons toUserId={u.id} size="md" />
+                    <Link
+                      href={`/app/review-swipes?focus=${encodeURIComponent(u.id)}`}
+                      className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-amber-400/90 hover:bg-amber-500/15 active:bg-amber-500/25 transition touch-manipulation"
+                      title={tStr("pages.matches.reviewSwipeHint")}
+                    >
+                      <History className="w-5 h-5" />
+                    </Link>
+                    <Link
+                      href={`/app/chat/${u.id}`}
+                      className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-brand-400 hover:bg-brand-500/20 active:bg-brand-500/30 transition touch-manipulation"
+                      title={tStr("pages.matches.messageTitle")}
+                    >
+                      <MessageCircle className="w-5 h-5" />
+                    </Link>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }

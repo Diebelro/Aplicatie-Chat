@@ -6,7 +6,7 @@ import MapView from "@/components/MapView";
 import type { MapData } from "@/components/MapView";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
-import { fetchWithAuthRetry, getAuthHeaders } from "@/lib/authClient";
+import { fetchWithAuthRetry } from "@/lib/authClient";
 import {
   MAP_LIVE_LOCATION_INTERVAL_MS,
   MAP_VISIBILITY_MAX_MINUTES,
@@ -37,6 +37,7 @@ export default function MapPage() {
   const [durationMin, setDurationMin] = useState(60);
   const [viewerUserId, setViewerUserId] = useState<string | null>(null);
   const [nowTick, setNowTick] = useState(() => Date.now());
+  const [visibilityStoppedAt, setVisibilityStoppedAt] = useState<number | null>(null);
 
   useEffect(() => {
     try {
@@ -103,15 +104,28 @@ export default function MapPage() {
     return () => clearInterval(t);
   }, []);
 
+  const visibleActive = useMemo(() => {
+    const untilIso = data?.me?.mapVisibleUntil ?? null;
+    if (!untilIso) return false;
+    const end = new Date(untilIso).getTime();
+    return Number.isFinite(end) && end > nowTick;
+  }, [data?.me?.mapVisibleUntil, nowTick]);
+
+  useEffect(() => {
+    if (visibilityStoppedAt == null) return;
+    const t = window.setTimeout(() => setVisibilityStoppedAt(null), 5_000);
+    return () => window.clearTimeout(t);
+  }, [visibilityStoppedAt]);
+
   const postCoordsToServer = useCallback(
     async (
       latitude: number,
       longitude: number,
       syncStore: boolean
     ): Promise<boolean> => {
-      const r = await fetch("/api/me/location", {
+      const r = await fetchWithAuthRetry("/api/me/location", {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           latitude,
           longitude,
@@ -215,19 +229,25 @@ export default function MapPage() {
     if (!ok) return;
 
     const run = () => {
-      fetch("/api/me/map-visibility", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-        body: JSON.stringify({ durationMinutes: durationMin }),
-      })
-        .then((r) => r.json().then((j) => ({ r, j })))
-        .then(({ r, j }) => {
-          if (!r.ok) {
-            setError(typeof j.error === "string" ? j.error : tStr("pages.map.errActivateVisibility"));
-            return;
-          }
-          void fetchMap({ silent: true });
+      void (async () => {
+        const r = await fetchWithAuthRetry("/api/me/map-visibility", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ durationMinutes: durationMin }),
         });
+        let j: { error?: string } = {};
+        try {
+          j = (await r.json()) as { error?: string };
+        } catch {
+          /* ignore */
+        }
+        if (!r.ok) {
+          setError(typeof j.error === "string" ? j.error : tStr("pages.map.errActivateVisibility"));
+          return;
+        }
+        setVisibilityStoppedAt(null);
+        await fetchMap({ silent: true });
+      })();
     };
 
     if (!data?.me) {
@@ -238,19 +258,25 @@ export default function MapPage() {
   };
 
   const stopVisibility = () => {
-    fetch("/api/me/map-visibility", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-      body: JSON.stringify({ off: true }),
-    })
-      .then((r) => r.json().then((j) => ({ r, j })))
-      .then(({ r, j }) => {
-        if (!r.ok) {
-          setError(typeof j.error === "string" ? j.error : tStr("pages.map.errGeneric"));
-          return;
-        }
-        void fetchMap({ silent: true });
+    void (async () => {
+      const r = await fetchWithAuthRetry("/api/me/map-visibility", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ off: true }),
       });
+      let j: { error?: string } = {};
+      try {
+        j = (await r.json()) as { error?: string };
+      } catch {
+        /* ignore */
+      }
+      if (!r.ok) {
+        setError(typeof j.error === "string" ? j.error : tStr("pages.map.errGeneric"));
+        return;
+      }
+      await fetchMap({ silent: true });
+      setVisibilityStoppedAt(Date.now());
+    })();
   };
 
   const remainingLabel = useCallback(
@@ -317,20 +343,36 @@ export default function MapPage() {
             type="button"
             disabled={geoBusy || loading}
             onClick={() => startVisibility()}
-            className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold disabled:opacity-50 transition"
+            className={
+              visibleActive
+                ? "px-5 py-2.5 rounded-xl border border-emerald-600/60 text-emerald-400 text-sm font-semibold hover:bg-emerald-950/40 disabled:opacity-50 transition"
+                : "px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold disabled:opacity-50 transition"
+            }
           >
             {geoBusy ? tStr("pages.map.savingLocation") : tStr("pages.map.visibleOnMap")}
           </button>
           <button
             type="button"
-            disabled={loading}
+            disabled={loading || !visibleActive}
             onClick={() => stopVisibility()}
-            className="px-4 py-2.5 rounded-xl border border-dark-600 text-sm text-dark-300 hover:bg-dark-700 disabled:opacity-50 transition"
+            className={
+              visibleActive
+                ? "px-4 py-2.5 rounded-xl bg-dark-600 hover:bg-dark-500 border border-dark-500 text-sm text-white font-medium disabled:opacity-50 transition"
+                : "px-4 py-2.5 rounded-xl border border-dark-600 text-sm text-dark-500 bg-dark-800/40 cursor-not-allowed opacity-60"
+            }
           >
             {tStr("pages.map.stopVisibility")}
           </button>
         </div>
-        {!loading && data?.me?.mapVisibleUntil && (
+        {visibilityStoppedAt != null && (
+          <p className="text-sm text-emerald-500/95 border border-emerald-700/35 bg-emerald-950/25 rounded-lg px-3 py-2" role="status">
+            {tStr("pages.map.visibilityStoppedNotice")}
+          </p>
+        )}
+        {!loading && !visibleActive && visibilityStoppedAt == null && (
+          <p className="text-sm text-dark-400">{tStr("pages.map.visibilityInactiveHint")}</p>
+        )}
+        {!loading && visibleActive && data?.me?.mapVisibleUntil && (
           <p className="text-sm text-emerald-600">
             {tStr("pages.map.visibleRemaining")}{" "}
             <strong>{remainingLabel(data.me.mapVisibleUntil)}</strong>

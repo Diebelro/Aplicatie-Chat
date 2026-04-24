@@ -5,7 +5,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
-import { getAuthHeaders, fetchWithAuthRetry } from "@/lib/authClient";
+import { fetchWithAuthRetry } from "@/lib/authClient";
 import { clearIncomingRingDismissFilter } from "@/lib/callIncomingDismiss";
 import { closeIncomingCallPushNotifications } from "@/lib/closeIncomingCallPushNotifications";
 import { canAccessRoom, isConferenceRoomId } from "@/lib/videoCall";
@@ -190,19 +190,17 @@ export default function CallPage() {
       if (shouldSkipDuplicateCallEnd(roomId)) return;
       markIncomingGrace(roomId, undefined, POST_HANGUP_INCOMING_GRACE_MS);
       if (!callSessionStartedRef.current) {
-        void fetch("/api/call/end", {
+        void fetchWithAuthRetry("/api/call/end", {
           method: "POST",
-          headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
-          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
           keepalive: true,
           body: JSON.stringify({ roomId }),
         }).catch(() => {});
         return;
       }
-      void fetch("/api/call/end", {
+      void fetchWithAuthRetry("/api/call/end", {
         method: "POST",
-        headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
-        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ roomId }),
         keepalive: true,
       }).catch(() => {});
@@ -221,10 +219,9 @@ export default function CallPage() {
       markIncomingGrace(roomId, undefined, POST_HANGUP_INCOMING_GRACE_MS);
       if (!callSessionStartedRef.current) {
         try {
-          void fetch("/api/call/end", {
+          void fetchWithAuthRetry("/api/call/end", {
             method: "POST",
-            headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
-            credentials: "same-origin",
+            headers: { "Content-Type": "application/json" },
             keepalive: true,
             body: JSON.stringify({ roomId }),
           });
@@ -242,10 +239,9 @@ export default function CallPage() {
         /* fall through */
       }
       try {
-        void fetch("/api/call/end", {
+        void fetchWithAuthRetry("/api/call/end", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          credentials: "same-origin",
           body,
           keepalive: true,
         });
@@ -286,10 +282,8 @@ export default function CallPage() {
   const handlePushAnswer = () => {
     setPushGateError(null);
     setPushGateLoading(true);
-    fetch("/api/call/accept", {
+    fetchWithAuthRetry("/api/call/accept", {
       method: "POST",
-      headers: getAuthHeaders(),
-      credentials: "same-origin",
     })
       .then(async (r) => {
         const d = (await r.json().catch(() => ({}))) as CallErrorPayload & { roomId?: string; audioOnly?: boolean };
@@ -315,10 +309,8 @@ export default function CallPage() {
   const handlePushDecline = () => {
     setPushGateLoading(true);
     clearIncomingRingDismissFilter();
-    fetch("/api/call/reject", {
+    fetchWithAuthRetry("/api/call/reject", {
       method: "POST",
-      headers: getAuthHeaders(),
-      credentials: "same-origin",
     })
       .finally(() => {
         setPushGateLoading(false);

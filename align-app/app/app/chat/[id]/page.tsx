@@ -272,7 +272,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/me", { credentials: "same-origin", cache: "no-store" })
+    fetchWithAuthRetry("/api/me", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (cancelled || !d?.user?.id) return;
@@ -294,7 +294,7 @@ export default function ChatPage() {
   }, []);
 
   const fetchOther = async () => {
-    const res = await fetch(`/api/users/${otherId}`, { headers: getAuthHeaders() });
+    const res = await fetchWithAuthRetry(`/api/users/${otherId}`, { cache: "no-store" });
     const data = await res.json();
     if (res.ok && data.user) setOther(data.user);
   };
@@ -440,7 +440,7 @@ export default function ChatPage() {
         if (!cancelled) setLoading(false);
       }
     })();
-    fetch("/api/chat/upload", { method: "GET", headers: getAuthHeaders() })
+    fetchWithAuthRetry("/api/chat/upload", { method: "GET", cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (d && typeof d.configured === "boolean") setUploadConfigured(d.configured);
@@ -448,9 +448,9 @@ export default function ChatPage() {
       .catch(() => {
         /* Nu ascunde butonul la rețea eronată — utilizatorul poate reîncerca upload la nevoie. */
       });
-    fetch("/api/visit", {
+    fetchWithAuthRetry("/api/visit", {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ profileId: otherId }),
     })
       .then(() => track.view_profile(otherId))
@@ -719,7 +719,7 @@ export default function ChatPage() {
       }
       const res = await fetchWithAuthRetry("/api/messages", {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...headers },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       const data = await res.json();
@@ -778,9 +778,8 @@ export default function ChatPage() {
     try {
       const formData = new FormData();
       formData.set("file", file);
-      const res = await fetch("/api/chat/upload", {
+      const res = await fetchWithAuthRetry("/api/chat/upload", {
         method: "POST",
-        headers: getAuthHeaders() as Record<string, string>,
         body: formData,
       });
       const data = await res.json();
@@ -848,9 +847,9 @@ export default function ChatPage() {
             setSendError(tStr("pages.chat.notAuthenticated"));
             return;
           }
-          const res = await fetch("/api/messages", {
+          const res = await fetchWithAuthRetry("/api/messages", {
             method: "POST",
-            headers: { "Content-Type": "application/json", ...headers },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               toId: otherId,
               text: backupText,
@@ -962,10 +961,9 @@ export default function ChatPage() {
       const retractRingIfAbandoned = () => {
         markCallEndPosted(roomIdForRing);
         markIncomingGrace(roomIdForRing, undefined, POST_HANGUP_INCOMING_GRACE_MS);
-        void fetch("/api/call/end", {
+        void fetchWithAuthRetry("/api/call/end", {
           method: "POST",
-          headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
-          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ roomId: roomIdForRing }),
         }).catch(() => {});
       };
@@ -1146,9 +1144,9 @@ export default function ChatPage() {
                         if (!confirm(tStr("pages.chat.blockConfirm"))) return;
                         setActionBusy(true);
                         try {
-                          const res = await fetch("/api/block", {
+                          const res = await fetchWithAuthRetry("/api/block", {
                             method: "POST",
-                            headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+                            headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({ targetUserId: otherId }),
                           });
                           if (res.ok) {
@@ -1195,9 +1193,9 @@ export default function ChatPage() {
                                 if (!confirm(formatTpl(tStr("pages.chat.unblockConfirm"), { name }))) return;
                                 setActionBusy(true);
                                 try {
-                                  const res = await fetch("/api/unblock", {
+                                  const res = await fetchWithAuthRetry("/api/unblock", {
                                     method: "POST",
-                                    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+                                    headers: { "Content-Type": "application/json" },
                                     body: JSON.stringify({ targetUserId: row.id }),
                                   });
                                   if (res.ok) {
@@ -1236,9 +1234,9 @@ export default function ChatPage() {
                         if (reason === null) return;
                         setActionBusy(true);
                         try {
-                          const res = await fetch("/api/report", {
+                          const res = await fetchWithAuthRetry("/api/report", {
                             method: "POST",
-                            headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+                            headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({
                               targetUserId: otherId,
                               reason: reason || tStr("pages.chat.reportDefaultReason"),
@@ -1270,9 +1268,9 @@ export default function ChatPage() {
                         if (!confirm(tStr("pages.chat.unmatchConfirm"))) return;
                         setActionBusy(true);
                         try {
-                          const res = await fetch("/api/unmatch", {
+                          const res = await fetchWithAuthRetry("/api/unmatch", {
                             method: "POST",
-                            headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+                            headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({ matchId }),
                           });
                           if (res.ok) router.replace("/app/profiles");
@@ -1299,9 +1297,9 @@ export default function ChatPage() {
                 if (!confirm(tStr("pages.chat.deleteConversationConfirm"))) return;
                 setActionBusy(true);
                 try {
-                  const res = await fetch("/api/conversations/delete", {
+                  const res = await fetchWithAuthRetry("/api/conversations/delete", {
                     method: "POST",
-                    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ conversationId: otherId }),
                   });
                   if (res.ok) router.replace("/app/profiles");

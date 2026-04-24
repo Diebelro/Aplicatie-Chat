@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Images, MessageCircle } from "lucide-react";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
-import { getAuthHeaders } from "@/lib/authClient";
+import { fetchWithAuthRetry } from "@/lib/authClient";
 import { displayName } from "@/lib/displayName";
 import { track } from "@/lib/tracking";
 import { SilhouetteAvatar } from "@/components/SilhouetteAvatar";
@@ -53,7 +53,7 @@ export default function PublicUserProfilePage() {
     : null;
 
   const refetch = useCallback(() => {
-    fetch(`/api/users/${id}`, { headers: getAuthHeaders(), credentials: "same-origin", cache: "no-store" })
+    fetchWithAuthRetry(`/api/users/${id}`, { cache: "no-store" })
       .then(async (r) => {
         const d = await r.json().catch(() => ({}));
         if (!r.ok) {
@@ -82,9 +82,9 @@ export default function PublicUserProfilePage() {
     }
     setLoading(true);
     refetch();
-    fetch("/api/visit", {
+    fetchWithAuthRetry("/api/visit", {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ profileId: id }),
     })
       .then(() => track.view_profile(id))

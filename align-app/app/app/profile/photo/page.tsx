@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { fetchWithAuthRetry, getAuthHeaders } from "@/lib/authClient";
+import { fetchWithAuthRetry } from "@/lib/authClient";
 import type { User } from "@/lib/store";
 import { ProfilePhotosGallery } from "@/components/profile/ProfilePhotosGallery";
 import { useI18n } from "@/lib/i18n/context";
@@ -41,18 +41,11 @@ export default function ProfilePhotoPage() {
       setSaving(true);
       setErrorDetail("");
       try {
-        const patch = () =>
-          fetch("/api/me", {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-            body: JSON.stringify({ photos: newPhotos }),
-            credentials: "include",
-          });
-        let res = await patch();
-        if (res.status === 401) {
-          await new Promise((r) => setTimeout(r, 450));
-          res = await patch();
-        }
+        const res = await fetchWithAuthRetry("/api/me", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ photos: newPhotos }),
+        });
         const data = await res.json();
         if (res.status === 401) {
           setErrorDetail(tStr("pages.profile.errSessionSave"));

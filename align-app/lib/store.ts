@@ -1,4 +1,5 @@
 import { RING_PENDING_MAX_MS } from "./callRingConstants";
+import { cityMatchesFilter, nameMatchesFilter, normalizeStrict as normalizeStrictMatch } from "@/lib/discoverMatchUtils";
 
 /** În browser: citește user din localStorage sau sessionStorage („Ține-mă minte”). */
 export function getStoredUserRaw(): string | null {
@@ -458,7 +459,8 @@ export function getAllUsersExcept(excludeUserId: string): User[] {
 }
 
 export interface ProfileFilters {
-  gender?: Gender | "";
+  /** Aliniat cu FeedFilters / query API (male|female|other sau gol). */
+  gender?: string;
   minAge?: number;
   maxAge?: number;
   maxDistanceKm?: number;
@@ -468,15 +470,6 @@ export interface ProfileFilters {
   onlineOnly?: boolean;
   /** Caută în nume (substring, ignoră majuscule) */
   name?: string;
-}
-
-/** Normalizează pentru potrivire strictă: trim, lowercase, fără diacritice. */
-function normalizeStrictMatch(s: string): string {
-  return (s ?? "")
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "");
 }
 
 /** Filtrează utilizatori după gen, vârstă, distanță, țară, oraș, online, nume. */
@@ -494,10 +487,16 @@ export function filterUsers(
     if (filters.maxAge != null && (u.age == null || u.age > filters.maxAge))
       return false;
     if (filters.country && filters.country.trim() !== "") {
-      if (normalizeStrictMatch(u.country ?? "") !== normalizeStrictMatch(filters.country)) return false;
+      const hasCityFilter = !!(filters.city && filters.city.trim() !== "");
+      const c = (u.country ?? "").trim();
+      if (!c) {
+        if (!hasCityFilter) return false;
+      } else if (normalizeStrictMatch(c) !== normalizeStrictMatch(filters.country)) {
+        return false;
+      }
     }
     if (filters.city && filters.city.trim() !== "") {
-      if (normalizeStrictMatch(u.city ?? "") !== normalizeStrictMatch(filters.city)) return false;
+      if (!cityMatchesFilter(u.city, filters.city)) return false;
     }
     if (filters.maxDistanceKm != null && filters.maxDistanceKm > 0) {
       const km = getDistanceKm(myId, u.id);
@@ -505,10 +504,7 @@ export function filterUsers(
     }
     if (filters.onlineOnly && !isUserOnline(u.id)) return false;
     if (filters.name && filters.name.trim() !== "") {
-      const nameLower = filters.name.trim().toLowerCase();
-      const uName = (u.name ?? "").toLowerCase();
-      const uUsername = (u.username ?? "").toLowerCase();
-      if (!uName.includes(nameLower) && !uUsername.includes(nameLower)) return false;
+      if (!nameMatchesFilter(u.name, u.username, filters.name)) return false;
     }
     return true;
   });

@@ -1,17 +1,25 @@
 import type { Locale } from "@/lib/i18n/types";
 import { LOCALES } from "@/lib/i18n/types";
 
+/** Țară implicită pe limbă; orașul rămâne gol = căutare în toată țara. */
 export function getSearchLocationDefaults(locale: Locale): { country: string; city: string } {
   switch (locale) {
     case "de":
-      return { country: "Deutschland", city: "Berlin" };
+      return { country: "Deutschland", city: "" };
     case "en":
-      return { country: "United Kingdom", city: "London" };
+      return { country: "United Kingdom", city: "" };
     case "ro":
     default:
-      return { country: "România", city: "București" };
+      return { country: "România", city: "" };
   }
 }
+
+/** Valori vechi de oraș presetat (înainte de „oraș opțional / tot județul”). */
+const LEGACY_DEFAULT_CITY: Record<Locale, string> = {
+  ro: "București",
+  en: "London",
+  de: "Berlin",
+};
 
 /** Orașe sugerate (datalist) pentru filtrul de oraș, aliniate cu regiunea implicită pe limbă. */
 export const SEARCH_CITY_HINTS: Record<Locale, readonly string[]> = {
@@ -25,7 +33,9 @@ export function matchesAnyLocaleDefaultRegion(country: string, city: string): bo
   const ci = city.trim();
   return LOCALES.some((l) => {
     const d = getSearchLocationDefaults(l);
-    return c === d.country && ci === d.city;
+    if (c !== d.country) return false;
+    if (ci === d.city) return true;
+    return ci === LEGACY_DEFAULT_CITY[l];
   });
 }
 

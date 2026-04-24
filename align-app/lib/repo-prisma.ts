@@ -12,6 +12,7 @@ import { REJECTED_CALL_ROOM_TTL_MS, RING_PENDING_MAX_MS } from "@/lib/callRingCo
 import type { User, Match, Message } from "@/lib/store";
 import type { Gender } from "@/lib/store";
 import { PLATFORM_NOTICE_VISIBLE_DAYS } from "@/lib/platformModerationNotice";
+import { cityMatchesFilter, nameMatchesFilter, normalizeStrict } from "@/lib/discoverMatchUtils";
 
 /** Ascunde în chat notificările platformă expirate (rândul poate exista încă în DB). */
 export function prismaMessageWhereChatVisible(): Prisma.MessageWhereInput {
@@ -965,15 +966,6 @@ export type FeedFilters = {
   name?: string;
 };
 
-/** Normalizează pentru potrivire strictă: trim, lowercase, fără diacritice (București = Bucuresti). */
-function normalizeStrict(s: string): string {
-  return (s ?? "")
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "");
-}
-
 function ageFromBirthDate(birthDate: string | null): number | null {
   if (!birthDate) return null;
   const t = new Date(birthDate).getTime();
@@ -1052,38 +1044,47 @@ export async function prismaGetFeedCandidates(
   }
   if (filters.country && filters.country.trim() !== "") {
     const want = normalizeStrict(filters.country);
-    list = list.filter((p) => normalizeStrict(p.country ?? "") === want);
+    const hasCityFilter = !!(filters.city && filters.city.trim() !== "");
+    list = list.filter((p) => {
+      const raw = (p.country ?? "").trim();
+      // Profil fără țară în DB: nu îl scoatem din feed dacă filtrezi și după oraș (ex. București completat, țară goală).
+      if (!raw) return hasCityFilter;
+      return normalizeStrict(p.country ?? "") === want;
+    });
   }
   if (filters.city && filters.city.trim() !== "") {
-    const want = normalizeStrict(filters.city);
-    list = list.filter((p) => normalizeStrict(p.city ?? "") === want);
+    const fc = filters.city;
+    list = list.filter((p) => cityMatchesFilter(p.city, fc));
   }
   if (filters.name && filters.name.trim() !== "") {
-    const n = filters.name.trim().toLowerCase();
-    list = list.filter(
-      (p) =>
-        (p.name ?? "").toLowerCase().includes(n) ||
-        (p.username ?? "").toLowerCase().includes(n)
-    );
+    const q = filters.name;
+    list = list.filter((p) => nameMatchesFilter(p.name, p.username, q));
   }
   if (filters.onlineOnly) {
     list = list.filter((p) => p.lastActiveAt != null && p.lastActiveAt >= onlineCutoff);
   }
-  if (filters.maxDistanceKm != null && filters.maxDistanceKm > 0 && hasMyLocation) {
-    const R = 6371;
-    list = list.filter((p) => {
-      const loc = locByUser.get(p.userId);
-      if (!loc) return false;
-      const dLat = ((loc.latitude - myLat!) * Math.PI) / 180;
-      const dLng = ((loc.longitude - myLng!) * Math.PI) / 180;
-      const a =
-        Math.sin(dLat / 2) ** 2 +
-        Math.cos((myLat! * Math.PI) / 180) *
-          Math.cos((loc.latitude * Math.PI) / 180) *
-          Math.sin(dLng / 2) ** 2;
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      return R * c <= filters.maxDistanceKm!;
-    });
+  // Distanța aleasă: doar profiluri cu locație în DB (Haversine față de mine). Fără estimări.
+  // Fără locația mea nu putem evalua filtrul → niciun rezultat (nu relaxăm către „toți”).
+  // Fără filtru de distanță: profilurile fără locație rămân în listă.
+  if (filters.maxDistanceKm != null && filters.maxDistanceKm > 0) {
+    if (!hasMyLocation) {
+      list = [];
+    } else {
+      const R = 6371;
+      list = list.filter((p) => {
+        const loc = locByUser.get(p.userId);
+        if (!loc) return false;
+        const dLat = ((loc.latitude - myLat!) * Math.PI) / 180;
+        const dLng = ((loc.longitude - myLng!) * Math.PI) / 180;
+        const a =
+          Math.sin(dLat / 2) ** 2 +
+          Math.cos((myLat! * Math.PI) / 180) *
+            Math.cos((loc.latitude * Math.PI) / 180) *
+            Math.sin(dLng / 2) ** 2;
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c <= filters.maxDistanceKm!;
+      });
+    }
   }
 
   return list.map((p) =>

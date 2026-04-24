@@ -7,7 +7,7 @@ import { RewardedPremiumCTA } from "@/components/RewardedPremiumCTA";
 import { getStoredUserRaw } from "@/lib/store";
 import type { User } from "@/lib/store";
 import { track } from "@/lib/tracking";
-import { getAuthHeaders } from "@/lib/authClient";
+import { fetchWithAuthRetry } from "@/lib/authClient";
 import { useI18n } from "@/lib/i18n/context";
 import { formatTpl } from "@/lib/i18n/formatTpl";
 
@@ -27,14 +27,14 @@ export default function PremiumPage() {
   const [subscription, setSubscription] = useState<{ planId: string | null; premiumPermanent: boolean } | null>(null);
 
   useEffect(() => {
-    fetch("/api/subscription/plans")
+    fetchWithAuthRetry("/api/subscription/plans", { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => setPlans(d.plans ?? []))
       .catch(() => {});
   }, []);
 
   useEffect(() => {
-    fetch("/api/me/subscription", { headers: getAuthHeaders() })
+    fetchWithAuthRetry("/api/me/subscription", { cache: "no-store" })
       .then((r) => r.json())
       .then((d) =>
         setSubscription({
@@ -47,9 +47,9 @@ export default function PremiumPage() {
 
   const subscribe = (planId: string) => {
     setSubscribing(planId);
-    fetch("/api/subscription/create", {
+    fetchWithAuthRetry("/api/subscription/create", {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ planId }),
     })
       .then((r) => r.json())

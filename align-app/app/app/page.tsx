@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Heart, X, ChevronRight, MessageCircle, Undo2 } from "lucide-react";
+import { Heart, X, ChevronRight, MessageCircle, Undo2, Loader2 } from "lucide-react";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
 import { useSearchFilters, type SearchFilters } from "@/lib/useSearchFilters";
@@ -20,7 +20,8 @@ import {
   type FeedItem,
   type FeedItemProfile,
 } from "@/lib/feedBuilder";
-import { getAuthHeaders } from "@/lib/authClient";
+import { fetchWithAuthRetry } from "@/lib/authClient";
+import { buildDiscoverApiQuery } from "@/lib/discoverSearchParams";
 import { MAX_PROFILE_SEARCH_RADIUS_KM } from "@/lib/profileSearchConstants";
 import {
   getSmallCardState,
@@ -30,7 +31,6 @@ import {
 import { QuickCallButtons } from "@/components/QuickCallButtons";
 import { useI18n } from "@/lib/i18n/context";
 import { formatTpl } from "@/lib/i18n/formatTpl";
-import { AppProLoading } from "@/components/AppProLoading";
 
 type UserWithMeta = User & {
   online?: boolean;
@@ -51,27 +51,6 @@ type UserWithMeta = User & {
   isMatched?: boolean;
   hasMessages?: boolean;
 };
-
-function buildQuery(f: SearchFilters): string {
-  const p = new URLSearchParams();
-  if (f.gender) p.set("gender", f.gender);
-  if (f.minAge) p.set("minAge", f.minAge);
-  if (f.maxAge) p.set("maxAge", f.maxAge);
-  const md = f.maxDistanceKm.trim();
-  if (md !== "" && md !== "0") {
-    const n = Number(md);
-    if (!Number.isNaN(n) && n > 0) {
-      p.set("maxDistanceKm", String(Math.min(MAX_PROFILE_SEARCH_RADIUS_KM, n)));
-    }
-  }
-  if (f.country?.trim()) p.set("country", f.country.trim());
-  if (f.city.trim()) p.set("city", f.city.trim());
-  if (f.onlineOnly) p.set("onlineOnly", "true");
-  if (f.name.trim()) p.set("name", f.name.trim());
-  if (f.sortBy) p.set("sortBy", f.sortBy);
-  const q = p.toString();
-  return q ? `?${q}` : "";
-}
 
 const FAST_SWIPE_MS = 2500;
 /** Câte profile poți aduce înapoi în stivă după ce le-ai trecut (like/pass). */
@@ -165,8 +144,8 @@ export default function AppDiscoverPage() {
   const current = (isProfile ? currentItem.data : null) as UserWithMeta | undefined;
 
   const loadFeed = (f: SearchFilters, currentIntervals?: { internal: number; external: number }) => {
-    const query = buildQuery(f);
-    return fetch(`/api/feed${query}`, { headers: getAuthHeaders() })
+    const query = buildDiscoverApiQuery(f);
+    return fetchWithAuthRetry(`/api/feed${query}`, { cache: "no-store" })
       .then(async (res) => {
         const data = await res.json();
         if (!res.ok) return null;
@@ -237,18 +216,20 @@ export default function AppDiscoverPage() {
   useEffect(() => {
     if (!current?.id || current.id === lastViewedId.current) return;
     lastViewedId.current = current.id;
-    fetch("/api/visit", {
+    fetchWithAuthRetry("/api/visit", {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ profileId: current.id }),
-    }).then(() => track.view_profile(current.id)).catch(() => {});
+    })
+      .then(() => track.view_profile(current.id))
+      .catch(() => {});
   }, [current?.id]);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     const queryFilters = { ...filters, name: debouncedName };
-    fetch(`/api/feed${buildQuery(queryFilters)}`, { headers: getAuthHeaders() })
+    fetchWithAuthRetry(`/api/feed${buildDiscoverApiQuery(queryFilters)}`, { cache: "no-store" })
       .then(async (res) => {
         const data = await res.json();
         if (!res.ok) return null;
@@ -264,11 +245,10 @@ export default function AppDiscoverPage() {
         };
       })
       .then((data) => {
-        if (cancelled || !data) {
-          if (!cancelled) {
-            setFeedItems([]);
-            resetProfileUndoStack();
-          }
+        if (cancelled) return;
+        if (!data) {
+          setFeedItems([]);
+          resetProfileUndoStack();
           setLoading(false);
           return;
         }
@@ -300,10 +280,9 @@ export default function AppDiscoverPage() {
         setLoading(false);
       })
       .catch(() => {
-        if (!cancelled) {
-          setFeedItems([]);
-          resetProfileUndoStack();
-        }
+        if (cancelled) return;
+        setFeedItems([]);
+        resetProfileUndoStack();
         setLoading(false);
       });
     return () => { cancelled = true; };
@@ -420,9 +399,9 @@ export default function AppDiscoverPage() {
         body.internalInterval = intervals.internal;
         body.externalInterval = intervals.external;
       }
-      const res = await fetch("/api/swipe", {
+      const res = await fetchWithAuthRetry("/api/swipe", {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       const data = await res.json().catch(() => ({}));
@@ -444,10 +423,6 @@ export default function AppDiscoverPage() {
   const refreshCurrentUser = () => {
     loadFeed(filters, intervals);
   };
-
-  if (loading) {
-    return <AppProLoading label={tStr("pages.discover.loadingFeed")} />;
-  }
 
   const hasItems = feedItems.length > 0;
   const profilesRemaining = feedItems.filter((i) => i.type === "profile").length;
@@ -573,16 +548,26 @@ export default function AppDiscoverPage() {
               className="w-20 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
-          <div>
+          <div className="w-full max-w-[220px] sm:max-w-xs">
             <label className="block text-xs text-dark-500 mb-1">{tStr("pages.discover.maxDistKm")}</label>
+            <p className="text-xs text-dark-400 mb-1.5 tabular-nums">
+              {(Number(filters.maxDistanceKm) || 0) <= 0
+                ? tStr("pages.discover.distanceFilterOff")
+                : formatTpl(tStr("pages.discover.distanceFilterActiveKm"), {
+                    n: Math.min(MAX_PROFILE_SEARCH_RADIUS_KM, Number(filters.maxDistanceKm) || 0),
+                  })}
+            </p>
             <input
-              type="number"
+              type="range"
               min={0}
               max={MAX_PROFILE_SEARCH_RADIUS_KM}
-              placeholder="0"
-              value={filters.maxDistanceKm}
+              step={MAX_PROFILE_SEARCH_RADIUS_KM > 250 ? 5 : 1}
+              value={Math.min(
+                MAX_PROFILE_SEARCH_RADIUS_KM,
+                Math.max(0, Number(filters.maxDistanceKm) || 0)
+              )}
               onChange={(e) => setFilters((f) => ({ ...f, maxDistanceKm: e.target.value }))}
-              className="w-24 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-dark-600 accent-brand-500"
             />
           </div>
           <div>
@@ -632,7 +617,19 @@ export default function AppDiscoverPage() {
         </span>
       </div>
 
-      {hasItems ? (
+      <div className="relative w-full max-w-sm mx-auto flex flex-col items-center min-h-[min(380px,58vh)]">
+        {loading && (
+          <div
+            className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-2 rounded-2xl bg-dark-900/55 backdrop-blur-[2px] border border-dark-600/50 pointer-events-auto"
+            role="status"
+            aria-live="polite"
+            aria-busy="true"
+          >
+            <Loader2 className="h-7 w-7 animate-spin text-brand-500 shrink-0" aria-hidden />
+            <span className="text-xs text-dark-400 px-4 text-center">{tStr("pages.discover.loadingFeed")}</span>
+          </div>
+        )}
+        {hasItems ? (
         <>
           {currentItem.type === "profile" && current &&
             (() => {
@@ -931,7 +928,7 @@ export default function AppDiscoverPage() {
             )}
           </p>
         </>
-      ) : (
+      ) : !loading ? (
         <div className="flex flex-col items-center justify-center py-12 text-center w-full">
           {!retriedAfterEmpty ? (
             <>
@@ -955,7 +952,8 @@ export default function AppDiscoverPage() {
             </>
           )}
         </div>
-      )}
+      ) : null}
+      </div>
 
     </div>
   );

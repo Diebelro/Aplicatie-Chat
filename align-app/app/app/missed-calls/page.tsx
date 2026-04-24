@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { PhoneOff } from "lucide-react";
-import { getAuthHeaders } from "@/lib/authClient";
+import { fetchWithAuthRetry } from "@/lib/authClient";
 import { useI18n } from "@/lib/i18n/context";
 import { formatTpl } from "@/lib/i18n/formatTpl";
 import { intlLocaleTag } from "@/lib/i18n/intlLocale";
@@ -43,7 +43,7 @@ export default function MissedCallsPage() {
   const [clearing, setClearing] = useState(false);
 
   useEffect(() => {
-    fetch("/api/call/missed", { headers: getAuthHeaders() })
+    fetchWithAuthRetry("/api/call/missed", { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => {
         if (d.missed) setMissed(d.missed);
@@ -54,9 +54,8 @@ export default function MissedCallsPage() {
 
   const clearList = () => {
     setClearing(true);
-    fetch("/api/call/missed", {
+    fetchWithAuthRetry("/api/call/missed", {
       method: "POST",
-      headers: getAuthHeaders(),
     })
       .then(() => setMissed([]))
       .finally(() => setClearing(false));

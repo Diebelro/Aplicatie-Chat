@@ -8,7 +8,7 @@ import type { Message } from "@/lib/store";
 import { SilhouetteAvatar } from "@/components/SilhouetteAvatar";
 import { QuickCallButtons } from "@/components/QuickCallButtons";
 import { displayName } from "@/lib/displayName";
-import { getAuthHeaders } from "@/lib/authClient";
+import { fetchWithAuthRetry } from "@/lib/authClient";
 import { useI18n } from "@/lib/i18n/context";
 import { formatTpl } from "@/lib/i18n/formatTpl";
 import { intlLocaleTag } from "@/lib/i18n/intlLocale";
@@ -73,7 +73,7 @@ export default function MessagesPage() {
   const [loading, setLoading] = useState(true);
 
   const fetchConversations = () => {
-    fetch("/api/conversations", { headers: getAuthHeaders() })
+    fetchWithAuthRetry("/api/conversations", { cache: "no-store" })
       .then((res) => res.json())
       .then((data) => {
         if (data.conversations) setConversations(data.conversations);
@@ -81,7 +81,7 @@ export default function MessagesPage() {
   };
 
   const fetchFriends = () => {
-    fetch("/api/friends/list", { headers: getAuthHeaders() })
+    fetchWithAuthRetry("/api/friends/list", { cache: "no-store" })
       .then((res) => res.json())
       .then((data) => { if (data.friends) setFriends(data.friends); });
   };
@@ -89,8 +89,8 @@ export default function MessagesPage() {
   useEffect(() => {
     (async () => {
       const [convRes, friendsRes] = await Promise.all([
-        fetch("/api/conversations", { headers: getAuthHeaders() }),
-        fetch("/api/friends/list", { headers: getAuthHeaders() }),
+        fetchWithAuthRetry("/api/conversations", { cache: "no-store" }),
+        fetchWithAuthRetry("/api/friends/list", { cache: "no-store" }),
       ]);
       const convData = await convRes.json();
       const friendsData = await friendsRes.json();

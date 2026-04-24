@@ -51,12 +51,13 @@ function parseFilters(searchParams: URLSearchParams): {
   if (finalMin != null && finalMax != null && finalMin > finalMax) finalMax = finalMin;
 
   const maxDist = parseMaxDistanceKmQuery(maxDistanceKmParam);
+  const maxDistActive = maxDist !== undefined && maxDist > 0 ? maxDist : undefined;
 
   return {
     ...(gender && { gender: gender as Gender | "" }),
     ...(finalMin != null && { minAge: finalMin }),
     ...(finalMax != null && { maxAge: finalMax }),
-    ...(maxDist !== undefined && { maxDistanceKm: maxDist }),
+    ...(maxDistActive != null && { maxDistanceKm: maxDistActive }),
     ...(country.trim() && { country: country.trim() }),
     ...(city.trim() && { city: city.trim() }),
     ...(onlineOnly && { onlineOnly: true }),
