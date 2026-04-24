@@ -60,6 +60,7 @@ README.md
 - **`docs/OPERATIONS.md`** — cum rulezi local, env critice, verificare deploy, triaj incidente.
 - **`docs/PRODUCTION-AUDIT.md`** — audit intern (structură, auth, rate limit, WebRTC, riscuri).
 - **`docs/API-HEALTH.md`** — contract `GET /api/health` pentru monitoare.
+- **`docs/MATCHES-SWIPE-REVIEW-UX.md`** — intrări finale pentru recenzarea like/pass (Potriviri + Descoperă).
 
 ## Documentation
 All technical and operational documentation is located in the `/docs` directory. It includes:

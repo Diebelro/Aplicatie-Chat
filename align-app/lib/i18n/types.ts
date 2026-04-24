@@ -107,8 +107,6 @@ export interface AppNavTranslations {
   missedCalls: string;
   conference: string;
   matches: string;
-  reviewSwipes: string;
-  reviewSwipesTitle: string;
   map: string;
   premium: string;
   admin: string;
