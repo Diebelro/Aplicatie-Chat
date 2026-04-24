@@ -1,53 +1,50 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
-import { isPrismaAvailable } from "@/lib/repo-prisma";
-import { maybeNotifyOpsCritical } from "@/lib/opsCriticalNotify";
+
+function resolveEnvironment(): "production" | "preview" | "development" {
+  const v = process.env.VERCEL_ENV;
+  if (v === "production" || v === "preview" || v === "development") return v;
+  if (process.env.NODE_ENV === "production") return "production";
+  return "development";
+}
+
+function resolveNodeRuntime(): string {
+  const v = process.version;
+  if (v.startsWith("v")) return v.slice(1);
+  return v;
+}
 
 /**
- * Health public pentru uptime (UptimeRobot, load balancer). Fără date sensibile.
- * `ok: false` doar dacă DB e configurată dar nu răspunde.
+ * Health public pentru smoke-test / verificare deploy. Fără DB, fără secrete, fără git la runtime.
+ * Metadata commit injectată la build (next.config.js → NEXT_PUBLIC_BUILD_COMMIT_*).
  */
 export async function GET() {
-  const t0 = Date.now();
-  const build =
-    process.env.NEXT_PUBLIC_BUILD_HASH ||
-    process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 16) ||
-    undefined;
+  const full = (process.env.NEXT_PUBLIC_BUILD_COMMIT_FULL || "unknown").toLowerCase();
+  const short = (process.env.NEXT_PUBLIC_BUILD_COMMIT_SHORT || "unknown").toLowerCase();
+  const build = short;
+  const environment = resolveEnvironment();
+  const region = process.env.VERCEL_REGION?.trim();
 
-  if (!process.env.DATABASE_URL || !isPrismaAvailable()) {
-    return NextResponse.json({
-      ok: true,
-      app: "up",
-      database: "skipped",
-      ms: Date.now() - t0,
-      ...(build ? { build } : {}),
-    });
+  const body: Record<string, unknown> = {
+    status: "ok",
+    commit: {
+      full,
+      short,
+    },
+    build,
+    environment,
+    timestamp: new Date().toISOString(),
+    runtime: {
+      node: resolveNodeRuntime(),
+    },
+  };
+
+  if (region) {
+    body.vercelRegion = region;
   }
-  try {
-    await prisma.$queryRaw`SELECT 1`;
-    return NextResponse.json({
-      ok: true,
-      app: "up",
-      database: "up",
-      ms: Date.now() - t0,
-      ...(build ? { build } : {}),
-    });
-  } catch {
-    maybeNotifyOpsCritical({
-      overall: "critical",
-      overallReasons: ["Baza de date nu răspunde (health check)"],
-      generatedAt: new Date().toISOString(),
-      source: "health",
-    });
-    return NextResponse.json(
-      {
-        ok: false,
-        app: "up",
-        database: "down",
-        ms: Date.now() - t0,
-        ...(build ? { build } : {}),
-      },
-      { status: 503 }
-    );
-  }
+
+  return NextResponse.json(body, {
+    headers: {
+      "Cache-Control": "no-store",
+    },
+  });
 }

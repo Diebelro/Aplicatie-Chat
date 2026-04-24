@@ -1,37 +1,35 @@
 /** @type {import('next').NextConfig} */
 /** Nu seta `output: "export"` — dezactivează Route Handlers; `/api/*` (ex. ice-config) devin 404. */
-const crypto = require("crypto");
 const path = require("path");
-const { execSync } = require("child_process");
 
 /**
- * Identificator stabil per commit: local (git), Vercel (VERCEL_GIT_COMMIT_SHA), sau override explicit.
- * Fără asta, Date.now()+pid schimba „versiunea” la fiecare restart / build incomparabil cu git.
+ * Commit complet (40 hex) injectat la build din CI/Vercel — fără git la runtime.
+ * Lipsește variabila → "unknown" (stabil, comparabil între deploy-uri).
  */
-function resolveBuildHash() {
-  if (process.env.NEXT_PUBLIC_BUILD_HASH) {
-    return String(process.env.NEXT_PUBLIC_BUILD_HASH).slice(0, 16);
+function resolveBuildCommitFull() {
+  const candidates = [
+    process.env.VERCEL_GIT_COMMIT_SHA,
+    process.env.GITHUB_SHA,
+    process.env.CF_PAGES_COMMIT_SHA,
+  ];
+  for (const raw of candidates) {
+    const t = String(raw || "")
+      .trim()
+      .toLowerCase();
+    if (/^[a-f0-9]{40}$/.test(t)) return t;
   }
-  const vercelSha = process.env.VERCEL_GIT_COMMIT_SHA;
-  if (vercelSha && /^[a-f0-9]{7,40}$/i.test(vercelSha.trim())) {
-    return vercelSha.trim().slice(0, 16);
-  }
-  try {
-    const head = execSync("git rev-parse HEAD", {
-      cwd: __dirname,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-    }).trim();
-    if (head && /^[a-f0-9]{7,40}$/i.test(head)) {
-      return head.slice(0, 16);
-    }
-  } catch {
-    // fără .git (ex. deploy din arhivă)
-  }
-  return crypto.createHash("sha256").update(`${Date.now()}-${process.pid}`).digest("hex").slice(0, 16);
+  return "unknown";
 }
 
-const buildHash = resolveBuildHash();
+function resolveBuildCommitShort(full) {
+  if (full === "unknown") return "unknown";
+  return full.slice(0, 16);
+}
+
+const buildCommitFull = resolveBuildCommitFull();
+const buildCommitShort = resolveBuildCommitShort(buildCommitFull);
+/** Alias scurt pentru bundle (compat); același prefix ca build metadata. */
+const buildHash = buildCommitShort;
 
 /**
  * NextAuth în `next-auth/react` citește `process.env.NEXTAUTH_URL` în bundle-ul client.
@@ -119,6 +117,8 @@ const nextConfig = {
   poweredByHeader: false,
   env: {
     NEXT_PUBLIC_BUILD_HASH: buildHash,
+    NEXT_PUBLIC_BUILD_COMMIT_FULL: buildCommitFull,
+    NEXT_PUBLIC_BUILD_COMMIT_SHORT: buildCommitShort,
     NEXTAUTH_URL: resolveNextAuthUrlForBundle(),
     ...(devSignalingWsUrl ? { NEXT_PUBLIC_SIGNALING_WS_URL: devSignalingWsUrl } : {}),
   },
