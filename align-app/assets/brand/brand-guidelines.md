@@ -12,6 +12,18 @@
 | Tile / bg  | `#0F172A` |
 | Chat bubble | `#FFFFFF` |
 
+## Alternative marks (grid-strict explorations)
+
+Shared radius system: **R96** (launcher tile + inner tile), **R48** (pill / arc family), **R36 / R32-class** (stem), accent **#3B82F6** only where noted.
+
+| File (assets + `/public/brand/`) | Concept |
+|----------------------------------|-----------|
+| `diebel-mark-signal.svg` | Dot + two annulus arcs (circle boolean). |
+| `diebel-mark-d-monogram.svg` | White rounded square minus stem + bowl (mask). |
+| `diebel-mark-link.svg` | Two overlapping rounded rects (interlock read). |
+
+PNG previews from `npm run icons:export`: `*-512.png`, `*-192.png` next to each name under `public/brand/`.
+
 ## Files
 
 | Path | Use |

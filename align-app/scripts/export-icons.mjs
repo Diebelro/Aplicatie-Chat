@@ -1,5 +1,6 @@
 /**
- * Exportă PNG-uri din assets/brand/diebel-icon.svg (sursă unică).
+ * Exportă PNG-uri din assets/brand/diebel-icon.svg (launcher principal)
+ * și din mărci alternative (512 + 192 pentru preview).
  * Rulezi: npm run icons:export
  * Necesită: sharp (devDependency).
  */
@@ -10,9 +11,10 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
-const svgPath = path.join(root, "assets", "brand", "diebel-icon.svg");
 
-const targets = [
+const primarySvg = path.join(root, "assets", "brand", "diebel-icon.svg");
+
+const primaryTargets = [
   ["public/brand/play-icon-512.png", 512],
   ["public/brand/icon-192.png", 192],
   ["public/brand/icon-512.png", 512],
@@ -21,16 +23,29 @@ const targets = [
   ["public/apple-touch-icon.png", 180],
 ];
 
-async function main() {
+/** Alternative marks: same basename in assets + public SVG copy. */
+const alternateMarks = ["diebel-mark-signal", "diebel-mark-d-monogram", "diebel-mark-link"];
+
+async function exportPng(svgPath, relOut, size) {
+  const out = path.join(root, ...relOut.split("/"));
+  await fs.mkdir(path.dirname(out), { recursive: true });
   const svg = await fs.readFile(svgPath);
-  for (const [rel, size] of targets) {
-    const out = path.join(root, ...rel.split("/"));
-    await fs.mkdir(path.dirname(out), { recursive: true });
-    await sharp(svg, { density: 300 })
-      .resize(size, size, { fit: "fill" })
-      .png({ compressionLevel: 9, adaptiveFiltering: true })
-      .toFile(out);
-    console.log("wrote", rel, size);
+  await sharp(svg, { density: 300 })
+    .resize(size, size, { fit: "fill" })
+    .png({ compressionLevel: 9, adaptiveFiltering: true })
+    .toFile(out);
+  console.log("wrote", relOut, size);
+}
+
+async function main() {
+  for (const [rel, size] of primaryTargets) {
+    await exportPng(primarySvg, rel, size);
+  }
+
+  for (const base of alternateMarks) {
+    const svgPath = path.join(root, "assets", "brand", `${base}.svg`);
+    await exportPng(svgPath, `public/brand/${base}-512.png`, 512);
+    await exportPng(svgPath, `public/brand/${base}-192.png`, 192);
   }
 }
 

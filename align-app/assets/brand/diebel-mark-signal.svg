@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Diebel signal mark">
+  <!-- Grid: 32px. Radius system: R96 tile, R48 stroke-scale arcs, R32 dot. -->
+  <rect width="512" height="512" rx="96" ry="96" fill="#0F172A"/>
+  <!-- Outer annulus (boolean: outer arc minus inner arc) -->
+  <path
+    fill="#FFFFFF"
+    d="M 161.4 374.1 A 120 120 0 0 1 350.6 374.1 L 334.8 386.4 A 100 100 0 0 0 177.2 386.4 Z"
+  />
+  <path
+    fill="#FFFFFF"
+    d="M 104.7 329.8 A 192 192 0 0 1 407.3 329.8 L 388.4 344.6 A 168 168 0 0 0 123.6 344.6 Z"
+  />
+  <!-- Dot -->
+  <circle cx="256" cy="418" r="22" fill="#FFFFFF"/>
+  <!-- Minimal accent: apex between arcs -->
+  <circle cx="256" cy="268" r="8" fill="#3B82F6"/>
+</svg>

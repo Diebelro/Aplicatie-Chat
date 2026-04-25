@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Diebel link mark">
+  <!-- R96 tile; two interlocking pills R48 (h=w=96, rx=48). Back horizontal, front vertical (boolean read). -->
+  <rect width="512" height="512" rx="96" ry="96" fill="#0F172A"/>
+  <rect x="112" y="208" width="288" height="96" rx="48" ry="48" fill="#FFFFFF"/>
+  <rect x="208" y="112" width="96" height="288" rx="48" ry="48" fill="#FFFFFF"/>
+</svg>

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Diebel D monogram">
+  <!-- R96 tile + R96 inner rounded square; stem R36 (R32-class) + bowl pill rx=88 (boolean union knockout). -->
+  <defs>
+    <mask id="diebelMarkDmonogramMask" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512">
+      <rect width="512" height="512" fill="white"/>
+      <rect x="152" y="168" width="72" height="176" rx="36" ry="36" fill="black"/>
+      <rect x="192" y="168" width="200" height="176" rx="88" ry="88" fill="black"/>
+    </mask>
+  </defs>
+  <rect width="512" height="512" rx="96" ry="96" fill="#0F172A"/>
+  <rect
+    x="72"
+    y="72"
+    width="368"
+    height="368"
+    rx="96"
+    ry="96"
+    fill="#FFFFFF"
+    mask="url(#diebelMarkDmonogramMask)"
+  />
+</svg>
