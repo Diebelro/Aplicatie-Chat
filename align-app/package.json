@@ -15,6 +15,7 @@
     "vercel:fix-direct-url": "node scripts/fix-vercel-direct-url-from-pull.mjs",
     "deploy:chat": "npx --yes vercel@latest deploy --prod --yes --cwd ..",
     "icons:pwa": "node scripts/generate-pwa-icons.mjs",
+    "icons:export": "node scripts/export-icons.mjs",
     "build": "next build",
     "start": "next start --port 3000",
     "lint": "eslint .",

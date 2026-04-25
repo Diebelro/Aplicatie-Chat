@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, type MouseEvent, type ReactNode } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
 import {
   Menu,
@@ -447,9 +448,17 @@ export default function AppLayout({
           <Link
             href="/app"
             onClick={onDiebelLogoNavClick}
-            className="group relative z-[25] shrink-0 inline-flex items-center min-h-[44px] min-w-[7.5rem] -ml-1 pl-1 pr-2 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-dark-900 touch-manipulation active:opacity-90"
+            className="group relative z-[25] shrink-0 inline-flex items-center gap-2 min-h-[44px] min-w-0 -ml-1 pl-1 pr-2 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-dark-900 touch-manipulation active:opacity-90"
             aria-label={tStr("appNav.ariaDiscoverHome")}
           >
+            <Image
+              src="/brand/icon-192.png"
+              alt=""
+              width={26}
+              height={26}
+              className="shrink-0 rounded-md"
+              priority
+            />
             <DiebelWordmark variant="header" withMark />
           </Link>
           {/* Desktop: linkuri în zonă scrollabilă; avatar + profil + Ieșire mereu vizibile în dreapta (nu dispar în overflow). */}
