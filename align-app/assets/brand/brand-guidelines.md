@@ -2,16 +2,15 @@
 
 ## Concept
 
-- One large heart (hero) plus smaller hearts flowing toward the top-right, decreasing in size.
-- Flat geometry only: **no gradients**, **no drop shadows**, **no text inside the mark**.
+- Single **chat bubble**: one rounded rectangle, centered on the tile.
+- Flat geometry only: **no gradients**, **no drop shadows**, **no text inside the mark**, no secondary shapes.
 
 ## Colors (full-color lockup)
 
 | Role        | Hex       |
 |------------|-----------|
 | Tile / bg  | `#0F172A` |
-| Main heart | `#FFFFFF` |
-| Small hearts | `#3B82F6` |
+| Chat bubble | `#FFFFFF` |
 
 ## Files
 
