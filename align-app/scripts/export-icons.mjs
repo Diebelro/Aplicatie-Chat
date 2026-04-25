@@ -24,7 +24,7 @@ const primaryTargets = [
 ];
 
 /** Alternative marks: same basename in assets + public SVG copy. */
-const alternateMarks = ["diebel-mark-signal", "diebel-mark-d-monogram", "diebel-mark-link"];
+const alternateMarks = ["diebel-mark-signal", "diebel-mark-d-monogram", "diebel-mark-link", "diebel-mark-heart-flow"];
 
 async function exportPng(svgPath, relOut, size) {
   const out = path.join(root, ...relOut.split("/"));
@@ -53,3 +53,4 @@ main().catch((e) => {
   console.error(e);
   process.exit(1);
 });
+
