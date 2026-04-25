@@ -2,7 +2,7 @@
 
 ## Concept
 
-- Single **chat bubble**: one rounded rectangle, centered on the tile.
+- Single **speech bubble**: one closed path (rounded body + tail), centered on the tile — not stacked rectangles.
 - Flat geometry only: **no gradients**, **no drop shadows**, **no text inside the mark**, no secondary shapes.
 
 ## Colors (full-color lockup)

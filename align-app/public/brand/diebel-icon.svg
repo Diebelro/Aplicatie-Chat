@@ -1,6 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Diebel">
-  <!-- App icon: flat navy tile, single centered white chat bubble (readable at 48px). -->
+  <!-- Launcher tile -->
   <rect width="512" height="512" rx="96" ry="96" fill="#0F172A"/>
-  <rect x="106" y="142" width="300" height="228" rx="52" ry="52" fill="#FFFFFF"/>
+  <!-- Single closed path: speech bubble (rounded body + tail). No inner rects. -->
+  <path
+    fill="#FFFFFF"
+    d="M 160 150
+       L 352 150
+       A 36 36 0 0 1 388 186
+       L 388 278
+       A 36 36 0 0 1 352 314
+       L 288 314
+       L 256 376
+       L 224 314
+       L 160 314
+       A 36 36 0 0 1 124 278
+       L 124 186
+       A 36 36 0 0 1 160 150
+       Z"
+  />
 </svg>
