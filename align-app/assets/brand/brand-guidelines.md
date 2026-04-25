@@ -24,6 +24,8 @@ Shared radius system: **R96** (launcher tile + inner tile), **R48** (pill / arc 
 
 PNG previews from `npm run icons:export`: `*-512.png`, `*-192.png` next to each name under `public/brand/`.
 
+**Serving:** `app/brand/[path]/route.ts` pre-renders every `public/brand/*.{svg,png}` at build (SSG), so URLs like `https://chat.diebel.ro/brand/diebel-mark-signal.svg` resolve after deploy even when only the app bundle is consulted. Fișierele rămân și în `public/brand/` (sincron cu `assets/brand/*.svg`).
+
 ## Files
 
 | Path | Use |
