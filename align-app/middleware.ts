@@ -119,7 +119,6 @@ export async function middleware(request: NextRequest) {
 /** Fără `/api/*` — evită logică pe Route Handlers; exclude și ca fetch din middleware la `/api/me` să nu re-invoce middleware. */
 export const config = {
   matcher: [
-    /** Exclude static asset prefixes (public/); /brand/* is also served by `app/brand/[path]/route.ts` SSG. */
-    "/((?!\\.well-known/|api/|_next/static|_next/image|favicon.ico|manifest.webmanifest|manifest.json|sw.js|robots.txt|sitemap.xml|icons/|brand/).*)",
+    "/((?!\\.well-known/|api/|_next/static|_next/image|favicon.ico|manifest.webmanifest|manifest.json|sw.js|robots.txt|sitemap.xml).*)",
   ],
 };
