@@ -612,23 +612,13 @@ export default function AppLayout({
           <div
             className={
               (isMessagesListRoute
-                ? "mt-3 pt-2 border-t border-dark-700/70 shrink-0 flex flex-col items-center gap-2 sm:gap-3 lg:mt-10 lg:pt-4 lg:gap-4"
-                : "mt-6 sm:mt-10 pt-3 sm:pt-4 border-t border-dark-700/80 shrink-0 flex flex-col items-center gap-3 sm:gap-4") +
+                ? "mt-3 pt-2 border-t border-dark-700/70 shrink-0 flex flex-col items-center gap-1 sm:gap-2 lg:mt-10 lg:pt-4 lg:gap-3"
+                : "mt-6 sm:mt-10 pt-3 sm:pt-4 border-t border-dark-700/80 shrink-0 flex flex-col items-center gap-1 sm:gap-2") +
               " bg-dark-900 relative z-[1]"
             }
           >
-            <p
-              className={
-                isMessagesListRoute
-                  ? "hidden sm:block text-center text-dark-500 text-[10px] md:text-xs px-2"
-                  : "text-center text-dark-500 text-[10px] md:text-xs px-2"
-              }
-            >
-              {tStr("appNav.legalFooterIntro")}
-            </p>
-            <LegalDocLinks className={isMessagesListRoute ? "text-dark-500 scale-90 sm:scale-100" : "text-dark-500"} />
-            <LanguageSwitcher />
-            <DiebelCopyrightStrip className="mt-1 px-2" />
+            <LegalDocLinks className="text-dark-600 scale-[0.85] sm:scale-100 opacity-60" />
+            <DiebelCopyrightStrip className="px-2" />
           </div>
         )}
       </main>

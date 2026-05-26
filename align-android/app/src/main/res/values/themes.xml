@@ -2,6 +2,7 @@
 <resources>
     <style name="Theme.Align" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <item name="android:statusBarColor">@color/align_bg</item>
+        <item name="android:windowLightStatusBar">false</item>
         <item name="android:navigationBarColor">@color/align_bg</item>
         <item name="colorPrimary">@color/align_accent</item>
     </style>
