@@ -1,115 +1,63 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/align_bg"
-    android:padding="16dp">
+    android:background="@color/align_bg">
+
+    <WebView
+        android:id="@+id/webView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <ProgressBar
+        android:id="@+id/progress"
+        style="?android:attr/progressBarStyleLarge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:indeterminateTint="@color/align_accent"
+        android:visibility="gone" />
 
     <LinearLayout
+        android:id="@+id/errorPanel"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:layout_height="match_parent"
+        android:background="@color/align_bg"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="24dp"
+        android:visibility="gone">
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/open_for_calls"
+            android:gravity="center"
+            android:text="@string/web_error_title"
             android:textColor="@color/align_accent"
             android:textSize="18sp"
             android:textStyle="bold" />
 
         <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="Introdu tokenul de sesiune (x-session-token) și userId după login în web. În producție: WebView + JS bridge."
-            android:textColor="#b0b8c4"
-            android:textSize="13sp" />
-
-        <com.google.android.material.textfield.TextInputLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:hint="userId">
-
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/inputUserId"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:inputType="text"
-                tools:text="clxxx..." />
-        </com.google.android.material.textfield.TextInputLayout>
-
-        <com.google.android.material.textfield.TextInputLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:hint="session token (align_sid value)">
-
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/inputSession"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:inputType="textVisiblePassword" />
-        </com.google.android.material.textfield.TextInputLayout>
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnSaveSession"
+            android:id="@+id/errorMessage"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:text="Salvează sesiunea" />
+            android:gravity="center"
+            android:text="@string/web_error_body"
+            android:textColor="#b0b8c4"
+            android:textSize="14sp" />
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnRegisterFcm"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="Înregistrează FCM la server" />
-
-        <TextView
-            android:layout_width="match_parent"
+            android:id="@+id/btnRetry"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="20dp"
-            android:text="Apel ieșitor (către alt utilizator)"
-            android:textColor="@color/align_accent"
-            android:textSize="15sp"
-            android:textStyle="bold" />
-
-        <com.google.android.material.textfield.TextInputLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:hint="ID utilizator sunat">
-
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/inputRemoteUserId"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:inputType="text" />
-        </com.google.android.material.textfield.TextInputLayout>
-
-        <com.google.android.material.checkbox.MaterialCheckBox
-            android:id="@+id/checkAudioOnlyCall"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="Doar audio" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnStartOutgoingCall"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="Sună (trimite ring + WebRTC)" />
-
-        <TextView
-            android:id="@+id/fcmStatus"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:textColor="#8899aa"
-            android:textSize="12sp" />
+            android:text="@string/web_retry" />
     </LinearLayout>
-</ScrollView>
+
+    <TextView
+        android:id="@+id/versionBadge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone" />
+</FrameLayout>

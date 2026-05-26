@@ -7,15 +7,18 @@ plugins {
 }
 
 android {
-    namespace = "ro.align.app"
+    namespace = "ro.diebel.chat"
     compileSdk = 35
+    val signingProps = Properties()
+    val signingPropsFile = rootProject.file("keystore.properties")
+    if (signingPropsFile.exists()) signingPropsFile.inputStream().use { signingProps.load(it) }
 
     defaultConfig {
-        applicationId = "ro.align.app"
+        applicationId = "ro.diebel.chat"
         minSdk = 28
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 11
+        versionName = "1.1.1"
         val props = Properties()
         val lp = rootProject.file("local.properties")
         if (lp.exists()) lp.inputStream().use { props.load(it) }
@@ -24,11 +27,28 @@ android {
         val signalingWs = props.getProperty("align.signalingWsUrl", "wss://ws.diebel.ro")
         buildConfigField("String", "API_BASE_URL", "\"${baseUrl.trimEnd('/')}/\"")
         buildConfigField("String", "SIGNALING_WS_BASE", "\"${signalingWs.trimEnd('/')}\"")
+        // Ads: set true only when you want banners live; false = zero AdMob/UMP work at runtime.
+        buildConfigField("boolean", "ADS_ENABLED", "false")
+    }
+
+    signingConfigs {
+        create("release") {
+            val storeFilePath = signingProps.getProperty("storeFile")?.trim().orEmpty()
+            if (storeFilePath.isNotEmpty()) {
+                storeFile = rootProject.file(storeFilePath)
+                storePassword = signingProps.getProperty("storePassword")
+                keyAlias = signingProps.getProperty("keyAlias")
+                keyPassword = signingProps.getProperty("keyPassword")
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = true
+            if (signingPropsFile.exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -36,6 +56,8 @@ android {
         }
         debug {
             isMinifyEnabled = false
+            // Debug builds: poți testa bannerul + UMP (tot cu ID-uri de test de mai jos).
+            buildConfigField("boolean", "ADS_ENABLED", "true")
         }
     }
     compileOptions {
@@ -66,4 +88,8 @@ dependencies {
 
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("io.getstream:stream-webrtc-android:1.3.7")
+
+    // AdMob (banners) + UMP (GDPR / consimțământ). Versiuni aliniate la setul curent stabil Play services.
+    implementation("com.google.android.gms:play-services-ads:24.9.0")
+    implementation("com.google.android.ump:user-messaging-platform:3.1.0")
 }

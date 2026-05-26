@@ -1,10 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Align</string>
+    <string name="app_name">Diebel</string>
     <string name="call_channel_name">Apeluri</string>
-    <string name="call_channel_desc">Apeluri vocale și video Align</string>
+    <string name="call_channel_desc">Apeluri vocale și video Diebel</string>
     <string name="incoming_call">Apel primit</string>
     <string name="ongoing_call">Apel în curs</string>
     <string name="open_for_calls">Deschide pentru apeluri</string>
     <string name="hang_up">Închide</string>
+    <string name="secondary_back">Înapoi</string>
+    <string name="secondary_title">Explore / zona secundară</string>
+    <string name="secondary_body">Acest ecran este rezervat fluxurilor fără chat (ex. setări, explorare). Bannerul AdMob (adaptive, de test) poate apărea doar aici, nu în conversații și nu la prima deschidere a aplicației. În producție vei lega echivalentul din WebView numai la rute sigure (fără /app/chat).</string>
+    <string name="main_open_secondary_explore">Deschide ecran secundar (Explore — banner test)</string>
+    <string name="web_error_title">Nu s-a putut încărca Diebel</string>
+    <string name="web_error_body">Verifică conexiunea la internet și încearcă din nou.</string>
+    <string name="web_retry">Reîncearcă</string>
 </resources>

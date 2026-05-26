@@ -2,7 +2,13 @@
 /build/
 **/build/
 /local.properties
+/.android-tools-tmp/
+/.gradle-dist/
+/.kotlin/
+/.android-secrets/
+/keystore.properties
 /.idea/
+/app-release.aab
 *.iml
 .DS_Store
-# Înlocuiește app/google-services.json cu fișierul din Firebase Console (același package ro.align.app).
+# Înlocuiește app/google-services.json cu fișierul din Firebase Console (același package ro.diebel.chat).

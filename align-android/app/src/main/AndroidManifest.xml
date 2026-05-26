@@ -24,6 +24,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     <uses-permission
         android:name="android.permission.MANAGE_OWN_CALLS"
         tools:ignore="ProtectedPermissions" />
@@ -36,18 +37,51 @@
         android:roundIcon="@drawable/ic_launcher_simple"
         android:supportsRtl="true"
         android:theme="@style/Theme.Align"
-        android:usesCleartextTraffic="true"
+        android:usesCleartextTraffic="false"
         tools:targetApi="34">
+
+        <!-- FCM: google-services.json trebuie să fie real; altfel nu inițializăm Firebase la cold start. -->
+        <meta-data
+            android:name="firebase_messaging_auto_init_enabled"
+            android:value="false" />
+
+        <!-- Evită crash la pornire dacă google-services.json e încă placeholder. -->
+        <provider
+            android:name="com.google.firebase.provider.FirebaseInitProvider"
+            android:authorities="${applicationId}.firebaseinitprovider"
+            android:exported="false"
+            tools:node="remove" />
+
+        <!-- ID aplicație AdMob de TEST (Google). Înlocuiește la monetizare reală. -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-3940256099942544~3347511713" />
+        <meta-data
+            android:name="com.google.android.gms.ads.DELAY_APP_MEASUREMENT_INIT"
+            android:value="true" />
 
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.Align">
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+            android:hardwareAccelerated="true"
+            android:theme="@style/Theme.Align"
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".DevToolsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Align" />
+
+        <activity
+            android:name=".SecondaryScreenActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Align" />
 
         <activity
             android:name=".call.CallActivity"
