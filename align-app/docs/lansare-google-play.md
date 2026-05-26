@@ -68,12 +68,12 @@ Manifestul PWA e la `public/manifest.json` (se servește ca `https://DOMEINUL-T�
    - **Short description**, **Full description**;
    - **Screenshots** telefon (minim **2** pentru multe țări — fă capturi reale de pe site în Chrome pe telefon sau emulator);
    - **Icon** 512×512 (high-res icon pentru magazin — poate fi derivat din iconița ta);
-   - **Privacy policy** → lipești URL-ul complet `https://DOMEINUL-TĂU/privacy` (sau pagina ta reală).
+   - **Privacy policy** → lipești URL-ul complet `https://chat.diebel.ro/privacy`.
 
 ### Conformitate
 
 10. **App content**: **Privacy policy** (link), eventual **Ads** dacă ai reclame.
-11. **Data safety** (foarte important): formularul unde declari **ce date** colectezi (cont, mesaje, locație, crash logs, etc.). Răspunsurile trebuie să coincidă cu aplicația și cu politica de confidențialitate.
+11. **Data safety** (foarte important): formularul unde declari **ce date** colectezi (cont, mesaje, locație, crash logs, etc.). Răspunsurile trebuie să coincidă cu aplicația și cu politica de confidențialitate. Pentru Diebel, folosește ghidul intern `docs/google-play-data-safety.md`.
 12. **Content rating**: chestionar (dating, chat, user-generated content, etc.) — răspunzi sincer; primești un rating (PEGI etc.).
 13. **Target audience** / **News apps** / alte întrebări — doar dacă ți le cere wizard-ul pentru categoria ta.
 

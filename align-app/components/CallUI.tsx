@@ -58,6 +58,7 @@ import {
 } from "@/lib/webrtc/cursorOverlay";
 import { markCallEndPosted, shouldSkipDuplicateCallEnd } from "@/lib/callEndDedup";
 import { markIncomingGrace, POST_HANGUP_INCOMING_GRACE_MS } from "@/lib/callIncomingGrace";
+import { stopIncomingRingtone } from "@/lib/callRingtone";
 import { useVideoRenderable } from "@/hooks/useVideoRenderable";
 import { useOutgoingCallerPoll } from "@/hooks/useOutgoingCallerPoll";
 import { DiebelWordmark } from "@/components/DiebelWordmark";
@@ -127,16 +128,16 @@ function useRemoteVideoElement(ref: RefObject<HTMLVideoElement | null>, stream: 
       return;
     }
 
-    if (el.srcObject !== stream) {
-      el.srcObject = stream;
-    }
-
     const tryPlay = () => {
       void el.play().catch(() => {
         /* autoplay / gesture — iOS/Safari: video muted + playsInline pe element; fără schimbare comportament aici */
       });
     };
-    tryPlay();
+    const attachStream = () => {
+      el.srcObject = stream;
+      tryPlay();
+    };
+    attachStream();
     const bindTrackListeners = () => {
       const vtracks = stream.getVideoTracks();
       for (const t of vtracks) {
@@ -164,8 +165,9 @@ function useRemoteVideoElement(ref: RefObject<HTMLVideoElement | null>, stream: 
         }
       }
       vtracks = next;
-      if (el.srcObject !== stream) el.srcObject = stream;
-      tryPlay();
+      /* Chrome/Android poate să nu pornească randarea când video track apare după audio în același MediaStream. */
+      el.srcObject = null;
+      requestAnimationFrame(attachStream);
     };
     stream.addEventListener("addtrack", onStreamTracksChanged);
     stream.addEventListener("removetrack", onStreamTracksChanged);
@@ -590,24 +592,10 @@ export default function CallUI({
 
   /** Linie status header (P2P imersiv video/audio): include reconectare. */
   const p2pImmersiveHeaderStatusText = useMemo(() => {
-    if (callUiPhase === "reconnecting") return ui("reconnectingSubtitle");
     if (callState === "connected") return fmtCallDuration(elapsedSec);
-    if (!isConference && isConnectingLike) {
-      return getP2pConnectingSubtitle(audioOnly, connectionPhase, waitingForPeerInRoom, isConnectingLike);
-    }
-    if (waitingForPeerInRoom) return ui("phaseWaitingPeer");
-    if (isConnectingLike) return ui("phaseConnectingGeneric");
     return "";
   }, [
-    callUiPhase,
     callState,
-    isConference,
-    isConnectingLike,
-    audioOnly,
-    connectionPhase,
-    waitingForPeerInRoom,
-    getP2pConnectingSubtitle,
-    ui,
     elapsedSec,
   ]);
 
@@ -687,6 +675,8 @@ export default function CallUI({
   /** Autoplay: redarea audio-ului remot poate necesita un al doilea gest după ce microfonul e deja activ. */
   const [remotePlaybackBlockedHint, setRemotePlaybackBlockedHint] = useState(false);
   const [playbackUnlockKey, setPlaybackUnlockKey] = useState(0);
+  const [leavingCall, setLeavingCall] = useState(false);
+  const leavingCallRef = useRef(false);
 
   const scheduleChromeHide = useCallback(() => {
     if (chromeHideTimerRef.current) {
@@ -801,6 +791,10 @@ export default function CallUI({
   );
 
   useEffect(() => {
+    stopIncomingRingtone();
+  }, [roomId, callState]);
+
+  useEffect(() => {
     if (!remotePlaybackBlockedHint) return;
     const unlock = () => {
       setRemotePlaybackBlockedHint(false);
@@ -838,6 +832,10 @@ export default function CallUI({
   }, [outgoingTerminal, isCaller, leave, roomId]);
 
   const handleLeave = () => {
+    if (leavingCallRef.current) return;
+    leavingCallRef.current = true;
+    setLeavingCall(true);
+    stopIncomingRingtone();
     markCallEndPosted(roomId);
     markIncomingGrace(roomId, undefined, POST_HANGUP_INCOMING_GRACE_MS);
     leave();
@@ -913,6 +911,7 @@ export default function CallUI({
 
   const callStartupOverlayLabel = useCallback(
     (phase: CallUiPhase) => {
+      if (!isConference) return ui("phaseWaitingPeer");
       switch (phase) {
         case "requesting_permissions":
           return ui("phaseRequestingPermissions");
@@ -981,6 +980,7 @@ export default function CallUI({
     active,
     danger,
     quiet,
+    disabled,
     children,
   }: {
     onClick: () => void;
@@ -988,11 +988,13 @@ export default function CallUI({
     active?: boolean;
     danger?: boolean;
     quiet?: boolean;
+    disabled?: boolean;
     children: ReactNode;
   }) => (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       title={title}
       className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full transition-all active:scale-95 sm:h-[3.75rem] sm:w-[3.75rem] ${
         danger
@@ -1002,7 +1004,7 @@ export default function CallUI({
             : active
               ? "bg-white text-zinc-900 shadow-lg hover:bg-white/90"
               : "bg-white/12 text-white backdrop-blur-md hover:bg-white/20"
-      }`}
+      } disabled:opacity-60 disabled:pointer-events-none`}
     >
       {children}
     </button>
@@ -1088,8 +1090,13 @@ export default function CallUI({
         /ofert[aă]?\s*WebRTC/i.test(errNorm) ||
         /Could\s+not\s+negotiate|Couldn't\s+negotiate|Couldn\u0027t\s+negotiate|negotiate\s+the\s+connection|negotiation\s+failed|WebRTC\s+offer|SDP/i.test(errNorm) ||
         /Verbindung.*(aus)?handel|Angebot.*WebRTC|Antwort.*WebRTC/i.test(errNorm));
+    const authFail =
+      /SIGNALING_TOKEN_INVALID|Neautorizat|Unauthorized|token semnalizare|signaling token|Signalisierungs-Token|autoriza semnalizarea|authorize signaling/i.test(
+        errorRaw
+      );
     const infraHint =
-      /NEXT_PUBLIC|TURN_|ICE\/TURN|semnalizare|signaling|Token semnalizare|signaling token|WebRTC nu e configurat|WebRTC este dezactivat|WebRTC is not configured|WebRTC is disabled|Eroare WebSocket|WebSocket signaling|Neautorizat la token|\blips[aă]\b|missing|TURN_REQUIRED|Signalisierungs-Token|Signaling token was rejected|Unauthorized\.|Too many requests\.|User not found\.|Semnalizare neconfigurată|Signaling is not configured|Signalisierung ist nicht konfiguriert|SIGNALING_|TURN_NOT|TURN_CONFIG/i.test(
+      !authFail &&
+      /NEXT_PUBLIC|TURN_|ICE\/TURN|semnalizare|signaling|WebRTC nu e configurat|WebRTC este dezactivat|WebRTC is not configured|WebRTC is disabled|Eroare WebSocket|WebSocket signaling|\blips[aă]\b|missing|TURN_REQUIRED|Signaling is not configured|Signalisierung ist nicht konfiguriert|SIGNALING_NOT_CONFIGURED|TURN_NOT|TURN_CONFIG/i.test(
         errorRaw
       );
     const errorDisplay = resolveCallDisplayedError(error, (path) => callTranslate.tStr(path));
@@ -1111,7 +1118,11 @@ export default function CallUI({
                 <ServerCog className="h-12 w-12 text-red-400/85" aria-hidden />
               )}
               <h2 className="text-lg font-semibold text-white tracking-tight">
-                {negotiationFail ? ui("errTitleNegotiation") : ui("errTitleInfra")}
+                {negotiationFail
+                  ? ui("errTitleNegotiation")
+                  : authFail
+                    ? callTranslate.tStr("pages.login.title")
+                    : ui("errTitleInfra")}
               </h2>
               <p className="text-sm text-night-300/95 font-medium">{errorDisplay}</p>
             </div>
@@ -1157,6 +1168,8 @@ export default function CallUI({
                     </p>
                     <p className="text-xs text-night-500">{ui("errInfraDevHint")}</p>
                   </>
+                ) : authFail ? (
+                  <p>{errorDisplay}</p>
                 ) : (
                   <p>{ui("errGenericProblem")}</p>
                 )}
@@ -1334,6 +1347,7 @@ export default function CallUI({
           <button
             type="button"
             onClick={handleLeave}
+            disabled={leavingCall}
             className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full bg-white/10 backdrop-blur-md hover:bg-white/20 transition"
             aria-label={ui("closeCallAria")}
           >
@@ -1548,7 +1562,7 @@ export default function CallUI({
               className="h-6 w-6 sm:h-7 sm:w-7"
             />
           </CircleBtn>
-          <CircleBtn onClick={handleLeave} title={ui("titleCloseCall")} danger>
+          <CircleBtn onClick={handleLeave} title={ui("titleCloseCall")} danger disabled={leavingCall}>
             <PhoneOff className="h-6 w-6 sm:h-7 sm:w-7" />
           </CircleBtn>
         </div>
@@ -1575,6 +1589,7 @@ export default function CallUI({
           <button
             type="button"
             onClick={handleLeave}
+            disabled={leavingCall}
             className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition"
             aria-label={ui("audioHeaderBackAria")}
           >
@@ -1695,7 +1710,7 @@ export default function CallUI({
               className="h-6 w-6 sm:h-7 sm:w-7"
             />
           </CircleBtn>
-          <CircleBtn onClick={handleLeave} title={ui("audioTitleClose")} danger>
+          <CircleBtn onClick={handleLeave} title={ui("audioTitleClose")} danger disabled={leavingCall}>
             <PhoneOff className="h-6 w-6 sm:h-7 sm:w-7" />
           </CircleBtn>
         </div>
@@ -1895,6 +1910,7 @@ export default function CallUI({
         <button
           type="button"
           onClick={handleLeave}
+          disabled={leavingCall}
           className="flex items-center gap-2 rounded-full bg-red-500/25 px-4 py-2.5 text-sm font-medium text-red-300 hover:bg-red-500/35"
         >
           <PhoneOff className="w-5 h-5" />

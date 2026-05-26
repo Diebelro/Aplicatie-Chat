@@ -13,6 +13,7 @@ import type { User, Match, Message } from "@/lib/store";
 import type { Gender } from "@/lib/store";
 import { PLATFORM_NOTICE_VISIBLE_DAYS } from "@/lib/platformModerationNotice";
 import { cityMatchesFilter, nameMatchesFilter, normalizeStrict } from "@/lib/discoverMatchUtils";
+import { displayName } from "@/lib/displayName";
 
 /** Ascunde în chat notificările platformă expirate (rândul poate exista încă în DB). */
 export function prismaMessageWhereChatVisible(): Prisma.MessageWhereInput {
@@ -1524,13 +1525,118 @@ export async function prismaGetMessageFlagsForProfiles(
 
 /** Persistă vizita: eu (viewer) am vizitat profilul lui profileUserId. */
 export async function prismaAddVisit(viewerUserId: string, profileUserId: string): Promise<void> {
+  const now = new Date();
   await prisma.visit.upsert({
     where: {
       viewerUserId_profileUserId: { viewerUserId, profileUserId },
     },
-    create: { viewerUserId, profileUserId },
-    update: {},
+    create: { viewerUserId, profileUserId, lastVisitedAt: now },
+    update: { lastVisitedAt: now },
   });
+}
+
+/** Rând pentru lista „Vizite la profil” (doar vizitatori cu reciprocitate la confidențialitate). */
+export type ProfileVisitListItem = {
+  userId: string;
+  displayName: string;
+  photoUrl: string | null;
+  lastVisitedAt: string;
+  firstVisitedAt: string;
+  hasMatchOrChat: boolean;
+};
+
+/**
+ * Lista vizitelor către profilul utilizatorului `visitedUserId`.
+ * `listEnabled`: utilizatorul vizitat permite lista; vizitatorii apar doar dacă și ei permit.
+ */
+export async function prismaListVisibleProfileVisits(
+  visitedUserId: string
+): Promise<{ listEnabled: boolean; visits: ProfileVisitListItem[] }> {
+  const myProfile = await prisma.profile.findUnique({
+    where: { userId: visitedUserId },
+    select: { showProfileVisits: true },
+  });
+  if (!myProfile?.showProfileVisits) {
+    return { listEnabled: false, visits: [] };
+  }
+  const blocked = new Set(await prismaGetBlockedUserIds(visitedUserId));
+  const blockedArr = blocked.size > 0 ? [...blocked] : [];
+  const rows = await prisma.visit.findMany({
+    where: {
+      profileUserId: visitedUserId,
+      ...(blockedArr.length > 0 ? { viewerUserId: { notIn: blockedArr } } : {}),
+      viewer: {
+        isBanned: false,
+        profile: { is: { showProfileVisits: true } },
+      },
+    },
+    orderBy: { lastVisitedAt: "desc" },
+    take: 100,
+    include: {
+      viewer: {
+        include: {
+          profile: {
+            include: {
+              photos: { orderBy: { order: "asc" }, take: 1 },
+            },
+          },
+        },
+      },
+    },
+  });
+  const visitorIds = rows.map((r) => r.viewerUserId);
+  if (visitorIds.length === 0) {
+    return { listEnabled: true, visits: [] };
+  }
+  const [matchRows, messageRows] = await Promise.all([
+    prisma.match.findMany({
+      where: {
+        OR: [
+          { userAId: visitedUserId, userBId: { in: visitorIds } },
+          { userBId: visitedUserId, userAId: { in: visitorIds } },
+        ],
+      },
+      select: { userAId: true, userBId: true },
+    }),
+    prisma.message.findMany({
+      where: {
+        AND: [
+          prismaMessageWhereChatVisible(),
+          {
+            OR: [
+              { AND: [{ fromUserId: visitedUserId }, { toUserId: { in: visitorIds } }] },
+              { AND: [{ toUserId: visitedUserId }, { fromUserId: { in: visitorIds } }] },
+            ],
+          },
+        ],
+      },
+      select: { fromUserId: true, toUserId: true },
+    }),
+  ]);
+  const matchSet = new Set<string>();
+  for (const m of matchRows) {
+    matchSet.add(m.userAId === visitedUserId ? m.userBId : m.userAId);
+  }
+  const chatSet = new Set<string>();
+  for (const m of messageRows) {
+    chatSet.add(m.fromUserId === visitedUserId ? m.toUserId : m.fromUserId);
+  }
+  const visits: ProfileVisitListItem[] = [];
+  for (const r of rows) {
+    const p = r.viewer.profile;
+    if (!p) continue;
+    const vid = r.viewerUserId;
+    const hasMatchOrChat = matchSet.has(vid) || chatSet.has(vid);
+    visits.push({
+      userId: vid,
+      displayName: displayName(p.username || p.name),
+      photoUrl: p.photos[0]?.url ?? null,
+      lastVisitedAt: r.lastVisitedAt.toISOString(),
+      firstVisitedAt: r.createdAt.toISOString(),
+      hasMatchOrChat,
+    });
+  }
+  return { listEnabled: true, visits };
 }
 
 /** Pentru listă profiluri: cine am vizitat eu și cine m-a vizitat (pentru culori/badge-uri). */

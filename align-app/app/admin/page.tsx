@@ -9,6 +9,7 @@ import {
   readSinceFor,
   ADMIN_MODERATION_CHECKPOINT_KEY,
 } from "@/lib/adminModerationCheckpoint";
+import { SkeletonAdminDashboard } from "@/components/perceived/AppShellLoadingLayout";
 import { Users, Flag, ShieldAlert, Sparkles, Scale, MessageSquareText } from "lucide-react";
 
 type Summary = {
@@ -74,7 +75,7 @@ export default function AdminDashboardPage() {
       {error && <p className="text-red-400 text-sm mb-4">{error}</p>}
 
       {!summary && !error ? (
-        <p className="text-dark-400">Se încarcă...</p>
+        <SkeletonAdminDashboard />
       ) : summary ? (
         <>
           <div className="rounded-xl border border-amber-500/40 bg-amber-950/25 px-4 py-4 mb-6">

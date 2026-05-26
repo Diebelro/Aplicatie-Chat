@@ -15,6 +15,7 @@ import {
   Phone,
   MessageSquare,
 } from "lucide-react";
+import { SkeletonAdminSystemBoard } from "@/components/perceived/AppShellLoadingLayout";
 
 type ServerError = { at: string; source: string; message: string; stack?: string };
 
@@ -140,11 +141,7 @@ export default function AdminSystemDashboardPage() {
   }
 
   if (!snap) {
-    return (
-      <div className="p-6">
-        <p className="text-dark-400">Se încarcă bordul…</p>
-      </div>
-    );
+    return <SkeletonAdminSystemBoard />;
   }
 
   const dbOk = snap.db.status === "up";

@@ -91,7 +91,8 @@
     "links": {
       "terms": "Termeni și Condiții",
       "privacy": "Politica de Confidențialitate",
-      "cookies": "Politica de Cookie-uri"
+      "cookies": "Politica de Cookie-uri",
+      "communityRules": "Regulile comunității"
     },
     "relatedDocs": "Documente înrudite:",
     "termsTitle": "Termeni și Condiții",
@@ -592,10 +593,10 @@
         "phaseNegotiatingVideo": "Stabilim conexiunea video…",
         "phasePeerJoined": "Celălalt e în cameră…",
         "phaseWaitingPeer": "Așteptăm celălaltul…",
-        "phasePrepMic": "Pregătim microfonul…",
-        "phasePrepCamMic": "Pregătim camera și microfonul…",
-        "phaseRequestingPermissions": "Cerem acces la microfon și cameră…",
-        "phaseStartingMedia": "Pornim camera și microfonul…",
+        "phasePrepMic": "Pregătim apelul…",
+        "phasePrepCamMic": "Pregătim apelul…",
+        "phaseRequestingPermissions": "Pregătim apelul…",
+        "phaseStartingMedia": "Se conectează…",
         "reconnectingBanner": "Se reconectează…",
         "reconnectingSubtitle": "Reconectare…",
         "reconnectingLong1": "Durează mai mult decât de obicei — apelul ar trebui să revină singur.",
@@ -786,6 +787,9 @@
       "feedbackTitle": "Propuneri și feedback",
       "feedbackIntro": "Ai o idee ca să îmbunătățim aplicația sau ai întâlnit ceva care nu merge? Scrie-ne — citim tot și ne ajută să reparăm rapid.",
       "feedbackCta": "Trimite un mesaj",
+      "communityRulesTitle": "Regulile comunității",
+      "communityRulesIntro": "Conținut permis și interdicții (18+). Le poți consulta oricând.",
+      "communityRulesCta": "Deschide regulile",
       "personalTitle": "Informații personale",
       "personalHint": "Numele real este privat și se afișează doar aici. În aplicație alții te văd username-ul tău.",
       "realNameLabel": "Nume real (privat)",
@@ -816,9 +820,10 @@
       "privacyLoading": "Se încarcă...",
       "privacyShowDistance": "Afișează distanța mea altor utilizatori",
       "privacyShowOnline": "Afișează că sunt online",
-      "privacyVisitVisibility": "Alții pot vedea când le vizitez profilul",
+      "privacyVisitVisibility": "Permite să apar în lista „Vizite la profil”",
       "privacyReadReceipts": "Arată „citit” la mesaje (read receipts)",
       "privacyFriendRequests": "Permite cereri de prietenie",
+      "profileVisitsPageLink": "Deschide lista „Vizite la profil”",
       "sessionTitle": "Sesiune",
       "sessionHint": "Deschide dialogul de ieșire: doar acest dispozitiv sau toate dispozitivele.",
       "deleteAccountSectionTitle": "Ștergere cont",
@@ -951,7 +956,37 @@
       "errRecaptcha": "Verificarea reCAPTCHA a eșuat.",
       "errSuspicious": "Activitate suspectă detectată.",
       "errSignupGeneric": "Eroare la înregistrare",
-      "errGeneric": "Eroare"
+      "errGeneric": "Eroare",
+      "ageRulesLead": "Confirm că am împlinit 18 ani și că accept ",
+      "ageRulesLink": "regulile comunității",
+      "ageRulesEnd": " (împreună cu Termenii și Politica de confidențialitate).",
+      "errMustAcceptAgeRules": "Bifează confirmarea pentru vârstă și reguli."
+    },
+    "ageGate": {
+      "title": "Conținut destinat adulților",
+      "bodyLine1": "Această aplicație este destinată exclusiv persoanelor cu vârsta de minimum 18 ani.",
+      "bodyLine2": "Prin continuare, confirm că am împlinit 18 ani și că accept regulile aplicației.",
+      "linkRules": "Vezi regulile comunității",
+      "accept": "Accept",
+      "decline": "Nu accept",
+      "declineHint": "Dacă nu accepți, închide fila sau aplicația. Dacă butonul nu închide fereastra, folosește înapoi sau închide manual."
+    },
+    "communityGuidelines": {
+      "pageTitle": "Regulile comunității",
+      "backHome": "Înapoi la start",
+      "intro": "Aplicația este destinată exclusiv persoanelor cu vârsta de minimum 18 ani.",
+      "forbiddenLead": "Este strict interzis:",
+      "rules": [
+        "distribuirea de nuditate sau conținut sexual explicit;",
+        "violența, amenințările sau hărțuirea;",
+        "hărțuirea sau conținutul care vizează minori;",
+        "spam-ul, înșelătoria sau încercările de a abuza de platformă;",
+        "conținut ilegal sau care încalcă drepturile altora;",
+        "publicarea datelor personale ale altor persoane fără acord (doxing)."
+      ],
+      "footer": "Încălcările pot duce la raportare, ștergere de conținut, suspendare sau închidere de cont, conform Termenilor și legislației aplicabile.",
+      "playStoreNoteTitle": "Pentru magazinul de aplicații (notă scurtă):",
+      "playStoreNoteBody": "Aplicația este destinată exclusiv persoanelor cu vârsta de minimum 18 ani. Nuditatea, violența și conținutul explicit sunt strict interzise."
     },
     "banAppeal": {
       "title": "Cont blocat",
@@ -1039,6 +1074,23 @@
       "photosMany": "Poze ({{n}})",
       "photosOne": "Poză profil",
       "photoCounterAria": "Poză {{i}} din {{n}}"
+    },
+    "profileVisits": {
+      "title": "Vizite la profil",
+      "intro": "Lista arată doar persoane care au deschis profilul tău și care au bifat la fel opțiunea de vizibilitate. Nu poți trimite mesaje fără match.",
+      "backProfile": "← Înapoi la profil",
+      "loading": "Se încarcă vizitele…",
+      "errLoad": "Nu s-au putut încărca vizitele.",
+      "errNetwork": "Eroare rețea.",
+      "listDisabled": "Ai dezactivat lista „Vizite la profil”. Nu vezi cine te-a vizitat și nu apari ca vizitator în listele altora.",
+      "listDisabledHint": "Activează opțiunea din secțiunea de confidențialitate de mai jos (Profil sau Setări cont).",
+      "openPrivacy": "Deschide confidențialitatea în profil",
+      "empty": "Încă nu ai vizite vizibile aici.",
+      "visitedPrefix": "Te-a vizitat",
+      "statusMatch": "Match sau conversație",
+      "statusNoMatch": "Fără match",
+      "btnMessage": "Mesaj",
+      "btnViewProfile": "Vezi profilul"
     },
     "forgotPassword": {
       "title": "Ai uitat parola?",
@@ -1189,6 +1241,8 @@
       "badgePhoto": "Cu poză",
       "badgeBio": "Cu descriere",
       "previewMe": "Profilul meu",
+      "linkVisits": "Vizite la profil",
+      "badgeNewVisits": "Nou",
       "photoPage": {
         "title": "Poza de profil",
         "subtitle": "Adaugă, șterge sau alege ce imagine apare ca poză de profil.",
@@ -1263,7 +1317,7 @@
       "privacyTitle": "Setări confidențialitate și prieteni",
       "privacyIntro": "Controlează ce informații sunt vizibile pentru alții.",
       "friendReq": "Permite cereri de prietenie",
-      "visitVis": "Alții pot vedea când le vizitez profilul",
+      "visitVis": "Permite să apar în lista „Vizite la profil”",
       "readRcpt": "Arată „citit” la mesaje (read receipts)",
       "accountTitle": "Setări cont",
       "accountIntro": "Deschide dialogul de ieșire: doar acest dispozitiv sau toate dispozitivele (același flux ca în meniul principal).",

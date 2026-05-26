@@ -1,5 +1,5 @@
 /**
- * Exportă PNG-uri din assets/brand/diebel-icon.svg (launcher principal)
+ * Exportă PNG-uri din marca unică verde/albă (launcher principal)
  * și din mărci alternative (512 + 192 pentru preview).
  * Rulezi: npm run icons:export
  * Necesită: sharp (devDependency).
@@ -12,7 +12,9 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
 
-const primarySvg = path.join(root, "assets", "brand", "diebel-icon.svg");
+const primarySvg = path.join(root, "assets", "brand", "diebel-mark-heart-flow.svg");
+/** Tile chat verde/alb (metadata + manifest + PWA v7). */
+const tileSvg = path.join(root, "assets", "brand", "diebel-icon.svg");
 
 const primaryTargets = [
   ["public/brand/play-icon-512.png", 512],
@@ -23,8 +25,13 @@ const primaryTargets = [
   ["public/apple-touch-icon.png", 180],
 ];
 
+const tileTargets = [
+  ["public/brand/app-icon-v7-192.png", 192],
+  ["public/brand/app-icon-v7-512.png", 512],
+];
+
 /** Alternative marks: same basename in assets + public SVG copy. */
-const alternateMarks = ["diebel-mark-signal", "diebel-mark-d-monogram", "diebel-mark-link", "diebel-mark-heart-flow"];
+const alternateMarks = ["diebel-mark-heart-flow", "diebel-mark-message-try"];
 
 async function exportPng(svgPath, relOut, size) {
   const out = path.join(root, ...relOut.split("/"));
@@ -40,6 +47,9 @@ async function exportPng(svgPath, relOut, size) {
 async function main() {
   for (const [rel, size] of primaryTargets) {
     await exportPng(primarySvg, rel, size);
+  }
+  for (const [rel, size] of tileTargets) {
+    await exportPng(tileSvg, rel, size);
   }
 
   for (const base of alternateMarks) {

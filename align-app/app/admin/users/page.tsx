@@ -5,6 +5,7 @@ import Link from "next/link";
 import { fetchWithAuthRetry } from "@/lib/authClient";
 import { markSectionReviewed } from "@/lib/adminModerationCheckpoint";
 import { Clock, ShieldAlert, Trash2, ExternalLink } from "lucide-react";
+import { SkeletonAdminUserCards } from "@/components/perceived/AppShellLoadingLayout";
 
 type UserRow = {
   id: string;
@@ -137,7 +138,7 @@ export default function AdminUsersPage() {
       />
       {error && <p className="text-red-400 mb-3 text-sm">{error}</p>}
       {loading ? (
-        <p className="text-dark-400">Se încarcă…</p>
+        <SkeletonAdminUserCards rows={4} />
       ) : (
         <ul className="space-y-4">
           {users.map((u) => {

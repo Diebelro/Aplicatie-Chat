@@ -7,9 +7,10 @@ import { Phone, PhoneOff } from "lucide-react";
 import { getAuthHeaders, fetchWithAuthRetry } from "@/lib/authClient";
 import { markIncomingCallDismissed, shouldIgnorePolledIncoming } from "@/lib/callIncomingDismiss";
 import {
-  clearIncomingGrace,
+  INCOMING_GRACE_LOCAL_STORAGE_KEY,
   isIncomingGraced,
   markIncomingGrace,
+  POST_HANGUP_INCOMING_GRACE_MS,
 } from "@/lib/callIncomingGrace";
 import { closeIncomingCallPushNotifications } from "@/lib/closeIncomingCallPushNotifications";
 import { markCallEndPosted, shouldSkipDuplicateCallEnd } from "@/lib/callEndDedup";
@@ -104,6 +105,8 @@ export default function IncomingCall() {
         /** Part 2.2: grace înainte de UI/sonerie — apoi dismiss explicit (shouldIgnore) cu extindere grace. */
         if (inc?.roomId && isIncomingGraced(inc.roomId, inc.pendingSince)) {
           cancelScheduledClearIncoming();
+          stopIncomingRingtone();
+          setRingNeedsTap(false);
           setIncoming(null);
           void fetch("/api/call/end", {
             method: "POST",
@@ -116,6 +119,8 @@ export default function IncomingCall() {
         if (inc?.roomId && shouldIgnorePolledIncoming(inc.roomId, inc.pendingSince)) {
           cancelScheduledClearIncoming();
           markIncomingGrace(inc.roomId, inc.pendingSince, 12000);
+          stopIncomingRingtone();
+          setRingNeedsTap(false);
           setIncoming(null);
           void fetch("/api/call/end", {
             method: "POST",
@@ -223,6 +228,30 @@ export default function IncomingCall() {
     };
   }, [fetchIncoming, onCallPage, cancelScheduledClearIncoming]);
 
+  /** Alt tab / WebView marchează grace în localStorage — oprește soneria și realiniază poll fără întârziere. */
+  useEffect(() => {
+    if (typeof window === "undefined" || onCallPage) return;
+    const onStorage = (ev: StorageEvent) => {
+      if (ev.key !== INCOMING_GRACE_LOCAL_STORAGE_KEY) return;
+      const cur = incomingRef.current;
+      if (cur?.roomId && isIncomingGraced(cur.roomId, cur.pendingSince)) {
+        cancelScheduledClearIncoming();
+        stopIncomingRingtone();
+        setRingNeedsTap(false);
+        setIncoming(null);
+        void fetch("/api/call/end", {
+          method: "POST",
+          headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({ roomId: cur.roomId }),
+        }).catch(() => {});
+      }
+      fetchIncoming();
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [fetchIncoming, onCallPage, cancelScheduledClearIncoming]);
+
   useEffect(() => {
     if (!incoming?.roomId) return;
     closeIncomingCallPushNotifications(incoming.roomId);
@@ -232,6 +261,19 @@ export default function IncomingCall() {
     if (onCallPage || !incoming) {
       stopIncomingRingtone();
       setRingNeedsTap(false);
+      return;
+    }
+    /** Guard: starea poate fi inconsistentă scurt (race / alt tab); nu porni soneria dacă e deja graced. */
+    if (isIncomingGraced(incoming.roomId, incoming.pendingSince)) {
+      stopIncomingRingtone();
+      setRingNeedsTap(false);
+      void fetch("/api/call/end", {
+        method: "POST",
+        headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ roomId: incoming.roomId }),
+      }).catch(() => {});
+      setIncoming(null);
       return;
     }
     const { resume, needsUserGesture } = startIncomingRingtone();
@@ -283,6 +325,8 @@ export default function IncomingCall() {
     if (!incoming || loading) return;
     setActionError(null);
     setLoading(true);
+    stopIncomingRingtone();
+    setRingNeedsTap(false);
     fetch("/api/call/accept", {
       method: "POST",
       headers: getAuthHeaders(),
@@ -296,9 +340,9 @@ export default function IncomingCall() {
         }
         if (d.roomId) {
           const q = d.audioOnly ? "?audio=1" : "";
-          clearIncomingGrace(d.roomId);
           /** După accept, serverul curăță pending; marchează local ca să nu reapară overlay la poll între navigări. */
           markIncomingCallDismissed(d.roomId, incoming.pendingSince);
+          markIncomingGrace(d.roomId, incoming.pendingSince, POST_HANGUP_INCOMING_GRACE_MS);
           /** Nu setIncoming(null) înainte de navigare — altfel dispare overlay-ul și se vede o clipă pagina de dedesubt (ex. mesaje). */
           router.push(`/app/call/${d.roomId}${q}`);
         } else {
@@ -315,9 +359,12 @@ export default function IncomingCall() {
     setActionError(null);
     setLoading(true);
     cancelScheduledClearIncoming();
+    stopIncomingRingtone();
+    setRingNeedsTap(false);
     markIncomingGrace(incoming.roomId, incoming.pendingSince, 12000);
     markIncomingCallDismissed(incoming.roomId, incoming.pendingSince);
     const roomId = incoming.roomId;
+    setIncoming(null);
     /**
      * IMPORTANT: întâi POST /reject cu roomId (marchează respins cât încă există pending), apoi POST /end.
      * Dacă trimiți /end înainte, pending-ul dispare și /reject nu mai poate marca respins.
@@ -342,7 +389,6 @@ export default function IncomingCall() {
       .finally(() => {
         declineInFlightRef.current = false;
         setLoading(false);
-        setIncoming(null);
       });
   };
 

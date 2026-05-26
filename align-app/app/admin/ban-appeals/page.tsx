@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { fetchWithAuthRetry } from "@/lib/authClient";
 import { Scale } from "lucide-react";
+import { SkeletonAdminStack } from "@/components/perceived/AppShellLoadingLayout";
 
 type Appeal = {
   id: string;
@@ -72,7 +73,7 @@ export default function AdminBanAppealsPage() {
       </p>
       {error && <p className="text-red-400 text-sm mb-4">{error}</p>}
       {loading ? (
-        <p className="text-dark-400">Se încarcă…</p>
+        <SkeletonAdminStack cards={3} />
       ) : appeals.length === 0 ? (
         <p className="text-zinc-500">Nu există contestări în așteptare.</p>
       ) : (

@@ -262,8 +262,7 @@ export default function CallPage() {
   if (allowed === null || user === null) {
     return (
       <div className="fixed inset-0 z-[190] flex flex-col items-center justify-center bg-black text-white">
-        <div className="h-12 w-12 border-2 border-white/20 border-t-brand-400 rounded-full animate-spin mb-4" aria-hidden />
-        <span className="text-sm text-white/50">{tStr("pages.callRoom.opening")}</span>
+        <div className="h-12 w-12 border-2 border-white/20 border-t-brand-400 rounded-full animate-spin" aria-hidden />
       </div>
     );
   }
@@ -286,7 +285,11 @@ export default function CallPage() {
       method: "POST",
     })
       .then(async (r) => {
-        const d = (await r.json().catch(() => ({}))) as CallErrorPayload & { roomId?: string; audioOnly?: boolean };
+        const d = (await r.json().catch(() => ({}))) as CallErrorPayload & {
+          roomId?: string;
+          audioOnly?: boolean;
+          pendingSince?: string;
+        };
         if (!r.ok) {
           setPushGateError(resolveCallDisplayedError(d, callT.tStr) || tStr("pages.callRoom.pushAnswerExpired"));
           return;
@@ -300,6 +303,7 @@ export default function CallPage() {
           setResolvedAudioOnly(d.audioOnly);
         }
         clearIncomingRingDismissFilter();
+        markIncomingGrace(roomId, d.pendingSince, POST_HANGUP_INCOMING_GRACE_MS);
         setCallStarted(true);
       })
       .catch(() => setPushGateError(tStr("pages.callRoom.pushNetworkError")))

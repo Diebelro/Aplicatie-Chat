@@ -5,6 +5,7 @@ import Link from "next/link";
 import { fetchWithAuthRetry } from "@/lib/authClient";
 import { markSectionReviewed } from "@/lib/adminModerationCheckpoint";
 import { AlertTriangle } from "lucide-react";
+import { SkeletonAdminStack } from "@/components/perceived/AppShellLoadingLayout";
 
 type Report = {
   id: string;
@@ -73,7 +74,7 @@ export default function AdminReportsPage() {
       </p>
       {error && <p className="text-red-400 mb-4">{error}</p>}
       {loading ? (
-        <p className="text-dark-400">Se incarca...</p>
+        <SkeletonAdminStack cards={4} />
       ) : reports.length === 0 ? (
         <p className="text-zinc-500">Nu există rapoarte.</p>
       ) : (

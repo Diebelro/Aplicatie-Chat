@@ -211,11 +211,11 @@ async function main() {
 
   await prisma.message.createMany({
     data: [
-      { fromUserId: userIds[0], toUserId: userIds[1], text: "Salut! Cum ești?", status: "SEEN" },
-      { fromUserId: userIds[1], toUserId: userIds[0], text: "Bine, mersi! Tu?", status: "SEEN" },
-      { fromUserId: userIds[0], toUserId: userIds[1], text: "Perfect. Ne auzim!", status: "SENT" },
-      { fromUserId: userIds[3], toUserId: userIds[4], text: "Hey, ai văzut filmul?", status: "DELIVERED" },
-      { fromUserId: userIds[5], toUserId: userIds[6], text: "Bună!", status: "SENT" },
+      { fromUserId: userIds[0], toUserId: userIds[1], text: "Hi! How's your week going?", status: "SEEN" },
+      { fromUserId: userIds[1], toUserId: userIds[0], text: "Good thanks — yours?", status: "SEEN" },
+      { fromUserId: userIds[0], toUserId: userIds[1], text: "Great. Talk soon!", status: "SENT" },
+      { fromUserId: userIds[3], toUserId: userIds[4], text: "Hey — did you see the film?", status: "DELIVERED" },
+      { fromUserId: userIds[5], toUserId: userIds[6], text: "Hi there!", status: "SENT" },
     ],
   });
 

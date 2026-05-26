@@ -64,7 +64,7 @@ export default function MissedCallsPage() {
   if (loading) {
     return (
       <div className="max-w-md mx-auto">
-        <AppProLoading label={tStr("pages.missedCalls.loading")} className="py-16" />
+        <AppProLoading variant="list" label={tStr("pages.missedCalls.loading")} className="py-16" />
       </div>
     );
   }

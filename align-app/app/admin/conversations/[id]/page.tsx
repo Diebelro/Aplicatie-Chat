@@ -12,6 +12,7 @@ import {
   isAlignLocationContentType,
   parseAlignLocationPayload,
 } from "@/lib/chatLocation";
+import { SkeletonChatThread } from "@/components/perceived/AppShellLoadingLayout";
 
 type Message = {
   id: string;
@@ -105,7 +106,14 @@ export default function AdminConversationPage() {
       .finally(() => setDeletingId(null));
   };
 
-  if (loading) return <p className="text-dark-400">Se incarca...</p>;
+  if (loading) {
+    return (
+      <div className="max-w-3xl space-y-4">
+        <div className="h-4 w-36 rounded bg-dark-700/45 animate-pulse" />
+        <SkeletonChatThread />
+      </div>
+    );
+  }
   if (error) return <p className="text-red-400">{error}</p>;
 
   const labelForId = (uid: string) => {

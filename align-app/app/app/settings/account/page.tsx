@@ -291,7 +291,7 @@ export default function AccountSettingsPage() {
         : subscriptionPlan ?? "";
 
   if (!user) {
-    return <AppProLoading label={tStr("pages.account.loading")} />;
+    return <AppProLoading variant="form" label={tStr("pages.account.loading")} />;
   }
 
   return (
@@ -311,6 +311,17 @@ export default function AccountSettingsPage() {
           className="inline-block px-4 py-2 rounded-lg bg-brand-500/20 text-brand-400 border border-brand-500/40 hover:bg-brand-500/30 font-medium text-sm transition"
         >
           {tStr("pages.account.feedbackCta")}
+        </Link>
+      </section>
+
+      <section className="app-pro-panel p-6 border-dark-600/80">
+        <h2 className="app-pro-section-title mb-2">{tStr("pages.account.communityRulesTitle")}</h2>
+        <p className="app-pro-lead mb-4">{tStr("pages.account.communityRulesIntro")}</p>
+        <Link
+          href="/app/settings/community-rules"
+          className="inline-block px-4 py-2 rounded-lg bg-dark-800 text-dark-300 border border-dark-600 hover:bg-dark-700 font-medium text-sm transition"
+        >
+          {tStr("pages.account.communityRulesCta")}
         </Link>
       </section>
 
@@ -491,6 +502,11 @@ export default function AccountSettingsPage() {
               />
               <span className="text-sm text-gray-300">{tStr("pages.account.privacyFriendRequests")}</span>
             </label>
+            <p className="pt-2 border-t border-dark-600/40 mt-1">
+              <Link href="/app/profile/visits" className="text-sm text-brand-400 hover:underline">
+                {tStr("pages.account.profileVisitsPageLink")}
+              </Link>
+            </p>
           </div>
         )}
       </section>

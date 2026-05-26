@@ -96,6 +96,7 @@ function SignUpContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [acceptTerms, setAcceptTerms] = useState(false);
+  const [acceptAgeRules, setAcceptAgeRules] = useState(false);
   const [retryAfterSeconds, setRetryAfterSeconds] = useState(0);
 
   useEffect(() => {
@@ -189,6 +190,10 @@ function SignUpContent() {
     }
     if (usernameCheck === "taken") {
       setError(tStr("pages.signup.errUsernameTaken"));
+      return;
+    }
+    if (!acceptAgeRules) {
+      setError(tStr("pages.signup.errMustAcceptAgeRules"));
       return;
     }
     if (!acceptTerms) {
@@ -461,6 +466,21 @@ function SignUpContent() {
           <label className="flex items-start gap-2 cursor-pointer">
             <input
               type="checkbox"
+              checked={acceptAgeRules}
+              onChange={(e) => setAcceptAgeRules(e.target.checked)}
+              className="w-4 h-4 mt-0.5 rounded border-dark-600 bg-dark-800 text-brand-500 focus:ring-brand-500 shrink-0"
+            />
+            <span className="text-dark-500 text-xs">
+              {tStr("pages.signup.ageRulesLead")}
+              <Link href="/community-rules" className="text-brand-400 hover:underline">
+                {tStr("pages.signup.ageRulesLink")}
+              </Link>
+              {tStr("pages.signup.ageRulesEnd")}
+            </span>
+          </label>
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input
+              type="checkbox"
               checked={acceptTerms}
               onChange={(e) => setAcceptTerms(e.target.checked)}
               className="w-4 h-4 mt-0.5 rounded border-dark-600 bg-dark-800 text-brand-500 focus:ring-brand-500 shrink-0"
@@ -494,7 +514,7 @@ function SignUpContent() {
           </div>
           <button
             type="submit"
-            disabled={loading || !acceptTerms || retryAfterSeconds > 0}
+            disabled={loading || !acceptTerms || !acceptAgeRules || retryAfterSeconds > 0}
             className="w-full !h-11 !min-h-[44px] !max-h-[44px] !py-0 px-4 rounded-xl bg-brand-500 hover:bg-brand-400 text-dark-900 font-medium text-sm transition disabled:opacity-50"
           >
             {loading

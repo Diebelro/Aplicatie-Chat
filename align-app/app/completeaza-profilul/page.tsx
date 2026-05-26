@@ -52,11 +52,12 @@ export default function CompleteazaProfilulPage() {
   }, [router]);
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-8 bg-dark-900">
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-8 bg-dark-900" role="status" aria-busy="true">
       <Link href="/" className="text-brand-400 font-bold">
         {tStr("pages.completeProfileRedirect.backBrand")}
       </Link>
       <p className="text-dark-400 mt-6">{tStr("pages.completeProfileRedirect.loading")}</p>
+      <div className="mt-4 h-1.5 w-40 rounded-full bg-dark-700/60 animate-pulse" aria-hidden />
     </div>
   );
 }

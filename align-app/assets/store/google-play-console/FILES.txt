@@ -1,0 +1,19 @@
+Diebel — Google Play Console (folder-ul acesta)
+
+GRAFICĂ (nu sunt screenshot-uri telefon):
+  app-icon-512.png                 → App icon 512×512
+  feature-graphic-1024x500.png     → Feature graphic
+
+PHONE SCREENSHOTS (secțiunea Phone → Add assets):
+  phone-screenshot-01-chat.jpg
+  phone-screenshot-02-voice-call.jpg
+  phone-screenshot-03-video-call.jpg
+  phone-screenshot-04-conversations.jpg
+  Generare: npm run store:play-screenshots (1440×2560, 9:16, JPEG)
+
+Checklist Play (telefon, rezumat):
+  • Minim 2 screenshot-uri ca să publici listing; recomandat ≥4 × ≥1080 px/latură pentru promo în vitrine.
+  • JPEG sau PNG 24-bit fără alpha; ≤8 MB/fișier; 9:16 sau 16:9; laturi între 320–3840 px; latura mare ≤ 2× latura mică.
+  • Conținut = experiență reală în app; fără frame-uri de telefon, fără „Best/#1/Sale”, fără CTA gen „Download now”.
+  • La upload: adaugă alt text scurt per screenshot (ex. „Chat conversation screen”) — se completează în consolă.
+  • Tabletă / Chromebook / Wear / TV / XR = alte secțiuni; nu le amesteca cu fișierele de mai sus dacă nu le ceri.

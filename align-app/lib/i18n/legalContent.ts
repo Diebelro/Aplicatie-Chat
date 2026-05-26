@@ -20,15 +20,15 @@ const termsRO: LegalSection[] = [
     title: "3. Conținut și comportament",
     content: [
       "Nu aveți dreptul să postați conținut ilegal, defăimător, obscen, hărțuitor sau care încalcă drepturile terților. Interzicem exploatarea comercială neautorizată, spam-ul, boturile și practicile înșelătoare.",
-      "Păstrăm dreptul de a modera conținutul și de a elimina materiale care contravin politicilor, fără obligația prealabilă de a notifica în toate cazurile legale.",
-      "Detalii despre modul în care sunt prelucrate mesajele, fișierele și imaginile din chat, inclusiv situațiile în care personalul autorizat poate accesa astfel de conținut, sunt descrise în Politica de confidențialitate, disponibilă la adresa publică a site-ului.",
+      "Ne rezervăm dreptul de a elimina sau restricționa conținutul care contravine politicilor aplicabile, fără notificare prealabilă în cazurile în care legea permite acest lucru.",
+      "Modul în care sunt prelucrate mesajele și fișierele din chat, inclusiv accesul limitat al personalului autorizat în situații concrete, este descris în Politica de confidențialitate, disponibilă public pe site-ul Serviciului.",
     ],
   },
   {
     title: "4. Moderare, securitate și cooperare cu autoritățile",
     content: [
-      "Ne rezervăm dreptul de a examina, modera, restricționa, ascunde sau șterge orice conținut (inclusiv mesaje text, imagini, fișiere atașate și profiluri) atunci când considerăm necesar pentru: aplicarea acestor Termeni și a politicilor; protecția siguranței utilizatorilor; prevenirea fraudelor și abuzurilor; respectarea obligațiilor legale.",
-      "Accesul conținutului de către personalul nostru autorizat se face în mod proporțional, în scopurile de mai sus, conform Politicii de confidențialitate (inclusiv în cazul raportărilor, al cererilor legale valabile sau al investigării încălcărilor).",
+      "Putem lua măsuri asupra conținutului disponibil în Serviciu (inclusiv mesaje, imagini sau fișiere atașate și elemente de profil) atunci când este necesar pentru respectarea Termenilor, protejarea utilizatorilor, prevenirea fraudelor și abuzurilor sau îndeplinirea obligațiilor legale. Aceste măsuri sunt proporționale și nu înseamnă monitorizare continuă sau citire sistematică a conversațiilor.",
+      "Accesul personalului autorizat la conținut este limitat, bazat pe necesitate și aliniat Politicii de confidențialitate — de exemplu în cazuri de raportare, cereri legale valide ori investigații de securitate sau abuz.",
       "Cooperăm cu autoritățile publice competente când legea ne impune sau ne permite, inclusiv prin furnizarea de informații în urma unei cereri legale temeinice (ex. ordonanțe, hotărâri judecătorești, în condițiile legii aplicabile).",
     ],
   },
@@ -56,7 +56,8 @@ const termsRO: LegalSection[] = [
   {
     title: "8. Contact",
     content: [
-      "Pentru orice solicitare legată de datele tale personale (inclusiv ștergerea contului, exportul datelor, rectificare sau întrebări privind confidențialitatea), ne poți contacta la contact@diebel.ro. Vom răspunde în cel mai scurt timp posibil, în conformitate cu legislația aplicabilă.",
+      "Pentru orice solicitare legată de datele tale personale (inclusiv ștergerea contului — și prin Setările contului din aplicație, unde este disponibil — rectificare sau întrebări privind confidențialitatea), ne poți contacta la contact@diebel.ro. Poți solicita acces și portabilitate a datelor printr-o solicitare la emailul de contact. Vom răspunde în cel mai scurt timp posibil, în conformitate cu legislația aplicabilă.",
+      "Site web oficial al serviciului: https://chat.diebel.ro",
     ],
   },
   {
@@ -87,15 +88,15 @@ const termsEN: LegalSection[] = [
     title: "3. Content and conduct",
     content: [
       "You may not post illegal, defamatory, obscene, harassing or third-party rights-infringing content. We prohibit unauthorized commercial exploitation, spam, bots and deceptive practices.",
-      "We reserve the right to moderate content and remove material that violates our policies, without prior notice in all cases where the law so allows.",
-      "How messages, files and images in chat are processed, including when authorised staff may access such content, is described in the Privacy Policy published on our website.",
+      "We may remove or restrict material that violates our applicable policies, without prior notice where the law allows.",
+      "How we process chat messages and files, and when authorised staff may access content in specific circumstances, is described in the Privacy Policy on the Service website.",
     ],
   },
   {
     title: "4. Moderation, security and cooperation with authorities",
     content: [
-      "We reserve the right to review, moderate, restrict, hide or delete any content (including text messages, images, attachments and profiles) when we consider it necessary to: enforce these Terms and our policies; protect user safety; prevent fraud and abuse; comply with legal obligations.",
-      "Access to content by our authorised staff is proportionate and for these purposes, as described in the Privacy Policy (including in the case of reports, valid legal requests or investigations of breaches).",
+      "We may take action on content available through the Service (including messages, images or attachments and profile elements) when necessary to enforce these Terms, protect users, prevent fraud and abuse, or meet legal obligations. Such action is proportionate and does not mean continuous monitoring or systematic reading of conversations.",
+      "Authorised staff access to content is limited, need-based, and in line with the Privacy Policy — for example in response to a report, a valid legal request, or a security or abuse investigation.",
       "We cooperate with competent public authorities when the law requires or permits, including by providing information following a lawful request (e.g. orders or court decisions, subject to applicable law).",
     ],
   },
@@ -123,7 +124,8 @@ const termsEN: LegalSection[] = [
   {
     title: "8. Contact",
     content: [
-      "For any request related to your personal data (including account deletion, data export, rectification, or privacy questions), you can contact us at contact@diebel.ro. We will respond as soon as possible in accordance with applicable data protection laws.",
+      "For any request related to your personal data (including account deletion — also via in-app account settings where available — rectification, or privacy questions), you can contact us at contact@diebel.ro. You can request access and data portability by contacting us via the support email. We will respond as soon as possible in accordance with applicable data protection laws.",
+      "Official service website: https://chat.diebel.ro",
     ],
   },
   {
@@ -154,15 +156,15 @@ const termsDE: LegalSection[] = [
     title: "3. Inhalte und Verhalten",
     content: [
       "Sie dürfen keine illegalen, verleumderischen, obszönen, belästigenden oder rechtsverletzenden Inhalte veröffentlichen. Unerlaubte kommerzielle Nutzung, Spam, Bots und täuschende Praktiken sind untersagt.",
-      "Wir behalten uns vor, Inhalte zu moderieren und Material zu entfernen, das gegen unsere Richtlinien verstößt, ohne in allen gesetzlich zulässigen Fällen vorherige Benachrichtigung.",
-      "Wie Nachrichten, Dateien und Bilder im Chat verarbeitet werden, einschließlich der Fälle, in denen autorisiertes Personal auf solche Inhalte zugreifen kann, ist in der auf unserer Website veröffentlichten Datenschutzrichtlinie beschrieben.",
+      "Wir können Inhalte entfernen oder einschränken, die gegen unsere geltenden Richtlinien verstoßen, ohne vorherige Benachrichtigung, soweit das Gesetz dies erlaubt.",
+      "Wie Chat-Nachrichten und Dateien verarbeitet werden und wann autorisiertes Personal in konkreten Situationen zugreifen kann, ist in der Datenschutzrichtlinie auf der Website des Dienstes beschrieben.",
     ],
   },
   {
     title: "4. Moderation, Sicherheit und Behördenzusammenarbeit",
     content: [
-      "Wir behalten uns vor, Inhalte (einschließlich Textnachrichten, Bilder, Anhänge und Profile) zu prüfen, zu moderieren, einzuschränken, auszublenden oder zu löschen, wenn dies zur Durchsetzung dieser Bedingungen und unserer Richtlinien, zum Schutz der Nutzersicherheit, zur Betrugs- und Missbrauchsbekämpfung oder zur Einhaltung gesetzlicher Pflichten erforderlich ist.",
-      "Der Zugriff auf Inhalte durch unser autorisiertes Personal erfolgt verhältnismäßig und zu diesen Zwecken gemäß der Datenschutzrichtlinie (einschließlich bei Meldungen, gültigen rechtlichen Anfragen oder Untersuchungen von Verstößen).",
+      "Wir können inhaltliche Maßnahmen ergreifen (einschließlich bei Nachrichten, Bildern, Anhängen und Profilelementen), wenn dies zur Durchsetzung dieser Bedingungen, zum Schutz von Nutzern, zur Betrugs- und Missbrauchsbekämpfung oder zur Erfüllung gesetzlicher Pflichten erforderlich ist. Solche Maßnahmen sind verhältnismäßig und bedeuten keine kontinuierliche Überwachung oder systematische Durchsicht von Gesprächen.",
+      "Zugriffe autorisierter Mitarbeitender erfolgen begrenzt, bedarfsorientiert und gemäß der Datenschutzrichtlinie — etwa bei Meldungen, gültigen rechtlichen Anfragen oder Sicherheits- und Missbrauchsersuchen.",
       "Wir arbeiten mit zuständigen Behörden zusammen, wenn das Gesetz es verlangt oder erlaubt, einschließlich der Bereitstellung von Informationen aufgrund rechtmäßiger Anfragen (z. B. Anordnungen oder gerichtliche Entscheidungen, vorbehaltlich des anwendbaren Rechts).",
     ],
   },
@@ -190,7 +192,8 @@ const termsDE: LegalSection[] = [
   {
     title: "8. Kontakt",
     content: [
-      "Für alle Anfragen im Zusammenhang mit Ihren personenbezogenen Daten (einschließlich Kontolöschung, Datenexport, Berichtigung oder Fragen zum Datenschutz) können Sie uns unter contact@diebel.ro erreichen. Wir beantworten Ihre Anfrage so schnell wie möglich gemäß den geltenden Datenschutzgesetzen.",
+      "Für alle Anfragen im Zusammenhang mit Ihren personenbezogenen Daten (einschließlich Kontolöschung — auch über die Kontoeinstellungen in der App, soweit verfügbar — Berichtigung oder Fragen zum Datenschutz) können Sie uns unter contact@diebel.ro erreichen. Sie können Auskunft und Datenübertragbarkeit per Anfrage an die Support‑E‑Mail anfordern. Wir beantworten Ihre Anfrage so schnell wie möglich gemäß den geltenden Datenschutzgesetzen.",
+      "Offizielle Website des Dienstes: https://chat.diebel.ro",
     ],
   },
   {
@@ -207,10 +210,11 @@ const privacyRO: LegalSection[] = [
     title: "Pe scurt (Diebel, magazine de aplicații)",
     content: [
       "Diebel este o aplicație de chat și apeluri pentru adulți: mesaje, descoperire de persoane și convorbiri audio sau video. Această secțiune rezumă, pentru magazine precum Google Play, ce categorii de date pot fi implicate.",
-      "Pot fi prelucrate, printre altele: date de cont (adresă de email; dacă te autentifici cu Google, și informațiile furnizate de Google, de exemplu identificator și email; dacă folosești fluxuri cu SMS sau telefon — numărul de telefon asociat acelui flux), conținutul mesajelor trimise în serviciu, date tehnice necesare funcționării (de exemplu dispozitiv, rețea) și informații pentru notificări push (tokenuri), folosite pentru alerte (mesaje noi, apeluri etc.) când permiți notificările pe dispozitiv.",
+      "Autentificarea utilizatorilor se realizează prin metode puse la dispoziție de serviciu sau de furnizori terți, în funcție de configurația activă. Pot fi prelucrate, printre altele: date de cont și autentificare (inclusiv, după caz, email și alte date furnizate în fluxul de autentificare activ), conținutul mesajelor trimise în serviciu, date tehnice necesare funcționării (de exemplu dispozitiv, rețea) și informații pentru notificări push (tokenuri), folosite pentru alerte (mesaje noi, apeluri etc.) când permiți notificările pe dispozitiv.",
       "Nu vindem și nu închiriem datele tale personale către terți în scopuri comerciale ale acestora.",
-      "Folosim datele pentru a furniza și securiza serviciul (autentificare, profil, chat, apeluri, notificări), îmbunătățiri rezonabile ale produsului și conformitate cu Termenii și legea aplicabilă.",
-      "Pentru întrebări despre date sau exercitarea drepturilor: contact@diebel.ro. Detaliile complete urmează mai jos.",
+      "Folosim datele pentru funcționalitatea aplicației și pentru scopuri strict necesare și aliniate: autentificare, profil, chat, apeluri, notificări, securitate, întreținere tehnică și respectarea Termenilor și legii. Nu folosim conținutul mesajelor în scopuri de publicitate, profilare de marketing sau analiză de marketing asupra conversațiilor.",
+      "Procesăm doar datele minime necesare pentru funcționarea Serviciului, iar datele sunt protejate prin criptare în tranzit (HTTPS/TLS) acolo unde sunt transmise între aplicație și servere.",
+      "Pentru întrebări despre date sau exercitarea drepturilor: contact@diebel.ro. Site web: https://chat.diebel.ro. Detaliile complete urmează mai jos.",
     ],
   },
   {
@@ -222,7 +226,7 @@ const privacyRO: LegalSection[] = [
   {
     title: "2. Date colectate",
     content: [
-      "Colectăm: date de identificare (email, nume, dată nașterii, gen); date de profil (descriere, preferințe, poze, oraș, educație, ocupație); date de comunicare (mesaje trimise în aplicație); date tehnice (adresă IP, tip dispozitiv, browser, fingerprint); date de utilizare (acțiuni în aplicație, potriviri, vizite); și, cu acordul dvs., date de locație (pentru distanță față de alți utilizatori).",
+      "Colectăm: date de identificare (email, nume, dată nașterii, gen); date de profil (descriere, preferințe, poze, oraș, educație, ocupație); date de comunicare (mesaje text și fișiere atașate trimise în aplicație, în limitele funcționalității); date tehnice (adresă IP, tip dispozitiv, browser și identificatori tehnici operaționali — pot include semnale tehnice de la dispozitiv sau browser — folosiți pentru sesiune, securitate, prevenirea abuzurilor și furnizarea serviciului; nu pentru publicitate proprie); date de utilizare (acțiuni în aplicație, potriviri, vizite); și, cu acordul dvs., date de locație (pentru distanță față de alți utilizatori).",
       "Cookie-urile și tehnologii similare sunt descrise în Politica de Cookie-uri.",
     ],
   },
@@ -236,48 +240,50 @@ const privacyRO: LegalSection[] = [
     title: "4. Drepturile tale (GDPR)",
     content: [
       "Aveți dreptul la: acces la datele dvs.; rectificare; ștergere („dreptul de a fi uitat”); restricționarea prelucrării; portabilitatea datelor; opoziție; retragerea consimțământului (fără a afecta legalitatea prelucrării anterioare); și depunere de plângere la autoritatea de supraveghere (ANSPDCP în România).",
-      "Pentru exercitarea drepturilor, contactați-ne la adresa de email indicată în Politica de Confidențialitate sau în aplicație. Răspundem în termen de 30 de zile.",
+      "Pentru exercitarea drepturilor, contactați-ne la adresa de email indicată în Politica de Confidențialitate sau în aplicație. Poți solicita acces și portabilitate a datelor printr-o solicitare la emailul de contact. Poți solicita și ștergerea contului din Setările contului din aplicație (cu confirmare prin parolă), acolo unde această opțiune este disponibilă. Răspundem în termen de 30 de zile.",
     ],
   },
   {
     title: "5. Păstrarea datelor",
     content: [
-      "Păstrăm datele atât cât este necesar pentru furnizarea serviciului, relația contractuală și obligațiile legale. După ștergerea contului, datele sunt anonimizate sau șterse în termen de 90 de zile, cu excepția celor care trebuie păstrate legal (ex. facturi).",
+      "Păstrăm datele atât cât este necesar pentru furnizarea serviciului, relația contractuală și obligațiile legale. Dacă îți ștergi contul din aplicație (unde funcția este disponibilă, cu confirmare prin parolă), datele principale asociate contului sunt eliminate din sistemele active; copiile reziduale din backup-uri sau jurnale de securitate pot persista pentru o perioadă limitată înainte de rotire sau ștergere (de regulă până la 90 de zile), cu excepția datelor pe care legea impune să le păstrăm mai mult timp.",
       "Logurile de securitate și backup-urile pot conține copii temporare; acestea sunt rotite și șterse conform politicii interne.",
     ],
   },
   {
     title: "6. Securitate și destinatari",
     content: [
-      "Aplicăm măsuri tehnice și organizatorice adecvate (criptare, acces restricționat, formare) pentru a proteja datele. Datele pot fi transmise către furnizori de servicii (găzduire, email, analitică) care sunt obligați contractual și, unde este cazul, prin clauze contractuale standard.",
-      "Nu vindem datele cu caracter personal. Nu transferăm date în afara SEE fără baza legală adecvată (decizie de adecvare, garanții, clauze standard).",
+      "Aplicăm măsuri tehnice și organizatorice adecvate pentru a proteja datele: în primul rând comunicația între aplicație și servere este protejată în tranzit (HTTPS/TLS), accesul la date în backend este restricționat, iar personalul relevant este instruit. Limitele specifice ale infrastructurii (inclusiv stocarea pe server) depind de furnizorii noștri și de configurația curentă.",
+      "Furnizorii operaționali (găzduire, stocare, email, notificări, securitate etc.) pot prelucra date doar în numele nostru și numai în măsura necesară furnizării acestor servicii.",
+      "Nu vindem datele cu caracter personal și nu le partajăm cu terți pentru scopurile lor independente de publicitate, profilare sau marketing. Nu transferăm date în afara SEE fără baza legală adecvată (decizie de adecvare, garanții, clauze standard).",
     ],
   },
   {
     title: "7. Mesaje, fișiere atașate și imagini în chat",
     content: [
-      "Mesajele text și fișierele pe care le trimiteți prin Serviciu (inclusiv imagini, documente PDF și alte tipuri permise de funcționalitate) sunt prelucrate pentru a le transmite destinatarilor, pentru a afișa istoricul conversației și pentru a permite funcționarea mesageriei.",
+      "Mesajele text și fișierele pe care le trimiteți prin Serviciu (inclusiv imagini, documente PDF și alte tipuri permise de funcționalitate) sunt prelucrate pentru a le transmite destinatarilor, pentru a afișa istoricul conversației și pentru mesagerie.",
       "Acest conținut poate fi stocat pe infrastructura noastră sau a furnizorilor implicați în găzduire, stocare și securitate, pe durata necesară furnizării serviciului și în concordanță cu secțiunea privind păstrarea datelor.",
-      "Imaginile și PDF-urile din chat sunt, în măsura permisă de configurația tehnică actuală, păstrate în stocare cu acces restricționat (nu sunt distribuite utilizatorilor ca link-uri publice directe, în mod obișnuit). Vizualizarea în aplicație se face prin mecanisme care verifică autentificarea: participanții la conversație își pot vedea atașamentele în cadrul Serviciului; personalul administrativ autorizat poate avea acces în condițiile descrise la secțiunea privind moderarea și accesul autorizat. Conținutul mai vechi sau cazuri excepționale pot diferi tehnic; ne străduim să aliniem practica la această descriere.",
+      "Nu accesăm sau analizăm conținutul mesajelor în mod sistematic. În situații limitate, conținutul poate fi consultat când este necesar pentru funcționarea sigură a serviciului, întreținere tehnică, soluționarea raportărilor de abuz, securitate sau îndeplinirea obligațiilor legale. Nu folosim conținutul mesajelor în scopuri de publicitate, profilare de marketing sau analiză de marketing asupra conversațiilor.",
+      "Atașamentele din chat sunt afișate participanților autentificați la conversație și sunt păstrate, acolo unde configurația tehnică o permite, în medii cu acces restricționat (de regulă fără link-uri publice directe). Detalii despre acces limitat din motive de siguranță și conformitate sunt la secțiunea „Siguranță, raportări și conformitate legală”.",
       "Vă rugăm să nu trimiteți conținut ilegal, care încalcă drepturile altora, care vizează minori în mod inacceptabil sau care lezează viața privată a terților fără temei. Sunteți responsabil pentru conținutul pe care îl transmiteți.",
     ],
   },
   {
     title: "Apeluri audio și video (cameră și microfon)",
     content: [
-      "Pentru funcția de **apel audio** și **apel video** între utilizatori, aplicația poate solicita acces la **microfon** și, doar pentru apelurile video, la **cameră** (camera dispozitivului), prin mecanismele de permisiuni oferite de browser sau de sistemul de operare.",
-      "**Microfonul** este folosit **exclusiv în timpul unui apel audio sau video activ**, pentru a transmite vocea dumneavoastră către celălalt participant. **Camera** este folosită **exclusiv în timpul unui apel video activ**, pentru a transmite imaginea către celălalt participant.",
-      "Accesul la microfon și la cameră este solicitat și activ **doar când inițiați sau acceptați un apel** în cadrul aplicației; **nu folosim aceste permisiuni în fundal** în afara unui apel activ pentru dumneavoastră (fără conectare la canalul de apel, microfonul și camera nu sunt accesate în scopul apelurilor).",
-      "**Apelurile audio și video NU sunt înregistrate și NU sunt stocate ca fișiere audio sau video pe serverele noastre** în scopul salvării convorbirilor. Date tehnice minime (ex. semnalizare, securitate, facturare, conform altor secțiuni ale acestei politici) pot fi prelucrate independent de fluxul media al apelului.",
+      "Pentru funcția de apel audio și apel video între utilizatori, aplicația poate solicita acces la microfon și, doar pentru apelurile video, la cameră (camera dispozitivului), prin mecanismele de permisiuni oferite de browser sau de sistemul de operare.",
+      "Microfonul este folosit exclusiv în timpul unui apel audio sau video activ, pentru a transmite vocea dumneavoastră către celălalt participant. Camera este folosită exclusiv în timpul unui apel video activ, pentru a transmite imaginea către celălalt participant.",
+      "Accesul la microfon și la cameră este solicitat și activ doar când inițiați sau acceptați un apel în cadrul aplicației; nu folosim aceste permisiuni în fundal în afara unui apel activ pentru dumneavoastră (fără conectare la canalul de apel, microfonul și camera nu sunt accesate în scopul apelurilor).",
+      "Apelurile audio și video NU sunt înregistrate și NU sunt stocate ca fișiere audio sau video pe serverele noastre în scopul salvării convorbirilor. În afara fluxului media, pot fi prelucrate date tehnice minime necesare semnalizării apelului și stării serviciului (ex. apel în așteptare, apel pierdut, identificatori de cameră/sesiune), precum și date reiterate în alte secțiuni ale acestei politici (ex. securitate, autentificare), independent de conținutul vocal sau video al convorbirii.",
     ],
   },
   {
-    title: "8. Moderare, acces autorizat și cooperare cu autoritățile",
+    title: "8. Siguranță, raportări și conformitate legală",
     content: [
-      "În scopul siguranței platformei, prevenirii abuzurilor, investigării încălcărilor și respectării legii, personalul tehnic și de încredere autorizat poate accesa conținutul comunicărilor și al fișierelor transmise prin Serviciu (inclusiv mesaje și imagini) în mod proporțional și limitat la ce este necesar.",
-      "Accesul poate avea loc în special, fără a se limita la: existența unei raportări sau plângeri; suspiciune rezonabilă de încălcare a Termenilor sau a legii; protejarea drepturilor, securității sau vieții private ale utilizatorilor; cereri legale valabile sau obligații legale (inclusiv solicitări de la autorități publice competente, în condițiile legii aplicabile).",
-      "Nu efectuăm monitorizare generală sau sistematică a tuturor conversațiilor în scopuri comerciale care nu țin de siguranță, moderare sau conformitate. Accesul este restricționat la persoane autorizate; anumite acțiuni administrative pot fi înregistrate în jurnale interne (ex. acces la conversații din panoul de administrare, acțiuni de ban).",
-      "Puteți folosi funcțiile de raportare din aplicație; analizăm rapoartele în concordanță cu această politică și cu Termenii.",
+      "Pentru siguranța Serviciului, soluționarea raportărilor și respectarea legii, personalul autorizat poate consulta în mod strict limitat conținut relevant din comunicări și atașamente numai când există o bază concretă: raport de încredere, cerință legală valabilă, investigație de securitate sau abuz, ori întreținere tehnică necesară în acel moment. În astfel de situații, consultarea poate privi un volum limitat de mesaje recente, relevante pentru cazul concret (de exemplu între anumite conturi implicate într-o raportare), nu întreaga istorie a conversațiilor. Accesul este proporțional, restrâns la personal autorizat și limitat la ce este necesar în circumstanța respectivă.",
+      "Practicile de mai sus nu echivalează cu supravegherea continuă sau cu citirea sistematică a conversațiilor dintre utilizatori pentru alt scop decât cele menționate. Nu folosim conținutul mesajelor în scopuri de publicitate, profilare de marketing sau analiză de marketing asupra conversațiilor.",
+      "Anumite acțiuni operaționale și de încredere pot fi jurnalizate în mod proporționat (de exemplu procesarea unui raport sau aplicarea unei măsuri asupra unui cont), pentru audit intern și securitate.",
+      "Puteți folosi funcțiile de raportare din aplicație; le analizăm în concordanță cu această politică și cu Termenii.",
     ],
   },
   {
@@ -302,8 +308,8 @@ const privacyRO: LegalSection[] = [
   {
     title: "12. Contact și operator",
     content: [
-      "**Identificare publică a operatorului (GDPR / magazine de aplicații):** serviciul **Diebel** (inclusiv aplicația disponibilă la **chat.diebel.ro** și domeniile asociate) este pus la dispoziție de o **persoană juridică cu sediul în România**. **Țară:** România. **Denumirea legală completă a societății** și **Codul Unic de Înregistrare (CUI)** (conform **Registrului Comerțului** / actului constitutiv) sunt comunicate **la solicitare** la **contact@diebel.ro**, de regulă în cel mult **30 de zile**. **Adresa sediului social nu este afișată în această politică publică**; dacă o autoritate competentă solicită în mod expres date suplimentare de localizare a operatorului, legea aplicabilă stabilește modalitatea de comunicare. **Contact protecția datelor:** **contact@diebel.ro**.",
-      "Pentru exercitarea drepturilor GDPR (acces, rectificare, ștergere, restricționare, portabilitate, opoziție, plângere la autoritate) și pentru întrebări privind confidențialitatea: **contact@diebel.ro**. În România, autoritatea de supraveghere este **ANSPDCP** (www.dataprotection.ro).",
+      "Identificare publică a operatorului (GDPR / magazine de aplicații): serviciul Diebel (inclusiv aplicația disponibilă la chat.diebel.ro și domeniile asociate) este pus la dispoziție de o persoană juridică cu sediul în România. Țară: România. Denumirea legală completă a societății și Codul Unic de Înregistrare (CUI) (conform Registrului Comerțului / actului constitutiv) sunt comunicate la solicitare la contact@diebel.ro, de regulă în cel mult 30 de zile. Adresa sediului social nu este afișată în această politică publică; dacă o autoritate competentă solicită în mod expres date suplimentare de localizare a operatorului, legea aplicabilă stabilește modalitatea de comunicare. Contact protecția datelor: contact@diebel.ro.",
+      "Pentru exercitarea drepturilor GDPR (acces, rectificare, ștergere, restricționare, portabilitate, opoziție, plângere la autoritate) și pentru întrebări privind confidențialitatea: contact@diebel.ro. În România, autoritatea de supraveghere este ANSPDCP (www.dataprotection.ro).",
     ],
   },
 ];
@@ -313,10 +319,11 @@ const privacyEN: LegalSection[] = [
     title: "In short (Diebel & app stores)",
     content: [
       "Diebel is a chat and calling app for adults: messaging, meeting people, and voice or video conversations. This section summarises, for app stores such as Google Play, which types of data may be involved.",
-      "We may process, among other things: account data (email address; if you sign in with Google, information from Google such as identifier and email; if you use SMS or phone flows — the phone number used in that flow), the content of messages you send through the service, technical data needed to operate the service (for example device and network information), and data used for push notifications (tokens), to alert you (new messages, calls, etc.) when you allow notifications on your device.",
+      "User authentication is provided through service-enabled methods or third-party providers, depending on the active configuration. We may process, among other things: account and authentication data (including, where applicable, email and other data supplied in the active authentication flow), the content of messages you send through the service, technical data needed to operate the service (for example device and network information), and data used for push notifications (tokens), to alert you (new messages, calls, etc.) when you allow notifications on your device.",
       "We do not sell or rent your personal data to third parties for their own marketing.",
-      "We use data to provide and secure the service (account, profile, chat, calls, notifications), make reasonable product improvements, and comply with our Terms and applicable law.",
-      "For privacy questions or to exercise your rights: contact@diebel.ro. Full details follow below.",
+      "We use data for app functionality and for necessary, aligned purposes: account access, profile, chat, calls, notifications, security, technical maintenance, and compliance with our Terms and applicable law. We do not use message content for advertising, marketing profiling, or marketing analytics on your conversations.",
+      "We process only the minimum data required for the Service to function, and data is protected with encryption in transit (HTTPS/TLS) when transmitted between the app and our servers.",
+      "For privacy questions or to exercise your rights: contact@diebel.ro. Website: https://chat.diebel.ro. Full details follow below.",
     ],
   },
   {
@@ -328,7 +335,7 @@ const privacyEN: LegalSection[] = [
   {
     title: "2. Data collected",
     content: [
-      "We collect: identification data (email, name, date of birth, gender); profile data (bio, preferences, photos, city, education, occupation); communication data (text messages and file attachments sent in the app, including images and documents, within the limits of permitted features); technical data (IP address, device type, browser, fingerprint); usage data (in-app actions, matches, visits); and, with your consent, location data (for distance to other users).",
+      "We collect: identification data (email, name, date of birth, gender); profile data (bio, preferences, photos, city, education, occupation); communication data (text messages and file attachments sent in the app, including images and documents, within the limits of permitted features); technical data (IP address, device type, browser, and operational technical identifiers — which may include technical signals from your device or browser — used for session delivery, security, abuse prevention, and service operations; not for our own advertising); usage data (in-app actions, matches, visits); and, with your consent, location data (for distance to other users).",
       "Cookies and similar technologies are described in the Cookie Policy on our website.",
     ],
   },
@@ -342,47 +349,49 @@ const privacyEN: LegalSection[] = [
     title: "4. Your rights (GDPR)",
     content: [
       "You have the right to: access your data; rectification; erasure (\"right to be forgotten\"); restriction of processing; data portability; objection; withdrawal of consent (without affecting the lawfulness of prior processing); and to lodge a complaint with a supervisory authority.",
-      "To exercise your rights, contact us at the email address indicated in this Privacy Policy or in the app. We respond within 30 days.",
+      "To exercise your rights, contact us at the email address indicated in this Privacy Policy or in the app. You can request access and data portability by contacting us via the support email. You may also delete your account via in-app account settings (password confirmation), where that option is available. We respond within 30 days.",
     ],
   },
   {
     title: "5. Data retention",
     content: [
-      "We retain data for as long as necessary for the provision of the service, the contractual relationship and legal obligations. After account deletion, data is anonymised or deleted within 90 days, except where retention is required by law (e.g. invoices).",
+      "We retain data for as long as necessary for the provision of the service, the contractual relationship and legal obligations. If you delete your account in the app (where the feature is available, with password confirmation), primary data linked to the account is removed from active systems; residual copies in backups or security logs may persist for a limited period before rotation or deletion (typically up to 90 days), except where the law requires longer retention.",
       "Security logs and backups may hold temporary copies; these are rotated and deleted in line with our internal policy.",
     ],
   },
   {
     title: "6. Security and recipients",
     content: [
-      "We implement appropriate technical and organisational measures (encryption, restricted access, training) to protect data. Data may be disclosed to service providers (hosting, email, analytics) who are contractually bound and, where applicable, by standard contractual clauses.",
-      "We do not sell personal data. We do not transfer data outside the EEA without an appropriate legal basis (adequacy decision, safeguards, standard clauses).",
+      "We implement appropriate technical and organisational measures to protect data: communication between the app and our servers is protected in transit (HTTPS/TLS), backend access is restricted, and relevant staff are trained. Specific limits of the infrastructure (including server-side storage) depend on our providers and current configuration.",
+      "Operational service providers (hosting, storage, email, notifications, security, etc.) may process data only on our behalf and only to the extent necessary to provide those services.",
+      "We do not sell personal data and do not share it with third parties for their independent advertising, profiling, or marketing purposes. We do not transfer data outside the EEA without an appropriate legal basis (adequacy decision, safeguards, standard clauses).",
     ],
   },
   {
     title: "7. Messages, attachments and images in chat",
     content: [
-      "Text messages and files you send through the Service (including images, PDFs and other types allowed by the features) are processed to deliver them to recipients, display conversation history and operate messaging.",
+      "Text messages and files you send through the Service (including images, PDFs and other types allowed by the features) are processed to deliver them to recipients, display conversation history, and operate messaging.",
       "Such content may be stored on our infrastructure or that of providers involved in hosting, storage and security, for as long as necessary to provide the Service and in line with our retention section.",
-      "Where technically configured, chat images and PDFs are kept in restricted-access storage and are not routinely exposed to users as direct public URLs. Display in the app relies on technical checks after sign-in: conversation participants can view attachments within the Service; authorised administrative staff may access content as described under moderation and authorised access. Older content or exceptional cases may differ technically; we aim to align practice with this description.",
+      "We do not systematically access or analyse message content. In limited situations, content may be viewed when necessary for safe operation, technical maintenance, abuse reports, security, or legal compliance. We do not use message content for advertising, marketing profiling, or marketing analytics on your conversations.",
+      "Where technically configured, chat attachments are shown to authenticated conversation participants and kept in restricted-access storage (generally not as direct, public URLs). Limited access for safety and compliance is described under \"Safety, reports and legal compliance\".",
       "Do not send illegal content, content that infringes others' rights, content that unlawfully harms minors, or content that violates third parties' privacy. You are responsible for what you send.",
     ],
   },
   {
     title: "Audio and video calls (camera and microphone)",
     content: [
-      "For **audio** and **video calls** between users, the application may request access to the **microphone** and, for video calls only, to the **camera** (your device's camera) through the permission mechanisms provided by your browser or operating system.",
-      "The **microphone** is used **only during an active audio or video call** to transmit your voice to the other participant. The **camera** is used **only during an active video call** to transmit your image to the other participant.",
-      "Microphone and camera access is requested and active **only when you start or accept a call** within the application; **we do not use these permissions in the background** outside of a call that is active for you (without connecting to the call channel, the microphone and camera are not accessed for calling purposes).",
-      "**Audio and video calls are NOT recorded and are NOT stored as audio or video files on our servers** for the purpose of saving the conversation. Minimal technical data (e.g. signalling, security, billing, as described elsewhere in this Policy) may be processed independently of the call media stream.",
+      "For audio and video calls between users, the application may request access to the microphone and, for video calls only, to the camera (your device's camera) through the permission mechanisms provided by your browser or operating system.",
+      "The microphone is used only during an active audio or video call to transmit your voice to the other participant. The camera is used only during an active video call to transmit your image to the other participant.",
+      "Microphone and camera access is requested and active only when you start or accept a call within the application; we do not use these permissions in the background outside of a call that is active for you (without connecting to the call channel, the microphone and camera are not accessed for calling purposes).",
+      "Audio and video calls are NOT recorded and are NOT stored as audio or video files on our servers for the purpose of saving the conversation. Outside the media stream, we may process minimal technical data needed for call signalling and service state (e.g. pending or missed-call records, room/session identifiers), as well as data described elsewhere in this Policy (e.g. security, authentication), independently of the voice or video content of the call.",
     ],
   },
   {
-    title: "8. Moderation, authorised access and cooperation with authorities",
+    title: "8. Safety, reports and legal compliance",
     content: [
-      "To keep the platform safe, prevent abuse, investigate violations and comply with the law, authorised trusted technical and moderation staff may access the content of communications and files sent through the Service (including messages and images) in a proportionate manner and only as necessary.",
-      "Access may occur in particular (without limitation): following a user report or complaint; where there is a reasonable suspicion of a breach of the Terms or the law; to protect users' rights, security or privacy; in response to valid legal requests or legal obligations (including requests from competent public authorities, as permitted by applicable law).",
-      "We do not carry out general or systematic monitoring of all conversations for commercial purposes unrelated to safety, moderation or compliance. Access is limited to authorised persons; certain administrative actions may be logged internally (e.g. admin review of conversations, ban actions).",
+      "To operate the Service safely, handle user reports, and comply with the law, authorised staff may review a strictly limited slice of relevant communications or attachments only when there is a concrete basis: a trusted report, valid legal requirement, security or abuse investigation, or necessary technical maintenance in that context. In those situations, review may cover a limited set of recent messages relevant to the specific case (for example between particular accounts involved in a report), not the full conversation history. Access is proportionate, limited to authorised personnel, and narrowly scoped to what is needed.",
+      "These practices are not continuous monitoring and are not systematic reading of conversations for unrelated purposes. We do not use message content for advertising, marketing profiling, or marketing analytics on your conversations.",
+      "Certain operational and trust-and-safety actions may be logged in a proportionate way (for example processing a report or applying an account measure), for internal audit and security.",
       "You can use in-app reporting; we handle reports in line with this Policy and the Terms.",
     ],
   },
@@ -408,8 +417,8 @@ const privacyEN: LegalSection[] = [
   {
     title: "12. Contact and controller",
     content: [
-      "**Public identification of the controller (GDPR / app stores):** the **Diebel** service (including the application available at **chat.diebel.ro** and associated domains) is provided by a **legal entity registered in Romania**. **Country:** Romania. The **full legal name of the company** and **Unique Registration Code (CUI)** (as shown in the **Trade Register** / constitutional documents) **will be provided on request** at **contact@diebel.ro**, typically within **30 days**. The **registered office address is not displayed in this public policy**; if a competent authority expressly requests additional information to locate the controller, applicable law governs how it is provided. **Data protection contact:** **contact@diebel.ro**.",
-      "To exercise GDPR rights (access, rectification, erasure, restriction, portability, objection, complaint to a supervisory authority) and for privacy questions: **contact@diebel.ro**. In Romania, the supervisory authority is **ANSPDCP** (www.dataprotection.ro).",
+      "Public identification of the controller (GDPR / app stores): the Diebel service (including the application available at chat.diebel.ro and associated domains) is provided by a legal entity registered in Romania. Country: Romania. The full legal name of the company and Unique Registration Code (CUI) (as shown in the Trade Register / constitutional documents) will be provided on request at contact@diebel.ro, typically within 30 days. The registered office address is not displayed in this public policy; if a competent authority expressly requests additional information to locate the controller, applicable law governs how it is provided. Data protection contact: contact@diebel.ro.",
+      "To exercise GDPR rights (access, rectification, erasure, restriction, portability, objection, complaint to a supervisory authority) and for privacy questions: contact@diebel.ro. In Romania, the supervisory authority is ANSPDCP (www.dataprotection.ro).",
     ],
   },
 ];
@@ -419,10 +428,11 @@ const privacyDE: LegalSection[] = [
     title: "Kurz gefasst (Diebel & App Stores)",
     content: [
       "Diebel ist eine Chat- und Anruf-App für Erwachsene: Nachrichten, Kennenlernen sowie Sprach- oder Videoanrufe. Dieser Abschnitt fasst für App Stores wie Google Play zusammen, welche Arten von Daten betroffen sein können.",
-      "Verarbeitet werden können unter anderem: Kontodaten (E-Mail-Adresse; bei Anmeldung mit Google auch von Google bereitgestellte Informationen wie Kennung und E-Mail; bei SMS- oder Telefon-Flows die dort verwendete Telefonnummer), Inhalte von Nachrichten, die du über den Dienst sendest, technische Daten für den Betrieb (z. B. Gerät, Netzwerk) sowie Daten für Push-Benachrichtigungen (Tokens), um dich zu informieren (neue Nachrichten, Anrufe usw.), wenn du Benachrichtigungen auf dem Gerät erlaubst.",
+      "Die Authentifizierung erfolgt über vom Dienst bereitgestellte Methoden oder Drittanbieter, abhängig von der aktiven Konfiguration. Verarbeitet werden können unter anderem: Kontodaten und Authentifizierungsdaten (einschließlich ggf. E-Mail und weiterer Angaben im jeweils aktiven Anmeldevorgang), Inhalte von Nachrichten, die du über den Dienst sendest, technische Daten für den Betrieb (z. B. Gerät, Netzwerk) sowie Daten für Push-Benachrichtigungen (Tokens), um dich zu informieren (neue Nachrichten, Anrufe usw.), wenn du Benachrichtigungen auf dem Gerät erlaubst.",
       "Wir verkaufen oder vermieten deine personenbezogenen Daten nicht an Dritte zu deren eigenen Marketingzwecken.",
-      "Wir nutzen Daten, um den Dienst bereitzustellen und abzusichern (Konto, Profil, Chat, Anrufe, Benachrichtigungen), das Produkt angemessen zu verbessern und unsere Nutzungsbedingungen sowie geltendes Recht einzuhalten.",
-      "Fragen zum Datenschutz oder zur Ausübung deiner Rechte: contact@diebel.ro. Ausführliche Informationen folgen unten.",
+      "Wir nutzen Daten für App-Funktionen und für notwendige, damit vereinbare Zwecke: Konto, Profil, Chat, Anrufe, Benachrichtigungen, Sicherheit, technische Wartung sowie Einhaltung unserer Nutzungsbedingungen und des geltenden Rechts. Wir verwenden Nachrichteninhalte nicht für Werbung, Marketing-Profiling oder Marketing-Analytics über deine Gespräche.",
+      "Wir verarbeiten nur die für den Betrieb des Dienstes mindestens erforderlichen Daten; Daten werden bei der Übertragung zwischen App und Servern durch Verschlüsselung (HTTPS/TLS) geschützt.",
+      "Fragen zum Datenschutz oder zur Ausübung deiner Rechte: contact@diebel.ro. Website: https://chat.diebel.ro. Ausführliche Informationen folgen unten.",
     ],
   },
   {
@@ -434,7 +444,7 @@ const privacyDE: LegalSection[] = [
   {
     title: "2. Erhobene Daten",
     content: [
-      "Wir erheben: Identifikationsdaten (E-Mail, Name, Geburtsdatum, Geschlecht); Profildaten (Beschreibung, Präferenzen, Fotos, Stadt, Bildung, Beruf); Kommunikationsdaten (Textnachrichten und Dateianhänge in der App, einschließlich Bilder und Dokumente, innerhalb der erlaubten Funktionen); technische Daten (IP-Adresse, Gerätetyp, Browser, Fingerprint); Nutzungsdaten (Aktionen in der App, Matches, Besuche); und mit Ihrer Einwilligung Standortdaten (für die Entfernung zu anderen Nutzern).",
+      "Wir erheben: Identifikationsdaten (E-Mail, Name, Geburtsdatum, Geschlecht); Profildaten (Beschreibung, Präferenzen, Fotos, Stadt, Bildung, Beruf); Kommunikationsdaten (Textnachrichten und Dateianhänge in der App, einschließlich Bilder und Dokumente, innerhalb der erlaubten Funktionen); technische Daten (IP-Adresse, Gerätetyp, Browser und operative technische Kennungen — können technische Signale von Gerät oder Browser umfassen — für Sitzung, Sicherheit, Missbrauchsbekämpfung und Betrieb des Dienstes; nicht für eigene Werbung); Nutzungsdaten (Aktionen in der App, Matches, Besuche); und mit Ihrer Einwilligung Standortdaten (für die Entfernung zu anderen Nutzern).",
       "Cookies und ähnliche Technologien werden in der Cookie-Richtlinie auf unserer Website beschrieben.",
     ],
   },
@@ -448,47 +458,49 @@ const privacyDE: LegalSection[] = [
     title: "4. Ihre Rechte (DSGVO)",
     content: [
       "Sie haben das Recht auf: Auskunft; Berichtigung; Löschung („Recht auf Vergessenwerden“); Einschränkung der Verarbeitung; Datenübertragbarkeit; Widerspruch; Widerruf der Einwilligung (ohne Beeinträchtigung der Rechtmäßigkeit der bisherigen Verarbeitung); und Beschwerde bei einer Aufsichtsbehörde.",
-      "Zur Ausübung Ihrer Rechte kontaktieren Sie uns unter der in dieser Datenschutzrichtlinie oder in der App angegebenen E-Mail-Adresse. Wir antworten innerhalb von 30 Tagen.",
+      "Zur Ausübung Ihrer Rechte kontaktieren Sie uns unter der in dieser Datenschutzrichtlinie oder in der App angegebenen E-Mail-Adresse. Sie können Auskunft und Datenübertragbarkeit per Anfrage an die Support‑E‑Mail anfordern. Sie können Ihr Konto auch über die Kontoeinstellungen in der App löschen (mit Passwortbestätigung), soweit diese Funktion verfügbar ist. Wir antworten innerhalb von 30 Tagen.",
     ],
   },
   {
     title: "5. Aufbewahrung",
     content: [
-      "Wir speichern Daten so lange, wie für die Erbringung des Dienstes, die Vertragsbeziehung und gesetzliche Verpflichtungen erforderlich. Nach Kontolöschung werden Daten innerhalb von 90 Tagen anonymisiert oder gelöscht, sofern keine gesetzliche Aufbewahrungspflicht besteht (z. B. Rechnungen).",
+      "Wir speichern Daten so lange, wie für die Erbringung des Dienstes, die Vertragsbeziehung und gesetzliche Verpflichtungen erforderlich. Wenn Sie Ihr Konto in der App löschen (soweit verfügbar, mit Passwortbestätigung), werden die wesentlichen mit dem Konto verbundenen Daten aus den aktiven Systemen entfernt; Restkopien in Backups oder Sicherheitsprotokollen können vor Rotation oder Löschung eine begrenzte Zeit bestehen (in der Regel bis zu 90 Tage), sofern das Gesetz keine längere Aufbewahrung vorschreibt.",
       "Sicherheitsprotokolle und Backups können vorübergehende Kopien enthalten; diese werden gemäß unserer internen Richtlinie rotiert und gelöscht.",
     ],
   },
   {
     title: "6. Sicherheit und Empfänger",
     content: [
-      "Wir wenden geeignete technische und organisatorische Maßnahmen an (Verschlüsselung, eingeschränkter Zugriff, Schulung). Daten können an Dienstleister (Hosting, E-Mail, Analytik) übermittelt werden, die vertraglich gebunden sind und gegebenenfalls durch Standardvertragsklauseln.",
-      "Wir verkaufen keine personenbezogenen Daten. Wir übermitteln keine Daten außerhalb des EWR ohne geeignete Rechtsgrundlage (Angemessenheitsbeschluss, Garantien, Standardklauseln).",
+      "Wir setzen angemessene technische und organisatorische Maßnahmen zum Schutz der Daten ein: Die Kommunikation zwischen App und Servern ist in der Übertragung geschützt (HTTPS/TLS), der Backend-Zugriff ist eingeschränkt, und relevantes Personal wird geschult. Spezifische Grenzen der Infrastruktur (einschließlich serverseitiger Speicherung) hängen von unseren Anbietern und der aktuellen Konfiguration ab.",
+      "Betrieblich tätige Auftragsverarbeiter (Hosting, Speicherung, E-Mail, Benachrichtigungen, Sicherheit usw.) dürfen Daten nur in unserem Auftrag und nur soweit verarbeiten, wie dies zur Erbringung dieser Dienste erforderlich ist.",
+      "Wir verkaufen keine personenbezogenen Daten und geben sie nicht an Dritte für deren eigene Werbung, Profiling- oder Marketingzwecke weiter. Wir übermitteln keine Daten außerhalb des EWR ohne geeignete Rechtsgrundlage (Angemessenheitsbeschluss, Garantien, Standardklauseln).",
     ],
   },
   {
     title: "7. Nachrichten, Anhänge und Bilder im Chat",
     content: [
-      "Textnachrichten und Dateien, die Sie über den Dienst senden (einschließlich Bilder, PDFs und anderer erlaubter Typen), werden verarbeitet, um sie Empfängern zuzustellen, den Verlauf anzuzeigen und die Nachrichtenfunktion zu betreiben.",
+      "Textnachrichten und Dateien, die Sie über den Dienst senden (einschließlich Bilder, PDFs und anderer erlaubter Typen), werden verarbeitet, um sie Empfängern zuzustellen, den Verlauf anzuzeigen und den Nachrichtenaustausch zu ermöglichen.",
       "Solche Inhalte können auf unserer Infrastruktur oder der von Anbietern für Hosting, Speicherung und Sicherheit gespeichert werden, solange dies für den Dienst erforderlich ist und gemäß unserem Abschnitt zur Aufbewahrung.",
-      "Soweit technisch eingerichtet, werden Chat-Bilder und PDFs in einem Speichersystem mit eingeschränktem Zugriff gespeichert und den Nutzern in der Regel nicht als direkte öffentliche URLs bereitgestellt. Die Anzeige in der App erfolgt über technische Prüfungen nach Anmeldung: Gesprächsteilnehmer können Anhänge innerhalb des Dienstes einsehen; autorisiertes Verwaltungspersonal kann unter den im Abschnitt zu Moderation und autorisierter Zugriff beschriebenen Voraussetzungen zugreifen. Ältere Inhalte oder Ausnahmefälle können technisch abweichen; wir bemühen uns, die Praxis dieser Beschreibung anzunähern.",
+      "Wir greifen nicht systematisch auf Nachrichteninhalte zu und analysieren sie nicht systematisch. In begrenzten Fällen können Inhalte eingesehen werden, wenn dies für sicheren Betrieb, technische Wartung, Missbrauchsmeldungen, Sicherheit oder rechtliche Compliance erforderlich ist. Wir verwenden Nachrichteninhalte nicht für Werbung, Marketing-Profiling oder Marketing-Analytics über Ihre Gespräche.",
+      "Soweit technisch eingerichtet, sind Chat-Anhänge für authentifizierte Gesprächsteilnehmer sichtbar und in regelmäßig eingeschränkt zugänglicher Speicherung abgelegt (in der Regel ohne direkte öffentliche URLs). Begrenzter Zugriff aus Gründen der Sicherheit und Compliance ist unter \"Sicherheit, Meldungen und rechtliche Compliance\" beschrieben.",
       "Senden Sie keine illegalen Inhalte, keine rechtsverletzenden Inhalte, keine Inhalte, die Minderjährige in unzulässiger Weise betreffen, und keine Inhalte, die die Privatsphäre Dritter verletzen. Sie sind für Ihre gesendeten Inhalte verantwortlich.",
     ],
   },
   {
     title: "Audio- und Videoanrufe (Kamera und Mikrofon)",
     content: [
-      "Für **Audio-** und **Videoanrufe** zwischen Nutzern kann die Anwendung Zugriff auf das **Mikrofon** und – nur bei Videoanrufen – auf die **Kamera** (Gerätekamera) über die Berechtigungsmechanismen Ihres Browsers oder Betriebssystems anfordern.",
-      "Das **Mikrofon** wird **ausschließlich während eines aktiven Audio- oder Videoanrufs** verwendet, um Ihre Stimme an den anderen Teilnehmer zu übertragen. Die **Kamera** wird **ausschließlich während eines aktiven Videoanrufs** verwendet, um Ihr Bild an den anderen Teilnehmer zu übertragen.",
-      "Der Zugriff auf Mikrofon und Kamera wird **nur angefordert und aktiv**, wenn Sie **einen Anruf starten oder annehmen**; **wir nutzen diese Berechtigungen nicht im Hintergrund** außerhalb eines für Sie aktiven Anrufs (ohne Verbindung zum Anrufkanal werden Mikrofon und Kamera nicht für Anrufzwecke genutzt).",
-      "**Audio- und Videoanrufe werden NICHT aufgezeichnet und NICHT als Audio- oder Videodateien auf unseren Servern gespeichert**, um Gespräche zu archivieren. Minimale technische Daten (z. B. Signalisierung, Sicherheit, Abrechnung, wie in anderen Abschnitten dieser Richtlinie beschrieben) können unabhängig vom Medienstrom des Anrufs verarbeitet werden.",
+      "Für Audio- und Videoanrufe zwischen Nutzern kann die Anwendung Zugriff auf das Mikrofon und - nur bei Videoanrufen - auf die Kamera (Gerätekamera) über die Berechtigungsmechanismen Ihres Browsers oder Betriebssystems anfordern.",
+      "Das Mikrofon wird ausschließlich während eines aktiven Audio- oder Videoanrufs verwendet, um Ihre Stimme an den anderen Teilnehmer zu übertragen. Die Kamera wird ausschließlich während eines aktiven Videoanrufs verwendet, um Ihr Bild an den anderen Teilnehmer zu übertragen.",
+      "Der Zugriff auf Mikrofon und Kamera wird nur angefordert und aktiv, wenn Sie einen Anruf starten oder annehmen; wir nutzen diese Berechtigungen nicht im Hintergrund außerhalb eines für Sie aktiven Anrufs (ohne Verbindung zum Anrufkanal werden Mikrofon und Kamera nicht für Anrufzwecke genutzt).",
+      "Audio- und Videoanrufe werden NICHT aufgezeichnet und NICHT als Audio- oder Videodateien auf unseren Servern gespeichert, um Gespräche zu archivieren. Außerhalb des Medienstroms können minimale technische Daten für Signalisierung und Anrufstatus (z. B. ausstehende oder verpasste Anrufe, Raum-/Sitzungskennungen) sowie in anderen Abschnitten dieser Richtlinie beschriebene Daten (z. B. Sicherheit, Authentifizierung) verarbeitet werden, unabhängig vom Sprach- oder Videoinhalt.",
     ],
   },
   {
-    title: "8. Moderation, autorisierter Zugriff und Behördenzusammenarbeit",
+    title: "8. Sicherheit, Meldungen und rechtliche Compliance",
     content: [
-      "Zur Sicherheit der Plattform, zur Missbrauchsbekämpfung, zur Untersuchung von Verstößen und zur Einhaltung des Rechts können autorisierte technische und Moderationsmitarieder auf Inhalte von Mitteilungen und Dateien im Dienst (einschließlich Nachrichten und Bilder) in angemessener Weise und nur soweit nötig zugreifen.",
-      "Der Zugriff kann insbesondere erfolgen (nicht abschließend): nach Meldung oder Beschwerde; bei begründetem Verdacht auf Verstoß gegen die Bedingungen oder das Recht; zum Schutz von Rechten, Sicherheit oder Privatsphäre der Nutzer; aufgrund gültiger rechtlicher Anfragen oder gesetzlicher Pflichten (einschließlich Anfragen zuständiger Behörden, soweit das anwendbare Recht es erlaubt).",
-      "Wir führen keine allgemeine oder systematische Überwachung aller Gespräche zu kommerziellen Zwecken durch, die nicht mit Sicherheit, Moderation oder Compliance zusammenhängen. Der Zugriff ist auf autorisierte Personen beschränkt; bestimmte administrative Handlungen können intern protokolliert werden (z. B. Admin-Einsicht in Konversationen, Sperrungen).",
+      "Zur sicheren Bereitstellung des Dienstes, zur Bearbeitung von Meldungen und zur Einhaltung des Rechts dürfen autorisierte Mitarbeitende nur unter strikter Begrenzung einschlägige Kommunikations- oder Anhangsinhalte einsehen, wenn ein konkreter Anlass besteht: vertrauenswürdige Meldung, gültige rechtliche Anforderung, Sicherheits- oder Missbrauchsuntersuchung oder in diesem Zusammenhang erforderliche technische Wartung. In solchen Fällen kann die Prüfung auf eine begrenzte Anzahl aktueller, für den konkreten Fall relevanter Nachrichten beschränkt sein (z. B. zwischen bestimmten Konten im Zusammenhang mit einer Meldung), nicht auf den gesamten Chatverlauf. Der Zugriff ist verhältnismäßig, auf autorisierte Personen beschränkt und eng am Bedarf ausgerichtet.",
+      "Dies bedeutet keine kontinuierliche Überwachung und keine systematische Durchsicht von Gesprächen zu anderen Zwecken. Wir verwenden Nachrichteninhalte nicht für Werbung, Marketing-Profiling oder Marketing-Analytics über Ihre Gespräche.",
+      "Bestimmte betriebliche und vertrauens- und sicherheitsrelevante Handlungen können verhältnismäßig protokolliert werden (z. B. Bearbeitung einer Meldung oder Anwendung einer Kontomaßnahme), für interne Revision und Sicherheit.",
       "Sie können die Meldefunktionen in der App nutzen; wir bearbeiten Meldungen gemäß dieser Richtlinie und den Bedingungen.",
     ],
   },
@@ -514,8 +526,8 @@ const privacyDE: LegalSection[] = [
   {
     title: "12. Kontakt und Verantwortlicher",
     content: [
-      "**Öffentliche Identifizierung des Verantwortlichen (DSGVO / App-Stores):** Der Dienst **Diebel** (einschließlich der Anwendung unter **chat.diebel.ro** und zugehöriger Domains) wird von einer **in Rumänien ansässigen juristischen Person** bereitgestellt. **Land:** Rumänien. Der **vollständige Firmenname** und die **eindeutige Steuernummer (CUI)** (gemäß **Handelsregister** / Gründungsurkunde) **werden auf Anfrage** an **contact@diebel.ro** mitgeteilt, in der Regel innerhalb von **30 Tagen**. Die **Adresse des eingetragenen Sitzes wird in dieser öffentlichen Datenschutzerklärung nicht angezeigt**; wenn eine zuständige Behörde ausdrücklich zusätzliche Angaben zur Lokalisierung des Verantwortlichen verlangt, regelt das anwendbare Recht die Übermittlung. **Kontakt Datenschutz:** **contact@diebel.ro**.",
-      "Zur Ausübung Ihrer DSGVO-Rechte (Auskunft, Berichtigung, Löschung, Einschränkung, Übertragbarkeit, Widerspruch, Beschwerde bei einer Aufsichtsbehörde) und für Datenschutzfragen: **contact@diebel.ro**. In Rumänien ist die Aufsichtsbehörde die **ANSPDCP** (www.dataprotection.ro).",
+      "Öffentliche Identifizierung des Verantwortlichen (DSGVO / App-Stores): Der Dienst Diebel (einschließlich der Anwendung unter chat.diebel.ro und zugehöriger Domains) wird von einer in Rumänien ansässigen juristischen Person bereitgestellt. Land: Rumänien. Der vollständige Firmenname und die eindeutige Steuernummer (CUI) (gemäß Handelsregister / Gründungsurkunde) werden auf Anfrage an contact@diebel.ro mitgeteilt, in der Regel innerhalb von 30 Tagen. Die Adresse des eingetragenen Sitzes wird in dieser öffentlichen Datenschutzerklärung nicht angezeigt; wenn eine zuständige Behörde ausdrücklich zusätzliche Angaben zur Lokalisierung des Verantwortlichen verlangt, regelt das anwendbare Recht die Übermittlung. Kontakt Datenschutz: contact@diebel.ro.",
+      "Zur Ausübung Ihrer DSGVO-Rechte (Auskunft, Berichtigung, Löschung, Einschränkung, Übertragbarkeit, Widerspruch, Beschwerde bei einer Aufsichtsbehörde) und für Datenschutzfragen: contact@diebel.ro. In Rumänien ist die Aufsichtsbehörde die ANSPDCP (www.dataprotection.ro).",
     ],
   },
 ];
@@ -524,22 +536,22 @@ const cookiesRO: LegalSection[] = [
   {
     title: "1. Ce sunt cookie-urile",
     content: [
-      "Cookie-urile sunt fișiere text de mici dimensiuni stocate pe dispozitivul dvs. când vizitați site-ul. Sunt folosite pentru funcționare, preferințe, statistici și publicitate. Respectăm Regulamentul (UE) 2016/679 (GDPR) și Directiva ePrivacy (unde este aplicabilă).",
+      "Cookie-urile sunt fișiere mici salvate pe dispozitiv când folosiți site-ul nostru sau aceeași experiență deschisă din aplicații web / PWA / Trusted Web Activity (de ex. din Google Play). Respectăm GDPR și, acolo unde este relevantă, legislația privind cookie-urile.",
     ],
   },
   {
-    title: "2. Categorii de cookie-uri",
+    title: "2. Categorii",
     content: [
-      "Necesare: esențiale pentru autentificare, securitate și funcționalitate de bază. Nu necesită consimțământ.",
-      "Funcționale: rețin preferințe (ex. limbă, setări). Sunt activate cu consimțământul dvs.",
-      "Statistici: ne ajută să înțelegem traficul și utilizarea (ex. Google Analytics). Sunt activate cu consimțământul dvs.",
-      "Marketing: folosite pentru reclame personalizate (ex. Meta Pixel, Google Ads). Sunt activate doar cu consimțământul dvs. explicit.",
+      "Necesare: autentificare, securitate și funcții esențiale. Nu necesită consimțământ separat.",
+      "Funcționale: preferințe (ex. limbă). Activează doar dacă le accepți în banner.",
+      "Statistici (opțional): după ce accepți categoria în banner, pot fi încărcate instrumente de analiză agregată — de ex. Google Analytics 4 — numai dacă operatorul a configurat identificatorii tehnici în mediul de producție (variabile de mediu). Scopurile sunt măsurare și îmbunătățire (audieneță, performanță generală a serviciului), nu analiza conținutului mesajelor din chat. Nu folosim aceste instrumente pentru a citi mesajele private din chat.",
+      "Marketing / măsurători reclame (opțional): după acord explicit, pot fi încărcate tehnologii precum Meta Pixel sau scripturi Google Ads — numai dacă sunt configurate în mediul de producție (variabile de mediu) și după acceptul tău în banner. Nu rulează implicit la deschiderea aplicației.",
     ],
   },
   {
-    title: "3. Servicii terțe părți",
+    title: "3. Cum funcționează pe web și în variante instalate (TWA)",
     content: [
-      "Putem integra: Google Analytics (statistici); Meta Pixel (publicitate Facebook/Instagram); Google Ads (publicitate). Aceste servicii pot seta propriile cookie-uri și prelucra date conform politicilor lor. Încărcăm aceste scripturi doar după ce ați acceptat categoriile corespunzătoare în bannerul de cookie-uri.",
+      "Diebel în browser, ca PWA instalată sau prin cochilie TWA (ex. Google Play) folosește același site. Serviciile terțe de statistici și marketing de mai sus nu pornesc automat: se încarcă doar după ce selectezi categoriile în bannerul de cookie-uri și doar în măsura în care identificatorii respectivi sunt configurați pentru serviciul live. Detalii despre prelucrarea datelor prin Serviciu sunt și în Politica de confidențialitate.",
     ],
   },
   {
@@ -551,7 +563,8 @@ const cookiesRO: LegalSection[] = [
   {
     title: "5. Contact",
     content: [
-      "Pentru orice solicitare legată de datele tale personale (inclusiv ștergerea contului, exportul datelor, rectificare sau întrebări privind confidențialitatea), ne poți contacta la contact@diebel.ro. Vom răspunde în cel mai scurt timp posibil, în conformitate cu legislația aplicabilă.",
+      "Pentru orice solicitare legată de datele tale personale (inclusiv ștergerea contului — și prin Setările contului din aplicație, unde este disponibil — rectificare sau întrebări privind confidențialitatea), ne poți contacta la contact@diebel.ro. Poți solicita acces și portabilitate a datelor printr-o solicitare la emailul de contact. Vom răspunde în cel mai scurt timp posibil, în conformitate cu legislația aplicabilă.",
+      "Site web oficial al serviciului: https://chat.diebel.ro",
     ],
   },
 ];
@@ -560,22 +573,22 @@ const cookiesEN: LegalSection[] = [
   {
     title: "1. What cookies are",
     content: [
-      "Cookies are small text files stored on your device when you visit the site. They are used for operation, preferences, statistics and advertising. We comply with Regulation (EU) 2016/679 (GDPR) and the ePrivacy Directive where applicable.",
+      "Cookies are small files stored on your device when you use our website or the same experience opened from a web app, PWA, or Trusted Web Activity shell (e.g. from Google Play). We comply with the GDPR and, where relevant, cookie and privacy rules.",
     ],
   },
   {
-    title: "2. Cookie categories",
+    title: "2. Categories",
     content: [
-      "Necessary: essential for authentication, security and core functionality. They do not require consent.",
-      "Functional: store preferences (e.g. language, settings). They are enabled with your consent.",
-      "Statistics: help us understand traffic and usage (e.g. Google Analytics). They are enabled with your consent.",
-      "Marketing: used for personalised advertising (e.g. Meta Pixel, Google Ads). They are only enabled with your explicit consent.",
+      "Necessary: authentication, security, and core features. No separate consent required.",
+      "Functional: preferences (e.g. language). Enabled only if you accept them in the banner.",
+      "Statistics (optional): after you opt in, aggregated analytics tools — e.g. Google Analytics 4 — may load only if the operator has configured the relevant environment variables in production. Purposes include measurement and improvement (audience insight, general service performance), not analysis of chat message content. They are not used to read your private chat messages.",
+      "Marketing / ad measurement (optional): after explicit consent, technologies such as Meta Pixel or Google Ads scripts may load only if configured in production via environment variables and after you accept the category in the banner. They do not run by default when you open the app.",
     ],
   },
   {
-    title: "3. Third-party services",
+    title: "3. Web and installed (TWA) use",
     content: [
-      "We may integrate: Google Analytics (statistics); Meta Pixel (Facebook/Instagram advertising); Google Ads (advertising). These services may set their own cookies and process data in accordance with their policies. We load these scripts only after you have accepted the relevant categories in the cookie banner.",
+      "Diebel in the browser, as an installed PWA, or inside a TWA (e.g. Google Play) uses the same site. Third-party statistics and marketing tools above do not start automatically: they load only after you choose categories in the cookie banner and only when the corresponding IDs are configured for the live service. How we process personal data in the Service is also described in the Privacy Policy.",
     ],
   },
   {
@@ -587,7 +600,8 @@ const cookiesEN: LegalSection[] = [
   {
     title: "5. Contact",
     content: [
-      "For any request related to your personal data (including account deletion, data export, rectification, or privacy questions), you can contact us at contact@diebel.ro. We will respond as soon as possible in accordance with applicable data protection laws.",
+      "For any request related to your personal data (including account deletion — also via in-app account settings where available — rectification, or privacy questions), you can contact us at contact@diebel.ro. You can request access and data portability by contacting us via the support email. We will respond as soon as possible in accordance with applicable data protection laws.",
+      "Official service website: https://chat.diebel.ro",
     ],
   },
 ];
@@ -596,22 +610,22 @@ const cookiesDE: LegalSection[] = [
   {
     title: "1. Was sind Cookies",
     content: [
-      "Cookies sind kleine Textdateien, die auf Ihrem Gerät gespeichert werden, wenn Sie die Website besuchen. Sie dienen dem Betrieb, Präferenzen, Statistiken und Werbung. Wir beachten die Verordnung (EU) 2016/679 (DSGVO) und die ePrivacy-Richtlinie, soweit anwendbar.",
+      "Cookies sind kleine Dateien auf Ihrem Gerät, wenn Sie unsere Website oder dieselbe Anwendung als Web-App, PWA oder in einer Trusted-Web-Activity-Hülle (z. B. aus Google Play) nutzen. Wir beachten die DSGVO und, soweit einschlägig, Cookie- und Datenschutzregeln.",
     ],
   },
   {
-    title: "2. Cookie-Kategorien",
+    title: "2. Kategorien",
     content: [
-      "Notwendig: für Authentifizierung, Sicherheit und Grundfunktionen unerlässlich. Sie erfordern keine Einwilligung.",
-      "Funktional: speichern Präferenzen (z. B. Sprache, Einstellungen). Sie werden mit Ihrer Einwilligung aktiviert.",
-      "Statistik: helfen uns, Traffic und Nutzung zu verstehen (z. B. Google Analytics). Sie werden mit Ihrer Einwilligung aktiviert.",
-      "Marketing: für personalisierte Werbung (z. B. Meta Pixel, Google Ads). Sie werden nur mit Ihrer ausdrücklichen Einwilligung aktiviert.",
+      "Notwendig: Authentifizierung, Sicherheit und Kernfunktionen. Keine separate Einwilligung erforderlich.",
+      "Funktional: Einstellungen (z. B. Sprache). Nur aktiv, wenn Sie sie im Banner akzeptieren.",
+      "Statistik (optional): Nach Ihrer Einwilligung können aggregierte Analysetools — z. B. Google Analytics 4 — nur geladen werden, wenn der Betreiber die entsprechenden Kennungen per Umgebungsvariablen in Produktion konfiguriert hat. Zweck sind Messung und Verbesserung (Einblicke in die Reichweite, allgemeine Leistung des Dienstes), nicht die Auswertung von Chat-Inhalten. Sie dienen nicht zum Lesen Ihrer privaten Chat-Nachrichten.",
+      "Marketing / Werbemessung (optional): Nach ausdrücklicher Einwilligung können z. B. Meta Pixel oder Google-Ads-Skripte nur geladen werden, wenn sie in Produktion per Umgebungsvariablen konfiguriert sind und nach Akzeptanz im Banner. Sie starten nicht automatisch beim Öffnen der App.",
     ],
   },
   {
-    title: "3. Dienste Dritter",
+    title: "3. Web und installierte Nutzung (TWA)",
     content: [
-      "Wir können integrieren: Google Analytics (Statistik); Meta Pixel (Facebook-/Instagram-Werbung); Google Ads (Werbung). Diese Dienste können eigene Cookies setzen und Daten gemäß ihren Richtlinien verarbeiten. Wir laden diese Skripte erst, nachdem Sie die entsprechenden Kategorien im Cookie-Banner akzeptiert haben.",
+      "Diebel im Browser, als installierte PWA oder in einer TWA (z. B. Google Play) nutzt dieselbe Website. Drittanbieter-Statistik und -Marketing starten nicht automatisch: Sie werden erst nach Ihrer Auswahl im Cookie-Banner geladen und nur, wenn die jeweiligen Kennungen für den Live-Dienst konfiguriert sind. Die Verarbeitung personenbezogener Daten im Dienst ist außerdem in der Datenschutzrichtlinie beschrieben.",
     ],
   },
   {
@@ -623,7 +637,8 @@ const cookiesDE: LegalSection[] = [
   {
     title: "5. Kontakt",
     content: [
-      "Für alle Anfragen im Zusammenhang mit Ihren personenbezogenen Daten (einschließlich Kontolöschung, Datenexport, Berichtigung oder Fragen zum Datenschutz) können Sie uns unter contact@diebel.ro erreichen. Wir beantworten Ihre Anfrage so schnell wie möglich gemäß den geltenden Datenschutzgesetzen.",
+      "Für alle Anfragen im Zusammenhang mit Ihren personenbezogenen Daten (einschließlich Kontolöschung — auch über die Kontoeinstellungen in der App, soweit verfügbar — Berichtigung oder Fragen zum Datenschutz) können Sie uns unter contact@diebel.ro erreichen. Sie können Auskunft und Datenübertragbarkeit per Anfrage an die Support‑E‑Mail anfordern. Wir beantworten Ihre Anfrage so schnell wie möglich gemäß den geltenden Datenschutzgesetzen.",
+      "Offizielle Website des Dienstes: https://chat.diebel.ro",
     ],
   },
 ];

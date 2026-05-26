@@ -64,6 +64,8 @@ export interface LegalLinkTranslations {
   terms: string;
   privacy: string;
   cookies: string;
+  /** Regulile comunității (18+), spre /community-rules */
+  communityRules: string;
 }
 
 export interface LegalSection {

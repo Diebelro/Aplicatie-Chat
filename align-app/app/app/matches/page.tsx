@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
-import { MessageCircle, Vote, Loader2 } from "lucide-react";
+import { MessageCircle, Vote } from "lucide-react";
 import type { User } from "@/lib/store";
 import { SilhouetteAvatar } from "@/components/SilhouetteAvatar";
 import { QuickCallButtons } from "@/components/QuickCallButtons";
@@ -10,6 +10,7 @@ import { displayName } from "@/lib/displayName";
 import { fetchWithAuthRetry } from "@/lib/authClient";
 import { useI18n } from "@/lib/i18n/context";
 import { formatTpl } from "@/lib/i18n/formatTpl";
+import { SkeletonConversationList } from "@/components/perceived/AppShellLoadingLayout";
 
 type MatchWithMeta = User & { online?: boolean; distanceKm?: number; distanceHidden?: boolean };
 
@@ -96,13 +97,13 @@ export default function MatchesPage() {
       <div className="relative min-h-[min(280px,45vh)]">
         {showListOverlay && (
           <div
-            className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 rounded-xl bg-dark-900/55 backdrop-blur-[2px] border border-dark-600/50"
+            className="absolute inset-0 z-20 flex flex-col justify-center gap-3 rounded-xl bg-dark-900/55 backdrop-blur-[2px] border border-dark-600/50 px-2 py-4 overflow-hidden"
             role="status"
             aria-live="polite"
             aria-busy="true"
           >
-            <Loader2 className="h-7 w-7 animate-spin text-brand-500 shrink-0" aria-hidden />
-            <span className="text-xs text-dark-400 px-4 text-center">{tStr("pages.matches.loadingList")}</span>
+            <SkeletonConversationList rows={5} />
+            <span className="text-xs text-dark-400 px-4 text-center shrink-0">{tStr("pages.matches.loadingList")}</span>
           </div>
         )}
 

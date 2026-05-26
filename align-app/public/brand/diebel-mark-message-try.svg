@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Diebel message mark trial">
+  <rect width="512" height="512" rx="96" ry="96" fill="#0EA5A4"/>
+  <path
+    fill="#ECFEFF"
+    d="M 150 154
+       L 362 154
+       A 50 50 0 0 1 412 204
+       L 412 286
+       A 50 50 0 0 1 362 336
+       L 298 336
+       L 256 388
+       L 214 336
+       L 150 336
+       A 50 50 0 0 1 100 286
+       L 100 204
+       A 50 50 0 0 1 150 154
+       Z"
+  />
+</svg>

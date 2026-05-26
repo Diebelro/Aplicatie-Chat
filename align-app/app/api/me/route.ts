@@ -15,6 +15,22 @@ import {
 } from "@/lib/repo-prisma";
 
 const VALID_GENDERS: Gender[] = ["male", "female", "other"];
+const MAX_DATA_URL_CHARS_IN_ME = 200_000;
+
+function sanitizeUserForMeResponse<T extends Record<string, unknown>>(user: T): T {
+  const next = { ...user } as T & { image?: unknown; photos?: unknown };
+  if (typeof next.image === "string" && next.image.startsWith("data:") && next.image.length > MAX_DATA_URL_CHARS_IN_ME) {
+    next.image = null;
+  }
+  if (Array.isArray(next.photos)) {
+    next.photos = next.photos.filter(
+      (p) =>
+        typeof p === "string" &&
+        (!p.startsWith("data:") || p.length <= MAX_DATA_URL_CHARS_IN_ME)
+    );
+  }
+  return next;
+}
 
 export async function GET(request: NextRequest) {
   const userId = await getAuthenticatedUserId(request);
@@ -31,7 +47,7 @@ export async function GET(request: NextRequest) {
           user = (await prismaFindUserByIdForMe(userId)) ?? { ...user, role: "ADMIN" };
         }
         await prismaUpdateLastActive(userId);
-        return NextResponse.json({ user });
+        return NextResponse.json({ user: sanitizeUserForMeResponse(user as unknown as Record<string, unknown>) });
       }
     } catch {
       return NextResponse.json({ error: "Eroare server." }, { status: 500 });
@@ -41,7 +57,7 @@ export async function GET(request: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: "Utilizator negăsit." }, { status: 404 });
   }
-  return NextResponse.json({ user });
+  return NextResponse.json({ user: sanitizeUserForMeResponse(user as unknown as Record<string, unknown>) });
 }
 
 /** Actualizează poziția utilizatorului (lat/lng din geolocation). */
@@ -236,7 +252,9 @@ export async function PATCH(request: NextRequest) {
       if (nowComplete && !hadCompleted) await prismaSetProfileCompleted(userId);
 
       const user = (await prismaFindUserByIdForMe(userId)) ?? (await findUserOrPrisma(userId)) ?? me;
-      return NextResponse.json({ user });
+      return NextResponse.json({
+        user: sanitizeUserForMeResponse(user as unknown as Record<string, unknown>),
+      });
     } catch (err) {
       console.error("[api/me PATCH]", err);
       return NextResponse.json(
@@ -298,5 +316,7 @@ export async function PATCH(request: NextRequest) {
       : [];
   }
   const user = updateUser(userId, updates as Parameters<typeof updateUser>[1]);
-  return NextResponse.json({ user });
+  return NextResponse.json({
+    user: sanitizeUserForMeResponse(user as unknown as Record<string, unknown>),
+  });
 }

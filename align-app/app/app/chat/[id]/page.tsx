@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback, useLayoutEffect, useMemo } from "react";
+import { useEffect, useState, useRef, useCallback, useLayoutEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Send, Video, Phone, Check, Loader2, Paperclip, X, FileText, MapPin, MoreHorizontal } from "lucide-react";
@@ -1009,7 +1009,7 @@ export default function ChatPage() {
   );
 
   if (loading) {
-    return <AppProLoading label={tStr("pages.chat.loading")} />;
+    return <AppProLoading variant="chat" label={tStr("pages.chat.loading")} />;
   }
 
   if (!other && !me) {
@@ -1035,10 +1035,7 @@ export default function ChatPage() {
     if (!raw) return tStr("pages.chat.profileFallback");
     return displayName(raw);
   };
-  const iHaveBlockedOther = useMemo(
-    () => blockedUsersList.some((b) => b.id === otherId),
-    [blockedUsersList, otherId]
-  );
+  const iHaveBlockedOther = blockedUsersList.some((b) => b.id === otherId);
   const composerLocked = conversationBlocked;
 
   return (

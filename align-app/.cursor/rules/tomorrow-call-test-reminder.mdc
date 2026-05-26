@@ -1,0 +1,13 @@
+---
+description: Reminder to continue testing call ringtone and hangup fixes
+alwaysApply: true
+---
+
+# Reminder For Next Session
+
+At the start of the next session, remind Elvis to test the latest online call fixes on `chat.diebel.ro`:
+
+- Answer a browser/app call and confirm the ringtone stops immediately once video/audio opens.
+- End the call with the red hangup button and confirm it closes on the first click.
+- Wait 30 seconds after hangup and confirm the old call does not ring again by itself.
+- Then place a new call immediately and confirm new calls still ring normally.

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { fetchWithAuthRetry } from "@/lib/authClient";
 import { markSectionReviewed } from "@/lib/adminModerationCheckpoint";
+import { SkeletonAdminStack } from "@/components/perceived/AppShellLoadingLayout";
 
 type Row = {
   id: string;
@@ -36,8 +37,10 @@ export default function AdminAppFeedbackPage() {
 
   if (loading) {
     return (
-      <div className="p-6">
-        <p className="text-dark-400">Se încarcă…</p>
+      <div className="p-6 max-w-4xl">
+        <div className="h-7 w-56 rounded-lg bg-dark-700/45 animate-pulse mb-2" />
+        <div className="h-4 w-full max-w-lg rounded bg-dark-700/35 animate-pulse mb-6" />
+        <SkeletonAdminStack cards={3} />
       </div>
     );
   }

@@ -387,7 +387,7 @@ export default function MapPage() {
       )}
 
       {loading ? (
-        <AppProLoading label={tStr("pages.map.loadingMap")} className="py-12" />
+        <AppProLoading variant="map" label={tStr("pages.map.loadingMap")} className="py-12" />
       ) : data ? (
         <MapView data={data} viewerUserId={viewerUserId} />
       ) : null}

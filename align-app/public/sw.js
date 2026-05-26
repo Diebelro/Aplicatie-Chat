@@ -54,6 +54,8 @@ self.addEventListener("push", (event) => {
   const roomId = typeof data.roomId === "string" ? data.roomId : "";
   const options = {
     body,
+    icon: "/brand/app-icon-v7-192.png?v=11",
+    badge: "/brand/app-icon-v7-192.png?v=11",
     data: {
       openUrl,
       roomId,
@@ -100,3 +102,4 @@ self.addEventListener("notificationclick", (event) => {
     })()
   );
 });
+

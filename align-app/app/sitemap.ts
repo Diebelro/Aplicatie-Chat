@@ -28,6 +28,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/privacy", changeFrequency: "yearly", priority: 0.4 },
     { path: "/terms", changeFrequency: "yearly", priority: 0.4 },
     { path: "/cookies", changeFrequency: "yearly", priority: 0.3 },
+    { path: "/community-rules", changeFrequency: "yearly", priority: 0.35 },
   ];
 
   return paths.map(({ path, changeFrequency, priority }) => ({

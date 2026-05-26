@@ -36,5 +36,6 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({
     roomId: rid,
     audioOnly: pending.audioOnly,
+    pendingSince: pending.pendingSince,
   });
 }

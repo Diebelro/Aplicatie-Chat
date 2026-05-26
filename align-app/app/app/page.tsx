@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Heart, X, ChevronRight, MessageCircle, Undo2, Loader2 } from "lucide-react";
+import { Heart, X, ChevronRight, MessageCircle, Undo2 } from "lucide-react";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
 import { useSearchFilters, type SearchFilters } from "@/lib/useSearchFilters";
@@ -31,6 +31,7 @@ import {
 import { QuickCallButtons } from "@/components/QuickCallButtons";
 import { useI18n } from "@/lib/i18n/context";
 import { formatTpl } from "@/lib/i18n/formatTpl";
+import { SkeletonSwipeCard } from "@/components/perceived/AppShellLoadingLayout";
 
 type UserWithMeta = User & {
   online?: boolean;
@@ -620,12 +621,12 @@ export default function AppDiscoverPage() {
       <div className="relative w-full max-w-sm mx-auto flex flex-col items-center min-h-[min(380px,58vh)]">
         {loading && (
           <div
-            className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-2 rounded-2xl bg-dark-900/55 backdrop-blur-[2px] border border-dark-600/50 pointer-events-auto"
+            className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 rounded-2xl bg-dark-900/55 backdrop-blur-[2px] border border-dark-600/50 pointer-events-auto px-2"
             role="status"
             aria-live="polite"
             aria-busy="true"
           >
-            <Loader2 className="h-7 w-7 animate-spin text-brand-500 shrink-0" aria-hidden />
+            <SkeletonSwipeCard />
             <span className="text-xs text-dark-400 px-4 text-center">{tStr("pages.discover.loadingFeed")}</span>
           </div>
         )}

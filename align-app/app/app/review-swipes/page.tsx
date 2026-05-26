@@ -121,7 +121,7 @@ export default function ReviewSwipesPage() {
   );
 
   if (loading) {
-    return <AppProLoading label={tStr("pages.reviewSwipes.loading")} />;
+    return <AppProLoading variant="profiles" label={tStr("pages.reviewSwipes.loading")} />;
   }
 
   return (

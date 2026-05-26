@@ -91,7 +91,8 @@
     "links": {
       "terms": "Allgemeine Geschäftsbedingungen",
       "privacy": "Datenschutzrichtlinie",
-      "cookies": "Cookie-Richtlinie"
+      "cookies": "Cookie-Richtlinie",
+      "communityRules": "Community-Regeln"
     },
     "relatedDocs": "Weitere Dokumente:",
     "termsTitle": "Allgemeine Geschäftsbedingungen",
@@ -592,10 +593,10 @@
         "phaseNegotiatingVideo": "Videoverbindung wird aufgebaut…",
         "phasePeerJoined": "Die andere Person ist im Raum…",
         "phaseWaitingPeer": "Warten auf die andere Person…",
-        "phasePrepMic": "Mikrofon wird vorbereitet…",
-        "phasePrepCamMic": "Kamera und Mikrofon werden vorbereitet…",
-        "phaseRequestingPermissions": "Zugriff auf Mikrofon und Kamera wird angefordert…",
-        "phaseStartingMedia": "Kamera und Mikrofon werden gestartet…",
+        "phasePrepMic": "Anruf wird vorbereitet…",
+        "phasePrepCamMic": "Anruf wird vorbereitet…",
+        "phaseRequestingPermissions": "Anruf wird vorbereitet…",
+        "phaseStartingMedia": "Verbindung wird hergestellt…",
         "reconnectingBanner": "Verbindung wird wiederhergestellt…",
         "reconnectingSubtitle": "Wiederverbindung…",
         "reconnectingLong1": "Das dauert ungewöhnlich lange — der Anruf sollte automatisch weitergehen.",
@@ -786,6 +787,9 @@
       "feedbackTitle": "Vorschläge & Feedback",
       "feedbackIntro": "Hast du eine Verbesserungsidee oder funktioniert etwas nicht? Schreib uns — wir lesen alles und können so schneller fixen.",
       "feedbackCta": "Nachricht senden",
+      "communityRulesTitle": "Community-Regeln",
+      "communityRulesIntro": "Zulässige Inhalte und Verbote (18+). Jederzeit einsehbar.",
+      "communityRulesCta": "Regeln öffnen",
       "personalTitle": "Persönliche Angaben",
       "personalHint": "Dein echter Name ist privat und nur hier sichtbar. Sonst sehen andere nur deinen Benutzernamen.",
       "realNameLabel": "Echter Name (privat)",
@@ -816,9 +820,10 @@
       "privacyLoading": "Wird geladen…",
       "privacyShowDistance": "Meine Entfernung anderen Nutzern anzeigen",
       "privacyShowOnline": "Anzeigen, dass ich online bin",
-      "privacyVisitVisibility": "Andere sehen, wenn ich ihr Profil besuche",
+      "privacyVisitVisibility": "In Listen „Profilbesuche“ erscheinen",
       "privacyReadReceipts": "Lesebestätigungen bei Nachrichten anzeigen",
       "privacyFriendRequests": "Freundschaftsanfragen erlauben",
+      "profileVisitsPageLink": "Liste „Profilbesuche“ öffnen",
       "sessionTitle": "Sitzung",
       "sessionHint": "Öffnet den Abmeldedialog: nur dieses Gerät oder alle Geräte.",
       "deleteAccountSectionTitle": "Konto löschen",
@@ -951,7 +956,37 @@
       "errRecaptcha": "reCAPTCHA-Überprüfung fehlgeschlagen.",
       "errSuspicious": "Verdächtige Aktivität erkannt.",
       "errSignupGeneric": "Registrierungsfehler",
-      "errGeneric": "Fehler"
+      "errGeneric": "Fehler",
+      "ageRulesLead": "Ich bestätige, dass ich mindestens 18 Jahre alt bin und die ",
+      "ageRulesLink": "Community-Regeln",
+      "ageRulesEnd": " akzeptiere (zusammen mit den Nutzungsbedingungen und der Datenschutzerklärung).",
+      "errMustAcceptAgeRules": "Bitte bestätige Alter und Regeln."
+    },
+    "ageGate": {
+      "title": "Inhalt nur für Erwachsene",
+      "bodyLine1": "Diese Anwendung richtet sich ausschließlich an Personen ab 18 Jahren.",
+      "bodyLine2": "Mit „Akzeptieren“ bestätige ich, dass ich mindestens 18 Jahre alt bin und die App-Regeln akzeptiere.",
+      "linkRules": "Community-Regeln ansehen",
+      "accept": "Akzeptieren",
+      "decline": "Nicht akzeptieren",
+      "declineHint": "Wenn du nicht akzeptierst, schließe den Tab oder die App. Wenn der Button das Fenster nicht schließt, nutze Zurück oder schließe es manuell."
+    },
+    "communityGuidelines": {
+      "pageTitle": "Community-Regeln",
+      "backHome": "Zur Startseite",
+      "intro": "Die App richtet sich ausschließlich an Personen ab 18 Jahren.",
+      "forbiddenLead": "Streng verboten sind:",
+      "rules": [
+        "das Teilen von Nacktheit oder eindeutig sexuellen Inhalten;",
+        "Gewalt, Drohungen oder Belästigung;",
+        "Belästigung oder Inhalte gegenüber Minderjährigen;",
+        "Spam, Betrug oder Missbrauch der Plattform;",
+        "rechtswidrige Inhalte oder Verletzung fremder Rechte;",
+        "Veröffentlichung personenbezogener Daten anderer ohne Zustimmung (Doxing)."
+      ],
+      "footer": "Verstöße können zu Meldungen, Entfernung von Inhalten, Sperrung oder Kontolöschung gemäß den Bedingungen und geltendem Recht führen.",
+      "playStoreNoteTitle": "Kurzer Hinweis für den App Store:",
+      "playStoreNoteBody": "Die App richtet sich ausschließlich an Personen ab 18 Jahren. Nacktheit, Gewalt und eindeutige Inhalte sind streng verboten."
     },
     "banAppeal": {
       "title": "Konto gesperrt",
@@ -1039,6 +1074,23 @@
       "photosMany": "Fotos ({{n}})",
       "photosOne": "Profilfoto",
       "photoCounterAria": "Foto {{i}} von {{n}}"
+    },
+    "profileVisits": {
+      "title": "Profilbesuche",
+      "intro": "Hier erscheinen nur Personen, die dein Profil geöffnet haben und ebenfalls die Sichtbarkeit erlauben. Ohne Match gibt es keine Nachrichten.",
+      "backProfile": "← Zurück zum Profil",
+      "loading": "Besuche werden geladen…",
+      "errLoad": "Besuche konnten nicht geladen werden.",
+      "errNetwork": "Netzwerkfehler.",
+      "listDisabled": "Du hast „Profilbesuche“ deaktiviert. Du siehst nicht, wer dich besucht hat, und erscheinst nicht als Besucher in den Listen anderer.",
+      "listDisabledHint": "Aktiviere die Option wieder in den Datenschutzeinstellungen (Profil oder Kontoeinstellungen).",
+      "openPrivacy": "Datenschutz im Profil öffnen",
+      "empty": "Noch keine sichtbaren Besuche.",
+      "visitedPrefix": "Hat dein Profil besucht",
+      "statusMatch": "Match oder Chat",
+      "statusNoMatch": "Kein Match",
+      "btnMessage": "Nachricht",
+      "btnViewProfile": "Profil ansehen"
     },
     "forgotPassword": {
       "title": "Passwort vergessen?",
@@ -1189,6 +1241,8 @@
       "badgePhoto": "Mit Foto",
       "badgeBio": "Mit Beschreibung",
       "previewMe": "Mein Profil",
+      "linkVisits": "Profilbesuche",
+      "badgeNewVisits": "Neu",
       "photoPage": {
         "title": "Profilfoto",
         "subtitle": "Fotos hinzufügen, entfernen oder das angezeigte Profilbild festlegen.",
@@ -1263,7 +1317,7 @@
       "privacyTitle": "Datenschutz und Freunde",
       "privacyIntro": "Steuere, was andere sehen können.",
       "friendReq": "Freundschaftsanfragen erlauben",
-      "visitVis": "Andere sehen, wenn ich ihr Profil besuche",
+      "visitVis": "In Listen „Profilbesuche“ erscheinen",
       "readRcpt": "Lesebestätigungen in Nachrichten anzeigen",
       "accountTitle": "Kontoeinstellungen",
       "accountIntro": "Öffnet den Abmeldedialog: nur dieses Gerät oder alle Geräte (gleicher Ablauf wie im Hauptmenü).",

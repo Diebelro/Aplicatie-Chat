@@ -4,8 +4,37 @@
 
 let audioCtx: AudioContext | null = null;
 let loopTimer: number | null = null;
+let activeToken = 0;
+const pendingBeeps = new Set<number>();
+const STOP_SIGNAL_KEY = "diebel_stop_incoming_ringtone_v1";
+let storageListenerInstalled = false;
 
-function playBeep(ctx: AudioContext, freq: number, durationSec: number) {
+function installStorageStopListener(): void {
+  if (storageListenerInstalled || typeof window === "undefined") return;
+  storageListenerInstalled = true;
+  window.addEventListener("storage", (event) => {
+    if (event.key === STOP_SIGNAL_KEY) stopIncomingRingtone({ broadcast: false });
+  });
+}
+
+function clearPendingBeeps(): void {
+  if (typeof window !== "undefined") {
+    for (const id of pendingBeeps) window.clearTimeout(id);
+  }
+  pendingBeeps.clear();
+}
+
+function scheduleBeep(fn: () => void, ms: number): void {
+  if (typeof window === "undefined") return;
+  const id = window.setTimeout(() => {
+    pendingBeeps.delete(id);
+    fn();
+  }, ms);
+  pendingBeeps.add(id);
+}
+
+function playBeep(ctx: AudioContext, token: number, freq: number, durationSec: number) {
+  if (token !== activeToken || audioCtx !== ctx) return;
   if (ctx.state !== "running") return;
   const osc = ctx.createOscillator();
   const g = ctx.createGain();
@@ -21,7 +50,10 @@ function playBeep(ctx: AudioContext, freq: number, durationSec: number) {
   osc.stop(t0 + durationSec + 0.04);
 }
 
-export function stopIncomingRingtone(): void {
+export function stopIncomingRingtone(options: { broadcast?: boolean } = {}): void {
+  const broadcast = options.broadcast ?? true;
+  activeToken += 1;
+  clearPendingBeeps();
   if (loopTimer != null) {
     clearInterval(loopTimer);
     loopTimer = null;
@@ -29,14 +61,18 @@ export function stopIncomingRingtone(): void {
   if (audioCtx) {
     const ctx = audioCtx;
     audioCtx = null;
-    /** Închidem contextul după o scurtă pauză ca ultimul beep să nu fie tăiat brusc (mai natural la respingere/răspuns). */
-    window.setTimeout(() => {
-      try {
-        void ctx.close();
-      } catch {
-        /* ignore */
-      }
-    }, 100);
+    try {
+      void ctx.close();
+    } catch {
+      /* ignore */
+    }
+  }
+  if (broadcast && typeof window !== "undefined") {
+    try {
+      localStorage.setItem(STOP_SIGNAL_KEY, String(Date.now()));
+    } catch {
+      /* ignore */
+    }
   }
 }
 
@@ -45,7 +81,8 @@ export function startIncomingRingtone(): {
   resume: () => Promise<void>;
   needsUserGesture: boolean;
 } {
-  stopIncomingRingtone();
+  installStorageStopListener();
+  stopIncomingRingtone({ broadcast: false });
   if (typeof window === "undefined") {
     return { resume: async () => {}, needsUserGesture: false };
   }
@@ -57,10 +94,12 @@ export function startIncomingRingtone(): {
   }
   const ctx = new AC();
   audioCtx = ctx;
+  activeToken += 1;
+  const token = activeToken;
 
   const pattern = () => {
-    playBeep(ctx, 440, 0.2);
-    window.setTimeout(() => playBeep(ctx, 480, 0.2), 260);
+    playBeep(ctx, token, 440, 0.2);
+    scheduleBeep(() => playBeep(ctx, token, 480, 0.2), 260);
   };
   pattern();
   loopTimer = window.setInterval(pattern, 1700);

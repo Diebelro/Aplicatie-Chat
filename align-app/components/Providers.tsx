@@ -11,6 +11,7 @@ import { TrackingScripts } from "@/components/TrackingScripts";
 import { Footer } from "@/components/Footer";
 import { AppWebVitalsBeacon } from "@/components/AppWebVitalsBeacon";
 import { InLucruBanner } from "@/components/InLucruBanner";
+import { AgeGate } from "@/components/AgeGate";
 
 function SiteFooter() {
   const pathname = usePathname();
@@ -33,6 +34,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
           {process.env.NEXT_PUBLIC_SHOW_WIP_BANNER === "true" ? <InLucruBanner /> : null}
           <AppWebVitalsBeacon />
           {children}
+          <AgeGate />
           <CookieConsentBanner />
           <CookieConsentFloatingButton />
           <TrackingScripts />

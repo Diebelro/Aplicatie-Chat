@@ -326,11 +326,14 @@ model Visit {
   viewerUserId  String
   profileUserId String
   createdAt     DateTime @default(now())
+  /// Ultima deschidere a profilului de către vizitator (pereche unică în DB).
+  lastVisitedAt DateTime @default(now())
   viewer        User     @relation("VisitViewer", fields: [viewerUserId], references: [id], onDelete: Cascade)
   profileUser   User     @relation("VisitProfile", fields: [profileUserId], references: [id], onDelete: Cascade)
   @@unique([viewerUserId, profileUserId])
   @@index([viewerUserId])
   @@index([profileUserId])
+  @@index([profileUserId, lastVisitedAt])
 }
 
 model AdminLog {

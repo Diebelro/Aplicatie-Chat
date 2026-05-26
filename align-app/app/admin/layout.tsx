@@ -10,6 +10,7 @@ import { AdminModerationNavBadge } from "@/components/AdminModerationNavBadge";
 import { AdminNavSectionBadge } from "@/components/AdminNavSectionBadge";
 import { AdminSecurityThreatBanner } from "@/components/AdminSecurityThreatBanner";
 import { AdminSystemStrip } from "@/components/AdminSystemStrip";
+import { SkeletonAdminGate } from "@/components/perceived/AppShellLoadingLayout";
 
 export default function AdminLayout({
   children,
@@ -72,11 +73,7 @@ export default function AdminLayout({
   }
 
   if (allowed === null) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-dark-900">
-        <p className="text-dark-400">Se încarcă...</p>
-      </div>
-    );
+    return <SkeletonAdminGate />;
   }
   if (!allowed) return null;
 

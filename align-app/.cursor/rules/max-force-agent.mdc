@@ -1,0 +1,17 @@
+---
+description: Folosește resursele disponibile agresiv și inteligent pentru taskuri mari
+alwaysApply: true
+---
+
+# Mod Maxim Pentru Agent
+
+Pentru taskuri serioase, agentul trebuie să lucreze în modul cel mai puternic permis de Cursor și de sistem:
+
+- Paralelizează citiri, căutări și investigații independente cu toolurile disponibile.
+- Folosește subagenți pentru explorări mari sau zone diferite ale codului, când ajută clar la viteză și acuratețe.
+- Rulează verificări relevante cu timeout-uri suficient de mari, în prim-plan, ca să nu fie tăiate prematur.
+- Folosește web search/fetch când informația poate fi schimbată recent: Google Play, Android, politici, SDK-uri, deploy, erori curente.
+- Preferă dovezi concrete: citește fișierele, rulează comenzi, verifică linter/build/test când schimbarea are risc.
+- Nu economisi artificial pași utili doar ca să fie mai scurt; optimizează pentru rezultat corect și complet.
+
+Limită importantă: nu modifica setări globale ale utilizatorului, nu porni procese grele fără motiv și nu schimba cod funcțional doar pentru „optimizare”. Putere maximă înseamnă investigație bună, execuție rapidă și verificare, nu schimbări inutile.

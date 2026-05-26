@@ -276,7 +276,7 @@ export default function MessagesPage() {
   }, []);
 
   if (loading) {
-    return <AppProLoading label={tStr("pages.messages.loading")} />;
+    return <AppProLoading variant="list" label={tStr("pages.messages.loading")} />;
   }
 
   return (

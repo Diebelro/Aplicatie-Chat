@@ -3,6 +3,7 @@
 import { signalingWsConnectUrl } from "@/lib/webrtc/signaling";
 import { pushCallDebug } from "@/hooks/call/callDebugLog";
 import type { CallErrorPayload } from "@/lib/i18n/callApiErrorMap";
+import { fetchWithAuthRetry } from "@/lib/authClient";
 
 export type SignalingGetAuthHeaders = () => HeadersInit;
 
@@ -18,9 +19,9 @@ export async function fetchCallSignalingToken(
   getAuthHeaders: SignalingGetAuthHeaders,
   include404TokenErrors: boolean
 ): Promise<SignalingTokenResult> {
-  const tokRes = await fetch("/api/call/signaling-token", {
+  const tokRes = await fetchWithAuthRetry("/api/call/signaling-token", {
     headers: getAuthHeaders(),
-    credentials: "same-origin",
+    credentials: "include",
     cache: "no-store",
   });
   if (!tokRes.ok) {

@@ -1,5 +1,6 @@
 import { RING_PENDING_MAX_MS } from "./callRingConstants";
 import { cityMatchesFilter, nameMatchesFilter, normalizeStrict as normalizeStrictMatch } from "@/lib/discoverMatchUtils";
+import { displayName } from "./displayName";
 
 /** În browser: citește user din localStorage sau sessionStorage („Ține-mă minte”). */
 export function getStoredUserRaw(): string | null {
@@ -604,18 +605,12 @@ export function deleteUser(userId: string): boolean {
   for (let j = friends.length - 1; j >= 0; j--) {
     if (friends[j].user_id === userId || friends[j].friend_id === userId) friends.splice(j, 1);
   }
-  for (let j = profileVisits.length - 1; j >= 0; j--) {
-    if (profileVisits[j].visitor_id === userId || profileVisits[j].visited_id === userId) profileVisits.splice(j, 1);
+  for (const [k, v] of [...visitRows.entries()]) {
+    if (v.visitor_id === userId || v.visited_id === userId) visitRows.delete(k);
   }
   for (let j = messageReads.length - 1; j >= 0; j--) {
     if (messageReads[j].reader_id === userId) messageReads.splice(j, 1);
   }
-
-  const keysToDelete: string[] = [];
-  visits.forEach((key) => {
-    if (key.startsWith(userId + ":") || key.endsWith(":" + userId)) keysToDelete.push(key);
-  });
-  keysToDelete.forEach((k) => visits.delete(k));
 
   lastReadAt.delete(userId);
   for (const [, map] of lastReadAt) {
@@ -1046,17 +1041,16 @@ export function getFriendRow(meId: string, otherId: string): FriendRow | undefin
   );
 }
 
-// --- Profile visits (table with created_at) ---
+// --- Profile visits (o pereche viewer→profil; last_visited_at se actualizează la fiecare deschidere) ---
 export interface ProfileVisitRow {
   id: string;
   visitor_id: string;
   visited_id: string;
   created_at: string;
+  last_visited_at: string;
 }
 
-const profileVisits: ProfileVisitRow[] = [];
-
-const visits = new Set<string>();
+const visitRows = new Map<string, ProfileVisitRow>();
 
 function visitKey(userId: string, profileId: string) {
   return `${userId}:${profileId}`;
@@ -1064,30 +1058,72 @@ function visitKey(userId: string, profileId: string) {
 
 export function addVisit(userId: string, profileId: string): void {
   const key = visitKey(userId, profileId);
-  if (visits.has(key)) return;
-  visits.add(key);
-  profileVisits.push({
-    id: generateId(),
-    visitor_id: userId,
-    visited_id: profileId,
-    created_at: new Date().toISOString(),
-  });
+  const now = new Date().toISOString();
+  const prev = visitRows.get(key);
+  if (prev) {
+    visitRows.set(key, { ...prev, last_visited_at: now });
+  } else {
+    visitRows.set(key, {
+      id: generateId(),
+      visitor_id: userId,
+      visited_id: profileId,
+      created_at: now,
+      last_visited_at: now,
+    });
+  }
 }
 
 export function hasVisited(userId: string, profileId: string): boolean {
-  return visits.has(visitKey(userId, profileId));
+  return visitRows.has(visitKey(userId, profileId));
 }
 
 /** Whether someone (visitedId) has visited my (visitorId) profile. */
 export function hasBeenVisitedBy(visitorId: string, visitedId: string): boolean {
-  return visits.has(visitKey(visitedId, visitorId));
+  return visitRows.has(visitKey(visitedId, visitorId));
 }
 
 export function getProfileVisitAt(visitorId: string, visitedId: string): string | undefined {
-  const row = profileVisits
-    .filter((v) => v.visitor_id === visitorId && v.visited_id === visitedId)
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
-  return row?.created_at;
+  return visitRows.get(visitKey(visitorId, visitedId))?.last_visited_at;
+}
+
+export type ProfileVisitListItemMemory = {
+  userId: string;
+  displayName: string;
+  photoUrl: string | null;
+  lastVisitedAt: string;
+  firstVisitedAt: string;
+  hasMatchOrChat: boolean;
+};
+
+/** Lista vizitelor (store în memorie) — aceleași reguli de reciprocitate ca Prisma. */
+export function listProfileVisitsFromMemory(visitedUserId: string): {
+  listEnabled: boolean;
+  visits: ProfileVisitListItemMemory[];
+} {
+  const me = findUserById(visitedUserId);
+  if (!me || me.show_profile_visits === false) {
+    return { listEnabled: false, visits: [] };
+  }
+  const out: ProfileVisitListItemMemory[] = [];
+  for (const row of visitRows.values()) {
+    if (row.visited_id !== visitedUserId) continue;
+    const visitor = findUserById(row.visitor_id);
+    if (!visitor || visitor.show_profile_visits === false) continue;
+    const hasMatchOrChat =
+      mutualMatchPairExists(visitedUserId, row.visitor_id) ||
+      getMessagesBetween(visitedUserId, row.visitor_id).length > 0;
+    const photos = visitor.photos?.filter(Boolean) ?? [];
+    out.push({
+      userId: row.visitor_id,
+      displayName: displayName(visitor.username || visitor.name),
+      photoUrl: photos[0] ?? null,
+      lastVisitedAt: row.last_visited_at,
+      firstVisitedAt: row.created_at,
+      hasMatchOrChat,
+    });
+  }
+  out.sort((a, b) => new Date(b.lastVisitedAt).getTime() - new Date(a.lastVisitedAt).getTime());
+  return { listEnabled: true, visits: out.slice(0, 100) };
 }
 
 // --- Message reads (read receipts) ---

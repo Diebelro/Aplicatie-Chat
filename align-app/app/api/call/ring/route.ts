@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (!rateLimitAllow(`call-ring:${userId}`, 5, 60_000)) {
+  if (!rateLimitAllow(`call-ring:${userId}`, 12, 60_000)) {
     return NextResponse.json(
       callApiErrorJson("SIGNALING_SERVICE_UNAVAILABLE", { error: "Prea multe apeluri. Încearcă mai târziu." }),
       { status: 429 }

@@ -96,7 +96,7 @@ export default function PublicUserProfilePage() {
   }, []);
 
   if (loading) {
-    return <AppProLoading label={tStr("pages.userPublic.loading")} className="py-24" />;
+    return <AppProLoading variant="form" label={tStr("pages.userPublic.loading")} className="py-24" />;
   }
 
   if (error || !user) {

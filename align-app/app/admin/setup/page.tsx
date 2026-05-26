@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { fetchWithAuthRetry } from "@/lib/authClient";
+import { SkeletonAdminGate } from "@/components/perceived/AppShellLoadingLayout";
 
 export default function AdminSetupPage() {
   const router = useRouter();
@@ -68,11 +69,7 @@ export default function AdminSetupPage() {
   };
 
   if (canSetup === null) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-dark-900 text-zinc-900">
-        <p className="text-dark-400">Se încarcă...</p>
-      </div>
-    );
+    return <SkeletonAdminGate />;
   }
 
   if (!canSetup) {

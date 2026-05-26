@@ -329,7 +329,7 @@ export default function ProfilesPage() {
       </div>
 
       {loading ? (
-        <AppProLoading label={tStr("pages.profiles.loading")} className="py-16" />
+        <AppProLoading variant="profiles" label={tStr("pages.profiles.loading")} className="py-16" />
       ) : profiles.length === 0 ? (
         <div className="app-pro-empty">
           <p className="app-pro-lead">{tStr("pages.profiles.empty")}</p>

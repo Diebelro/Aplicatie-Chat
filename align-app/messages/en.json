@@ -91,7 +91,8 @@
     "links": {
       "terms": "Terms and Conditions",
       "privacy": "Privacy Policy",
-      "cookies": "Cookie Policy"
+      "cookies": "Cookie Policy",
+      "communityRules": "Community rules"
     },
     "relatedDocs": "Related documents:",
     "termsTitle": "Terms and Conditions",
@@ -592,10 +593,10 @@
         "phaseNegotiatingVideo": "Setting up video…",
         "phasePeerJoined": "The other person is in the room…",
         "phaseWaitingPeer": "Waiting for the other person…",
-        "phasePrepMic": "Preparing the microphone…",
-        "phasePrepCamMic": "Preparing camera and microphone…",
-        "phaseRequestingPermissions": "Requesting microphone and camera access…",
-        "phaseStartingMedia": "Starting your camera and microphone…",
+        "phasePrepMic": "Preparing the call…",
+        "phasePrepCamMic": "Preparing the call…",
+        "phaseRequestingPermissions": "Preparing the call…",
+        "phaseStartingMedia": "Connecting…",
         "reconnectingBanner": "Reconnecting…",
         "reconnectingSubtitle": "Reconnecting…",
         "reconnectingLong1": "This is taking longer than usual — the call should resume automatically.",
@@ -786,6 +787,9 @@
       "feedbackTitle": "Suggestions & feedback",
       "feedbackIntro": "Have an idea to improve the app or ran into something broken? Message us — we read everything and it helps us fix things faster.",
       "feedbackCta": "Send a message",
+      "communityRulesTitle": "Community rules",
+      "communityRulesIntro": "Allowed content and prohibitions (18+). You can read them anytime.",
+      "communityRulesCta": "Open rules",
       "personalTitle": "Personal information",
       "personalHint": "Your real name is private and only shown here. Everywhere else in the app others see your username.",
       "realNameLabel": "Real name (private)",
@@ -816,9 +820,10 @@
       "privacyLoading": "Loading…",
       "privacyShowDistance": "Show my distance to other users",
       "privacyShowOnline": "Show that I’m online",
-      "privacyVisitVisibility": "Others can see when I visit their profile",
+      "privacyVisitVisibility": "Allow me to appear in “Profile visits” lists",
       "privacyReadReceipts": "Show read receipts in messages",
       "privacyFriendRequests": "Allow friend requests",
+      "profileVisitsPageLink": "Open “Profile visits” list",
       "sessionTitle": "Session",
       "sessionHint": "Opens the sign-out dialog: this device only, or all devices.",
       "deleteAccountSectionTitle": "Delete account",
@@ -951,7 +956,37 @@
       "errRecaptcha": "reCAPTCHA verification failed.",
       "errSuspicious": "Suspicious activity detected.",
       "errSignupGeneric": "Registration error",
-      "errGeneric": "Error"
+      "errGeneric": "Error",
+      "ageRulesLead": "I confirm I am 18 or older and accept the ",
+      "ageRulesLink": "community rules",
+      "ageRulesEnd": " (together with the Terms and Privacy Policy).",
+      "errMustAcceptAgeRules": "Tick the age and rules confirmation."
+    },
+    "ageGate": {
+      "title": "Adults-only content",
+      "bodyLine1": "This application is intended exclusively for people aged 18 or over.",
+      "bodyLine2": "By continuing, I confirm that I am 18 or older and accept the app rules.",
+      "linkRules": "Community rules",
+      "accept": "Accept",
+      "decline": "I do not accept",
+      "declineHint": "If you don’t accept, close the tab or app. If the button doesn’t close the window, use back or close it manually."
+    },
+    "communityGuidelines": {
+      "pageTitle": "Community rules",
+      "backHome": "Back to home",
+      "intro": "The app is intended exclusively for people aged 18 or over.",
+      "forbiddenLead": "The following are strictly prohibited:",
+      "rules": [
+        "sharing nudity or explicit sexual content;",
+        "violence, threats or harassment;",
+        "harassment or content targeting minors;",
+        "spam, fraud or attempts to abuse the platform;",
+        "illegal content or content that infringes others’ rights;",
+        "posting others’ personal data without consent (doxing)."
+      ],
+      "footer": "Violations may lead to reports, content removal, suspension or account closure, under the Terms and applicable law.",
+      "playStoreNoteTitle": "Short note for the app store:",
+      "playStoreNoteBody": "The app is intended exclusively for people aged 18 or over. Nudity, violence and explicit content are strictly prohibited."
     },
     "banAppeal": {
       "title": "Account blocked",
@@ -1039,6 +1074,23 @@
       "photosMany": "Photos ({{n}})",
       "photosOne": "Profile photo",
       "photoCounterAria": "Photo {{i}} of {{n}}"
+    },
+    "profileVisits": {
+      "title": "Profile visits",
+      "intro": "Only people who opened your profile and who also allow visit visibility appear here. You cannot message without a match.",
+      "backProfile": "← Back to profile",
+      "loading": "Loading visits…",
+      "errLoad": "Could not load visits.",
+      "errNetwork": "Network error.",
+      "listDisabled": "You turned off “Profile visits”. You will not see who visited you and you will not appear as a visitor in others’ lists.",
+      "listDisabledHint": "Turn the option back on in privacy settings (Profile or Account settings).",
+      "openPrivacy": "Open privacy in profile",
+      "empty": "No visible visits yet.",
+      "visitedPrefix": "Visited you",
+      "statusMatch": "Match or chat",
+      "statusNoMatch": "No match",
+      "btnMessage": "Message",
+      "btnViewProfile": "View profile"
     },
     "forgotPassword": {
       "title": "Forgot password?",
@@ -1189,6 +1241,8 @@
       "badgePhoto": "Has photo",
       "badgeBio": "Has bio",
       "previewMe": "My profile",
+      "linkVisits": "Profile visits",
+      "badgeNewVisits": "New",
       "photoPage": {
         "title": "Profile photo",
         "subtitle": "Add, remove, or choose which image is shown as your profile picture.",
@@ -1263,7 +1317,7 @@
       "privacyTitle": "Privacy and friends",
       "privacyIntro": "Control what others can see.",
       "friendReq": "Allow friend requests",
-      "visitVis": "Others can see when I visit their profile",
+      "visitVis": "Allow me to appear in “Profile visits” lists",
       "readRcpt": "Show read receipts in messages",
       "accountTitle": "Account settings",
       "accountIntro": "Open the sign-out dialog: this device only, or all devices (same flow as the main menu).",

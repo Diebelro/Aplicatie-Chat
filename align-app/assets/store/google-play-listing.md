@@ -25,3 +25,18 @@ We process account and usage data as described in our Privacy Policy. We do not 
 
 **Note for the store form**  
 Choose the store category that matches how you market the app (for example Social). Avoid claims such as “most secure” or “end-to-end encrypted” unless they are accurate for your product.
+
+---
+
+## Tags (doar în Play Console)
+
+Tag-urile **nu** se setează din cod sau Git; le alegi în **Google Play Console** conform documentației oficiale:  
+https://support.google.com/googleplay/android-developer/answer/9859673
+
+Selectează **exact** aceste 3 tag-uri (fără altele, ex. Dating, Finance, Health, Medical, Crypto):
+
+1. **Communication**  
+2. **Text messaging**  
+3. **Social**  
+
+Apoi **Save** și **Next**. Setarea rămâne la listing-ul din Play Console, nu în repository.

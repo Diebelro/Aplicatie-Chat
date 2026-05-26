@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { fetchWithAuthRetry } from "@/lib/authClient";
+import { SkeletonAdminTable } from "@/components/perceived/AppShellLoadingLayout";
 
 type Log = {
   id: string;
@@ -38,7 +39,7 @@ export default function AdminLogsPage() {
       <h1 className="text-2xl font-semibold mb-4">Loguri acțiuni admin</h1>
       {error && <p className="text-red-400 mb-2">{error}</p>}
       {loading ? (
-        <p className="text-dark-400">Se încarcă...</p>
+        <SkeletonAdminTable rows={8} />
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full border border-dark-600 rounded">

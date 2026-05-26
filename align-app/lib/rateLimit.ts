@@ -29,6 +29,7 @@ const LIMITS: Record<string, number> = {
   "/api/admin/moderation-ai-thread": 12,
   "/api/feedback": 12,
   "/api/metrics/vitals": 45,
+  "/api/visit": 40,
 };
 
 /** IP client pentru rate limit (x-forwarded-for / x-real-ip). */

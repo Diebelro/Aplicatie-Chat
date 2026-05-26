@@ -59,7 +59,7 @@ export function useVideoRenderable(
         markReady();
         return;
       }
-      if (el.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+      if (stream.getVideoTracks().some((t) => t.readyState === "live") && el.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
         markReady();
       }
     };
@@ -126,9 +126,19 @@ export function useVideoRenderable(
     };
 
     waitForEl();
+    const onTracksChanged = () => {
+      doneRef.current = false;
+      setReady(false);
+      const el = videoRef.current;
+      if (el) tryPixels(el);
+    };
+    stream.addEventListener("addtrack", onTracksChanged);
+    stream.addEventListener("removetrack", onTracksChanged);
 
     return () => {
       cancelled = true;
+      stream.removeEventListener("addtrack", onTracksChanged);
+      stream.removeEventListener("removetrack", onTracksChanged);
       cancelAnimationFrame(rafWaitId);
       cancelAnimationFrame(rafTickId);
       if (fallbackTimer != null) clearTimeout(fallbackTimer);

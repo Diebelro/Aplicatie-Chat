@@ -16,23 +16,23 @@ if (!metadataBaseUrl.trim() || !/^https?:\/\//i.test(metadataBaseUrl.trim())) {
   metadataBaseUrl = CHAT_PRODUCTION_URL;
 }
 
-const defaultTitle = "Diebel — Same intent. Real connections.";
+const defaultTitle = "Diebel — Chat și apeluri pentru adulți (18+)";
 const defaultDescription =
-  "Alege intenția ta. Vezi doar oameni care vor același lucru. Fără confuzie, fără timp irosit.";
+  "Conexiuni cu intenție clară: mesaje, apeluri audio și video. Pentru adulți. Comunicarea cu serverele folosește criptare în tranzit (HTTPS/TLS); mesajele nu sunt criptate end-to-end între dispozitive.";
 
 export const metadata: Metadata = {
-  manifest: "/manifest.json",
+  manifest: "/manifest.json?v=11",
   metadataBase: new URL(`${metadataBaseUrl}/`),
   icons: {
     icon: [
-      { url: "/favicon-16.png", sizes: "16x16", type: "image/png" },
-      { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
-      { url: "/brand/icon-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/brand/icon-512.png", sizes: "512x512", type: "image/png" },
-      { url: "/icons/icon-192-any.png", sizes: "192x192", type: "image/png" },
-      { url: "/icons/icon-512-any.png", sizes: "512x512", type: "image/png" },
+      { url: "/favicon.ico?v=11", type: "image/x-icon" },
+      { url: "/favicon-16.png?v=11", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32.png?v=11", sizes: "32x32", type: "image/png" },
+      { url: "/brand/app-icon-v7-192.png?v=11", sizes: "192x192", type: "image/png" },
+      { url: "/brand/app-icon-v7-512.png?v=11", sizes: "512x512", type: "image/png" },
     ],
-    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+    shortcut: [{ url: "/brand/app-icon-v7-192.png?v=11", type: "image/png" }],
+    apple: [{ url: "/apple-touch-icon.png?v=11", sizes: "180x180", type: "image/png" }],
   },
   title: {
     default: defaultTitle,

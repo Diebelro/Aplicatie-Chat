@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useRef, type MouseEvent, type ReactNode } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
 import {
   Menu,
@@ -19,7 +18,6 @@ import {
   Shield,
   Lightbulb,
   PhoneMissed,
-  Loader2,
 } from "lucide-react";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
@@ -37,6 +35,7 @@ import { LogoutChoiceModal } from "@/components/LogoutChoiceModal";
 import { LOGOUT_DIALOG_OPEN_EVENT, requestOpenLogoutDialog } from "@/lib/logoutDialogEvent";
 import { DiebelWordmark } from "@/components/DiebelWordmark";
 import { DiebelCopyrightStrip } from "@/components/DiebelAuthorCredit";
+import { AppShellLoadingLayout } from "@/components/perceived/AppShellLoadingLayout";
 
 type DesktopNavTone = "default" | "brand" | "amber" | "admin";
 
@@ -62,6 +61,32 @@ function mobileTabClass(active: boolean): string {
     "transition-colors duration-200 touch-manipulation active:scale-[0.97] text-dark-400 border-b " +
     (active ? "border-brand-500" : "border-transparent hover:text-dark-900")
   );
+}
+
+const MAX_STORED_DATA_URL_CHARS = 200_000;
+function sanitizeUserForStorage(u: User): User {
+  const cleanPhotos = Array.isArray(u.photos)
+    ? u.photos.filter(
+        (p) =>
+          typeof p === "string" &&
+          (!p.startsWith("data:") || p.length <= MAX_STORED_DATA_URL_CHARS)
+      )
+    : [];
+  return { ...u, photos: cleanPhotos };
+}
+
+function persistUserSafely(u: User): void {
+  if (typeof window === "undefined") return;
+  const sanitized = sanitizeUserForStorage(u);
+  try {
+    const fromLocal = !!localStorage.getItem("align_user");
+    (fromLocal ? localStorage : sessionStorage).setItem(
+      "align_user",
+      JSON.stringify(sanitized)
+    );
+  } catch {
+    // Ignore storage quota errors to avoid breaking the app shell.
+  }
 }
 
 export default function AppLayout({
@@ -132,7 +157,7 @@ export default function AppLayout({
               return;
             }
             if (serverUser && typeof window !== "undefined") {
-              sessionStorage.setItem("align_user", JSON.stringify(serverUser));
+              persistUserSafely(serverUser as User);
               setUser(serverUser as User);
               setLoading(false);
               return;
@@ -177,10 +202,7 @@ export default function AppLayout({
           router.replace("/cont-blocat");
           return;
         }
-        if (typeof window !== "undefined" && serverUser) {
-          const fromLocal = !!localStorage.getItem("align_user");
-          (fromLocal ? localStorage : sessionStorage).setItem("align_user", JSON.stringify(serverUser));
-        }
+        if (serverUser) persistUserSafely(serverUser as User);
         setUser((serverUser ?? u) as User);
       } catch {
         if (!cancelled) {
@@ -211,8 +233,7 @@ export default function AppLayout({
         const full = data.user as User;
         if (full.photos?.length) {
           setUser(full);
-          const fromLocal = !!localStorage.getItem("align_user");
-          (fromLocal ? localStorage : sessionStorage).setItem("align_user", JSON.stringify(full));
+          persistUserSafely(full);
         }
       })
       .catch(() => {});
@@ -396,14 +417,7 @@ export default function AppLayout({
   }, []);
 
   if (loading || !user) {
-    return (
-      <div className="min-h-dvh flex flex-col items-center justify-center gap-4 bg-dark-900 px-6 antialiased">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-dark-600/80 bg-dark-800/80 shadow-lg shadow-black/10">
-          <Loader2 className="h-7 w-7 animate-spin text-brand-500" aria-hidden />
-        </div>
-        <p className="text-sm font-medium text-dark-500 tracking-tight">{tStr("appNav.loading")}</p>
-      </div>
-    );
+    return <AppShellLoadingLayout label={tStr("appNav.loading")} />;
   }
 
   const isAdmin = user.role === "ADMIN" || user.role === "SUPERADMIN";
@@ -448,17 +462,9 @@ export default function AppLayout({
           <Link
             href="/app"
             onClick={onDiebelLogoNavClick}
-            className="group relative z-[25] shrink-0 inline-flex items-center gap-2 min-h-[44px] min-w-0 -ml-1 pl-1 pr-2 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-dark-900 touch-manipulation active:opacity-90"
+            className="group relative z-[25] shrink-0 inline-flex items-center min-h-[44px] min-w-[7.5rem] -ml-1 pl-1 pr-2 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-dark-900 touch-manipulation active:opacity-90"
             aria-label={tStr("appNav.ariaDiscoverHome")}
           >
-            <Image
-              src="/brand/icon-192.png"
-              alt=""
-              width={26}
-              height={26}
-              className="shrink-0 rounded-md"
-              priority
-            />
             <DiebelWordmark variant="header" withMark />
           </Link>
           {/* Desktop: linkuri în zonă scrollabilă; avatar + profil + Ieșire mereu vizibile în dreapta (nu dispar în overflow). */}

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { SkeletonFormPanel } from "@/components/perceived/AppShellLoadingLayout";
 
 function conversationIdFromUserIds(a: string, b: string): string {
   const x = a.trim();
@@ -115,7 +116,14 @@ function AdminConversationsForm() {
 
 export default function AdminConversationsListPage() {
   return (
-    <Suspense fallback={<p className="text-dark-400">Se încarcă...</p>}>
+    <Suspense
+      fallback={
+        <div className="max-w-xl p-4 space-y-4">
+          <div className="h-8 w-72 rounded-lg bg-dark-700/40 animate-pulse" />
+          <SkeletonFormPanel />
+        </div>
+      }
+    >
       <AdminConversationsForm />
     </Suspense>
   );

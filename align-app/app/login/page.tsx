@@ -411,11 +411,17 @@ function LoginContent() {
               href="/privacy"
               className="text-sm font-semibold text-brand-400 hover:text-brand-300 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded px-1"
             >
-              Privacy Policy
+              {tStr("legal.links.privacy")}
             </Link>
             <p className="text-center text-dark-600 text-[11px] leading-relaxed flex flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5">
               <Link href="/terms" className="text-brand-700 hover:text-brand-600 hover:underline">
                 {tStr("pages.login.footerTerms")}
+              </Link>
+              <span className="text-dark-600 select-none" aria-hidden>
+                ·
+              </span>
+              <Link href="/community-rules" className="text-brand-700 hover:text-brand-600 hover:underline">
+                {tStr("legal.links.communityRules")}
               </Link>
               <span className="text-dark-600 select-none" aria-hidden>
                 ·

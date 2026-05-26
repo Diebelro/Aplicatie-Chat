@@ -98,7 +98,7 @@ export default function ProfilePhotoPage() {
   };
 
   if (loading) {
-    return <AppProLoading label={tStr("pages.profile.loading")} />;
+    return <AppProLoading variant="form" label={tStr("pages.profile.loading")} />;
   }
 
   if (!user) {

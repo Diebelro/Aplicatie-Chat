@@ -15,6 +15,7 @@ import { translateApiErrorMessage } from "@/lib/i18n/translateApiError";
 import { MAX_PHOTOS, resizeImageAsDataUrl } from "@/lib/profilePhotoUtils";
 import { ProfilePhotosGallery } from "@/components/profile/ProfilePhotosGallery";
 import { AppProLoading } from "@/components/AppProLoading";
+import { SkeletonPrivacyToggles } from "@/components/perceived/AppShellLoadingLayout";
 
 function getStoredUser(): User | null {
   if (typeof window === "undefined") return null;
@@ -129,7 +130,14 @@ function PrivacySettingsSection() {
       });
   };
 
-  if (loading) return <p className="text-dark-500 text-sm">{tStr("pages.profile.privacyLoading")}</p>;
+  if (loading) {
+    return (
+      <div className="space-y-2" role="status" aria-busy="true" aria-live="polite">
+        <SkeletonPrivacyToggles rows={3} />
+        <p className="text-dark-500 text-xs">{tStr("pages.profile.privacyLoading")}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-3">
@@ -191,6 +199,8 @@ export default function ProfilePage() {
   const [physicalAsset, setPhysicalAsset] = useState("");
   const [physicalAssetDetail, setPhysicalAssetDetail] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
+  /** Badge discret: există vizite mai noi decât ultima deschidere a paginii „Vizite”. */
+  const [visitsBadge, setVisitsBadge] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<"saved" | "error" | "not_on_server" | null>(null);
@@ -262,6 +272,34 @@ export default function ProfilePage() {
     });
     return () => cancelAnimationFrame(t);
   }, [searchParams]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchWithAuthRetry("/api/profile/visits", { cache: "no-store" })
+      .then(async (r) => {
+        if (!r.ok || cancelled) return;
+        const d = await r.json().catch(() => ({}));
+        if (!d.listEnabled || !Array.isArray(d.visits) || d.visits.length === 0) {
+          if (!cancelled) setVisitsBadge(false);
+          return;
+        }
+        let lastSeen = "";
+        try {
+          lastSeen = localStorage.getItem("align_profile_visits_last_seen") ?? "";
+        } catch {
+          /* ignore */
+        }
+        const ts = lastSeen ? new Date(lastSeen).getTime() : 0;
+        const unseen = d.visits.some(
+          (v: { lastVisitedAt: string }) => new Date(v.lastVisitedAt).getTime() > ts
+        );
+        if (!cancelled) setVisitsBadge(unseen);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   type SaveProfileOpts = { reason?: "photos"; skipNameValidation?: boolean; photosOverride?: string[] };
   const saveProfileRef = useRef<(opts?: SaveProfileOpts) => Promise<void>>(() => Promise.resolve());
@@ -430,7 +468,7 @@ export default function ProfilePage() {
   };
 
   if (loading) {
-    return <AppProLoading label={tStr("pages.profile.loading")} />;
+    return <AppProLoading variant="form" label={tStr("pages.profile.loading")} />;
   }
 
   if (!user) {
@@ -660,6 +698,17 @@ export default function ProfilePage() {
                 className="inline-flex items-center rounded-full bg-brand-500/20 px-3 py-1.5 text-xs font-medium text-brand-400 border border-brand-500/50 hover:bg-brand-500/30 transition"
               >
                 {tStr("pages.profile.previewMe")}
+              </Link>
+              <Link
+                href="/app/profile/visits"
+                className="relative inline-flex items-center rounded-full bg-dark-700 px-3 py-1.5 text-xs font-medium text-dark-200 border border-dark-600 hover:bg-dark-600 transition"
+              >
+                {tStr("pages.profile.linkVisits")}
+                {visitsBadge && (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[1.1rem] h-[1.1rem] px-1 rounded-full bg-brand-500 text-[10px] font-semibold text-white flex items-center justify-center leading-none">
+                    {tStr("pages.profile.badgeNewVisits")}
+                  </span>
+                )}
               </Link>
             </div>
           </div>

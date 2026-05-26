@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { fetchWithAuthRetry } from "@/lib/authClient";
 import { AlertTriangle, Clock, Crown } from "lucide-react";
+import { SkeletonAdminUserDetail } from "@/components/perceived/AppShellLoadingLayout";
 
 type User = {
   id: string;
@@ -126,7 +127,7 @@ export default function AdminUserDetailPage() {
       .finally(() => setBusy(false));
   };
 
-  if (loading) return <p className="text-dark-400">Se incarca...</p>;
+  if (loading) return <SkeletonAdminUserDetail />;
   if (error || !user) return <p className="text-red-400">{error ?? "Negasit"}</p>;
 
   const banUntilActive =

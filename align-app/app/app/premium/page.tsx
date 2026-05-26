@@ -10,6 +10,7 @@ import { track } from "@/lib/tracking";
 import { fetchWithAuthRetry } from "@/lib/authClient";
 import { useI18n } from "@/lib/i18n/context";
 import { formatTpl } from "@/lib/i18n/formatTpl";
+import { SkeletonPremiumPlans } from "@/components/perceived/AppShellLoadingLayout";
 
 interface Plan {
   id: string;
@@ -23,6 +24,7 @@ interface Plan {
 export default function PremiumPage() {
   const { tStr, tArray } = useI18n();
   const [plans, setPlans] = useState<Plan[]>([]);
+  const [plansLoading, setPlansLoading] = useState(true);
   const [subscribing, setSubscribing] = useState<string | null>(null);
   const [subscription, setSubscription] = useState<{ planId: string | null; premiumPermanent: boolean } | null>(null);
 
@@ -30,7 +32,8 @@ export default function PremiumPage() {
     fetchWithAuthRetry("/api/subscription/plans", { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => setPlans(d.plans ?? []))
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setPlansLoading(false));
   }, []);
 
   useEffect(() => {
@@ -88,8 +91,11 @@ export default function PremiumPage() {
       <section>
         <h2 className="app-pro-section-title mb-4">{tStr("pages.premium.sectionPlans")}</h2>
         <p className="app-pro-lead text-dark-400 mb-4">{tStr("pages.premium.plansIntro")}</p>
-        <div className="grid gap-4 sm:grid-cols-3">
-          {plans.map((plan) => {
+        {plansLoading ? (
+          <SkeletonPremiumPlans cards={3} />
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-3">
+            {plans.map((plan) => {
             const isCurrent = subscription?.planId === plan.id;
             const locKey = plan.id as "monthly" | "six_month" | "yearly";
             const localizedName = tStr(`pages.subscriptionPlans.${locKey}.name`);
@@ -143,7 +149,8 @@ export default function PremiumPage() {
               </div>
             );
           })}
-        </div>
+          </div>
+        )}
         <p className="text-dark-500 text-xs mt-4">{tStr("pages.premium.paymentsNote")}</p>
       </section>
 

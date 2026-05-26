@@ -40,7 +40,7 @@ npx prisma migrate deploy
 
 **Critic:** `align.apiBaseUrl` (REST) și `align.signalingWsUrl` (WebSocket) sunt **două hosturi diferite** în producție DIEBEL: `https://chat.diebel.ro` vs `wss://ws.diebel.ro`. Dacă pui ambele pe domeniul Vercel, WebSocket **nu** merge. Verificare: `curl -sS https://chat.diebel.ro/api/native-config`.
 
-1. Firebase Console: adaugă aplicație Android cu pachet **`ro.align.app`**, descarcă `google-services.json` înlocuind `align-android/app/google-services.json`.
+1. Firebase Console: adaugă aplicație Android cu pachet **`ro.diebel.chat`**, descarcă `google-services.json` înlocuind `align-android/app/google-services.json`.
 2. `align-android/local.properties` (nu comita) — vezi `local.properties.example`:
 
 ```properties
