@@ -594,7 +594,7 @@ export default function AppLayout({
       <main
         className={
           "flex-1 flex flex-col min-h-0 min-w-0 max-w-4xl w-full mx-auto py-2 sm:py-4 lg:py-7 " +
-          "pb-[calc(4.75rem+env(safe-area-inset-bottom,0px))] lg:pb-7 " +
+          "pb-[4.75rem] lg:pb-7 " +
           "pl-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))] " +
           (isChatRoute
             ? "overflow-hidden"
@@ -632,7 +632,7 @@ export default function AppLayout({
       {/* Bottom nav: doar pe mobile */}
       <nav
         className="lg:hidden fixed bottom-0 left-0 right-0 z-30 flex items-center justify-around border-t border-dark-600/60 bg-dark-900/95 backdrop-blur-xl shadow-[0_-8px_32px_-8px_rgba(0,0,0,0.18)] safe-area-inset-bottom"
-        style={{ paddingBottom: "max(0.35rem, env(safe-area-inset-bottom, 0px))", paddingTop: "0.35rem" }}
+        style={{ paddingTop: "0.35rem", paddingBottom: "0.35rem" }}
         aria-label="Navigare principală"
       >
         <Link

@@ -39,21 +39,25 @@ body {
   padding-bottom: env(safe-area-inset-bottom, 0);
 }
 
-/* Shell Android: ecran full; header/nav au același fundal (#0f1419), fără benzi negre sistem. */
-html.diebel-android-shell,
-html.diebel-android-shell body {
-  background-color: #0f1419 !important;
+/* Shell Android: fără padding safe-area dublat (cauza liniilor mari sus/jos). */
+html.diebel-android-shell .safe-area-inset-top,
+html.diebel-android-shell .safe-area-inset-bottom {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
 }
-html.diebel-android-shell .safe-area-inset-top {
-  padding-top: var(--diebel-status-bar, 28px);
-  background-color: #0f1419;
+html.diebel-android-shell header.safe-area-inset-top {
+  border-bottom-width: 0;
+  box-shadow: none;
 }
 html.diebel-android-shell nav.safe-area-inset-bottom {
-  padding-bottom: calc(0.35rem + var(--diebel-nav-bar, 0px)) !important;
+  border-top-width: 0;
+  box-shadow: none;
   background-color: #0f1419 !important;
+  backdrop-filter: none !important;
+  padding-bottom: 0.35rem !important;
 }
 html.diebel-android-shell main.flex-1 {
-  padding-bottom: calc(4.75rem + var(--diebel-nav-bar, 0px)) !important;
+  padding-bottom: 4.75rem !important;
 }
 @media (min-width: 1024px) {
   html.diebel-android-shell main.flex-1 {
