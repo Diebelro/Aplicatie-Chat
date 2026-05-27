@@ -36,6 +36,7 @@ import { LOGOUT_DIALOG_OPEN_EVENT, requestOpenLogoutDialog } from "@/lib/logoutD
 import { DiebelWordmark } from "@/components/DiebelWordmark";
 import { DiebelCopyrightStrip } from "@/components/DiebelAuthorCredit";
 import { AppShellLoadingLayout } from "@/components/perceived/AppShellLoadingLayout";
+import { isDiebelAndroidShell, navigateApp } from "@/lib/navigateApp";
 
 type DesktopNavTone = "default" | "brand" | "amber" | "admin";
 
@@ -270,12 +271,12 @@ export default function AppLayout({
     return () => window.removeEventListener("align_user_updated", onUserUpdated);
   }, []);
 
-  useEffect(() => {
-    if (typeof navigator === "undefined") return;
-    if (/DiebelAndroid/i.test(navigator.userAgent)) {
-      document.documentElement.classList.add("diebel-android-shell");
-    }
-  }, []);
+  const onMobileNavClick = (e: MouseEvent<HTMLAnchorElement>, href: string) => {
+    e.preventDefault();
+    setMobileMenuOpen(false);
+    if (isDiebelAndroidShell()) navigateApp(href);
+    else router.push(href);
+  };
 
   // Heartbeat la ~5s → online în timp real (ca WhatsApp)
   useEffect(() => {
@@ -594,7 +595,7 @@ export default function AppLayout({
       <main
         className={
           "flex-1 flex flex-col min-h-0 min-w-0 max-w-4xl w-full mx-auto py-2 sm:py-4 lg:py-7 " +
-          "pb-[4.75rem] lg:pb-7 " +
+          "pb-[calc(4.75rem+env(safe-area-inset-bottom,0px))] lg:pb-7 " +
           "pl-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))] " +
           (isChatRoute
             ? "overflow-hidden"
@@ -632,20 +633,22 @@ export default function AppLayout({
       {/* Bottom nav: doar pe mobile */}
       <nav
         className="lg:hidden fixed bottom-0 left-0 right-0 z-30 flex items-center justify-around border-t border-dark-600/60 bg-dark-900/95 backdrop-blur-xl shadow-[0_-8px_32px_-8px_rgba(0,0,0,0.18)] safe-area-inset-bottom"
-        style={{ paddingTop: "0.35rem", paddingBottom: "0.35rem" }}
+        style={{ paddingBottom: "max(0.35rem, env(safe-area-inset-bottom, 0px))", paddingTop: "0.35rem" }}
         aria-label="Navigare principală"
       >
-        <Link
+        <a
           href="/app"
+          onClick={(e) => onMobileNavClick(e, "/app")}
           className={mobileTabClass(navDiscoverActive)}
           title={tStr("appNav.discover")}
           aria-current={navDiscoverActive ? "page" : undefined}
         >
           <Compass className="w-6 h-6 shrink-0" />
           <span className="text-[11px] leading-tight">{tStr("appNav.discover")}</span>
-        </Link>
-        <Link
+        </a>
+        <a
           href="/app/messages"
+          onClick={(e) => onMobileNavClick(e, "/app/messages")}
           className={`${mobileTabClass(navMessagesActive)} relative`}
           title={tStr("appNav.messages")}
           aria-current={navMessagesActive ? "page" : undefined}
@@ -664,16 +667,17 @@ export default function AppLayout({
               {totalUnread > 99 ? "99+" : totalUnread}
             </span>
           )}
-        </Link>
-        <Link
+        </a>
+        <a
           href="/app/matches"
+          onClick={(e) => onMobileNavClick(e, "/app/matches")}
           className={mobileTabClass(navMatchesActive)}
           title={tStr("appNav.matches")}
           aria-current={navMatchesActive ? "page" : undefined}
         >
           <Heart className="w-6 h-6 shrink-0" />
           <span className="text-[11px] leading-tight">{tStr("appNav.matches")}</span>
-        </Link>
+        </a>
       </nav>
       {mobileMenuOpen && (
         <div className="lg:hidden fixed inset-0 z-[60] flex justify-end" role="presentation">

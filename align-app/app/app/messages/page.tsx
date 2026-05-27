@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState, type Ref } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { isDiebelAndroidShell, navigateApp } from "@/lib/navigateApp";
 import { Users, PhoneMissed, MessageCircle } from "lucide-react";
 import type { User } from "@/lib/store";
 import type { Message } from "@/lib/store";
@@ -62,7 +63,10 @@ function MessagesConversationRow({
   const router = useRouter();
   const otherLabel = displayName(otherUser.username ?? otherUser.name);
   const chatPath = `/app/chat/${otherUser.id}`;
-  const openChat = () => router.push(chatPath);
+  const openChat = () => {
+    if (isDiebelAndroidShell()) navigateApp(chatPath);
+    else router.push(chatPath);
+  };
 
   return (
     <li

@@ -39,16 +39,6 @@ body {
   padding-bottom: env(safe-area-inset-bottom, 0);
 }
 
-/* Shell Android: sus — conținut sub oră/baterie; jos — meniu deasupra butoanelor telefon (fără dublu). */
-html.diebel-android-shell header.safe-area-inset-top {
-  padding-top: var(--diebel-status-bar, 0px);
-  background-color: #0f1419;
-}
-html.diebel-android-shell nav.safe-area-inset-bottom {
-  padding-bottom: calc(0.35rem + var(--diebel-nav-bar, 0px)) !important;
-  background-color: #0f1419 !important;
-}
-
 /* Pe mobile: font minim 16px la input/textarea ca iOS să nu facă zoom la focus */
 @media (max-width: 768px) {
   input:not([type="number"]):not([type="range"]),
