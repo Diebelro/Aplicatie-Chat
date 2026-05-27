@@ -17,8 +17,8 @@ android {
         applicationId = "ro.diebel.chat"
         minSdk = 28
         targetSdk = 35
-        versionCode = 14
-        versionName = "1.1.4"
+        versionCode = 22
+        versionName = "1.2.2"
         val props = Properties()
         val lp = rootProject.file("local.properties")
         if (lp.exists()) lp.inputStream().use { props.load(it) }

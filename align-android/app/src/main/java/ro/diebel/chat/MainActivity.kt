@@ -22,8 +22,11 @@ import android.webkit.WebViewClient
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.isVisible
 import ro.diebel.chat.ads.ConsentAndMobileAds
 import ro.diebel.chat.databinding.ActivityMainBinding
@@ -47,6 +50,7 @@ class MainActivity : AppCompatActivity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        configureSystemBars()
         try {
             binding = ActivityMainBinding.inflate(layoutInflater)
             setContentView(binding.root)
@@ -82,12 +86,35 @@ class MainActivity : AppCompatActivity() {
             }
         } catch (e: Exception) {
             Log.e(TAG, "onCreate failed", e)
+            try {
+                setContentView(R.layout.activity_main)
+                findViewById<android.widget.TextView>(R.id.errorMessage)?.text =
+                    getString(R.string.web_error_body)
+                findViewById<android.view.View>(R.id.errorPanel)?.visibility =
+                    android.view.View.VISIBLE
+                findViewById<com.google.android.material.button.MaterialButton>(R.id.btnRetry)
+                    ?.setOnClickListener { recreate() }
+            } catch (e2: Exception) {
+                Log.e(TAG, "fallback UI failed", e2)
+            }
         }
     }
 
     private fun chatEntryUrl(): String {
         val base = BuildConfig.API_BASE_URL.trimEnd('/')
         return "$base/app"
+    }
+
+    /** Aceeași culoare ca app-ul (#0f1419); fără padding extra web care făcea „linii” mari sus/jos. */
+    private fun configureSystemBars() {
+        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
+        WindowCompat.setDecorFitsSystemWindows(window, true)
+        window.statusBarColor = ContextCompat.getColor(this, R.color.align_bg)
+        window.navigationBarColor = ContextCompat.getColor(this, R.color.align_bg)
+        WindowInsetsControllerCompat(window, window.decorView).apply {
+            isAppearanceLightStatusBars = false
+            isAppearanceLightNavigationBars = false
+        }
     }
 
     private fun enableCookies(webView: WebView) {
