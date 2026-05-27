@@ -1698,7 +1698,7 @@ export async function prismaGetConversations(userId: string): Promise<Conversati
   }
   const result: ConversationSummaryPrisma[] = [];
   for (const [otherId, lastMessage] of byOther) {
-    const otherUser = await prismaFindUserById(otherId);
+    const otherUser = await prismaFindUserByIdForMe(otherId);
     if (otherUser) result.push({ otherUser, lastMessage });
   }
   result.sort((a, b) => new Date(b.lastMessage.at).getTime() - new Date(a.lastMessage.at).getTime());
@@ -1723,7 +1723,7 @@ export async function prismaGetConversationsWithMatches(userId: string): Promise
   for (const { otherId, at } of matchPartners) {
     if (existingOtherIds.has(otherId)) continue;
     existingOtherIds.add(otherId);
-    const otherUser = await prismaFindUserById(otherId);
+    const otherUser = await prismaFindUserByIdForMe(otherId);
     if (otherUser) {
       toAdd.push({
         otherUser,

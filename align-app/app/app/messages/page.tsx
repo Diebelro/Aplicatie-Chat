@@ -176,10 +176,13 @@ export default function MessagesPage() {
 
   const fetchConversations = () => {
     fetchWithAuthRetry("/api/conversations", { cache: "no-store" })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.conversations) setConversations(data.conversations);
-      });
+      .then(async (res) => {
+        const data = await res.json();
+        if (res.ok && Array.isArray(data.conversations)) {
+          setConversations(data.conversations);
+        }
+      })
+      .catch(() => {});
   };
 
   const fetchFriends = () => {

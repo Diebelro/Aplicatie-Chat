@@ -39,31 +39,14 @@ body {
   padding-bottom: env(safe-area-inset-bottom, 0);
 }
 
-/* Shell Android: sus compact; jos spațiu exact pentru butoanele telefonului. */
-html.diebel-android-shell .safe-area-inset-top {
-  padding-top: 0 !important;
-}
+/* Shell Android: sus — conținut sub oră/baterie; jos — meniu deasupra butoanelor telefon (fără dublu). */
 html.diebel-android-shell header.safe-area-inset-top {
-  border-bottom-width: 0;
-  box-shadow: none;
+  padding-top: var(--diebel-status-bar, 0px);
+  background-color: #0f1419;
 }
 html.diebel-android-shell nav.safe-area-inset-bottom {
-  border-top-width: 0;
-  box-shadow: none;
+  padding-bottom: calc(0.35rem + var(--diebel-nav-bar, 0px)) !important;
   background-color: #0f1419 !important;
-  backdrop-filter: none !important;
-  padding-bottom: calc(0.5rem + var(--diebel-nav-bar, 24px)) !important;
-}
-html.diebel-android-shell main.flex-1 {
-  padding-bottom: calc(4.75rem + var(--diebel-nav-bar, 24px)) !important;
-}
-html.diebel-android-shell form.chat-compose-form {
-  padding-bottom: calc(0.5rem + var(--diebel-nav-bar, 24px)) !important;
-}
-@media (min-width: 1024px) {
-  html.diebel-android-shell main.flex-1 {
-    padding-bottom: 1.75rem !important;
-  }
 }
 
 /* Pe mobile: font minim 16px la input/textarea ca iOS să nu facă zoom la focus */
