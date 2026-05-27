@@ -1505,7 +1505,7 @@ export default function ChatPage() {
 
       <form
         onSubmit={sendMessage}
-        className="flex flex-col gap-2 pt-4 shrink-0 w-full min-w-0 max-w-full pb-[max(0.5rem,env(safe-area-inset-bottom,0))]"
+        className="chat-compose-form flex flex-col gap-2 pt-4 shrink-0 w-full min-w-0 max-w-full pb-[max(0.5rem,env(safe-area-inset-bottom,0))]"
       >
         {sendError && (
           <div className="flex flex-col gap-2">

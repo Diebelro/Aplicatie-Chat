@@ -39,11 +39,9 @@ body {
   padding-bottom: env(safe-area-inset-bottom, 0);
 }
 
-/* Shell Android: fără padding safe-area dublat (cauza liniilor mari sus/jos). */
-html.diebel-android-shell .safe-area-inset-top,
-html.diebel-android-shell .safe-area-inset-bottom {
+/* Shell Android: sus compact; jos spațiu exact pentru butoanele telefonului. */
+html.diebel-android-shell .safe-area-inset-top {
   padding-top: 0 !important;
-  padding-bottom: 0 !important;
 }
 html.diebel-android-shell header.safe-area-inset-top {
   border-bottom-width: 0;
@@ -54,10 +52,13 @@ html.diebel-android-shell nav.safe-area-inset-bottom {
   box-shadow: none;
   background-color: #0f1419 !important;
   backdrop-filter: none !important;
-  padding-bottom: 0.35rem !important;
+  padding-bottom: calc(0.5rem + var(--diebel-nav-bar, 24px)) !important;
 }
 html.diebel-android-shell main.flex-1 {
-  padding-bottom: 4.75rem !important;
+  padding-bottom: calc(4.75rem + var(--diebel-nav-bar, 24px)) !important;
+}
+html.diebel-android-shell form.chat-compose-form {
+  padding-bottom: calc(0.5rem + var(--diebel-nav-bar, 24px)) !important;
 }
 @media (min-width: 1024px) {
   html.diebel-android-shell main.flex-1 {
