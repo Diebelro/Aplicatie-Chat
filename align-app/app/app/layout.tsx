@@ -460,7 +460,7 @@ export default function AppLayout({
 
   return (
     <div className="h-dvh min-h-0 bg-dark-900 flex flex-col overflow-hidden antialiased text-dark-900">
-      <header className="border-b border-dark-600/80 shrink-0 sticky top-0 z-20 safe-area-inset-top bg-dark-900/92 shadow-[0_1px_0_rgba(0,0,0,0.04)] backdrop-blur-md supports-[backdrop-filter]:bg-dark-900/88">
+      <header className="border-b border-dark-600/80 shrink-0 sticky top-0 z-20 safe-area-inset-top bg-dark-900 shadow-[0_1px_0_rgba(0,0,0,0.04)]">
         {/*
           Header pe lățime completă: max-w-4xl doar pe main lasă banda de nav îngustă pe monitor lat
           și taie textul (ex. „Matches”). Conținutul paginilor rămâne centrat în main mai jos.

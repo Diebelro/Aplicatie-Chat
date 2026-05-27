@@ -19,7 +19,7 @@ export type SearchFilters = {
   sortBy: string;
 };
 
-const defaultFilters: SearchFilters = {
+export const defaultSearchFilters: SearchFilters = {
   gender: "",
   minAge: "18",
   maxAge: "100",
@@ -47,39 +47,64 @@ function sanitizeLoadedFilters(f: SearchFilters): SearchFilters {
 }
 
 function loadFilters(): SearchFilters {
-  if (typeof window === "undefined") return defaultFilters;
+  if (typeof window === "undefined") return defaultSearchFilters;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return defaultFilters;
+    if (!raw) return defaultSearchFilters;
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     const minAgeRaw = parsed.minAge != null ? Number(parsed.minAge) : NaN;
     const maxAgeRaw = parsed.maxAge != null ? Number(parsed.maxAge) : NaN;
-    const minAge = !Number.isNaN(minAgeRaw) ? String(clampAge(minAgeRaw)) : defaultFilters.minAge;
-    const maxAge = !Number.isNaN(maxAgeRaw) ? String(clampAge(maxAgeRaw)) : defaultFilters.maxAge;
+    const minAge = !Number.isNaN(minAgeRaw) ? String(clampAge(minAgeRaw)) : defaultSearchFilters.minAge;
+    const maxAge = !Number.isNaN(maxAgeRaw) ? String(clampAge(maxAgeRaw)) : defaultSearchFilters.maxAge;
     const loaded: SearchFilters = {
-      ...defaultFilters,
-      gender: typeof parsed.gender === "string" ? parsed.gender : defaultFilters.gender,
+      ...defaultSearchFilters,
+      gender: typeof parsed.gender === "string" ? parsed.gender : defaultSearchFilters.gender,
       minAge,
       maxAge,
       maxDistanceKm:
         parsed.maxDistanceKm != null && String(parsed.maxDistanceKm) !== ""
           ? String(parsed.maxDistanceKm)
-          : defaultFilters.maxDistanceKm,
-      country: typeof parsed.country === "string" ? parsed.country : defaultFilters.country,
-      city: typeof parsed.city === "string" ? parsed.city : defaultFilters.city,
-      onlineOnly: typeof parsed.onlineOnly === "boolean" ? parsed.onlineOnly : defaultFilters.onlineOnly,
-      name: typeof parsed.name === "string" ? parsed.name : defaultFilters.name,
+          : defaultSearchFilters.maxDistanceKm,
+      country: typeof parsed.country === "string" ? parsed.country : defaultSearchFilters.country,
+      city: typeof parsed.city === "string" ? parsed.city : defaultSearchFilters.city,
+      onlineOnly: typeof parsed.onlineOnly === "boolean" ? parsed.onlineOnly : defaultSearchFilters.onlineOnly,
+      name: typeof parsed.name === "string" ? parsed.name : defaultSearchFilters.name,
       sortBy:
-        typeof parsed.sortBy === "string" ? normalizeProfileSortBy(parsed.sortBy) : defaultFilters.sortBy,
+        typeof parsed.sortBy === "string" ? normalizeProfileSortBy(parsed.sortBy) : defaultSearchFilters.sortBy,
     };
     return sanitizeLoadedFilters(loaded);
   } catch {
-    return defaultFilters;
+    return defaultSearchFilters;
+  }
+}
+
+/** Pe app Android, filtre vechi din WebView pot ascunde toți utilizatorii — reset o dată. */
+export function clearRestrictiveMobileFilters(): boolean {
+  if (typeof window === "undefined" || !/DiebelAndroid/i.test(navigator.userAgent)) return false;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw) as Partial<SearchFilters>;
+    const restrictive =
+      parsed.onlineOnly === true ||
+      (typeof parsed.country === "string" && parsed.country.trim() !== "") ||
+      (typeof parsed.city === "string" && parsed.city.trim() !== "") ||
+      (parsed.maxDistanceKm != null && String(parsed.maxDistanceKm) !== "" && Number(parsed.maxDistanceKm) > 0);
+    if (!restrictive) return false;
+    const next: SearchFilters = {
+      ...defaultSearchFilters,
+      sortBy:
+        typeof parsed.sortBy === "string" ? normalizeProfileSortBy(parsed.sortBy) : defaultSearchFilters.sortBy,
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    return true;
+  } catch {
+    return false;
   }
 }
 
 export function useSearchFilters(locale: Locale): [SearchFilters, React.Dispatch<React.SetStateAction<SearchFilters>>] {
-  const [filters, setFilters] = useState<SearchFilters>(defaultFilters);
+  const [filters, setFilters] = useState<SearchFilters>(defaultSearchFilters);
   const persistedLocaleRef = useRef<Locale | null>(null);
 
   // Prima dată: localStorage + regiune pentru `locale`; apoi: la schimbarea limbii, aliniază țara/orașul dacă erau goale sau preset pe limbă

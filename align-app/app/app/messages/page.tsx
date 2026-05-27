@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type Ref } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Users, PhoneMissed, MessageCircle } from "lucide-react";
 import type { User } from "@/lib/store";
 import type { Message } from "@/lib/store";
@@ -58,17 +59,21 @@ function MessagesConversationRow({
       : lastMessage.text.length > 50
         ? lastMessage.text.slice(0, 50) + "…"
         : lastMessage.text;
+  const router = useRouter();
   const otherLabel = displayName(otherUser.username ?? otherUser.name);
+  const chatPath = `/app/chat/${otherUser.id}`;
+  const openChat = () => router.push(chatPath);
+
   return (
     <li
       ref={rowRef as Ref<HTMLLIElement>}
       className="flex items-stretch rounded-xl bg-dark-800 border border-dark-600 shadow-sm hover:border-dark-500 active:bg-dark-700/80 transition overflow-hidden touch-manipulation"
     >
-      <Link
-        href={`/app/user/${otherUser.id}`}
-        title={tStr("pages.messages.viewProfileTitle")}
-        aria-label={formatTpl(tStr("pages.messages.viewProfileAria"), { name: otherLabel })}
-        className="flex shrink-0 items-center justify-center py-3 pl-3 pr-2 sm:py-4 sm:pl-4 sm:pr-2 hover:bg-dark-700/50 active:bg-dark-700/70 transition"
+      <button
+        type="button"
+        onClick={openChat}
+        aria-label={formatTpl(tStr("pages.messages.openChatAria"), { name: otherLabel })}
+        className="flex flex-1 items-center gap-3 sm:gap-4 min-h-[56px] min-w-0 py-3 pl-3 pr-2 sm:py-4 sm:pl-4 sm:pr-3 text-left hover:bg-dark-700/50 active:bg-dark-700/70 transition cursor-pointer"
       >
         <div className="relative w-12 h-12 shrink-0 rounded-full overflow-hidden bg-brand-500/20">
           <SilhouetteAvatar
@@ -87,22 +92,6 @@ function MessagesConversationRow({
             </span>
           )}
         </div>
-      </Link>
-      <Link
-        href={`/app/chat/${otherUser.id}`}
-        title={tStr("pages.messages.openChatButtonTitle")}
-        aria-label={formatTpl(tStr("pages.messages.openChatAria"), { name: otherLabel })}
-        className="flex shrink-0 items-center justify-center py-3 px-2 sm:py-4 sm:px-2.5 border-l border-dark-600 bg-dark-800 hover:bg-dark-700/50 active:bg-dark-700/70 transition touch-manipulation"
-      >
-        <span className="flex items-center justify-center w-9 h-9 min-w-[36px] min-h-[36px] rounded-lg bg-brand-500/15 text-brand-400 border border-brand-500/35">
-          <MessageCircle className="w-4 h-4" aria-hidden />
-        </span>
-      </Link>
-      <Link
-        href={`/app/chat/${otherUser.id}`}
-        aria-label={formatTpl(tStr("pages.messages.openChatAria"), { name: otherLabel })}
-        className="flex flex-1 items-center gap-3 sm:gap-4 min-h-[56px] min-w-0 py-3 pr-2 sm:py-4 sm:pr-3 hover:bg-dark-700/50 active:bg-dark-700/70 transition"
-      >
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="font-medium text-zinc-100 truncate">{otherLabel}</span>
@@ -133,10 +122,11 @@ function MessagesConversationRow({
             )}
           </p>
         </div>
-        <span className="text-xs text-dark-500 shrink-0 self-start pt-1 sm:self-center sm:pt-0">
-          {formatTime(lastMessage.at)}
+        <span className="flex shrink-0 items-center gap-2 self-center">
+          <MessageCircle className="w-5 h-5 text-brand-400 shrink-0" aria-hidden />
+          <span className="text-xs text-dark-500">{formatTime(lastMessage.at)}</span>
         </span>
-      </Link>
+      </button>
       <div className="flex items-center px-2 sm:px-2.5 border-l border-dark-600 bg-dark-800 shrink-0">
         <QuickCallButtons toUserId={otherUser.id} size="sm" />
       </div>

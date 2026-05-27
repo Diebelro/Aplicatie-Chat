@@ -5,7 +5,12 @@ import { useRouter } from "next/navigation";
 import { Heart, X, ChevronRight, MessageCircle, Undo2 } from "lucide-react";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
-import { useSearchFilters, type SearchFilters } from "@/lib/useSearchFilters";
+import {
+  useSearchFilters,
+  clearRestrictiveMobileFilters,
+  defaultSearchFilters,
+  type SearchFilters,
+} from "@/lib/useSearchFilters";
 import { SEARCH_CITY_HINTS } from "@/lib/localeSearchDefaults";
 import { SilhouetteAvatar } from "@/components/SilhouetteAvatar";
 import { AddFriendButton } from "@/components/AddFriendButton";
@@ -109,6 +114,11 @@ export default function AppDiscoverPage() {
   } | null>(null);
   const router = useRouter();
   const [filters, setFilters] = useSearchFilters(locale);
+  useEffect(() => {
+    if (clearRestrictiveMobileFilters()) {
+      setFilters(defaultSearchFilters);
+    }
+  }, [setFilters]);
   const [debouncedName, setDebouncedName] = useState(filters.name);
   useEffect(() => {
     const t = setTimeout(() => setDebouncedName(filters.name), 600);
@@ -286,6 +296,7 @@ export default function AppDiscoverPage() {
         const restrictive =
           queryFilters.onlineOnly ||
           queryFilters.city.trim() !== "" ||
+          queryFilters.country.trim() !== "" ||
           (Number(queryFilters.maxDistanceKm) || 0) > 0;
         if (!autoRelaxedFiltersRef.current && restrictive) {
           autoRelaxedFiltersRef.current = true;
@@ -293,6 +304,7 @@ export default function AppDiscoverPage() {
             ...f,
             onlineOnly: false,
             city: "",
+            country: "",
             maxDistanceKm: "0",
           }));
           return;
