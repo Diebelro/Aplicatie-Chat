@@ -483,15 +483,12 @@ export function filterUsers(
     const g = filters.gender;
     if (g != null && g !== "" && u.gender !== g)
       return false;
-    if (filters.minAge != null && (u.age == null || u.age < filters.minAge))
-      return false;
-    if (filters.maxAge != null && (u.age == null || u.age > filters.maxAge))
-      return false;
+    if (filters.minAge != null && u.age != null && u.age < filters.minAge) return false;
+    if (filters.maxAge != null && u.age != null && u.age > filters.maxAge) return false;
     if (filters.country && filters.country.trim() !== "") {
-      const hasCityFilter = !!(filters.city && filters.city.trim() !== "");
       const c = (u.country ?? "").trim();
       if (!c) {
-        if (!hasCityFilter) return false;
+        /* Profil fără țară: rămâne în feed (filtru implicit pe regiune nu îi ascunde). */
       } else if (normalizeStrictMatch(c) !== normalizeStrictMatch(filters.country)) {
         return false;
       }

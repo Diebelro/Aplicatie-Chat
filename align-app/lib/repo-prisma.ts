@@ -1034,22 +1034,21 @@ export async function prismaGetFeedCandidates(
   if (filters.minAge != null) {
     list = list.filter((p) => {
       const age = ageFromBirthDate(p.birthDate);
-      return age != null && age >= filters.minAge!;
+      return age == null || age >= filters.minAge!;
     });
   }
   if (filters.maxAge != null) {
     list = list.filter((p) => {
       const age = ageFromBirthDate(p.birthDate);
-      return age != null && age <= filters.maxAge!;
+      return age == null || age <= filters.maxAge!;
     });
   }
   if (filters.country && filters.country.trim() !== "") {
     const want = normalizeStrict(filters.country);
-    const hasCityFilter = !!(filters.city && filters.city.trim() !== "");
     list = list.filter((p) => {
       const raw = (p.country ?? "").trim();
-      // Profil fără țară în DB: nu îl scoatem din feed dacă filtrezi și după oraș (ex. București completat, țară goală).
-      if (!raw) return hasCityFilter;
+      // Profil fără țară: rămâne vizibil (altfel filtrul implicit „România” ascunde toți utilizatorii fără țară setată).
+      if (!raw) return true;
       return normalizeStrict(p.country ?? "") === want;
     });
   }
