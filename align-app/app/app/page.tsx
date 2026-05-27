@@ -7,8 +7,9 @@ import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
 import {
   useSearchFilters,
-  clearRestrictiveMobileFilters,
   defaultSearchFilters,
+  discoverFiltersForShell,
+  resetDiscoverFiltersStorage,
   type SearchFilters,
 } from "@/lib/useSearchFilters";
 import { SEARCH_CITY_HINTS } from "@/lib/localeSearchDefaults";
@@ -114,11 +115,6 @@ export default function AppDiscoverPage() {
   } | null>(null);
   const router = useRouter();
   const [filters, setFilters] = useSearchFilters(locale);
-  useEffect(() => {
-    if (clearRestrictiveMobileFilters()) {
-      setFilters(defaultSearchFilters);
-    }
-  }, [setFilters]);
   const [debouncedName, setDebouncedName] = useState(filters.name);
   useEffect(() => {
     const t = setTimeout(() => setDebouncedName(filters.name), 600);
@@ -219,6 +215,16 @@ export default function AppDiscoverPage() {
     setLoading(true);
     setRetriedAfterEmpty(true);
     loadFeed(filters);
+  };
+
+  const resetAllDiscoverFilters = () => {
+    resetDiscoverFiltersStorage();
+    autoRelaxedFiltersRef.current = false;
+    setRetriedAfterEmpty(false);
+    const open = discoverFiltersForShell(defaultSearchFilters);
+    setFilters(open);
+    setLoading(true);
+    loadFeed(open);
   };
 
   useEffect(() => {
@@ -965,22 +971,42 @@ export default function AppDiscoverPage() {
           {!retriedAfterEmpty ? (
             <>
               <p className="text-dark-500 max-w-sm mb-4">{tStr("pages.discover.emptyRetry")}</p>
-              <button
-                onClick={searchAgain}
-                className="px-4 py-2 rounded-lg bg-brand-500 text-white hover:bg-brand-600 transition-colors"
-              >
-                {tStr("pages.discover.searchAgain")}
-              </button>
+              <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                <button
+                  type="button"
+                  onClick={searchAgain}
+                  className="px-4 py-2 rounded-lg bg-brand-500 text-white hover:bg-brand-600 transition-colors touch-manipulation"
+                >
+                  {tStr("pages.discover.searchAgain")}
+                </button>
+                <button
+                  type="button"
+                  onClick={resetAllDiscoverFilters}
+                  className="px-4 py-2 rounded-lg border border-dark-600 bg-dark-800 text-dark-200 hover:bg-dark-700 transition-colors touch-manipulation"
+                >
+                  Arată toți utilizatorii
+                </button>
+              </div>
             </>
           ) : (
             <>
               <p className="text-dark-500 max-w-sm mb-4">{tStr("pages.discover.emptyDone")}</p>
-              <button
-                onClick={searchAgain}
-                className="px-4 py-2 rounded-lg bg-brand-500 text-white hover:bg-brand-600 transition-colors"
-              >
-                {tStr("pages.discover.searchAgain")}
-              </button>
+              <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                <button
+                  type="button"
+                  onClick={searchAgain}
+                  className="px-4 py-2 rounded-lg bg-brand-500 text-white hover:bg-brand-600 transition-colors touch-manipulation"
+                >
+                  {tStr("pages.discover.searchAgain")}
+                </button>
+                <button
+                  type="button"
+                  onClick={resetAllDiscoverFilters}
+                  className="px-4 py-2 rounded-lg border border-dark-600 bg-dark-800 text-dark-200 hover:bg-dark-700 transition-colors touch-manipulation"
+                >
+                  Arată toți utilizatorii
+                </button>
+              </div>
             </>
           )}
         </div>

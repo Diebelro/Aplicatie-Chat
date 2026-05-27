@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import type { Locale } from "@/lib/i18n/types";
 import { applyLocaleRegionToFilters } from "@/lib/localeSearchDefaults";
+import { isDiebelAndroidShell } from "@/lib/navigateApp";
 import { normalizeProfileSortBy } from "@/lib/profileSort";
 
 const STORAGE_KEY = "align_search_filters";
@@ -78,29 +79,32 @@ function loadFilters(): SearchFilters {
   }
 }
 
-/** Pe app Android, filtre vechi din WebView pot ascunde toți utilizatorii — reset o dată. */
-export function clearRestrictiveMobileFilters(): boolean {
-  if (typeof window === "undefined" || !/DiebelAndroid/i.test(navigator.userAgent)) return false;
+/** Filtre deschise pe app Android — fără țară/oraș preset (altfel feed gol față de laptop). */
+export function discoverFiltersForShell(base: SearchFilters): SearchFilters {
+  if (!isDiebelAndroidShell()) return base;
+  return sanitizeLoadedFilters({
+    ...base,
+    country: "",
+    city: "",
+    onlineOnly: false,
+    maxDistanceKm: "0",
+  });
+}
+
+export function resetDiscoverFiltersStorage(): void {
+  if (typeof window === "undefined") return;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return false;
-    const parsed = JSON.parse(raw) as Partial<SearchFilters>;
-    const restrictive =
-      parsed.onlineOnly === true ||
-      (typeof parsed.country === "string" && parsed.country.trim() !== "") ||
-      (typeof parsed.city === "string" && parsed.city.trim() !== "") ||
-      (parsed.maxDistanceKm != null && String(parsed.maxDistanceKm) !== "" && Number(parsed.maxDistanceKm) > 0);
-    if (!restrictive) return false;
-    const next: SearchFilters = {
-      ...defaultSearchFilters,
-      sortBy:
-        typeof parsed.sortBy === "string" ? normalizeProfileSortBy(parsed.sortBy) : defaultSearchFilters.sortBy,
-    };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    return true;
+    localStorage.removeItem(STORAGE_KEY);
   } catch {
-    return false;
+    // ignore
   }
+}
+
+/** @deprecated Folosește discoverFiltersForShell / resetDiscoverFiltersStorage */
+export function clearRestrictiveMobileFilters(): boolean {
+  if (!isDiebelAndroidShell()) return false;
+  resetDiscoverFiltersStorage();
+  return true;
 }
 
 export function useSearchFilters(locale: Locale): [SearchFilters, React.Dispatch<React.SetStateAction<SearchFilters>>] {
@@ -111,7 +115,8 @@ export function useSearchFilters(locale: Locale): [SearchFilters, React.Dispatch
   useEffect(() => {
     if (persistedLocaleRef.current === null) {
       const disk = loadFilters();
-      setFilters(applyLocaleRegionToFilters(disk, locale));
+      const withLocale = applyLocaleRegionToFilters(disk, locale);
+      setFilters(discoverFiltersForShell(withLocale));
       persistedLocaleRef.current = locale;
       return;
     }
@@ -119,7 +124,7 @@ export function useSearchFilters(locale: Locale): [SearchFilters, React.Dispatch
       return;
     }
     persistedLocaleRef.current = locale;
-    setFilters((prev) => applyLocaleRegionToFilters(prev, locale));
+    setFilters((prev) => discoverFiltersForShell(applyLocaleRegionToFilters(prev, locale)));
   }, [locale]);
 
   // Salvare la fiecare schimbare
