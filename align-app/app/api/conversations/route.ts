@@ -56,6 +56,11 @@ export async function GET(request: NextRequest) {
           };
         })
       );
+      conversations.sort((a, b) => {
+        const unreadDiff = (b.unreadCount > 0 ? 1 : 0) - (a.unreadCount > 0 ? 1 : 0);
+        if (unreadDiff !== 0) return unreadDiff;
+        return new Date(b.lastMessage.at).getTime() - new Date(a.lastMessage.at).getTime();
+      });
       return NextResponse.json({ conversations, totalUnread });
     } catch {
       return NextResponse.json({ error: "Eroare server." }, { status: 500 });
@@ -82,6 +87,11 @@ export async function GET(request: NextRequest) {
       receivedCount,
       unreadCount,
     };
+  });
+  conversations.sort((a, b) => {
+    const unreadDiff = (b.unreadCount > 0 ? 1 : 0) - (a.unreadCount > 0 ? 1 : 0);
+    if (unreadDiff !== 0) return unreadDiff;
+    return new Date(b.lastMessage.at).getTime() - new Date(a.lastMessage.at).getTime();
   });
   const totalUnread = getTotalUnread(userId);
   return NextResponse.json({ conversations, totalUnread });

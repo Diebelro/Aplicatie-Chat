@@ -270,6 +270,13 @@ export default function AppLayout({
     return () => window.removeEventListener("align_user_updated", onUserUpdated);
   }, []);
 
+  useEffect(() => {
+    if (typeof navigator === "undefined") return;
+    if (/DiebelAndroid/i.test(navigator.userAgent)) {
+      document.documentElement.classList.add("diebel-android-shell");
+    }
+  }, []);
+
   // Heartbeat la ~5s → online în timp real (ca WhatsApp)
   useEffect(() => {
     if (!user?.id) return;

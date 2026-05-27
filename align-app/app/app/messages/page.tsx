@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type Ref } from "react";
+import { useCallback, useEffect, useMemo, useState, type Ref } from "react";
 import Link from "next/link";
 import { Users, PhoneMissed, MessageCircle } from "lucide-react";
 import type { User } from "@/lib/store";
@@ -105,7 +105,7 @@ function MessagesConversationRow({
       >
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="font-medium text-zinc-900 truncate">{otherLabel}</span>
+            <span className="font-medium text-zinc-100 truncate">{otherLabel}</span>
             {otherUser.online && (
               <span className="shrink-0 w-2 h-2 rounded-full bg-green-400" title={tStr("pages.messages.online")} />
             )}
@@ -275,6 +275,14 @@ export default function MessagesPage() {
     return () => window.removeEventListener("align:conversation-read", onConversationRead);
   }, []);
 
+  const sortedConversations = useMemo(() => {
+    return [...conversations].sort((a, b) => {
+      const unreadDiff = (b.unreadCount > 0 ? 1 : 0) - (a.unreadCount > 0 ? 1 : 0);
+      if (unreadDiff !== 0) return unreadDiff;
+      return new Date(b.lastMessage.at).getTime() - new Date(a.lastMessage.at).getTime();
+    });
+  }, [conversations]);
+
   if (loading) {
     return <AppProLoading variant="list" label={tStr("pages.messages.loading")} />;
   }
@@ -329,7 +337,7 @@ export default function MessagesPage() {
                       <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-green-400 border-2 border-dark-800" />
                     )}
                   </div>
-                  <span className="font-medium text-zinc-900 text-sm truncate max-w-[100px]">{f.username ?? f.name}</span>
+                  <span className="font-medium text-zinc-100 text-sm truncate max-w-[100px]">{f.username ?? f.name}</span>
                   <span className="text-xs text-dark-500 shrink-0 max-sm:hidden">
                     {f.online ? tStr("pages.messages.online") : formatLastActive(f.lastActivityAt)}
                   </span>
@@ -360,7 +368,7 @@ export default function MessagesPage() {
         </div>
       ) : (
         <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-y-contain pb-2 sm:pb-3 scrollbar-app -mr-1 pr-1">
-          {conversations.map((item) => (
+          {sortedConversations.map((item) => (
             <MessagesConversationRow
               key={item.otherUser.id}
               item={item}

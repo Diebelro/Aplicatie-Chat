@@ -39,6 +39,14 @@ body {
   padding-bottom: env(safe-area-inset-bottom, 0);
 }
 
+/* Shell Android WebView: env(safe-area-inset-*) e adesea 0 — padding din MainActivity (--diebel-status-bar). */
+html.diebel-android-shell .safe-area-inset-top {
+  padding-top: max(env(safe-area-inset-top, 0px), var(--diebel-status-bar, 28px));
+}
+html.diebel-android-shell .safe-area-inset-bottom {
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), var(--diebel-nav-bar, 0px));
+}
+
 /* Pe mobile: font minim 16px la input/textarea ca iOS să nu facă zoom la focus */
 @media (max-width: 768px) {
   input:not([type="number"]):not([type="range"]),
