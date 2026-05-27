@@ -125,6 +125,7 @@ export default function AppDiscoverPage() {
   const [matchModal, setMatchModal] = useState<{ toId: string; name: string } | null>(null);
   const profileUndoStackRef = useRef<FeedItemProfile[]>([]);
   const [undoStackLength, setUndoStackLength] = useState(0);
+  const autoRelaxedFiltersRef = useRef(false);
 
   const resetProfileUndoStack = useCallback(() => {
     profileUndoStackRef.current = [];
@@ -277,7 +278,25 @@ export default function AppDiscoverPage() {
         });
         setFeedItems(items);
         resetProfileUndoStack();
-        if (data.profiles.length > 0) setRetriedAfterEmpty(false);
+        if (data.profiles.length > 0) {
+          setRetriedAfterEmpty(false);
+          setLoading(false);
+          return;
+        }
+        const restrictive =
+          queryFilters.onlineOnly ||
+          queryFilters.city.trim() !== "" ||
+          (Number(queryFilters.maxDistanceKm) || 0) > 0;
+        if (!autoRelaxedFiltersRef.current && restrictive) {
+          autoRelaxedFiltersRef.current = true;
+          setFilters((f) => ({
+            ...f,
+            onlineOnly: false,
+            city: "",
+            maxDistanceKm: "0",
+          }));
+          return;
+        }
         setLoading(false);
       })
       .catch(() => {
@@ -287,7 +306,7 @@ export default function AppDiscoverPage() {
         setLoading(false);
       });
     return () => { cancelled = true; };
-  }, [filters.gender, filters.minAge, filters.maxAge, filters.maxDistanceKm, filters.country, filters.city, filters.onlineOnly, debouncedName, filters.sortBy, resetProfileUndoStack]);
+  }, [filters.gender, filters.minAge, filters.maxAge, filters.maxDistanceKm, filters.country, filters.city, filters.onlineOnly, debouncedName, filters.sortBy, resetProfileUndoStack, setFilters]);
 
   /** Trece la următorul card; reține profilul curent pentru „Revenire” (până la 7 profile). */
   const dismissCurrentFeedItem = useCallback(() => {

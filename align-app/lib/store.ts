@@ -494,11 +494,12 @@ export function filterUsers(
       }
     }
     if (filters.city && filters.city.trim() !== "") {
-      if (!cityMatchesFilter(u.city, filters.city)) return false;
+      const raw = (u.city ?? "").trim();
+      if (raw && !cityMatchesFilter(u.city, filters.city)) return false;
     }
     if (filters.maxDistanceKm != null && filters.maxDistanceKm > 0) {
       const km = getDistanceKm(myId, u.id);
-      if (km == null || km > filters.maxDistanceKm) return false;
+      if (km != null && km > filters.maxDistanceKm) return false;
     }
     if (filters.onlineOnly && !isUserOnline(u.id)) return false;
     if (filters.name && filters.name.trim() !== "") {

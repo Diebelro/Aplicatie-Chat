@@ -1054,7 +1054,11 @@ export async function prismaGetFeedCandidates(
   }
   if (filters.city && filters.city.trim() !== "") {
     const fc = filters.city;
-    list = list.filter((p) => cityMatchesFilter(p.city, fc));
+    list = list.filter((p) => {
+      const raw = (p.city ?? "").trim();
+      if (!raw) return true;
+      return cityMatchesFilter(p.city, fc);
+    });
   }
   if (filters.name && filters.name.trim() !== "") {
     const q = filters.name;
@@ -1068,7 +1072,7 @@ export async function prismaGetFeedCandidates(
   // Fără filtru de distanță: profilurile fără locație rămân în listă.
   if (filters.maxDistanceKm != null && filters.maxDistanceKm > 0) {
     if (!hasMyLocation) {
-      list = [];
+      /* Fără locația mea: ignorăm distanța (altfel feed gol pe mobil unde lipsește GPS). */
     } else {
       const R = 6371;
       list = list.filter((p) => {

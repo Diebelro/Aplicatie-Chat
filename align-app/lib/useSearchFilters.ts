@@ -35,6 +35,17 @@ function clampAge(val: number): number {
   return Math.max(18, Math.min(100, val));
 }
 
+/** Filtre salvate pe mobil (WebView) care ascund toți utilizatorii — reset ușor. */
+function sanitizeLoadedFilters(f: SearchFilters): SearchFilters {
+  const legacyCities = new Set(["bucurești", "bucuresti", "london", "berlin"]);
+  const cityNorm = f.city.trim().toLowerCase();
+  let city = f.city;
+  if (cityNorm && legacyCities.has(cityNorm)) {
+    city = "";
+  }
+  return { ...f, city };
+}
+
 function loadFilters(): SearchFilters {
   if (typeof window === "undefined") return defaultFilters;
   try {
@@ -45,7 +56,7 @@ function loadFilters(): SearchFilters {
     const maxAgeRaw = parsed.maxAge != null ? Number(parsed.maxAge) : NaN;
     const minAge = !Number.isNaN(minAgeRaw) ? String(clampAge(minAgeRaw)) : defaultFilters.minAge;
     const maxAge = !Number.isNaN(maxAgeRaw) ? String(clampAge(maxAgeRaw)) : defaultFilters.maxAge;
-    return {
+    const loaded: SearchFilters = {
       ...defaultFilters,
       gender: typeof parsed.gender === "string" ? parsed.gender : defaultFilters.gender,
       minAge,
@@ -61,6 +72,7 @@ function loadFilters(): SearchFilters {
       sortBy:
         typeof parsed.sortBy === "string" ? normalizeProfileSortBy(parsed.sortBy) : defaultFilters.sortBy,
     };
+    return sanitizeLoadedFilters(loaded);
   } catch {
     return defaultFilters;
   }
