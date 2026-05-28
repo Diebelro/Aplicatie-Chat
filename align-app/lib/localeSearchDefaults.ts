@@ -43,6 +43,9 @@ export function applyLocaleRegionToFilters<T extends { country: string; city: st
   prev: T,
   locale: Locale
 ): T {
+  if (typeof navigator !== "undefined" && /DiebelAndroid/i.test(navigator.userAgent)) {
+    return prev;
+  }
   const empty = !prev.country.trim() && !prev.city.trim();
   if (!empty && !matchesAnyLocaleDefaultRegion(prev.country, prev.city)) {
     return prev;

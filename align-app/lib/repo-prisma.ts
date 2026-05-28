@@ -1733,6 +1733,38 @@ export async function prismaGetConversationsWithMatches(userId: string): Promise
     }
   }
   const combined = [...withMessages, ...toAdd];
+  const listedIds = new Set(combined.map((c) => c.otherUser.id));
+  const unreadRows = await prisma.message.findMany({
+    where: {
+      AND: [{ toUserId: userId, seenAt: null }, prismaMessageWhereChatVisible()],
+    },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      fromUserId: true,
+      toUserId: true,
+      text: true,
+      createdAt: true,
+      isPlatformNotice: true,
+    },
+  });
+  for (const m of unreadRows) {
+    if (listedIds.has(m.fromUserId)) continue;
+    listedIds.add(m.fromUserId);
+    const otherUser = await prismaFindUserByIdForMe(m.fromUserId);
+    if (!otherUser) continue;
+    combined.push({
+      otherUser,
+      lastMessage: {
+        id: m.id,
+        fromId: m.fromUserId,
+        toId: m.toUserId,
+        text: m.text,
+        at: m.createdAt.toISOString(),
+        isPlatformNotice: m.isPlatformNotice ?? false,
+      },
+    });
+  }
   combined.sort((a, b) => new Date(b.lastMessage.at).getTime() - new Date(a.lastMessage.at).getTime());
   return combined;
 }

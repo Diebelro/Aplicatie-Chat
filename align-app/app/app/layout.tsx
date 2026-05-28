@@ -36,6 +36,7 @@ import { LOGOUT_DIALOG_OPEN_EVENT, requestOpenLogoutDialog } from "@/lib/logoutD
 import { DiebelWordmark } from "@/components/DiebelWordmark";
 import { DiebelCopyrightStrip } from "@/components/DiebelAuthorCredit";
 import { AppShellLoadingLayout } from "@/components/perceived/AppShellLoadingLayout";
+import { AndroidShellInit } from "@/components/AndroidShellInit";
 import { isDiebelAndroidShell, navigateApp } from "@/lib/navigateApp";
 
 type DesktopNavTone = "default" | "brand" | "amber" | "admin";
@@ -809,6 +810,7 @@ export default function AppLayout({
           tStr={tStr}
         />
       )}
+      <AndroidShellInit />
       <Watermark />
       <ServiceWorkerAndPush />
       <IncomingCall />

@@ -275,7 +275,8 @@ class MainActivity : AppCompatActivity() {
         if (!::binding.isInitialized) return
         binding.errorPanel.isVisible = false
         binding.progress.isVisible = true
-        binding.webView.loadUrl(homeUrl)
+        val url = "$homeUrl?shell=${BuildConfig.VERSION_CODE}"
+        binding.webView.loadUrl(url)
     }
 
     private fun showError(detail: String?) {
@@ -288,6 +289,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        CookieManager.getInstance().flush()
         if (::binding.isInitialized && !webViewDestroyed) {
             binding.webView.onResume()
         }
