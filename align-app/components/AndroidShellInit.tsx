@@ -8,20 +8,24 @@ import {
   resetDiscoverFiltersStorage,
 } from "@/lib/useSearchFilters";
 
-const BOOT_KEY = "align_android_shell_ready_v23";
-
-/** O dată la instalare: filtre Descoperă deschise (feed ca pe laptop). */
+/** La fiecare deschidere în app Android: filtre deschise (ca în browser). */
 export function AndroidShellInit() {
   useEffect(() => {
     if (!isDiebelAndroidShell()) return;
     try {
-      if (localStorage.getItem(BOOT_KEY) === "1") return;
       resetDiscoverFiltersStorage();
       localStorage.setItem(
         "align_search_filters",
         JSON.stringify(discoverFiltersForShell(defaultSearchFilters))
       );
-      localStorage.setItem(BOOT_KEY, "1");
+      if ("serviceWorker" in navigator) {
+        void navigator.serviceWorker.getRegistrations().then((regs) => {
+          for (const r of regs) r.unregister();
+        });
+      }
+      if ("caches" in window) {
+        void caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k))));
+      }
     } catch {
       // ignore
     }

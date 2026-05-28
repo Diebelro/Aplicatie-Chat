@@ -114,9 +114,13 @@ export function useSearchFilters(locale: Locale): [SearchFilters, React.Dispatch
   // Prima dată: localStorage + regiune pentru `locale`; apoi: la schimbarea limbii, aliniază țara/orașul dacă erau goale sau preset pe limbă
   useEffect(() => {
     if (persistedLocaleRef.current === null) {
-      const disk = loadFilters();
-      const withLocale = applyLocaleRegionToFilters(disk, locale);
-      setFilters(discoverFiltersForShell(withLocale));
+      if (isDiebelAndroidShell()) {
+        setFilters(discoverFiltersForShell(defaultSearchFilters));
+      } else {
+        const disk = loadFilters();
+        const withLocale = applyLocaleRegionToFilters(disk, locale);
+        setFilters(discoverFiltersForShell(withLocale));
+      }
       persistedLocaleRef.current = locale;
       return;
     }
