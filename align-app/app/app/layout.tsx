@@ -37,6 +37,7 @@ import { DiebelWordmark } from "@/components/DiebelWordmark";
 import { DiebelCopyrightStrip } from "@/components/DiebelAuthorCredit";
 import { AppShellLoadingLayout } from "@/components/perceived/AppShellLoadingLayout";
 import { AndroidShellInit } from "@/components/AndroidShellInit";
+import { AndroidCallAudio } from "@/components/AndroidCallAudio";
 import { isDiebelAndroidShell, navigateApp } from "@/lib/navigateApp";
 
 type DesktopNavTone = "default" | "brand" | "amber" | "admin";
@@ -811,6 +812,7 @@ export default function AppLayout({
         />
       )}
       <AndroidShellInit />
+      <AndroidCallAudio />
       <Watermark />
       <ServiceWorkerAndPush />
       <IncomingCall />

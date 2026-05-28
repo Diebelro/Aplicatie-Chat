@@ -49,6 +49,8 @@ import {
   supportsAudioOutputSelection,
 } from "@/lib/webrtc/audioOutput";
 import { isMobileDevice } from "@/lib/webrtc/mediaConstraints";
+import { isDiebelAndroidShell } from "@/lib/navigateApp";
+import { resumeAllCallAudio } from "@/lib/callAudioResume";
 import { useCallRoomTranslate } from "@/lib/i18n/callTranslateSafe";
 import { callErrorRawForHints, resolveCallDisplayedError } from "@/lib/i18n/callApiErrorMap";
 import {
@@ -98,7 +100,7 @@ function RemoteAudio({ stream }: { stream: MediaStream }) {
     const flush = () => {
       el.srcObject = stream;
       el.volume = remoteMuted ? 0 : 1;
-      void applyAudioSinkId(el, sinkId);
+      if (!isDiebelAndroidShell()) void applyAudioSinkId(el, sinkId);
       const p = el.play();
       if (p !== undefined && typeof (p as Promise<void>).catch === "function") {
         void (p as Promise<void>).catch(() => {
@@ -799,10 +801,26 @@ export default function CallUI({
     const unlock = () => {
       setRemotePlaybackBlockedHint(false);
       setPlaybackUnlockKey((k) => k + 1);
+      void resumeAllCallAudio();
     };
     window.addEventListener("pointerdown", unlock, { passive: true });
     return () => window.removeEventListener("pointerdown", unlock);
   }, [remotePlaybackBlockedHint]);
+
+  /** WebView Android: reîncearcă redarea vocii la conectare (autoplay blocat). */
+  useEffect(() => {
+    if (callState !== "connected" || !isDiebelAndroidShell()) return;
+    void resumeAllCallAudio();
+    setPlaybackUnlockKey((k) => k + 1);
+    let n = 0;
+    const id = window.setInterval(() => {
+      n += 1;
+      void resumeAllCallAudio();
+      setPlaybackUnlockKey((k) => k + 1);
+      if (n >= 8) window.clearInterval(id);
+    }, 500);
+    return () => window.clearInterval(id);
+  }, [callState]);
 
   /** Doar pe mobil: pe desktop lăsăm ieșirea implicită (boxe/căști după OS). */
   const showSpeakerToggle = isMobileUi && supportsAudioOutputSelection() && !!speakerSinkIdResolved;

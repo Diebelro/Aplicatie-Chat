@@ -2,7 +2,11 @@
  * Sunet scurt tip „sonerie” pentru apel primit. Web Audio necesită adesea `resume()` după un gest al utilizatorului.
  */
 
+import { getDiebelAudioContext, resumeAllCallAudio, scheduleAndroidCallAudioResume } from "@/lib/callAudioResume";
+import { isDiebelAndroidShell } from "@/lib/navigateApp";
+
 let audioCtx: AudioContext | null = null;
+let androidResumeCleanup: (() => void) | null = null;
 let loopTimer: number | null = null;
 let activeToken = 0;
 const pendingBeeps = new Set<number>();
@@ -52,6 +56,8 @@ function playBeep(ctx: AudioContext, token: number, freq: number, durationSec: n
 
 export function stopIncomingRingtone(options: { broadcast?: boolean } = {}): void {
   const broadcast = options.broadcast ?? true;
+  androidResumeCleanup?.();
+  androidResumeCleanup = null;
   activeToken += 1;
   clearPendingBeeps();
   if (loopTimer != null) {
@@ -86,14 +92,15 @@ export function startIncomingRingtone(): {
   if (typeof window === "undefined") {
     return { resume: async () => {}, needsUserGesture: false };
   }
-  const AC =
-    window.AudioContext ||
-    (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (!AC) {
+  const ctx = getDiebelAudioContext();
+  if (!ctx) {
     return { resume: async () => {}, needsUserGesture: false };
   }
-  const ctx = new AC();
   audioCtx = ctx;
+  if (isDiebelAndroidShell()) {
+    androidResumeCleanup?.();
+    androidResumeCleanup = scheduleAndroidCallAudioResume();
+  }
   activeToken += 1;
   const token = activeToken;
 
@@ -106,12 +113,8 @@ export function startIncomingRingtone(): {
 
   return {
     resume: async () => {
-      try {
-        await ctx.resume();
-      } catch {
-        /* ignore */
-      }
+      await resumeAllCallAudio();
     },
-    needsUserGesture: ctx.state === "suspended",
+    needsUserGesture: isDiebelAndroidShell() || ctx.state === "suspended",
   };
 }
