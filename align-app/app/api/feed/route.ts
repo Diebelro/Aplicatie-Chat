@@ -105,6 +105,14 @@ export async function GET(request: NextRequest) {
     try {
       await prismaUpdateLastActive(userId);
       const filters: FeedFilters = parseDiscoverSearchFilters(request.nextUrl.searchParams);
+      const ua = request.headers.get("user-agent") ?? "";
+      if (/DiebelAndroid/i.test(ua)) {
+        // Pe WebView mobil, filtre vechi persistate (country/city/online/dist) pot ascunde toți utilizatorii.
+        filters.country = "";
+        filters.city = "";
+        filters.onlineOnly = false;
+        filters.maxDistanceKm = 0;
+      }
       const candidates = await prismaGetFeedCandidates(userId, filters, { includeSwiped: true });
       const me = await prismaFindUserById(userId);
       const myLoc = await prismaGetMyLocation(userId);
