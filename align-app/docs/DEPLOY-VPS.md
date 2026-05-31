@@ -1,13 +1,13 @@
 # Deploy Diebel pe VPS (Hetzner / Linux) — fără Vercel
 
-Stack: **Next.js** (`chat.diebel.ro`) + **server signaling WebSocket** (`ws.diebel.ro`)
-rulate în **Docker**, în spatele lui **Caddy** (HTTPS automat). **coturn** rămâne separat
-(`turn.diebel.ro`). Baza de date **Postgres (Neon)** e externă — nu se schimbă.
+Stack: **Next.js** (`chat.diebel.ro`) în **Docker**, în spatele **nginx-ului** de pe
+VPS (HTTPS / reverse proxy). Semnalizarea WebRTC (`ws.diebel.ro`) și **coturn**
+(`turn.diebel.ro`) rulează separat pe VPS. Baza de date **Postgres (Neon)** e externă.
 
 ```
-Internet ──▶ Caddy (80/443, TLS automat)
-                ├── chat.diebel.ro ──▶ app:3000        (Next.js)
-                └── ws.diebel.ro   ──▶ signaling:4001  (WebRTC /ws)
+Internet ──▶ nginx (80/443, TLS)
+                ├── chat.diebel.ro ──▶ 127.0.0.1:<port>  (container app Next.js)
+                └── ws.diebel.ro   ──▶ 127.0.0.1:4001     (signaling WebRTC /ws)
             coturn (3478/5349)  ── separat pe VPS
             Postgres ── Neon (extern)
 ```
@@ -72,26 +72,12 @@ Completează cel puțin:
 - `TURN_STATIC_SECRET` / `TURN_AUTH_SECRET` (identic cu `static-auth-secret` din coturn)
 - `RESEND_API_KEY`, cheile VAPID, Firebase (dacă le folosești)
 
-Editează și `Caddyfile` → schimbă `email contact@diebel.ro` cu emailul tău.
-
 ---
 
 ## 5. Pornește
 
-Două scenarii:
-
-### A) Server gol, all-in-one cu Caddy (HTTPS automat)
-
-```bash
-docker compose --profile standalone up -d --build
-```
-
-Caddy obține automat certificatele pentru `chat.diebel.ro` și `ws.diebel.ro`.
-
-### B) Server care are DEJA nginx (ex. acest VPS) — recomandat aici
-
-Pornește **doar aplicația** (nginx existent face proxy spre ea). Caddy și signaling
-NU pornesc (sunt sub profilul `standalone`), ca să nu fure porturile 80/443:
+HTTPS + reverse proxy sunt asigurate de **nginx-ul existent** de pe VPS (nu de acest
+compose). Pornește doar aplicația:
 
 ```bash
 docker compose up -d --build          # pornește doar `app`
@@ -100,8 +86,9 @@ docker compose up -d --build          # pornește doar `app`
 Apoi în nginx, pe vhost-ul `chat.diebel.ro`, `proxy_pass http://127.0.0.1:<PORT>;`
 unde `<PORT>` e cel publicat de `docker-compose.override.yml` (ex. 3002).
 
-> ⚠️ Pe un server cu nginx, NU rula `--profile standalone` — Caddy ar intra în
-> conflict pe 80/443 și ai primi `ERR_SSL_PROTOCOL_ERROR`.
+> Dacă serverul NU are deja un serviciu de signaling (systemd), îl poți rula în
+> container: `docker compose --profile standalone up -d --build` (pornește și
+> serviciul `signaling` pe 4001).
 
 Verifică:
 
