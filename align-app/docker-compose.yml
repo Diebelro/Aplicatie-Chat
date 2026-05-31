@@ -13,6 +13,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        NEXTAUTH_URL: https://chat.diebel.ro
+        NEXT_PUBLIC_APP_URL: https://chat.diebel.ro
     image: diebel-app:latest
     restart: unless-stopped
     env_file:

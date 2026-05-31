@@ -38,8 +38,11 @@ yarn-error.log*
 *.swp
 *.swo
 
-# Chat dev uploads (fÄƒrÄƒ Vercel Blob)
+# Chat dev uploads (fara Vercel Blob)
 public/_chatDev/
+
+# Docker override specific serverului (generat de scripts/vps-deploy.sh)
+docker-compose.override.yml
 
 # OS
 .DS_Store

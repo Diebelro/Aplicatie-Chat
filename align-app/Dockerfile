@@ -20,6 +20,16 @@ RUN npm ci
 
 # --- Build Next.js (standalone) ---------------------------------------------
 FROM base AS builder
+# Variabile necesare DOAR la build (colectare date pagini / NextAuth în producție).
+# Secretul real vine la RUNTIME din .env.production; placeholder-ul de mai jos NU
+# ajunge la clienți (server-only) și nu e folosit la rulare.
+ARG NEXTAUTH_SECRET="build-placeholder-secret-0000000000000000"
+ARG NEXTAUTH_URL="https://chat.diebel.ro"
+ARG NEXT_PUBLIC_APP_URL="https://chat.diebel.ro"
+ENV NODE_ENV=production
+ENV NEXTAUTH_SECRET=$NEXTAUTH_SECRET
+ENV NEXTAUTH_URL=$NEXTAUTH_URL
+ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npx prisma generate
