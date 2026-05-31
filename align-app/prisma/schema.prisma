@@ -1,5 +1,7 @@
 generator client {
   provider = "prisma-client-js"
+  /// Local (Windows/Mac) + Docker Linux (debian slim, OpenSSL 3) pentru deploy pe VPS.
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {

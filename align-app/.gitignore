@@ -1,4 +1,4 @@
-# Dependencies
+﻿# Dependencies
 node_modules/
 .pnp
 .pnp.js
@@ -23,6 +23,7 @@ prisma/prisma/
 .env.local
 .env.development.local
 .env.test.local
+.env.production
 .env.production.local
 .env.signaling
 
@@ -37,7 +38,7 @@ yarn-error.log*
 *.swp
 *.swo
 
-# Chat dev uploads (fără Vercel Blob)
+# Chat dev uploads (fÄƒrÄƒ Vercel Blob)
 public/_chatDev/
 
 # OS

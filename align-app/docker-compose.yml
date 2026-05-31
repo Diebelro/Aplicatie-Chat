@@ -1,0 +1,65 @@
+# ----------------------------------------------------------------------------
+# Diebel — stack producție pe VPS (fără Vercel)
+#   app       : Next.js (chat.diebel.ro)
+#   signaling : WebSocket WebRTC (ws.diebel.ro/ws)
+#   caddy     : reverse proxy + HTTPS automat (Let's Encrypt)
+#
+# coturn (TURN/STUN) rămâne separat pe VPS (turn.diebel.ro), nu în acest compose.
+# Baza de date Postgres (Neon) e externă — setată prin DATABASE_URL în .env.production.
+# ----------------------------------------------------------------------------
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: diebel-app:latest
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: 0.0.0.0
+      # Pozele din chat se salvează pe disc (volum), nu pe Vercel Blob.
+      CHAT_LOCAL_UPLOAD: "true"
+    volumes:
+      - chat_uploads:/app/public/_chatDev
+    expose:
+      - "3000"
+    depends_on:
+      - signaling
+
+  signaling:
+    build:
+      context: .
+      dockerfile: Dockerfile.signaling
+    image: diebel-signaling:latest
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      NODE_ENV: production
+      SIGNALING_PORT: "4001"
+      SIGNALING_BIND_ADDRESS: 0.0.0.0
+    expose:
+      - "4001"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+      - signaling
+
+volumes:
+  chat_uploads:
+  caddy_data:
+  caddy_config:

@@ -1,0 +1,22 @@
+# syntax=docker/dockerfile:1
+
+# ----------------------------------------------------------------------------
+# Diebel — Server WebSocket de semnalizare WebRTC (ws.diebel.ro)
+# Rulează `server/call-signaling-server.mjs` (path /ws, default port 4001).
+# ----------------------------------------------------------------------------
+
+FROM node:20-bookworm-slim AS signaling
+WORKDIR /app
+ENV NODE_ENV=production
+ENV SIGNALING_PORT=4001
+ENV SIGNALING_BIND_ADDRESS=0.0.0.0
+
+# Doar dependențele de producție; --ignore-scripts sare peste `prisma generate`
+# (semnalizarea nu folosește Prisma).
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev --ignore-scripts
+
+COPY server ./server
+
+EXPOSE 4001
+CMD ["node", "server/call-signaling-server.mjs"]

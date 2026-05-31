@@ -99,6 +99,10 @@ function resolveNextPublicSignalingWsUrl() {
 const devSignalingWsUrl = resolveNextPublicSignalingWsUrl();
 
 const nextConfig = {
+  /** Deploy pe VPS (Docker): server Node autonom în `.next/standalone`, fără Vercel. */
+  output: "standalone",
+  /** Trasează fișierele din acest folder (lockfile aici) — pachet standalone corect pentru Docker. */
+  outputFileTracingRoot: path.join(__dirname),
   /** Dev: permite HMR când deschizi site-ul pe 127.0.0.1 vs localhost (altfel Next blochează /_next/webpack-hmr). */
   allowedDevOrigins: ["127.0.0.1", "localhost"],
   /** Rădăcină explicită: evită avertismentul Turbopack când există alt lockfile în repo părinte. */

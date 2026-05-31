@@ -1,0 +1,24 @@
+# ----------------------------------------------------------------------------
+# Caddy — TLS automat (Let's Encrypt) + reverse proxy pentru Diebel
+# Înlocuiește email-ul de mai jos cu al tău (pentru notificări certificat).
+# ----------------------------------------------------------------------------
+
+{
+	email contact@diebel.ro
+}
+
+# Aplicația Next.js
+chat.diebel.ro {
+	encode zstd gzip
+	reverse_proxy app:3000
+}
+
+# Semnalizare WebRTC (WebSocket pe /ws). Caddy gestionează automat upgrade-ul WS.
+ws.diebel.ro {
+	reverse_proxy signaling:4001
+}
+
+# Opțional: redirect de la apex/www către app (decomentează dacă vrei)
+# www.chat.diebel.ro {
+# 	redir https://chat.diebel.ro{uri} permanent
+# }
