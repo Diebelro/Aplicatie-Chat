@@ -76,18 +76,37 @@ Editează și `Caddyfile` → schimbă `email contact@diebel.ro` cu emailul tău
 
 ---
 
-## 5. Pornește totul
+## 5. Pornește
+
+Două scenarii:
+
+### A) Server gol, all-in-one cu Caddy (HTTPS automat)
 
 ```bash
-docker compose up -d --build
+docker compose --profile standalone up -d --build
 ```
 
-Caddy obține automat certificatele HTTPS pentru `chat.diebel.ro` și `ws.diebel.ro`
-(durează ~30s la prima pornire). Verifică:
+Caddy obține automat certificatele pentru `chat.diebel.ro` și `ws.diebel.ro`.
+
+### B) Server care are DEJA nginx (ex. acest VPS) — recomandat aici
+
+Pornește **doar aplicația** (nginx existent face proxy spre ea). Caddy și signaling
+NU pornesc (sunt sub profilul `standalone`), ca să nu fure porturile 80/443:
+
+```bash
+docker compose up -d --build          # pornește doar `app`
+```
+
+Apoi în nginx, pe vhost-ul `chat.diebel.ro`, `proxy_pass http://127.0.0.1:<PORT>;`
+unde `<PORT>` e cel publicat de `docker-compose.override.yml` (ex. 3002).
+
+> ⚠️ Pe un server cu nginx, NU rula `--profile standalone` — Caddy ar intra în
+> conflict pe 80/443 și ai primi `ERR_SSL_PROTOCOL_ERROR`.
+
+Verifică:
 
 ```bash
 docker compose ps
-docker compose logs -f caddy      # vezi obținerea certificatului
 curl -I https://chat.diebel.ro/api/health   # 200 OK
 ```
 

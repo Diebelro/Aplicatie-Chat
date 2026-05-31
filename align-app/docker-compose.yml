@@ -1,8 +1,16 @@
 # ----------------------------------------------------------------------------
 # Diebel — stack producție pe VPS (fără Vercel)
-#   app       : Next.js (chat.diebel.ro)
-#   signaling : WebSocket WebRTC (ws.diebel.ro/ws)
-#   caddy     : reverse proxy + HTTPS automat (Let's Encrypt)
+#   app       : Next.js (chat.diebel.ro)            — pornește IMPLICIT
+#   signaling : WebSocket WebRTC (ws.diebel.ro/ws)  — doar cu profilul "standalone"
+#   caddy     : reverse proxy + HTTPS automat       — doar cu profilul "standalone"
+#
+# IMPORTANT: pe un server care are DEJA nginx + signaling (ca acest VPS), NU porni
+# caddy/signaling (ar fura porturile 80/443 => ERR_SSL_PROTOCOL_ERROR). De aceea
+# sunt sub `profiles: ["standalone"]` și NU pornesc la `docker compose up -d`.
+#
+#   • Server cu nginx existent (acest VPS):   docker compose up -d --build
+#       (pornește doar `app`; nginx face proxy spre el — vezi docker-compose.override.yml)
+#   • Server gol, all-in-one cu Caddy:        docker compose --profile standalone up -d --build
 #
 # coturn (TURN/STUN) rămâne separat pe VPS (turn.diebel.ro), nu în acest compose.
 # Baza de date Postgres (Neon) e externă — setată prin DATABASE_URL în .env.production.
@@ -30,10 +38,9 @@ services:
       - chat_uploads:/app/public/_chatDev
     expose:
       - "3000"
-    depends_on:
-      - signaling
 
   signaling:
+    profiles: ["standalone"]
     build:
       context: .
       dockerfile: Dockerfile.signaling
@@ -49,6 +56,7 @@ services:
       - "4001"
 
   caddy:
+    profiles: ["standalone"]
     image: caddy:2
     restart: unless-stopped
     ports:
