@@ -94,7 +94,8 @@ function resolveNextPublicSignalingWsUrl() {
   if (process.env.NODE_ENV !== "production") {
     return "ws://127.0.0.1:4001";
   }
-  return undefined;
+  /** Docker/VPS fără variabilă în build — implicit același host ca producția Diebel. */
+  return "wss://ws.diebel.ro/ws";
 }
 
 const devSignalingWsUrl = resolveNextPublicSignalingWsUrl();
@@ -126,6 +127,10 @@ const nextConfig = {
     NEXT_PUBLIC_BUILD_COMMIT_SHORT: buildCommitShort,
     NEXTAUTH_URL: resolveNextAuthUrlForBundle(),
     ...(devSignalingWsUrl ? { NEXT_PUBLIC_SIGNALING_WS_URL: devSignalingWsUrl } : {}),
+    /** Producție VPS: URL canonic în bundle dacă lipsește din .env.production la build. */
+    ...(process.env.NODE_ENV === "production" && !process.env.NEXT_PUBLIC_SIGNALING_WS_URL?.trim()
+      ? { NEXT_PUBLIC_SIGNALING_WS_URL: "wss://ws.diebel.ro/ws" }
+      : {}),
   },
   compiler: {
     removeConsole: process.env.NODE_ENV === "production" ? { exclude: ["error", "warn"] } : false,

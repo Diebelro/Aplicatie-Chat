@@ -15,6 +15,11 @@ import {
 import { closeIncomingCallPushNotifications } from "@/lib/closeIncomingCallPushNotifications";
 import { clientHangupCall } from "@/lib/callHangupClient";
 import { CALL_POLL_429_BACKOFF_MS } from "@/lib/callOutgoingConstants";
+import {
+  VPS_INCOMING_CALL_POLL_HIDDEN_MS,
+  VPS_INCOMING_CALL_POLL_VISIBLE_MS,
+  VPS_INCOMING_CLEAR_DEBOUNCE_MS,
+} from "@/lib/vpsRealtimeConstants";
 import { startIncomingRingtone, stopIncomingRingtone } from "@/lib/callRingtone";
 import { isBrowserPushPrimaryPath } from "@/lib/browserPushConstants";
 import { useCallRoomTranslate } from "@/lib/i18n/callTranslateSafe";
@@ -25,10 +30,10 @@ import { resolveCallDisplayedError, type CallErrorPayload } from "@/lib/i18n/cal
  * (FSM-ul acoperă apelul activ după ce ești în cameră; `CallUI` citește `callState`).
  */
 
-/** Filă activă: poll mai des ca „te sună” să apară repede când celălalt sună de pe telefon. */
-const POLL_MS_VISIBLE = 600;
-/** Filă în fundal: mai rare ca să nu omoare bateria; la revenire facem fetch imediat. */
-const POLL_MS_HIDDEN = 5000;
+/** Filă activă: poll pe VPS (chat.diebel.ro). */
+const POLL_MS_VISIBLE = VPS_INCOMING_CALL_POLL_VISIBLE_MS;
+/** Filă în fundal: mai rare; la revenire facem fetch imediat. */
+const POLL_MS_HIDDEN = VPS_INCOMING_CALL_POLL_HIDDEN_MS;
 /**
  * Cu Web Push marcat „primar”, evităm poll-ul agresiv — dar push-ul poate să nu livreze (tab deschis, permisiuni).
  * Un poll lent păstrează UX-ul „te sună” fără să depindem 100% de notificare.
@@ -142,7 +147,7 @@ export default function IncomingCall() {
         clearIncomingDebounceRef.current = window.setTimeout(() => {
           clearIncomingDebounceRef.current = null;
           setIncoming(null);
-        }, 1600);
+        }, VPS_INCOMING_CLEAR_DEBOUNCE_MS);
       })
       .catch(() => {});
   }, [cancelScheduledClearIncoming]);

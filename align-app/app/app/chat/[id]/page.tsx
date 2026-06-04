@@ -13,6 +13,7 @@ import { track } from "@/lib/tracking";
 import { displayName } from "@/lib/displayName";
 import { getAuthHeaders, fetchWithAuthRetry } from "@/lib/authClient";
 import { clientHangupCall } from "@/lib/callHangupClient";
+import { VPS_CHAT_MESSAGES_POLL_MS } from "@/lib/vpsRealtimeConstants";
 import { messageAttachmentProxyPath, shouldProxyChatAttachment } from "@/lib/chatAttachmentProxy";
 import {
   ALIGN_LOCATION_CONTENT_TYPE,
@@ -460,7 +461,7 @@ export default function ChatPage() {
   }, [otherId, fetchMessages]);
 
   /** Poll: fără markRead pe fiecare tick. Pauză cât tab-ul nu e vizibil. */
-  const POLL_MS = 2500;
+  const POLL_MS = VPS_CHAT_MESSAGES_POLL_MS;
   useEffect(() => {
     if (!otherId || loading) return;
     let intervalId: ReturnType<typeof setInterval> | null = null;

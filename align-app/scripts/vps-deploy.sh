@@ -72,8 +72,29 @@ nginx -t
 systemctl reload nginx
 echo "    nginx reincarcat"
 
-echo ">>> 6. Verificare finala"
+echo ">>> 6. Sincronizare semnalizare WS pe /srv + restart call-signaling"
+SIGNALING_SRV=/srv/aplicatie-chat/align-app
+if [ -f "$APP_DIR/server/call-signaling-server.mjs" ] && [ -d "$SIGNALING_SRV/server" ]; then
+  cp "$APP_DIR/server/call-signaling-server.mjs" "$SIGNALING_SRV/server/call-signaling-server.mjs"
+  chown www-data:www-data "$SIGNALING_SRV/server/call-signaling-server.mjs" 2>/dev/null || true
+  if systemctl is-active call-signaling >/dev/null 2>&1; then
+    systemctl restart call-signaling
+    sleep 1
+    if curl -sS http://127.0.0.1:4001/health | grep -q ok; then
+      echo "    OK: call-signaling repornit, /health ok"
+    else
+      echo "    WARN: call-signaling repornit dar /health nu raspunde ok"
+    fi
+  else
+    echo "    WARN: call-signaling inactiv — ruleaza install-signaling-vps.sh"
+  fi
+else
+  echo "    SKIP: $SIGNALING_SRV/server lipsa"
+fi
+
+echo ">>> 7. Verificare finala"
 echo -n "    local health: "; curl -s -o /dev/null -w '%{http_code}\n' "http://127.0.0.1:${HOST_PORT}/api/health"
 echo -n "    prin nginx (Host: chat.diebel.ro): "; curl -s -o /dev/null -w '%{http_code}\n' -H 'Host: chat.diebel.ro' https://127.0.0.1/api/health -k
+echo -n "    ws signaling: "; curl -sS http://127.0.0.1:4001/health 2>/dev/null || echo "n/a"
 echo "    containere:"; docker compose ps
 echo ">>> GATA."

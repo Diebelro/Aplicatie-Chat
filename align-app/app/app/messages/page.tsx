@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type Ref } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { isPageActive } from "@/lib/pageActive";
+import { VPS_MESSAGES_LIST_POLL_MS } from "@/lib/vpsRealtimeConstants";
 import { Users, PhoneMissed, MessageCircle } from "lucide-react";
 import type { User } from "@/lib/store";
 import type { Message } from "@/lib/store";
@@ -217,7 +218,7 @@ export default function MessagesPage() {
   // Polling listă conversații + prieteni; pauză cât tab-ul nu e vizibil.
   useEffect(() => {
     if (loading) return;
-    const POLL_MS = 1200;
+    const POLL_MS = VPS_MESSAGES_LIST_POLL_MS;
     let intervalId: ReturnType<typeof setInterval> | null = null;
     const clearPoll = () => {
       if (intervalId != null) {

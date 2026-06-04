@@ -18,7 +18,7 @@ export async function GET() {
       signalingWsBase: signalingWsBase || null,
       webConfigured: Boolean(apiBase && signalingWsBase),
       hint:
-        "REST (ice-config, signaling-token, push-token) → apiBase. WebSocket semnalizare → signalingWsBase (de obicei alt host decât apiBase; nu folosi /ws pe domeniul Vercel).",
+        "Producție VPS: REST → apiBase (chat.diebel.ro), WebSocket apel → signalingWsBase (ws.diebel.ro/ws). Nu folosi *.vercel.app.",
     },
     { headers: { "cache-control": "no-store" } }
   );

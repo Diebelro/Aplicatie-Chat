@@ -39,6 +39,11 @@ import { AppShellLoadingLayout } from "@/components/perceived/AppShellLoadingLay
 import { AndroidShellInit } from "@/components/AndroidShellInit";
 import { AndroidCallAudio } from "@/components/AndroidCallAudio";
 import { isPageActive } from "@/lib/pageActive";
+import {
+  VPS_HEARTBEAT_MS,
+  VPS_MATCHES_POLL_MS,
+  VPS_UNREAD_MISS_POLL_MS,
+} from "@/lib/vpsRealtimeConstants";
 
 type DesktopNavTone = "default" | "brand" | "amber" | "admin";
 
@@ -281,7 +286,7 @@ export default function AppLayout({
     router.push(href);
   };
 
-  // Heartbeat la ~5s → online în timp real (ca WhatsApp). La revenire în app (Android WebView) — imediat.
+  // Heartbeat pe VPS → online în timp real. La revenire în app (Android WebView) — imediat.
   useEffect(() => {
     if (!user?.id) return;
     const tick = () => {
@@ -291,7 +296,7 @@ export default function AppLayout({
     const start = () => {
       tick();
       if (heartbeatRef.current) clearInterval(heartbeatRef.current);
-      heartbeatRef.current = setInterval(tick, 5000);
+      heartbeatRef.current = setInterval(tick, VPS_HEARTBEAT_MS);
     };
     const stop = () => {
       if (heartbeatRef.current) {
@@ -356,8 +361,8 @@ export default function AppLayout({
   };
   useEffect(() => {
     if (!user?.id) return;
-    const UNREAD_MISS_MS = 2500;
-    const MATCHES_MS = 15000;
+    const UNREAD_MISS_MS = VPS_UNREAD_MISS_POLL_MS;
+    const MATCHES_MS = VPS_MATCHES_POLL_MS;
     let unreadMissInterval: ReturnType<typeof setInterval> | null = null;
     let matchesInterval: ReturnType<typeof setInterval> | null = null;
 
