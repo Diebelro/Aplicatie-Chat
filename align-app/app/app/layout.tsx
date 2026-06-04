@@ -38,7 +38,6 @@ import { DiebelCopyrightStrip } from "@/components/DiebelAuthorCredit";
 import { AppShellLoadingLayout } from "@/components/perceived/AppShellLoadingLayout";
 import { AndroidShellInit } from "@/components/AndroidShellInit";
 import { AndroidCallAudio } from "@/components/AndroidCallAudio";
-import { isDiebelAndroidShell, navigateApp } from "@/lib/navigateApp";
 import { isPageActive } from "@/lib/pageActive";
 
 type DesktopNavTone = "default" | "brand" | "amber" | "admin";
@@ -277,8 +276,8 @@ export default function AppLayout({
   const onMobileNavClick = (e: MouseEvent<HTMLAnchorElement>, href: string) => {
     e.preventDefault();
     setMobileMenuOpen(false);
-    if (isDiebelAndroidShell()) navigateApp(href);
-    else router.push(href);
+    // Fără location.assign — reîncărca tot WebView-ul și făcea tab-urile (ex. Match) să „flash-uiască”.
+    router.push(href);
   };
 
   // Heartbeat la ~5s → online în timp real (ca WhatsApp). La revenire în app (Android WebView) — imediat.

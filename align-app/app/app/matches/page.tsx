@@ -16,6 +16,20 @@ import { SkeletonConversationList } from "@/components/perceived/AppShellLoading
 
 type MatchWithMeta = User & { online?: boolean; distanceKm?: number; distanceHidden?: boolean };
 
+const MATCHES_CACHE_KEY = "align_matches_list_v1";
+
+function readMatchesCache(): MatchWithMeta[] {
+  if (typeof sessionStorage === "undefined") return [];
+  try {
+    const raw = sessionStorage.getItem(MATCHES_CACHE_KEY);
+    if (!raw) return [];
+    const arr = JSON.parse(raw) as MatchWithMeta[];
+    return Array.isArray(arr) ? sortMatchesForDisplay(arr) : [];
+  } catch {
+    return [];
+  }
+}
+
 function formatDistance(km: number | undefined): string {
   if (km == null) return "—";
   if (km < 1) return `${Math.round(km * 1000)} m`;
@@ -37,8 +51,8 @@ function sortMatchesForDisplay(list: MatchWithMeta[]): MatchWithMeta[] {
 
 export default function MatchesPage() {
   const { tStr } = useI18n();
-  const [matches, setMatches] = useState<MatchWithMeta[]>([]);
-  const [inFlight, setInFlight] = useState(true);
+  const [matches, setMatches] = useState<MatchWithMeta[]>(() => readMatchesCache());
+  const [inFlight, setInFlight] = useState(() => readMatchesCache().length === 0);
   const [loadError, setLoadError] = useState<string | null>(null);
   const mountedRef = useRef(true);
   const matchesRef = useRef<MatchWithMeta[]>([]);
@@ -46,7 +60,7 @@ export default function MatchesPage() {
 
   const fetchMatches = useCallback(
     async (silent: boolean) => {
-      if (!silent) setInFlight(true);
+      if (!silent && matchesRef.current.length === 0) setInFlight(true);
       setLoadError(null);
       try {
         const matchRes = await fetchWithAuthRetry("/api/matches", { cache: "no-store" });
@@ -59,7 +73,13 @@ export default function MatchesPage() {
         }
         const data = await matchRes.json();
         const raw = (data.matches || []) as MatchWithMeta[];
-        setMatches(sortMatchesForDisplay(raw));
+        const sorted = sortMatchesForDisplay(raw);
+        setMatches(sorted);
+        try {
+          sessionStorage.setItem(MATCHES_CACHE_KEY, JSON.stringify(sorted));
+        } catch {
+          /* ignore */
+        }
       } catch {
         if (!mountedRef.current) return;
         if (silent) return;
@@ -74,16 +94,16 @@ export default function MatchesPage() {
 
   useEffect(() => {
     mountedRef.current = true;
-    void fetchMatches(false);
+    void fetchMatches(matchesRef.current.length > 0);
     return () => {
       mountedRef.current = false;
     };
   }, [fetchMatches]);
 
   useVisibleInterval(
-    () => void fetchMatches(matchesRef.current.length > 0),
+    () => void fetchMatches(true),
     getPresencePollMs(),
-    !inFlight || matches.length > 0
+    !inFlight
   );
 
   const showListOverlay = inFlight && matches.length === 0;
@@ -95,7 +115,7 @@ export default function MatchesPage() {
       <div className="relative min-h-[min(280px,45vh)]">
         {showListOverlay && (
           <div
-            className="absolute inset-0 z-20 flex flex-col justify-center gap-3 rounded-xl bg-dark-900/55 backdrop-blur-[2px] border border-dark-600/50 px-2 py-4 overflow-hidden"
+            className="absolute inset-0 z-20 flex flex-col justify-center gap-3 rounded-xl bg-dark-900/90 border border-dark-600/50 px-2 py-4 overflow-hidden motion-reduce:transition-none"
             role="status"
             aria-live="polite"
             aria-busy="true"
