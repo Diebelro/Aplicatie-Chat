@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n/context";
 import { getStoredUserRaw } from "@/lib/store";
 import { DiebelWordmark } from "@/components/DiebelWordmark";
+import { DiebelCopyrightStrip } from "@/components/DiebelAuthorCredit";
 
 /** Landing: aceleași secțiuni ca în app/page.tsx, texte din mesaje (ro / en / de). */
 export function HomePageContent() {
@@ -31,7 +32,7 @@ export function HomePageContent() {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col bg-dark-900 text-zinc-900">
+    <div className="min-h-dvh flex flex-col bg-dark-900 text-zinc-900 pb-[max(5rem,env(safe-area-inset-bottom,0px))]">
       <header className="border-b border-dark-600 bg-dark-900/95 backdrop-blur-sm sticky top-0 z-10 supports-[backdrop-filter]:bg-dark-900/80">
         <div className="max-w-6xl mx-auto px-4 py-3 sm:py-4 flex items-center justify-between gap-3">
           <Link
@@ -69,6 +70,10 @@ export function HomePageContent() {
           {s("home.cta")}
         </Link>
       </main>
+
+      <footer className="shrink-0 border-t border-dark-600/70 bg-dark-900/95 px-4 py-4 safe-area-inset-bottom">
+        <DiebelCopyrightStrip />
+      </footer>
     </div>
   );
 }

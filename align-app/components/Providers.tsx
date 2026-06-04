@@ -27,8 +27,8 @@ function SiteFooter() {
   ) {
     return null;
   }
-  /** Pagina are credit în conținut; evită dublu cu `<Footer />`. */
-  if (pathname === "/cont-blocat") return null;
+  /** Credit în conținutul paginii — fără al doilea footer global. */
+  if (pathname === "/" || pathname === "/cont-blocat") return null;
   return <Footer />;
 }
 
