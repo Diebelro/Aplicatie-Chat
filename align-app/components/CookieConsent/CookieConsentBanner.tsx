@@ -58,7 +58,10 @@ export function CookieConsentBanner() {
     >
       <div className="mx-auto flex max-w-3xl max-h-[min(48vh,280px)] overflow-y-auto flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:gap-4 sm:py-3.5">
         <p className="flex-1 text-left text-xs leading-relaxed text-dark-400 sm:text-sm sm:leading-snug">
-          {bannerText}
+          {bannerText}{" "}
+          <a href="/cookies" className="text-brand-400 underline underline-offset-2 hover:text-brand-300">
+            {(t("legal.links.cookies") as string) || "Cookies"}
+          </a>
         </p>
         <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
           <button

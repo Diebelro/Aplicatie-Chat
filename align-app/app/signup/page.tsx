@@ -95,8 +95,7 @@ function SignUpContent() {
   const [rememberDevice, setRememberDevice] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [acceptTerms, setAcceptTerms] = useState(false);
-  const [acceptAgeRules, setAcceptAgeRules] = useState(false);
+  const [acceptLegal, setAcceptLegal] = useState(false);
   const [retryAfterSeconds, setRetryAfterSeconds] = useState(0);
 
   useEffect(() => {
@@ -192,12 +191,8 @@ function SignUpContent() {
       setError(tStr("pages.signup.errUsernameTaken"));
       return;
     }
-    if (!acceptAgeRules) {
-      setError(tStr("pages.signup.errMustAcceptAgeRules"));
-      return;
-    }
-    if (!acceptTerms) {
-      setError(tStr("pages.signup.errMustAcceptTerms"));
+    if (!acceptLegal) {
+      setError(tStr("pages.signup.errMustAcceptLegal"));
       return;
     }
     setLoading(true);
@@ -267,7 +262,7 @@ function SignUpContent() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-8 bg-dark-900">
+    <div className="min-h-screen flex items-center justify-center px-4 py-8 pb-[max(7rem,env(safe-area-inset-bottom,0px))] bg-dark-900">
       <div className="max-w-sm mx-auto px-4 flex flex-col w-full">
         <Link href="/" className="inline-block text-brand-400 font-bold mt-4">
           {tStr("pages.signup.backBrand")}
@@ -466,27 +461,16 @@ function SignUpContent() {
           <label className="flex items-start gap-2 cursor-pointer">
             <input
               type="checkbox"
-              checked={acceptAgeRules}
-              onChange={(e) => setAcceptAgeRules(e.target.checked)}
+              checked={acceptLegal}
+              onChange={(e) => setAcceptLegal(e.target.checked)}
               className="w-4 h-4 mt-0.5 rounded border-dark-600 bg-dark-800 text-brand-500 focus:ring-brand-500 shrink-0"
             />
-            <span className="text-dark-500 text-xs">
-              {tStr("pages.signup.ageRulesLead")}
+            <span className="text-dark-500 text-xs leading-relaxed">
+              {tStr("pages.signup.legalAcceptLead")}
               <Link href="/community-rules" className="text-brand-400 hover:underline">
-                {tStr("pages.signup.ageRulesLink")}
+                {tStr("pages.signup.legalAcceptRules")}
               </Link>
-              {tStr("pages.signup.ageRulesEnd")}
-            </span>
-          </label>
-          <label className="flex items-start gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={acceptTerms}
-              onChange={(e) => setAcceptTerms(e.target.checked)}
-              className="w-4 h-4 mt-0.5 rounded border-dark-600 bg-dark-800 text-brand-500 focus:ring-brand-500 shrink-0"
-            />
-            <span className="text-dark-500 text-xs">
-              {tStr("pages.signup.termsLead")}
+              {tStr("pages.signup.legalAcceptMid")}
               <Link href="/terms" className="text-brand-400 hover:underline">
                 {tStr("pages.signup.termsLink")}
               </Link>
@@ -498,7 +482,7 @@ function SignUpContent() {
               <Link href="/cookies" className="text-brand-400 hover:underline">
                 {tStr("pages.signup.cookiesLink")}
               </Link>
-              {tStr("pages.signup.termsEnd")}
+              {tStr("pages.signup.legalAcceptEnd")}
             </span>
           </label>
           <div className="mt-2 pt-2 border-t border-dark-600/60">
@@ -514,7 +498,7 @@ function SignUpContent() {
           </div>
           <button
             type="submit"
-            disabled={loading || !acceptTerms || !acceptAgeRules || retryAfterSeconds > 0}
+            disabled={loading || !acceptLegal || retryAfterSeconds > 0}
             className="w-full !h-11 !min-h-[44px] !max-h-[44px] !py-0 px-4 rounded-xl bg-brand-500 hover:bg-brand-400 text-dark-900 font-medium text-sm transition disabled:opacity-50"
           >
             {loading

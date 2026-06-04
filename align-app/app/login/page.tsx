@@ -10,6 +10,7 @@ import { getDeviceFingerprint } from "@/lib/deviceFingerprint";
 import { clearLoginEmailDraft, readLoginEmailDraft, writeLoginEmailDraft } from "@/lib/formDrafts";
 import { useI18n } from "@/lib/i18n/context";
 import { DiebelWordmark } from "@/components/DiebelWordmark";
+import { LegalDocLinks } from "@/components/LegalDocLinks";
 import { formatTpl } from "@/lib/i18n/formatTpl";
 import { translateApiErrorMessage } from "@/lib/i18n/translateApiError";
 
@@ -81,7 +82,6 @@ function LoginContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [soonMessage, setSoonMessage] = useState<string | null>(null);
-  const [acceptTerms, setAcceptTerms] = useState(false);
   const [rememberDevice, setRememberDevice] = useState(false);
   const [retryAfterSeconds, setRetryAfterSeconds] = useState(0);
 
@@ -160,10 +160,6 @@ function LoginContent() {
     const trimmedEmail = email.trim();
     if (!trimmedEmail.includes("@")) {
       setError(tStr("pages.login.errEmailNotUsername"));
-      return;
-    }
-    if (!acceptTerms) {
-      setError(tStr("pages.login.errMustAcceptTerms"));
       return;
     }
     setLoading(true);
@@ -273,7 +269,7 @@ function LoginContent() {
   };
 
   return (
-    <div className="flex min-h-dvh flex-col bg-dark-900">
+    <div className="flex min-h-dvh flex-col bg-dark-900 pb-[max(7rem,env(safe-area-inset-bottom,0px))]">
       <div className="shrink-0 pl-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))] pt-[max(0.75rem,env(safe-area-inset-top,0px))]">
         <Link
           href="/"
@@ -358,29 +354,6 @@ function LoginContent() {
             />
             <span className="text-dark-500 text-sm">{tStr("pages.login.rememberDevice")}</span>
           </label>
-          <label className="flex items-start gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={acceptTerms}
-              onChange={(e) => setAcceptTerms(e.target.checked)}
-              className="w-4 h-4 mt-0.5 rounded border-dark-600 bg-dark-800 text-brand-500 focus:ring-brand-500 shrink-0"
-            />
-            <span className="text-dark-500 text-xs">
-              {tStr("pages.login.termsLead")}
-              <Link href="/terms" className="text-brand-400 hover:underline">
-                {tStr("pages.login.termsLink")}
-              </Link>
-              {tStr("pages.login.termsBetween")}
-              <Link href="/privacy" className="text-brand-400 hover:underline">
-                {tStr("pages.login.privacyLink")}
-              </Link>
-              {tStr("pages.login.termsAnd")}
-              <Link href="/cookies" className="text-brand-400 hover:underline">
-                {tStr("pages.login.cookiesLink")}
-              </Link>
-              {tStr("pages.login.termsEnd")}
-            </span>
-          </label>
           <button
             type="submit"
             disabled={loading || retryAfterSeconds > 0}
@@ -405,6 +378,7 @@ function LoginContent() {
               {tStr("pages.login.forgotPassword")}
             </Link>
           </p>
+          <LegalDocLinks className="pt-2 text-dark-500" />
         </div>
       </div>
     </div>

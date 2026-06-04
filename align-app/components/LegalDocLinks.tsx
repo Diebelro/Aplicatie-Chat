@@ -34,6 +34,12 @@ export function LegalDocLinks({
       <span className="text-dark-600 select-none" aria-hidden>
         ·
       </span>
+      <Link href="/cookies" className="text-brand-400/90 hover:text-brand-300 hover:underline">
+        {tStr("legal.links.cookies")}
+      </Link>
+      <span className="text-dark-600 select-none" aria-hidden>
+        ·
+      </span>
       <Link href="/community-rules" className="text-brand-400/90 hover:text-brand-300 hover:underline">
         {tStr("legal.links.communityRules")}
       </Link>
