@@ -54,14 +54,30 @@ export async function ensureSessionCookieForNavigation(): Promise<boolean> {
   if (typeof window === "undefined") return true;
   const token =
     sessionStorage.getItem("align_session_token") || localStorage.getItem("align_session_token");
-  if (!token) return true;
+  if (!token) return false;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await fetchWithAuthRetry("/api/auth/sync-session-cookie", {
+        method: "POST",
+        cache: "no-store",
+      });
+      if (res.ok) return true;
+    } catch {
+      /* retry */
+    }
+    await new Promise((r) => setTimeout(r, 200 * (attempt + 1)));
+  }
+  return false;
+}
+
+/** Utilizatorul curent are rol admin (după sync cookie, pentru navigare sigură). */
+export async function fetchMeRole(): Promise<string | null> {
   try {
-    const res = await fetchWithAuthRetry("/api/auth/sync-session-cookie", {
-      method: "POST",
-      cache: "no-store",
-    });
-    return res.ok;
+    const res = await fetchWithAuthRetry("/api/me", { cache: "no-store" });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { user?: { role?: string } };
+    return data?.user?.role ?? null;
   } catch {
-    return false;
+    return null;
   }
 }

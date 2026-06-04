@@ -21,7 +21,11 @@ import {
 } from "lucide-react";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
-import { ensureSessionCookieForNavigation, fetchWithAuthRetry } from "@/lib/authClient";
+import {
+  ensureSessionCookieForNavigation,
+  fetchMeRole,
+  fetchWithAuthRetry,
+} from "@/lib/authClient";
 import { getProfileImageUrl } from "@/lib/profileImage";
 import { SilhouetteAvatar } from "@/components/SilhouetteAvatar";
 import IncomingCall from "@/components/IncomingCall";
@@ -492,10 +496,17 @@ export default function AppLayout({
   const goToAdmin = async (e: MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
     setMobileMenuOpen(false);
-    const ok = await ensureSessionCookieForNavigation();
-    window.location.href = ok
-      ? "/admin"
-      : "/login?redirect=" + encodeURIComponent("/admin");
+    const synced = await ensureSessionCookieForNavigation();
+    if (!synced) {
+      window.location.href = "/login?redirect=" + encodeURIComponent("/admin");
+      return;
+    }
+    const role = await fetchMeRole();
+    if (role === "ADMIN" || role === "SUPERADMIN") {
+      window.location.href = "/admin";
+      return;
+    }
+    window.location.href = "/login?redirect=" + encodeURIComponent("/admin");
   };
 
   return (

@@ -258,8 +258,11 @@ function LoginContent() {
       const redirectTo = searchParams?.get("redirect");
       const safeRedirect = redirectTo?.startsWith("/") && !redirectTo.startsWith("//") ? redirectTo : null;
       const target = safeRedirect ?? (profileComplete ? "/app" : "/completeaza-profilul");
-      // DEV ONLY: allow browser time to persist Set-Cookie before redirect
-      await new Promise((r) => setTimeout(r, 500));
+      if (target.startsWith("/admin")) {
+        const { ensureSessionCookieForNavigation } = await import("@/lib/authClient");
+        await ensureSessionCookieForNavigation();
+      }
+      await new Promise((r) => setTimeout(r, 300));
       window.location.href = target;
     } catch (err) {
       setError(err instanceof Error ? err.message : tStr("pages.login.errGeneric"));

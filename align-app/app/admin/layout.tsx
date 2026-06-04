@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { fetchWithAuthRetry } from "@/lib/authClient";
+import { ensureSessionCookieForNavigation, fetchWithAuthRetry } from "@/lib/authClient";
 import { DiebelCopyrightStrip } from "@/components/DiebelAuthorCredit";
 import { AdminModerationSummaryProvider } from "@/components/AdminModerationSummaryProvider";
 import { AdminModerationNavBadge } from "@/components/AdminModerationNavBadge";
@@ -31,6 +31,7 @@ export default function AdminLayout({
     let cancelled = false;
     (async () => {
       try {
+        await ensureSessionCookieForNavigation();
         const res = await fetchWithAuthRetry("/api/me");
         if (cancelled) return;
         const goLogin = () => {

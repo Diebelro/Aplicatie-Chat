@@ -52,13 +52,30 @@ function isPrivateOrLocalHostname(hostname: string): boolean {
  * Sesiunea app = cookie `align_sid` + `/api/me` (nu JWT NextAuth de la login email/parolă).
  * Folosim fetch intern: matcher-ul exclude `/api/*`, deci request-ul la `/api/me` nu re-intră în middleware.
  */
+function resolveMiddlewareMeUrl(request: NextRequest): URL {
+  /** Docker/VPS: fetch public URL din container poate eșua; loopback la app e stabil. */
+  const internal = process.env.INTERNAL_MIDDLEWARE_ORIGIN?.trim();
+  if (internal) return new URL("/api/me", internal.endsWith("/") ? internal : `${internal}/`);
+  if (process.env.NODE_ENV === "production") {
+    const port = process.env.PORT?.trim() || "3000";
+    return new URL(`/api/me`, `http://127.0.0.1:${port}`);
+  }
+  return new URL("/api/me", request.url);
+}
+
 async function adminAccessDecision(request: NextRequest): Promise<"allow" | "login" | "app"> {
-  const meUrl = new URL("/api/me", request.url);
+  const meUrl = resolveMiddlewareMeUrl(request);
+  const publicHost = request.headers.get("host")?.trim();
   let res: Response;
   try {
     const fwd: Record<string, string> = {
       cookie: request.headers.get("cookie") ?? "",
     };
+    if (publicHost) {
+      fwd.host = publicHost;
+      fwd["x-forwarded-host"] = publicHost;
+      fwd["x-forwarded-proto"] = request.headers.get("x-forwarded-proto")?.trim() || "https";
+    }
     const sessionToken = request.headers.get("x-session-token")?.trim();
     const userId = request.headers.get("x-user-id")?.trim();
     if (sessionToken) fwd["x-session-token"] = sessionToken;
