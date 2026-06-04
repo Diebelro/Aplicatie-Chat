@@ -137,6 +137,35 @@ docker compose down                  # oprește tot
 
 ---
 
+## Verificare după deploy (obligatoriu)
+
+**De pe PC** (în `align-app`):
+
+```bash
+node scripts/verify-stack.mjs
+node scripts/verify-production.mjs
+```
+
+**Pe VPS**:
+
+```bash
+cd /root/Aplicatie-Chat/align-app
+bash scripts/vps-post-deploy-check.sh
+```
+
+Test manual: două conturi logate (PC + telefon), verifică **Online** pe Discover, Profiluri, Mesaje.
+
+**Deploy complet (recomandat pe server):**
+
+```bash
+cd /root/Aplicatie-Chat/align-app
+bash scripts/vps-full-deploy.sh
+```
+
+Include: build Docker, nginx cu cache static, `vps-post-deploy-check.sh`.
+
+---
+
 ## Ce s-a schimbat față de Vercel
 
 - `vercel.json` **eliminat**.
@@ -147,4 +176,3 @@ docker compose down                  # oprește tot
 - Baza de date Neon și coturn **nu se schimbă** (nu sunt Vercel).
 - Domeniul rămâne `chat.diebel.ro` → aplicația Android (care încarcă `chat.diebel.ro/app`)
   funcționează fără modificări odată ce DNS-ul arată spre VPS și HTTPS e activ.
-```

@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import { apiJsonResponse } from "@/lib/apiNoStore";
 import {
   getAllUsersExcept,
   getDislikedUserIds,
@@ -57,7 +58,7 @@ export async function GET(request: NextRequest) {
   seedFakeProfiles();
   const userId = await resolveRequestUserId(request);
   if (!userId) {
-    return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
+    return apiJsonResponse({ error: "Neautorizat." }, { status: 401 });
   }
   setUserActive(userId);
 
@@ -103,13 +104,13 @@ export async function GET(request: NextRequest) {
           match: matchPartnerIds.has(u.id),
         };
       });
-      return NextResponse.json({
+      return apiJsonResponse({
         profiles: profilesWithOnline,
         myLocationEnabled: !!myLoc,
       });
     } catch (err) {
       console.error("[api/profiles]", err);
-      return NextResponse.json({ error: "Eroare server." }, { status: 500 });
+      return apiJsonResponse({ error: "Eroare server." }, { status: 500 });
     }
   }
 
@@ -145,7 +146,7 @@ export async function GET(request: NextRequest) {
       match: isMutualMatch(userId, u.id),
     };
   });
-  return NextResponse.json({
+  return apiJsonResponse({
     profiles: profilesWithOnline,
     myLocationEnabled: me?.location_enabled ?? false,
   });

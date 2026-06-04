@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import { apiJsonResponse } from "@/lib/apiNoStore";
 import {
   findUserById,
   getConversations,
@@ -25,13 +26,13 @@ const ONLINE_MS = 60 * 1000; // sub 1 min = instant ca WhatsApp
 export async function GET(request: NextRequest) {
   const userId = await resolveRequestUserId(request);
   if (!userId) {
-    return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
+    return apiJsonResponse({ error: "Neautorizat." }, { status: 401 });
   }
   if (isPrismaAvailable()) {
     try {
       const me = await findUserOrPrisma(userId);
       if (!me) {
-        return NextResponse.json({ error: "Utilizator negăsit." }, { status: 404 });
+        return apiJsonResponse({ error: "Utilizator negăsit." }, { status: 404 });
       }
       await prismaUpdateLastActive(userId);
       const list = await prismaGetConversationsWithMatches(userId);
@@ -61,13 +62,13 @@ export async function GET(request: NextRequest) {
         if (unreadDiff !== 0) return unreadDiff;
         return new Date(b.lastMessage.at).getTime() - new Date(a.lastMessage.at).getTime();
       });
-      return NextResponse.json({ conversations, totalUnread });
+      return apiJsonResponse({ conversations, totalUnread });
     } catch {
-      return NextResponse.json({ error: "Eroare server." }, { status: 500 });
+      return apiJsonResponse({ error: "Eroare server." }, { status: 500 });
     }
   }
   if (!findUserById(userId)) {
-    return NextResponse.json({ error: "Utilizator negăsit." }, { status: 404 });
+    return apiJsonResponse({ error: "Utilizator negăsit." }, { status: 404 });
   }
   setUserActive(userId);
   const list = getConversations(userId);
@@ -94,5 +95,5 @@ export async function GET(request: NextRequest) {
     return new Date(b.lastMessage.at).getTime() - new Date(a.lastMessage.at).getTime();
   });
   const totalUnread = getTotalUnread(userId);
-  return NextResponse.json({ conversations, totalUnread });
+  return apiJsonResponse({ conversations, totalUnread });
 }

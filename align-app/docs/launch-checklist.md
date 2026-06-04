@@ -1,6 +1,6 @@
 # Diebel — GO‑LIVE (browser + iOS + Android)
 
-**Test „pe internet” / producție:** folosește **`https://chat.diebel.ro`** (proiect Vercel `aplicatie-chat`; deploy din repo: `npm run deploy:chat` din `align-app`). Nu folosi URL-uri `*.vercel.app` ca țintă principală de test.
+**Test „pe internet” / producție:** folosește **`https://chat.diebel.ro`** (VPS Hetzner + Docker; deploy: `bash scripts/vps-full-deploy.sh` pe server). Nu folosi URL-uri `*.vercel.app`. Verificare locală: `npm run deploy:vps:check`.
 
 Țintă: **aceeași aplicație web** folosită în **browser** (desktop & mobil), **Safari pe iOS** și **Chrome (sau browser default) pe Android** — de obicei cu **PWA** (Add to Home Screen). Dacă ai și **TWA** / wrapper Android nativ, vezi Digital Asset Links mai jos.
 

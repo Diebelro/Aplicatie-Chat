@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import { apiJsonResponse } from "@/lib/apiNoStore";
 import {
   addMatch,
   canPerformLike,
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
   const deviceId = request.headers.get("x-device-id")?.trim();
   const fingerprint = request.headers.get("x-device-fingerprint")?.trim() ?? null;
   if (!userId) {
-    return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
+    return apiJsonResponse({ error: "Neautorizat." }, { status: 401 });
   }
   const ip = getClientIp(request);
   if (isDeviceBlocked(fingerprint ?? null, deviceId ?? null)) {
@@ -50,7 +51,7 @@ export async function POST(request: NextRequest) {
       fingerprint: fingerprint ?? undefined,
       ip,
     });
-    return NextResponse.json(
+    return apiJsonResponse(
       { error: "Dispozitivul este blocat din cauza unui comportament suspect." },
       { status: 403 }
     );
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest) {
         });
       } catch {}
     }
-    return NextResponse.json(
+    return apiJsonResponse(
       { error: "Prea multe cereri. Încearcă mai târziu." },
       { status: 429, headers: { "Retry-After": "60" } }
     );
@@ -75,12 +76,12 @@ export async function POST(request: NextRequest) {
   setUserActive(userId);
   const user = await findUserOrPrisma(userId);
   if (!user) {
-    return NextResponse.json({ error: "Utilizator negăsit." }, { status: 404 });
+    return apiJsonResponse({ error: "Utilizator negăsit." }, { status: 404 });
   }
   const body = await request.json();
   const { toId, liked, internalInterval, externalInterval } = body;
   if (!toId || typeof liked !== "boolean") {
-    return NextResponse.json(
+    return apiJsonResponse(
       { error: "Lipsesc toId sau liked." },
       { status: 400 }
     );
@@ -90,7 +91,7 @@ export async function POST(request: NextRequest) {
     try {
       const prev = await prismaGetSwipeLiked(userId, toId);
       if (prev !== null && prev === liked) {
-        return NextResponse.json({ ok: true, unchanged: true, status: "UNCHANGED" });
+        return apiJsonResponse({ ok: true, unchanged: true, status: "UNCHANGED" });
       }
 
       const hadMatchRow = await prismaMatchRowExistsBetween(userId, toId);
@@ -98,7 +99,7 @@ export async function POST(request: NextRequest) {
 
       if (!liked) {
         await prismaDeleteMatchBetween(userId, toId);
-        return NextResponse.json({ ok: true, fastSwipe: false, status: "NO_MATCH" });
+        return apiJsonResponse({ ok: true, fastSwipe: false, status: "NO_MATCH" });
       }
 
       const mutual = await prismaIsMutualMatch(userId, toId);
@@ -112,7 +113,7 @@ export async function POST(request: NextRequest) {
         typeof externalInterval === "number" ? externalInterval : 22
       );
       if (matchCreated) {
-        return NextResponse.json({
+        return apiJsonResponse({
           ok: true,
           matchCreated: true,
           status: "MATCH_CREATED",
@@ -120,7 +121,7 @@ export async function POST(request: NextRequest) {
           externalInterval: updated.externalInterval,
         });
       }
-      return NextResponse.json({
+      return apiJsonResponse({
         ok: true,
         matchCreated: false,
         status: "NO_MATCH",
@@ -128,13 +129,13 @@ export async function POST(request: NextRequest) {
         externalInterval: updated.externalInterval,
       });
     } catch {
-      return NextResponse.json({ error: "Eroare server." }, { status: 500 });
+      return apiJsonResponse({ error: "Eroare server." }, { status: 500 });
     }
   }
 
   const existingSwipe = getSwipeFromTo(userId, toId);
   if (existingSwipe && existingSwipe.liked === liked) {
-    return NextResponse.json({ ok: true, unchanged: true, status: "UNCHANGED" });
+    return apiJsonResponse({ ok: true, unchanged: true, status: "UNCHANGED" });
   }
 
   const hadMatchPair = mutualMatchPairExists(userId, toId);
@@ -146,7 +147,7 @@ export async function POST(request: NextRequest) {
   upsertUserSwipe(userId, toId, liked);
 
   if (!liked) {
-    return NextResponse.json({ ok: true, fastSwipe: false, status: "NO_MATCH" });
+    return apiJsonResponse({ ok: true, fastSwipe: false, status: "NO_MATCH" });
   }
 
   if (!canPerformLike(userId)) {
@@ -156,7 +157,7 @@ export async function POST(request: NextRequest) {
       ip,
       toId: toId as string,
     });
-    return NextResponse.json(
+    return apiJsonResponse(
       { error: "Prea multe acțiuni rapid. Încearcă în câteva secunde." },
       { status: 429 }
     );
@@ -171,7 +172,7 @@ export async function POST(request: NextRequest) {
     addMatch(userId, toId);
     matchCreated = !hadMatchPair;
   }
-  return NextResponse.json({
+  return apiJsonResponse({
     matchCreated,
     internalInterval: updated.internalInterval,
     externalInterval: updated.externalInterval,

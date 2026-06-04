@@ -29,8 +29,8 @@ import {
 } from "@/lib/feedBuilder";
 import { fetchWithAuthRetry } from "@/lib/authClient";
 import { buildDiscoverApiQuery } from "@/lib/discoverSearchParams";
-import { isDiebelAndroidShell } from "@/lib/navigateApp";
 import { useVisibleInterval } from "@/lib/useVisibleInterval";
+import { getPresencePollMs } from "@/lib/presencePollMs";
 import { MAX_PROFILE_SEARCH_RADIUS_KM } from "@/lib/profileSearchConstants";
 import {
   getSmallCardState,
@@ -363,7 +363,7 @@ export default function AppDiscoverPage() {
       .catch(() => {});
   }, [filters, debouncedName]);
 
-  useVisibleInterval(refreshPresenceOnFeed, isDiebelAndroidShell() ? 5000 : 8000, feedItems.length > 0 && !loading);
+  useVisibleInterval(refreshPresenceOnFeed, getPresencePollMs(), feedItems.length > 0 && !loading);
 
   /** Trece la următorul card; reține profilul curent pentru „Revenire” (până la 7 profile). */
   const dismissCurrentFeedItem = useCallback(() => {
@@ -480,6 +480,7 @@ export default function AppDiscoverPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
+        cache: "no-store",
       });
       const data = await res.json().catch(() => ({}));
       if (liked) track.like_sent(toId);

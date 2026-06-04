@@ -1,0 +1,43 @@
+---
+description: Stabilitate producție VPS + Android WebView — fără regresii la polling/online/env
+globs: align-app/app/app/**/*.tsx, align-app/lib/useVisibleInterval.ts, align-app/lib/presencePollMs.ts, align-app/scripts/verify*.mjs, align-android/**/*
+---
+
+# Stabilitate producție (Diebel pe Hetzner)
+
+## Reguli — NU schimba funcționalitatea business
+
+- Filtre discover, match, mesaje, plăți, admin: **comportament neschimbat** fără cerere explicită.
+- Modificări permise: bugfix-uri de **paritate** browser ↔ Android WebView, env, deploy, polling presence.
+
+## Online / presence
+
+- `lastActive` în DB se actualizează prin `POST /api/heartbeat` (~5s) din `app/app/layout.tsx`.
+- Orice pagină care afișează `online` trebuie să **reîmprospăteze datele** cât e vizibilă:
+  - Folosește `useVisibleInterval` + `getPresencePollMs()` (5s Android, 10s desktop).
+  - Pagini cu presence: Discover (`page.tsx`), Profiluri, Match-uri, profil public `user/[id]`, Mesaje (poll propriu).
+- **Discover** nu reconstrui tot feed-ul la poll — actualizează doar câmpurile `online` / `lastActivityAt` pe cardul curent.
+
+## Android WebView
+
+- UA: `DiebelAndroid/` → `isDiebelAndroidShell()`.
+- La boot: `AndroidShellInit` resetează filtre restrictive + dezactivează service worker.
+- `MainActivity`: `LOAD_NO_CACHE`, inject JS la `onPageFinished` + `onResume` (focus pentru heartbeat).
+
+## Env obligatorii pe VPS (`.env.production`)
+
+- `DATABASE_URL`, `DIRECT_URL`, `NEXTAUTH_*`, `NEXT_PUBLIC_APP_URL`
+- `NEXT_PUBLIC_SIGNALING_WS_URL`, `SIGNALING_TOKEN_SECRET` (același secret ca signaling systemd)
+- `TURN_REALM`, `TURN_STATIC_SECRET`, `NEXT_PUBLIC_TURN_URLS`
+- `RESEND_API_KEY` pentru email reset (altfel API returnează ok dar nu trimite)
+
+## După deploy
+
+1. `node scripts/verify-stack.mjs` (local)
+2. Pe VPS: `bash scripts/vps-post-deploy-check.sh`
+3. Test manual: 2 conturi, PC + telefon, online pe Discover/Profiluri/Mesaje
+
+## Interzis pe VPS cu nginx existent
+
+- Nu porni Caddy pe 80/443.
+- `docker compose up -d` fără profil `standalone` (doar app).

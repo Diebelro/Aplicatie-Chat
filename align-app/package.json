@@ -26,6 +26,8 @@
     "verify-i18n": "node scripts/verify-i18n-keys.cjs",
     "verify:call-room-i18n": "node scripts/verify-call-room-i18n-keys.mjs",
     "verify:production": "node scripts/verify-production.mjs",
+    "verify:stack": "node scripts/verify-stack.mjs",
+    "deploy:vps:check": "node scripts/verify-stack.mjs && node scripts/verify-production.mjs",
     "verify:webrtc": "node scripts/verify-webrtc-production.mjs",
     "verify:webrtc:final": "node scripts/verify-webrtc-final.mjs",
     "check:turn-env": "node scripts/check-turn-env.mjs",

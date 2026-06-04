@@ -24,6 +24,7 @@ services:
       args:
         NEXTAUTH_URL: https://chat.diebel.ro
         NEXT_PUBLIC_APP_URL: https://chat.diebel.ro
+        BUILD_COMMIT_SHA: ${BUILD_COMMIT_SHA:-unknown}
     image: diebel-app:latest
     restart: unless-stopped
     env_file:

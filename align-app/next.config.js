@@ -8,6 +8,7 @@ const path = require("path");
  */
 function resolveBuildCommitFull() {
   const candidates = [
+    process.env.BUILD_COMMIT_SHA,
     process.env.VERCEL_GIT_COMMIT_SHA,
     process.env.GITHUB_SHA,
     process.env.CF_PAGES_COMMIT_SHA,
@@ -169,7 +170,17 @@ const nextConfig = {
         value: "max-age=31536000; includeSubDomains",
       });
     }
-    return [{ source: "/:path*", headers: base }];
+    return [
+      { source: "/:path*", headers: base },
+      {
+        source: "/_next/static/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
+      {
+        source: "/avatars/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=604800" }],
+      },
+    ];
   },
 };
 

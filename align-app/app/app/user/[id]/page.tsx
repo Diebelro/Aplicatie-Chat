@@ -19,6 +19,8 @@ import { formatKmDistance } from "@/lib/i18n/formatKmDistance";
 import { translateApiErrorMessage } from "@/lib/i18n/translateApiError";
 import { ProfilePhotoLightbox } from "@/components/ProfilePhotoLightbox";
 import { AppProLoading } from "@/components/AppProLoading";
+import { useVisibleInterval } from "@/lib/useVisibleInterval";
+import { getPresencePollMs } from "@/lib/presencePollMs";
 
 type FriendStatusApi = "pending_sent" | "pending_received" | "accepted" | "rejected" | null;
 
@@ -94,6 +96,8 @@ export default function PublicUserProfilePage() {
   useEffect(() => {
     setPhotoPortalReady(true);
   }, []);
+
+  useVisibleInterval(() => void refetch(), getPresencePollMs(), !!user && !loading && !error);
 
   if (loading) {
     return <AppProLoading variant="form" label={tStr("pages.userPublic.loading")} className="py-24" />;

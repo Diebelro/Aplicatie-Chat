@@ -8,6 +8,8 @@ import { SilhouetteAvatar } from "@/components/SilhouetteAvatar";
 import { QuickCallButtons } from "@/components/QuickCallButtons";
 import { displayName } from "@/lib/displayName";
 import { fetchWithAuthRetry } from "@/lib/authClient";
+import { useVisibleInterval } from "@/lib/useVisibleInterval";
+import { getPresencePollMs } from "@/lib/presencePollMs";
 import { useI18n } from "@/lib/i18n/context";
 import { formatTpl } from "@/lib/i18n/formatTpl";
 import { SkeletonConversationList } from "@/components/perceived/AppShellLoadingLayout";
@@ -78,15 +80,11 @@ export default function MatchesPage() {
     };
   }, [fetchMatches]);
 
-  useEffect(() => {
-    const onVis = () => {
-      if (document.visibilityState !== "visible") return;
-      const silent = matchesRef.current.length > 0;
-      void fetchMatches(silent);
-    };
-    document.addEventListener("visibilitychange", onVis);
-    return () => document.removeEventListener("visibilitychange", onVis);
-  }, [fetchMatches]);
+  useVisibleInterval(
+    () => void fetchMatches(matchesRef.current.length > 0),
+    getPresencePollMs(),
+    !inFlight || matches.length > 0
+  );
 
   const showListOverlay = inFlight && matches.length === 0;
 

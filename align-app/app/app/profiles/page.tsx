@@ -9,7 +9,7 @@ import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
 import { useSearchFilters, type SearchFilters } from "@/lib/useSearchFilters";
 import { useVisibleInterval } from "@/lib/useVisibleInterval";
-import { isDiebelAndroidShell } from "@/lib/navigateApp";
+import { getPresencePollMs } from "@/lib/presencePollMs";
 import { SEARCH_CITY_HINTS } from "@/lib/localeSearchDefaults";
 import { DiebelAppPromoCarousel } from "@/components/diebel/DiebelAppPromoCarousel";
 import { SilhouetteAvatar } from "@/components/SilhouetteAvatar";
@@ -127,11 +127,7 @@ export default function ProfilesPage() {
       .catch(() => {});
   }, [filters]);
 
-  useVisibleInterval(
-    refreshProfilesList,
-    isDiebelAndroidShell() ? 5000 : 10000,
-    profiles.length > 0 && !loading
-  );
+  useVisibleInterval(refreshProfilesList, getPresencePollMs(), profiles.length > 0 && !loading);
 
   useEffect(() => {
     const onConversationRead = () => {
@@ -148,6 +144,7 @@ export default function ProfilesPage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ toId: userId, liked: false }),
+      cache: "no-store",
     });
     setProfiles((prev) => prev.filter((u) => u.id !== userId));
   };

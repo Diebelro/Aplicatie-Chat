@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import { apiJsonResponse } from "@/lib/apiNoStore";
 import {
   getAllUsersExcept,
   getDislikedUserIds,
@@ -79,7 +80,7 @@ export async function GET(request: NextRequest) {
   seedFakeProfiles();
   const userId = await resolveRequestUserId(request);
   if (!userId) {
-    return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
+    return apiJsonResponse({ error: "Neautorizat." }, { status: 401 });
   }
   const ip = getClientIp(request);
   const pathname = "/api/feed";
@@ -94,7 +95,7 @@ export async function GET(request: NextRequest) {
         });
       } catch {}
     }
-    return NextResponse.json(
+    return apiJsonResponse(
       { error: "Prea multe cereri. Încearcă mai târziu." },
       { status: 429, headers: { "Retry-After": "60" } }
     );
@@ -173,7 +174,7 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      return NextResponse.json({
+      return apiJsonResponse({
         profiles,
         internalAds,
         isPremium: premium,
@@ -185,7 +186,7 @@ export async function GET(request: NextRequest) {
         myLocationEnabled: !!myLoc,
       });
     } catch {
-      return NextResponse.json({ error: "Eroare server." }, { status: 500 });
+      return apiJsonResponse({ error: "Eroare server." }, { status: 500 });
     }
   }
 
@@ -234,7 +235,7 @@ export async function GET(request: NextRequest) {
     };
   });
 
-  return NextResponse.json({
+  return apiJsonResponse({
     profiles,
     internalAds,
     isPremium: premium,
