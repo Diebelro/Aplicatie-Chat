@@ -972,7 +972,7 @@
     "ageGate": {
       "title": "Adults-only content",
       "bodyLine1": "This application is intended exclusively for people aged 18 or over.",
-      "bodyLine2": "By continuing, I confirm that I am 18 or older and accept the app rules.",
+      "bodyLine2": "By tapping Accept, I confirm I am 18+, accept the app rules, and agree to necessary cookies (see Cookie Policy).",
       "linkRules": "Community rules",
       "accept": "Accept",
       "decline": "I do not accept",

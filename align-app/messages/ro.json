@@ -972,7 +972,7 @@
     "ageGate": {
       "title": "Conținut destinat adulților",
       "bodyLine1": "Această aplicație este destinată exclusiv persoanelor cu vârsta de minimum 18 ani.",
-      "bodyLine2": "Prin continuare, confirm că am împlinit 18 ani și că accept regulile aplicației.",
+      "bodyLine2": "Prin „Accept”, confirm că am 18+ ani, regulile aplicației și utilizarea cookie-urilor necesare (detalii în Politica de cookies).",
       "linkRules": "Vezi regulile comunității",
       "accept": "Accept",
       "decline": "Nu accept",

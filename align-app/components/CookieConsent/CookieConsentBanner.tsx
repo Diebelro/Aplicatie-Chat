@@ -45,7 +45,12 @@ export function CookieConsentBanner() {
     pathname === "/privacy" ||
     pathname === "/privacy-policy" ||
     pathname === "/cookies" ||
-    pathname === "/terms"
+    pathname === "/terms" ||
+    pathname === "/login" ||
+    pathname === "/signup" ||
+    pathname === "/forgot-password" ||
+    pathname === "/reset-password" ||
+    pathname === "/reset-password-via-scan"
   ) {
     return null;
   }

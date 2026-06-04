@@ -4,15 +4,26 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useI18n } from "@/lib/i18n/context";
-import { AGE_GATE_STORAGE_KEY, writeAgeGateAccepted } from "@/lib/ageGateStorage";
+import { AGE_GATE_STORAGE_KEY } from "@/lib/ageGateStorage";
+import { persistFullSiteConsent, readCookieConsentStored } from "@/lib/onboardingConsent";
+import { useCookieConsent } from "@/contexts/CookieConsentContext";
 
 /**
  * Prima deschidere: confirmare 18+ înainte de utilizarea site-ului / TWA / PWA.
  * Nu blochează /admin (panou intern).
  */
+const AUTH_PATHS_NO_GATE = new Set([
+  "/login",
+  "/signup",
+  "/forgot-password",
+  "/reset-password",
+  "/reset-password-via-scan",
+]);
+
 export function AgeGate() {
   const pathname = usePathname() ?? "";
   const { tStr } = useI18n();
+  const { setConsent, loadConsent } = useCookieConsent();
   const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
 
@@ -21,21 +32,30 @@ export function AgeGate() {
   }, []);
 
   useEffect(() => {
-    if (!mounted || pathname.startsWith("/admin")) {
+    if (!mounted || pathname.startsWith("/admin") || AUTH_PATHS_NO_GATE.has(pathname)) {
       setOpen(false);
       return;
     }
     try {
-      setOpen(typeof window !== "undefined" && localStorage.getItem(AGE_GATE_STORAGE_KEY) !== "1");
+      const needsAge = typeof window !== "undefined" && localStorage.getItem(AGE_GATE_STORAGE_KEY) !== "1";
+      const needsCookies = !readCookieConsentStored();
+      setOpen(needsAge || needsCookies);
     } catch {
       setOpen(true);
     }
   }, [mounted, pathname]);
 
   const onAccept = useCallback(() => {
-    writeAgeGateAccepted();
+    persistFullSiteConsent();
+    setConsent({
+      necessary: true,
+      functional: true,
+      statistics: true,
+      marketing: true,
+    });
+    loadConsent();
     setOpen(false);
-  }, []);
+  }, [setConsent, loadConsent]);
 
   const onDecline = useCallback(() => {
     try {

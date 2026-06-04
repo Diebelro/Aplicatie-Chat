@@ -251,7 +251,8 @@ function SignUpContent() {
       other.removeItem("align_session_token");
       other.removeItem("align_device_id");
       other.removeItem("align_device_fingerprint");
-      // Pauză minimă ca browserul să salveze cookie-ul (aprox. 0,1 s) – apoi redirect full page ca să nu ajungi iar la login
+      const { persistFullSiteConsent } = await import("@/lib/onboardingConsent");
+      persistFullSiteConsent();
       await new Promise((r) => setTimeout(r, 100));
       window.location.href = "/onboarding/location";
     } catch (err) {
