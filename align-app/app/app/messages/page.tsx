@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type Ref } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { isDiebelAndroidShell, navigateApp } from "@/lib/navigateApp";
+import { isPageActive } from "@/lib/pageActive";
 import { Users, PhoneMissed, MessageCircle } from "lucide-react";
 import type { User } from "@/lib/store";
 import type { Message } from "@/lib/store";
@@ -232,25 +233,23 @@ export default function MessagesPage() {
     };
     const startPoll = () => {
       clearPoll();
-      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      if (!isPageActive()) return;
+      tick();
       intervalId = setInterval(tick, POLL_MS);
     };
     const onVisibility = () => {
-      if (document.visibilityState === "visible") {
-        tick();
-        startPoll();
-      } else {
-        clearPoll();
-      }
+      if (isPageActive()) startPoll();
+      else clearPoll();
     };
-    if (typeof document !== "undefined" && document.visibilityState === "visible") {
-      tick();
-      startPoll();
-    }
+    if (isPageActive()) startPoll();
     document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pageshow", startPoll);
+    window.addEventListener("focus", tick);
     return () => {
       clearPoll();
       document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pageshow", startPoll);
+      window.removeEventListener("focus", tick);
     };
   }, [loading]);
 

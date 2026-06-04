@@ -42,7 +42,9 @@ export async function GET(request: NextRequest) {
           const unreadCount = c.noMessagesYet ? 0 : await prismaGetUnreadFrom(userId, c.otherUser.id);
           totalUnread += unreadCount;
           const lastActive = c.otherUser.last_active ?? null;
-          const online = lastActive != null && Date.now() - lastActive < ONLINE_MS;
+          const onlineVisible = c.otherUser.show_online !== false;
+          const online =
+            onlineVisible && lastActive != null && Date.now() - lastActive < ONLINE_MS;
           return {
             otherUser: {
               ...c.otherUser,

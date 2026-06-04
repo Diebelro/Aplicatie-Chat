@@ -39,6 +39,7 @@ import { AppShellLoadingLayout } from "@/components/perceived/AppShellLoadingLay
 import { AndroidShellInit } from "@/components/AndroidShellInit";
 import { AndroidCallAudio } from "@/components/AndroidCallAudio";
 import { isDiebelAndroidShell, navigateApp } from "@/lib/navigateApp";
+import { isPageActive } from "@/lib/pageActive";
 
 type DesktopNavTone = "default" | "brand" | "amber" | "admin";
 
@@ -284,7 +285,7 @@ export default function AppLayout({
   useEffect(() => {
     if (!user?.id) return;
     const tick = () => {
-      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      if (!isPageActive()) return;
       void fetchWithAuthRetry("/api/heartbeat", { method: "POST" }).catch(() => {});
     };
     const start = () => {
@@ -299,7 +300,7 @@ export default function AppLayout({
       }
     };
     const onVisible = () => {
-      if (document.visibilityState === "visible") start();
+      if (isPageActive()) start();
       else stop();
     };
     start();
@@ -379,7 +380,7 @@ export default function AppLayout({
 
     const startPolls = () => {
       clearPolls();
-      if (typeof document === "undefined" || document.visibilityState !== "visible") return;
+      if (!isPageActive()) return;
       unreadMissInterval = setInterval(() => {
         fetchUnread();
         fetchMissed();
@@ -388,7 +389,7 @@ export default function AppLayout({
     };
 
     const onVisibility = () => {
-      if (document.visibilityState === "visible") {
+      if (isPageActive()) {
         refreshAll();
         startPolls();
       } else {
@@ -396,7 +397,7 @@ export default function AppLayout({
       }
     };
 
-    if (typeof document !== "undefined" && document.visibilityState === "visible") {
+    if (isPageActive()) {
       refreshAll();
       startPolls();
     }
@@ -404,7 +405,7 @@ export default function AppLayout({
     document.addEventListener("visibilitychange", onVisibility);
     const onFocus = () => {
       refreshAll();
-      if (typeof document !== "undefined" && document.visibilityState === "visible") startPolls();
+      if (isPageActive()) startPolls();
     };
     const onConversationRead = () => {
       fetchUnread();

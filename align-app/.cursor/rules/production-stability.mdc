@@ -23,6 +23,7 @@ globs: align-app/app/app/**/*.tsx, align-app/lib/useVisibleInterval.ts, align-ap
 - UA: `DiebelAndroid/` → `isDiebelAndroidShell()`.
 - La boot: `AndroidShellInit` resetează filtre restrictive + dezactivează service worker.
 - `MainActivity`: `LOAD_NO_CACHE`, inject JS la `onPageFinished` + `onResume` (focus pentru heartbeat).
+- Heartbeat/polling: folosesc `isPageActive()` — pe Android shell NU te baza pe `visibilityState` (rămâne „hidden”).
 
 ## Env obligatorii pe VPS (`.env.production`)
 

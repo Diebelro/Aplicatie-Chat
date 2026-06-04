@@ -85,7 +85,9 @@ export async function GET(request: NextRequest) {
             ? distanceHaversine(myLoc.lat, myLoc.lng, u.latitude!, u.longitude!)
             : null;
         const lastActive = u.last_active ?? null;
-        const online = lastActive != null && Date.now() - lastActive < ONLINE_MS;
+        const onlineVisible = u.show_online !== false;
+        const online =
+          onlineVisible && lastActive != null && Date.now() - lastActive < ONLINE_MS;
         const createdAt = (u as { createdAt?: string }).createdAt;
         const isNew = createdAt ? Date.now() - new Date(createdAt).getTime() < NEW_PROFILE_MS : false;
         return {

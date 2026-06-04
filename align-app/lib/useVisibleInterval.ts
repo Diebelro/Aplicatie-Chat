@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { isPageActive } from "@/lib/pageActive";
 
 /**
  * Interval care rulează doar cât tab-ul / WebView-ul e vizibil.
@@ -24,19 +25,19 @@ export function useVisibleInterval(callback: () => void, ms: number, enabled = t
     };
 
     const tick = () => {
-      if (document.visibilityState !== "visible") return;
+      if (!isPageActive()) return;
       cbRef.current();
     };
 
     const startPoll = () => {
       clearPoll();
-      if (document.visibilityState !== "visible") return;
+      if (!isPageActive()) return;
       tick();
       intervalId = setInterval(tick, ms);
     };
 
     const onVisibility = () => {
-      if (document.visibilityState === "visible") startPoll();
+      if (isPageActive()) startPoll();
       else clearPoll();
     };
 
@@ -46,7 +47,7 @@ export function useVisibleInterval(callback: () => void, ms: number, enabled = t
     window.addEventListener("pageshow", onResume);
     window.addEventListener("focus", tick);
 
-    if (document.visibilityState === "visible") startPoll();
+    if (isPageActive()) startPoll();
 
     return () => {
       clearPoll();
