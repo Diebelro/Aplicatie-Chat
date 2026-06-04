@@ -311,6 +311,8 @@
       "backPreviousCount": "{{n}}",
       "emptyRetry": "No profiles found. Change filters above or tap “Search again”.",
       "emptyDone": "No more profiles match your filters. Change filters (age, gender, country or city) or try later.",
+      "emptyNoOthers": "You are the only active account right now. Invite someone else to sign up with another email.",
+      "emptyAdjustFilters": "Few users in the app. Tap “Show all users”, set Gender to “All”, or check “Swipe decisions” if you passed everyone.",
       "searchAgain": "Search again",
       "matchStay": "Stay here",
       "sendMessage": "Send message",

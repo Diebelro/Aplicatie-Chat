@@ -311,6 +311,8 @@
       "backPreviousCount": "{{n}}",
       "emptyRetry": "Nu s-au găsit profiluri. Schimbă filtrele mai sus sau apasă «Caută din nou».",
       "emptyDone": "Nu mai sunt profiluri care să corespundă filtrelor. Schimbă filtrele (vârstă, gen, țară sau oraș) sau revino mai târziu.",
+      "emptyNoOthers": "Momentan ești singurul cont activ în aplicație. Invită pe cineva să se înregistreze cu alt email.",
+      "emptyAdjustFilters": "În app sunt puțini utilizatori. Apasă «Arată toți utilizatorii», pune Gen pe «Toate», sau vezi «Decizii like/pass» dacă ai trecut peste toți.",
       "searchAgain": "Caută din nou",
       "matchStay": "Rămân aici",
       "sendMessage": "Trimite mesaj",

@@ -97,3 +97,28 @@ dependencies {
     implementation("com.google.android.gms:play-services-ads:24.9.0")
     implementation("com.google.android.ump:user-messaging-platform:3.1.0")
 }
+
+/** După build release, copiază artefactele la nume fixe (nu mai căuta app-release.*). */
+val exportTelefonApk =
+    tasks.register<Copy>("exportDiebelTelefonApk") {
+        dependsOn("assembleRelease")
+        from(layout.buildDirectory.dir("outputs/apk/release"))
+        include("app-release.apk")
+        into(rootProject.layout.projectDirectory)
+        rename { "instaleaza-DIEBEL-pe-TELEFON.apk" }
+    }
+
+val exportGooglePlayAab =
+    tasks.register<Copy>("exportDiebelGooglePlayAab") {
+        dependsOn("bundleRelease")
+        from(layout.buildDirectory.dir("outputs/bundle/release"))
+        include("app-release.aab")
+        into(rootProject.layout.projectDirectory.dir("../play-store-assets"))
+        rename { "incarca-DIEBEL-in-Play-Console.aab" }
+    }
+
+tasks.register("exportReleaseArtifacts") {
+    dependsOn(exportTelefonApk, exportGooglePlayAab)
+    group = "distribution"
+    description = "instaleaza-DIEBEL-pe-TELEFON.apk + incarca-DIEBEL-in-Play-Console.aab"
+}

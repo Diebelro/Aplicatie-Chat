@@ -38,6 +38,7 @@ import {
   prismaLogRateLimit,
   type FeedFilters,
 } from "@/lib/repo-prisma";
+import { prisma } from "@/lib/db";
 import { resolveRequestUserId } from "@/lib/sessionAuth";
 import { parseDiscoverSearchFilters } from "@/lib/discoverSearchParams";
 import { normalizeProfileSortBy, sortProfileCandidates } from "@/lib/profileSort";
@@ -108,9 +109,11 @@ export async function GET(request: NextRequest) {
       const filters: FeedFilters = parseDiscoverSearchFilters(request.nextUrl.searchParams);
       const ua = request.headers.get("user-agent") ?? "";
       if (/DiebelAndroid/i.test(ua)) {
-        // Pe WebView mobil, filtre vechi persistate (country/city/online/dist) pot ascunde toți utilizatorii.
+        // Pe WebView mobil, filtre vechi persistate pot ascunde toți utilizatorii.
+        filters.gender = "";
         filters.country = "";
         filters.city = "";
+        filters.name = "";
         filters.onlineOnly = false;
         filters.maxDistanceKm = 0;
       }
@@ -176,8 +179,18 @@ export async function GET(request: NextRequest) {
         });
       }
 
+      let discoverHint: string | undefined;
+      if (profiles.length === 0) {
+        const others = await prisma.profile.count({
+          where: { completedAt: { not: null }, userId: { not: userId } },
+        });
+        if (others === 0) discoverHint = "no_other_users";
+        else discoverHint = "adjust_filters_or_review";
+      }
+
       return apiJsonResponse({
         profiles,
+        discoverHint,
         internalAds,
         isPremium: premium,
         minCardsBeforeAds: MIN_CARDS_BEFORE_ADS,

@@ -65,6 +65,15 @@ export async function GET(request: NextRequest) {
   if (isPrismaAvailable()) {
     try {
       const filters: FeedFilters = parseDiscoverSearchFilters(request.nextUrl.searchParams);
+      const ua = request.headers.get("user-agent") ?? "";
+      if (/DiebelAndroid/i.test(ua)) {
+        filters.gender = "";
+        filters.country = "";
+        filters.city = "";
+        filters.name = "";
+        filters.onlineOnly = false;
+        filters.maxDistanceKm = 0;
+      }
       const candidates = await prismaGetFeedCandidates(userId, filters, { includeSwiped: true });
       const myLoc = await prismaGetMyLocation(userId);
       const matchPartnerIds = await prismaGetMutualMatchPartnerIds(userId);

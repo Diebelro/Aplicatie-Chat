@@ -84,10 +84,12 @@ export function discoverFiltersForShell(base: SearchFilters): SearchFilters {
   if (!isDiebelAndroidShell()) return base;
   return sanitizeLoadedFilters({
     ...base,
+    gender: "",
     country: "",
     city: "",
     onlineOnly: false,
     maxDistanceKm: "0",
+    name: "",
   });
 }
 
@@ -108,7 +110,12 @@ export function clearRestrictiveMobileFilters(): boolean {
 }
 
 export function useSearchFilters(locale: Locale): [SearchFilters, React.Dispatch<React.SetStateAction<SearchFilters>>] {
-  const [filters, setFilters] = useState<SearchFilters>(defaultSearchFilters);
+  const [filters, setFilters] = useState<SearchFilters>(() => {
+    if (typeof window !== "undefined" && isDiebelAndroidShell()) {
+      return discoverFiltersForShell(defaultSearchFilters);
+    }
+    return defaultSearchFilters;
+  });
   const persistedLocaleRef = useRef<Locale | null>(null);
 
   // Prima dată: localStorage + regiune pentru `locale`; apoi: la schimbarea limbii, aliniază țara/orașul dacă erau goale sau preset pe limbă

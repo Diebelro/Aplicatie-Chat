@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Heart, X, ChevronRight, MessageCircle, Undo2 } from "lucide-react";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
@@ -135,6 +136,7 @@ export default function AppDiscoverPage() {
   const profileUndoStackRef = useRef<FeedItemProfile[]>([]);
   const [undoStackLength, setUndoStackLength] = useState(0);
   const autoRelaxedFiltersRef = useRef(false);
+  const [discoverHint, setDiscoverHint] = useState<string | undefined>();
 
   const resetProfileUndoStack = useCallback(() => {
     profileUndoStackRef.current = [];
@@ -175,10 +177,12 @@ export default function AppDiscoverPage() {
         if (!data) {
           setFeedItems([]);
           setFeedConfig(null);
+          setDiscoverHint(undefined);
           resetProfileUndoStack();
           setLoading(false);
           return;
         }
+        setDiscoverHint((data as { discoverHint?: string }).discoverHint);
         setFeedConfig({
           internalAdIntervalMin: data.internalAdIntervalMin,
           internalAdIntervalMax: data.internalAdIntervalMax,
@@ -256,6 +260,7 @@ export default function AppDiscoverPage() {
         if (!res.ok) return null;
         return data as {
           profiles: UserWithMeta[];
+          discoverHint?: string;
           internalAds: { id: string; imageUrl?: string; link?: string; alt?: string }[];
           isPremium: boolean;
           minCardsBeforeAds: number;
@@ -269,10 +274,12 @@ export default function AppDiscoverPage() {
         if (cancelled) return;
         if (!data) {
           setFeedItems([]);
+          setDiscoverHint(undefined);
           resetProfileUndoStack();
           setLoading(false);
           return;
         }
+        setDiscoverHint(data.discoverHint);
         setFeedConfig({
           internalAdIntervalMin: data.internalAdIntervalMin,
           internalAdIntervalMax: data.internalAdIntervalMax,
@@ -997,46 +1004,38 @@ export default function AppDiscoverPage() {
         </>
       ) : !loading ? (
         <div className="flex flex-col items-center justify-center py-12 text-center w-full">
-          {!retriedAfterEmpty ? (
-            <>
-              <p className="text-dark-500 max-w-sm mb-4">{tStr("pages.discover.emptyRetry")}</p>
-              <div className="flex flex-col sm:flex-row gap-2 justify-center">
-                <button
-                  type="button"
-                  onClick={searchAgain}
-                  className="px-4 py-2 rounded-lg bg-brand-500 text-white hover:bg-brand-600 transition-colors touch-manipulation"
-                >
-                  {tStr("pages.discover.searchAgain")}
-                </button>
-                <button
-                  type="button"
-                  onClick={resetAllDiscoverFilters}
-                  className="px-4 py-2 rounded-lg border border-dark-600 bg-dark-800 text-dark-200 hover:bg-dark-700 transition-colors touch-manipulation"
-                >
-                  Arată toți utilizatorii
-                </button>
-              </div>
-            </>
-          ) : (
-            <>
-              <p className="text-dark-500 max-w-sm mb-4">{tStr("pages.discover.emptyDone")}</p>
-              <div className="flex flex-col sm:flex-row gap-2 justify-center">
-                <button
-                  type="button"
-                  onClick={searchAgain}
-                  className="px-4 py-2 rounded-lg bg-brand-500 text-white hover:bg-brand-600 transition-colors touch-manipulation"
-                >
-                  {tStr("pages.discover.searchAgain")}
-                </button>
-                <button
-                  type="button"
-                  onClick={resetAllDiscoverFilters}
-                  className="px-4 py-2 rounded-lg border border-dark-600 bg-dark-800 text-dark-200 hover:bg-dark-700 transition-colors touch-manipulation"
-                >
-                  Arată toți utilizatorii
-                </button>
-              </div>
-            </>
+          <p className="text-dark-500 max-w-sm mb-4">
+            {discoverHint === "no_other_users"
+              ? tStr("pages.discover.emptyNoOthers")
+              : discoverHint === "adjust_filters_or_review"
+                ? tStr("pages.discover.emptyAdjustFilters")
+                : !retriedAfterEmpty
+                  ? tStr("pages.discover.emptyRetry")
+                  : tStr("pages.discover.emptyDone")}
+          </p>
+          <div className="flex flex-col sm:flex-row gap-2 justify-center">
+            <button
+              type="button"
+              onClick={searchAgain}
+              className="px-4 py-2 rounded-lg bg-brand-500 text-white hover:bg-brand-600 transition-colors touch-manipulation"
+            >
+              {tStr("pages.discover.searchAgain")}
+            </button>
+            <button
+              type="button"
+              onClick={resetAllDiscoverFilters}
+              className="px-4 py-2 rounded-lg border border-dark-600 bg-dark-800 text-dark-200 hover:bg-dark-700 transition-colors touch-manipulation"
+            >
+              Arată toți utilizatorii
+            </button>
+          </div>
+          {discoverHint === "adjust_filters_or_review" && (
+            <Link
+              href="/app/review-swipes"
+              className="mt-3 text-sm text-brand-400 hover:text-brand-300 underline touch-manipulation"
+            >
+              {tStr("pages.discover.reviewSwipesCta")}
+            </Link>
           )}
         </div>
       ) : null}
