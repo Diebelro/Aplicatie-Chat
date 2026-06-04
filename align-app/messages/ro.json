@@ -961,7 +961,7 @@
       "errGeneric": "Eroare",
       "ageRulesLead": "Confirm că am împlinit 18 ani și că accept ",
       "ageRulesLink": "regulile comunității",
-      "ageRulesEnd": " (împreună cu Termenii și Politica de confidențialitate).",
+      "ageRulesEnd": ".",
       "errMustAcceptAgeRules": "Bifează confirmarea pentru vârstă și reguli."
     },
     "ageGate": {

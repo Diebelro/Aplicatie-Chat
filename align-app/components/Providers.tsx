@@ -17,6 +17,16 @@ function SiteFooter() {
   const pathname = usePathname();
   if (pathname?.startsWith("/admin")) return null;
   if (pathname?.startsWith("/app")) return null;
+  /** Login/signup au deja linkuri în checkbox — fără al doilea rând + footer global. */
+  if (
+    pathname === "/login" ||
+    pathname === "/signup" ||
+    pathname === "/forgot-password" ||
+    pathname === "/reset-password" ||
+    pathname === "/reset-password-via-scan"
+  ) {
+    return null;
+  }
   /** Pagina are credit în conținut; evită dublu cu `<Footer />`. */
   if (pathname === "/cont-blocat") return null;
   return <Footer />;

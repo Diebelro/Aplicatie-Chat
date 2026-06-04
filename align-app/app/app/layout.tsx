@@ -642,12 +642,7 @@ export default function AppLayout({
         {children}
         {isChatRoute ? (
           <div className="shrink-0 flex flex-col items-center gap-2 pt-3 pb-1 border-t border-dark-700/70 mt-auto">
-            <Link
-              href="/privacy"
-              className="text-xs font-medium text-brand-400 hover:text-brand-300 hover:underline"
-            >
-              {tStr("legal.links.privacy")}
-            </Link>
+            <LegalDocLinks className="text-dark-600 scale-[0.85] opacity-60" />
             <LanguageSwitcher compact />
             <DiebelCopyrightStrip className="mt-1 px-2" />
           </div>

@@ -959,7 +959,7 @@
       "errGeneric": "Fehler",
       "ageRulesLead": "Ich bestätige, dass ich mindestens 18 Jahre alt bin und die ",
       "ageRulesLink": "Community-Regeln",
-      "ageRulesEnd": " akzeptiere (zusammen mit den Nutzungsbedingungen und der Datenschutzerklärung).",
+      "ageRulesEnd": ".",
       "errMustAcceptAgeRules": "Bitte bestätige Alter und Regeln."
     },
     "ageGate": {

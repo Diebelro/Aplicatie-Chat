@@ -961,7 +961,7 @@
       "errGeneric": "Error",
       "ageRulesLead": "I confirm I am 18 or older and accept the ",
       "ageRulesLink": "community rules",
-      "ageRulesEnd": " (together with the Terms and Privacy Policy).",
+      "ageRulesEnd": ".",
       "errMustAcceptAgeRules": "Tick the age and rules confirmation."
     },
     "ageGate": {
