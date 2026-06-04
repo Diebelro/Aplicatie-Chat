@@ -17,8 +17,8 @@ android {
         applicationId = "ro.diebel.chat"
         minSdk = 28
         targetSdk = 35
-        versionCode = 23
-        versionName = "1.2.3"
+        versionCode = 27
+        versionName = "1.2.7"
         val props = Properties()
         val lp = rootProject.file("local.properties")
         if (lp.exists()) lp.inputStream().use { props.load(it) }
@@ -40,6 +40,10 @@ android {
                 keyAlias = signingProps.getProperty("keyAlias")
                 keyPassword = signingProps.getProperty("keyPassword")
             }
+            // v1 + v2 pentru telefoane care nu acceptă doar v3.
+            enableV1Signing = true
+            enableV2Signing = true
+            enableV3Signing = false
         }
     }
 

@@ -1,0 +1,7 @@
+Versiunea 1.2.7
+
+• Server propriu (chat.diebel.ro) — login și conturi stabile
+• Descoperire profiluri: afișare corectă a pozelor implicite (bărbați/femei)
+• Apeluri audio/video și mesaje — compatibile cu noul server
+• Îmbunătățiri sunet la apeluri în aplicația Android
+• Stabilitate generală și performanță

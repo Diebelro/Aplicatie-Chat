@@ -201,8 +201,9 @@ class WebRtcCallSession(
 
             override fun onTrack(transceiver: RtpTransceiver?) {
                 val track = transceiver?.receiver?.track() ?: return
-                if (track.kind() == "video" && remoteView != null && track is VideoTrack) {
-                    track.addSink(remoteView)
+                when (track) {
+                    is VideoTrack -> if (remoteView != null) track.addSink(remoteView)
+                    is AudioTrack -> track.setEnabled(true)
                 }
             }
         }) ?: return

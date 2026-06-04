@@ -1,0 +1,7 @@
+Version 1.2.7
+
+• Own server (chat.diebel.ro) — stable login and accounts
+• Discover: correct default profile photos (male/female)
+• Audio/video calls and messages — compatible with the new server
+• Improved call audio in the Android app
+• General stability and performance

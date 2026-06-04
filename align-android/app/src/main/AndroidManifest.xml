@@ -51,7 +51,12 @@
             android:exported="false"
             tools:node="remove" />
 
-        <!-- Release: ADS_ENABLED=false — fără meta-data AdMob (Play: declara „fără reclame” în Data safety). -->
+        <!-- Release: fără reclame (ADS_ENABLED=false). Oprim auto-init AdMob — altfel crash „Missing application ID” la pornire. -->
+        <provider
+            android:name="com.google.android.gms.ads.MobileAdsInitProvider"
+            android:authorities="${applicationId}.mobileadsinitprovider"
+            android:exported="false"
+            tools:node="remove" />
 
         <activity
             android:name=".MainActivity"

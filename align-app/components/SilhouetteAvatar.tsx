@@ -9,6 +9,7 @@ import type { ReactNode } from "react";
 import { User } from "lucide-react";
 import { OptimizedImage } from "@/components/OptimizedImage";
 import type { Gender } from "@/lib/store";
+import { isUsableProfilePhotoUrl } from "@/lib/profileImage";
 
 const DEFAULT_AVATAR_FEMALE = "/avatars/female-default.jpg";
 const DEFAULT_AVATAR_MALE = "/avatars/male-default-1.jpg";
@@ -54,16 +55,17 @@ export function SilhouetteAvatar({
   shape = "circle",
   imageSizes,
 }: SilhouetteAvatarProps) {
+  const usablePhoto = isUsableProfilePhotoUrl(photoUrl) ? photoUrl.trim() : null;
   const defaultByGender =
     gender === "female" ? DEFAULT_AVATAR_FEMALE : gender === "male" ? DEFAULT_AVATAR_MALE : null;
   const radiusClass = shape === "rectangle" ? "rounded-none" : "rounded-full";
 
-  if (photoUrl) {
+  if (usablePhoto) {
     const fillSizes =
       imageSizes ?? (shape === "rectangle" ? DEFAULT_SIZES_RECT : DEFAULT_SIZES_CIRCLE);
     return (
       <div className={`relative w-full h-full overflow-hidden ${radiusClass} ${className}`.trim()}>
-        <OptimizedImage src={photoUrl} alt="" fill sizes={fillSizes} className={imgClassName} />
+        <OptimizedImage src={usablePhoto} alt="" fill sizes={fillSizes} className={imgClassName} />
       </div>
     );
   }

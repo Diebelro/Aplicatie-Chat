@@ -2,8 +2,10 @@ package ro.diebel.chat
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.AudioManager
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
@@ -60,6 +62,7 @@ class MainActivity : AppCompatActivity() {
             homeUrl = chatEntryUrl()
             enableCookies(binding.webView)
             configureWebView(binding.webView)
+            binding.webView.clearCache(true)
             binding.btnRetry.setOnClickListener { loadHome() }
 
             onBackPressedDispatcher.addCallback(
@@ -132,7 +135,7 @@ class MainActivity : AppCompatActivity() {
             databaseEnabled = true
             allowContentAccess = true
             allowFileAccess = true
-            cacheMode = WebSettings.LOAD_DEFAULT
+            cacheMode = WebSettings.LOAD_NO_CACHE
             mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
             mediaPlaybackRequiresUserGesture = false
             userAgentString = "$userAgentString DiebelAndroid/${BuildConfig.VERSION_NAME}"
@@ -159,6 +162,7 @@ class MainActivity : AppCompatActivity() {
                     ) needAndroid.add(Manifest.permission.CAMERA)
                 }
                 if (needAndroid.isEmpty()) {
+                    prepareCallAudioRouting()
                     request.grant(resources)
                 } else {
                     pendingPermissionRequest = request
@@ -211,6 +215,8 @@ class MainActivity : AppCompatActivity() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 if (!::binding.isInitialized) return
                 binding.progress.isVisible = false
+                binding.webView.evaluateJavascript(WEB_SHELL_BOOT_JS, null)
+                prepareCallAudioRouting()
             }
 
             override fun onReceivedError(
@@ -245,6 +251,7 @@ class MainActivity : AppCompatActivity() {
             val req = pendingPermissionRequest ?: return
             pendingPermissionRequest = null
             if (grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
+                prepareCallAudioRouting()
                 req.grant(req.resources)
             } else {
                 req.deny()
@@ -277,6 +284,23 @@ class MainActivity : AppCompatActivity() {
         binding.progress.isVisible = true
         val url = "$homeUrl?shell=${BuildConfig.VERSION_CODE}"
         binding.webView.loadUrl(url)
+    }
+
+    /** Difuzor + focus audio pentru apeluri WebRTC în WebView (altfel uneori fără sunet). */
+    private fun prepareCallAudioRouting() {
+        try {
+            val am = getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+            am.mode = AudioManager.MODE_IN_COMMUNICATION
+            am.isSpeakerphoneOn = true
+            @Suppress("DEPRECATION")
+            am.requestAudioFocus(
+                null,
+                AudioManager.STREAM_VOICE_CALL,
+                AudioManager.AUDIOFOCUS_GAIN,
+            )
+        } catch (e: Exception) {
+            Log.w(TAG, "prepareCallAudioRouting", e)
+        }
     }
 
     private fun showError(detail: String?) {
@@ -324,5 +348,18 @@ class MainActivity : AppCompatActivity() {
     companion object {
         private const val TAG = "MainActivity"
         private const val REQ_WEBRTC_PERM = 2001
+
+        private const val WEB_SHELL_BOOT_JS =
+            "(function(){try{localStorage.removeItem('align_search_filters');" +
+                "if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations()" +
+                ".then(function(r){r.forEach(function(x){x.unregister();});});}" +
+                "if('caches' in window){caches.keys().then(function(k){" +
+                "k.forEach(function(n){caches.delete(n);});});}" +
+                "var C=window.AudioContext||window.webkitAudioContext;" +
+                "if(C){if(!window.__diebelAudioCtx||window.__diebelAudioCtx.state==='closed')" +
+                "{window.__diebelAudioCtx=new C();}window.__diebelAudioCtx.resume();}" +
+                "document.querySelectorAll('audio').forEach(function(a){" +
+                "try{a.muted=false;if(a.srcObject)a.play();}catch(e){}});" +
+                "}catch(e){}})();"
     }
 }

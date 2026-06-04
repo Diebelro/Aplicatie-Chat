@@ -38,10 +38,14 @@ Thumbs.db
 .vercel
 
 # Android release artifacts (local builds)
+align-android/Diebel-*.apk
+align-android/Diebel-*.aab
 align-android/Diebel-v*.apk
 align-android/Diebel-v*.aab
 align-android/app-release-*.apk
 align-android/app-release-*.aab
+play-store-assets/*.aab
+align-android/*.apk.idsig
 
 # TURN config with live secret (use turnserver.conf.template)
 infra/hetzner/turnserver.conf

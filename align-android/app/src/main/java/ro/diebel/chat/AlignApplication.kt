@@ -3,6 +3,8 @@ package ro.diebel.chat
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.media.RingtoneManager
+import android.net.Uri
 import android.os.Build
 import android.util.Log
 import ro.diebel.chat.ads.LaunchTracker
@@ -30,7 +32,8 @@ class AlignApplication : Application() {
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
             description = getString(R.string.call_channel_desc)
-            setSound(null, null)
+            val ring: Uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+            setSound(ring, null)
             enableVibration(true)
         }
         val ongoing = NotificationChannel(

@@ -14,6 +14,7 @@ import {
 } from "@/lib/useSearchFilters";
 import { SEARCH_CITY_HINTS } from "@/lib/localeSearchDefaults";
 import { SilhouetteAvatar } from "@/components/SilhouetteAvatar";
+import { getFirstUsableProfilePhotoUrl } from "@/lib/profileImage";
 import { AddFriendButton } from "@/components/AddFriendButton";
 import { track } from "@/lib/tracking";
 import { displayName } from "@/lib/displayName";
@@ -724,26 +725,15 @@ export default function AppDiscoverPage() {
                 <div
                   className={`absolute inset-0 ${cardChrome.dimPhoto ? "brightness-[0.88] saturate-[0.92]" : ""}`}
                 >
-                {current.photos?.[0] ? (
-                  <OptimizedImage
-                    src={current.photos[0]}
-                    alt=""
-                    fill
-                    sizes="(max-width: 480px) 100vw, (max-width: 640px) 90vw, 384px"
-                    quality={88}
-                    className="object-cover object-[center_16%]"
-                  />
-                ) : null}
-                {!current.photos?.[0] && (
-                  <div className="absolute inset-0 flex items-center justify-center p-8">
-                    <SilhouetteAvatar
-                      photoUrl={null}
-                      gender={current.gender}
-                      name={current.name}
-                      className="w-full max-w-[70%] h-full max-h-[70%] text-dark-600"
-                    />
-                  </div>
-                )}
+                <SilhouetteAvatar
+                  photoUrl={getFirstUsableProfilePhotoUrl(current.photos)}
+                  gender={current.gender}
+                  name={current.name}
+                  shape="rectangle"
+                  className="absolute inset-0 w-full h-full"
+                  imgClassName="w-full h-full object-cover object-[center_16%]"
+                  imageSizes="(max-width: 480px) 100vw, (max-width: 640px) 90vw, 384px"
+                />
                 </div>
                 <div className="absolute inset-0 px-5 pt-5 pb-36 sm:pb-32 flex flex-col justify-end bg-gradient-to-t from-black/90 via-black/65 to-black/20 pointer-events-none [&>_*]:pointer-events-auto">
                   <h3 className="text-2xl font-bold text-white mb-1 pr-14 sm:pr-16 line-clamp-2 [text-shadow:0_1px_3px_rgba(0,0,0,0.95),0_0_20px_rgba(0,0,0,0.55)]">
