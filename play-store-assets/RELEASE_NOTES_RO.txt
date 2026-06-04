@@ -1,7 +1,5 @@
-Versiunea 1.2.7
+Versiune 1.0.0 — start curat Diebel pe server propriu (chat.diebel.ro).
 
-• Server propriu (chat.diebel.ro) — login și conturi stabile
-• Descoperire profiluri: afișare corectă a pozelor implicite (bărbați/femei)
-• Apeluri audio/video și mesaje — compatibile cu noul server
-• Îmbunătățiri sunet la apeluri în aplicația Android
-• Stabilitate generală și performanță
+- Login, Discover, mesaje, apeluri video
+- Status online și filtre îmbunătățite pe telefon
+- Backend pe VPS (fără Vercel)

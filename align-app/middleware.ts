@@ -56,10 +56,15 @@ async function adminAccessDecision(request: NextRequest): Promise<"allow" | "log
   const meUrl = new URL("/api/me", request.url);
   let res: Response;
   try {
+    const fwd: Record<string, string> = {
+      cookie: request.headers.get("cookie") ?? "",
+    };
+    const sessionToken = request.headers.get("x-session-token")?.trim();
+    const userId = request.headers.get("x-user-id")?.trim();
+    if (sessionToken) fwd["x-session-token"] = sessionToken;
+    if (userId) fwd["x-user-id"] = userId;
     res = await fetch(meUrl, {
-      headers: {
-        cookie: request.headers.get("cookie") ?? "",
-      },
+      headers: fwd,
       cache: "no-store",
       signal: AbortSignal.timeout(8000),
     });

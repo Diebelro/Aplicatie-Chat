@@ -9,6 +9,8 @@ const users = await p.user.findMany({
   select: {
     id: true,
     email: true,
+    role: true,
+    isBanned: true,
     profile: { select: { name: true, gender: true, completedAt: true, country: true } },
     swipesFrom: { select: { toUserId: true, liked: true } },
   },
@@ -18,6 +20,7 @@ for (const u of users) {
   const dislikes = u.swipesFrom.filter((s) => !s.liked).map((s) => s.toUserId);
   console.log('---');
   console.log(u.email);
+  console.log('  rol:', u.role, u.isBanned ? '(BAN)' : '');
   console.log('  profil complet:', u.profile?.completedAt ? 'DA' : 'NU');
   console.log('  gen:', u.profile?.gender ?? '-', 'țară:', u.profile?.country ?? '-');
   console.log('  dislike către:', dislikes.length ? dislikes.join(',') : '(niciunul)');

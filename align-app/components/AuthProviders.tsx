@@ -1,17 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useI18n } from "@/lib/i18n/context";
 
-/** Social: Google, Apple, Microsoft, Facebook, Yahoo (fără telefon/SMS în UI). */
+/** OAuth — afișăm în UI doar providerii confirmați de /api/auth/social-config (env pe server). */
 const PROVIDERS = [
-  { id: "google", label: "Continue with Google", essential: true, nextAuthId: "google" as const },
-  { id: "apple", label: "Continue with Apple", essential: true, nextAuthId: "apple" as const },
-  { id: "microsoft", label: "Continue with Microsoft", essential: false, nextAuthId: "azure-ad" as const },
-  { id: "facebook", label: "Continue with Facebook", essential: false, nextAuthId: "facebook" as const },
-  { id: "yahoo", label: "Continue with Yahoo Mail", essential: false },
+  { id: "google", label: "Continue with Google", nextAuthId: "google" as const },
+  { id: "apple", label: "Continue with Apple", nextAuthId: "apple" as const },
+  { id: "microsoft", label: "Continue with Microsoft", nextAuthId: "azure-ad" as const },
+  { id: "facebook", label: "Continue with Facebook", nextAuthId: "facebook" as const },
 ] as const;
 
 type SocialCfg = {
@@ -57,7 +55,6 @@ const compactButtonClass = `
 `.replace(/\s+/g, " ").trim();
 
 export default function AuthProviders({ compact, variant = "default" }: AuthProvidersProps) {
-  const router = useRouter();
   const { tStr } = useI18n();
   const [socialCfg, setSocialCfg] = useState<SocialCfg | null>(null);
 
@@ -85,16 +82,6 @@ export default function AuthProviders({ compact, variant = "default" }: AuthProv
   }, []);
 
   const handleClick = (p: (typeof PROVIDERS)[number]) => {
-    if (p.id === "yahoo") {
-      router.push(`/login?soon=1&auth=${encodeURIComponent(p.id)}`);
-      return;
-    }
-    if (!("nextAuthId" in p)) return;
-    const key = cfgKey(p.id);
-    if (key && socialCfg && !socialCfg[key]) {
-      router.push(`/login?reason=oauth_not_configured&p=${encodeURIComponent(p.id)}`);
-      return;
-    }
     const cb = `${window.location.origin}/api/auth/align-bridge`;
     void signIn(p.nextAuthId, { callbackUrl: cb });
   };
@@ -103,15 +90,19 @@ export default function AuthProviders({ compact, variant = "default" }: AuthProv
     return null;
   }
 
-  const cfgReady = socialCfg !== null;
+  if (socialCfg === null) return null;
 
-  const googleProvider = PROVIDERS.find((p) => p.id === "google");
+  const configured = PROVIDERS.filter((p) => {
+    const key = cfgKey(p.id);
+    return key != null && socialCfg[key];
+  });
+
   const list =
     variant === "loginHero"
-      ? googleProvider != null
-        ? [googleProvider]
-        : []
-      : [...PROVIDERS];
+      ? configured.filter((p) => p.id === "google")
+      : configured;
+
+  if (list.length === 0) return null;
 
   const heroLabel = (p: (typeof PROVIDERS)[number]) => {
     if (variant !== "loginHero") return p.label;
@@ -119,14 +110,13 @@ export default function AuthProviders({ compact, variant = "default" }: AuthProv
     return p.label;
   };
 
-  const heroButtonClass = (p: (typeof PROVIDERS)[number], disabled: boolean) => {
+  const heroButtonClass = () => {
     const base =
-      "w-full min-h-[48px] shrink-0 flex items-center justify-center gap-2.5 rounded-xl px-4 text-sm font-semibold transition touch-manipulation active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100";
+      "w-full min-h-[48px] shrink-0 flex items-center justify-center gap-2.5 rounded-xl px-4 text-sm font-semibold transition touch-manipulation active:scale-[0.99]";
     if (variant !== "loginHero") {
-      return (
-        (compact ? compactButtonClass : "w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-dark-600 bg-dark-800 text-zinc-900 hover:bg-dark-700 transition font-medium text-sm") +
-        (disabled ? " opacity-50 cursor-not-allowed" : "")
-      );
+      return compact
+        ? compactButtonClass
+        : "w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-dark-600 bg-dark-800 text-zinc-900 hover:bg-dark-700 transition font-medium text-sm";
     }
     return `${base} border border-neutral-200/90 bg-white text-neutral-900 shadow-sm hover:bg-neutral-50 hover:border-neutral-300`;
   };
@@ -134,21 +124,12 @@ export default function AuthProviders({ compact, variant = "default" }: AuthProv
   return (
       <div className={variant === "loginHero" ? "flex w-full flex-col gap-3" : compact ? "flex flex-col gap-2" : "space-y-2"}>
         {list.map((p) => {
-          const key = cfgKey(p.id);
-          const oauthConfigured = key == null ? true : !cfgReady || socialCfg![key];
-          const disabled = !oauthConfigured;
-          const title = disabled
-            ? `Nu e configurat pe server (vezi .env.example — ${p.id})`
-            : undefined;
-
           return (
             <button
               key={p.id}
               type="button"
-              title={title}
-              disabled={disabled}
               onClick={() => handleClick(p)}
-              className={heroButtonClass(p, disabled)}
+              className={heroButtonClass()}
             >
               <ProviderIcon id={p.id} compact={variant === "loginHero" || compact} />
               <span>{heroLabel(p)}</span>
@@ -192,12 +173,6 @@ function ProviderIcon({ id, compact }: { id: string; compact?: boolean }) {
       return (
         <svg className={c} viewBox="0 0 24 24" fill="#1877F2" aria-hidden>
           <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-        </svg>
-      );
-    case "yahoo":
-      return (
-        <svg className={c} viewBox="0 0 24 24" aria-hidden>
-          <path fill="#6001D2" d="M12.917 13.055l2.662-4.838 2.657 4.838h2.155l-3.484-6.004 3.228-5.495h-2.1l-2.456 4.409-2.457-4.41h-2.15l3.23 5.496-3.485 6.003h2.101z" />
         </svg>
       );
     default:

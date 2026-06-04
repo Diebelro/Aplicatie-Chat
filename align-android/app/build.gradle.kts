@@ -17,8 +17,8 @@ android {
         applicationId = "ro.diebel.chat"
         minSdk = 28
         targetSdk = 35
-        versionCode = 27
-        versionName = "1.2.7"
+        versionCode = 1
+        versionName = "1.0.0"
         val props = Properties()
         val lp = rootProject.file("local.properties")
         if (lp.exists()) lp.inputStream().use { props.load(it) }
@@ -98,27 +98,23 @@ dependencies {
     implementation("com.google.android.ump:user-messaging-platform:3.1.0")
 }
 
-/** După build release, copiază artefactele la nume fixe (nu mai căuta app-release.*). */
-val exportTelefonApk =
-    tasks.register<Copy>("exportDiebelTelefonApk") {
-        dependsOn("assembleRelease")
-        from(layout.buildDirectory.dir("outputs/apk/release"))
-        include("app-release.apk")
-        into(rootProject.layout.projectDirectory)
-        rename { "instaleaza-DIEBEL-pe-TELEFON.apk" }
-    }
-
-val exportGooglePlayAab =
-    tasks.register<Copy>("exportDiebelGooglePlayAab") {
-        dependsOn("bundleRelease")
-        from(layout.buildDirectory.dir("outputs/bundle/release"))
-        include("app-release.aab")
-        into(rootProject.layout.projectDirectory.dir("../play-store-assets"))
-        rename { "incarca-DIEBEL-in-Play-Console.aab" }
-    }
-
+/** După assembleRelease + bundleRelease, copiază la nume fixe (fără Copy tasks separate — evită conflict Gradle). */
 tasks.register("exportReleaseArtifacts") {
-    dependsOn(exportTelefonApk, exportGooglePlayAab)
     group = "distribution"
-    description = "instaleaza-DIEBEL-pe-TELEFON.apk + incarca-DIEBEL-in-Play-Console.aab"
+    description = "Diebel-V1.0.0-TELEFON.apk + Diebel-V1.0.0-Play-Console.aab"
+    dependsOn("assembleRelease", "bundleRelease")
+    doLast {
+        val apkIn = layout.buildDirectory.file("outputs/apk/release/app-release.apk").get().asFile
+        val aabIn = layout.buildDirectory.file("outputs/bundle/release/app-release.aab").get().asFile
+        val apkOut = rootProject.layout.projectDirectory.file("Diebel-V1.0.0-TELEFON.apk").asFile
+        val aabOut =
+            rootProject.layout.projectDirectory.dir("../play-store-assets")
+                .file("Diebel-V1.0.0-Play-Console.aab").asFile
+        check(apkIn.isFile) { "Lipsește ${apkIn.path} — rulează assembleRelease" }
+        check(aabIn.isFile) { "Lipsește ${aabIn.path} — rulează bundleRelease" }
+        apkIn.copyTo(apkOut, overwrite = true)
+        aabIn.copyTo(aabOut, overwrite = true)
+        logger.lifecycle("OK: ${apkOut.absolutePath}")
+        logger.lifecycle("OK: ${aabOut.absolutePath}")
+    }
 }

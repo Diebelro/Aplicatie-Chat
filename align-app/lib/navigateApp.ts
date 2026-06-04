@@ -3,13 +3,10 @@ export function isDiebelAndroidShell(): boolean {
   return typeof navigator !== "undefined" && /DiebelAndroid/i.test(navigator.userAgent);
 }
 
+/** Navigare client (fără reload complet) — important pe Android WebView ca să nu „flash-uiască” tab-urile. */
 export function navigateApp(path: string): void {
   if (typeof window === "undefined") return;
   const target = path.startsWith("/") ? path : `/${path}`;
-  if (isDiebelAndroidShell()) {
-    window.location.assign(target);
-    return;
-  }
   window.history.pushState({}, "", target);
   window.dispatchEvent(new PopStateEvent("popstate"));
 }

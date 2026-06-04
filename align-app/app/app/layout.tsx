@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
-import { fetchWithAuthRetry } from "@/lib/authClient";
+import { ensureSessionCookieForNavigation, fetchWithAuthRetry } from "@/lib/authClient";
 import { getProfileImageUrl } from "@/lib/profileImage";
 import { SilhouetteAvatar } from "@/components/SilhouetteAvatar";
 import IncomingCall from "@/components/IncomingCall";
@@ -207,6 +207,7 @@ export default function AppLayout({
         }
         if (serverUser) persistUserSafely(serverUser as User);
         setUser((serverUser ?? u) as User);
+        if (!cancelled) void ensureSessionCookieForNavigation();
       } catch {
         if (!cancelled) {
           try {
@@ -482,6 +483,16 @@ export default function AppLayout({
     document.querySelector<HTMLElement>("main.flex-1")?.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  /** /admin e protejat de middleware doar cu cookie `align_sid`; sincronizăm înainte de navigare. */
+  const goToAdmin = async (e: MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    setMobileMenuOpen(false);
+    const ok = await ensureSessionCookieForNavigation();
+    window.location.href = ok
+      ? "/admin"
+      : "/login?redirect=" + encodeURIComponent("/admin");
+  };
+
   return (
     <div className="h-dvh min-h-0 bg-dark-900 flex flex-col overflow-hidden antialiased text-dark-900">
       <header className="border-b border-dark-600/80 shrink-0 sticky top-0 z-20 safe-area-inset-top bg-dark-900/95 backdrop-blur-md">
@@ -553,6 +564,7 @@ export default function AppLayout({
             {isAdmin && (
               <Link
                 href="/admin"
+                onClick={(e) => void goToAdmin(e)}
                 className={`${desktopNavItemClass(navDesktopAdminActive, "admin")} inline-flex items-center gap-1`}
                 title={tStr("appNav.adminPanelTitle")}
               >
@@ -755,7 +767,10 @@ export default function AppLayout({
                 {missedCallsCount > 0 && (
                   <MobileNavRow
                     href="/app/missed-calls"
-                    onNavigate={() => setMobileMenuOpen(false)}
+                    onNavigate={(e) => {
+                      setMobileMenuOpen(false);
+                      void e;
+                    }}
                     tone="amber"
                     icon={<PhoneMissed className="h-5 w-5" aria-hidden />}
                   >
@@ -787,7 +802,7 @@ export default function AppLayout({
                 {isAdmin && (
                   <MobileNavRow
                     href="/admin"
-                    onNavigate={() => setMobileMenuOpen(false)}
+                    onNavigate={(e) => void goToAdmin(e)}
                     tone="danger"
                     icon={<Shield className="h-5 w-5" aria-hidden />}
                   >
@@ -863,7 +878,7 @@ function MobileNavRow({
   tone = "default",
 }: {
   href: string;
-  onNavigate: () => void;
+  onNavigate: (e: MouseEvent<HTMLAnchorElement>) => void;
   icon: ReactNode;
   children: ReactNode;
   tone?: MobileNavTone;

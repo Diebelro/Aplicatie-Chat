@@ -48,3 +48,20 @@ export async function fetchWithAuthRetry(input: RequestInfo | URL, init: Request
   }
   return res;
 }
+
+/** Înainte de navigare la /admin: cookie httpOnly trebuie setat (middleware nu vede tokenul din storage). */
+export async function ensureSessionCookieForNavigation(): Promise<boolean> {
+  if (typeof window === "undefined") return true;
+  const token =
+    sessionStorage.getItem("align_session_token") || localStorage.getItem("align_session_token");
+  if (!token) return true;
+  try {
+    const res = await fetchWithAuthRetry("/api/auth/sync-session-cookie", {
+      method: "POST",
+      cache: "no-store",
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}

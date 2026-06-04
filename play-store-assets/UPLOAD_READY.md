@@ -1,12 +1,17 @@
-# Play Store — grafice și note
+# Diebel Android 1.0.0
 
-**AAB-ul nu e în folder** până nu rulezi build-ul (vezi `align-android\UNDE-E-BUILD-UL.md`).
+## Test telefon
 
-| Asset | Fișier |
-|-------|--------|
-| Icon 512×512 | `app_icon_512.png` |
-| Feature graphic | `feature_graphic.png` |
-| Note release RO | `RELEASE_NOTES_RO.txt` |
-| Note release EN | `RELEASE_NOTES_EN.txt` |
+`align-android\Diebel-V1.0.0-TELEFON.apk`
 
-După `gradlew exportReleaseArtifacts` → upload `incarca-DIEBEL-in-Play-Console.aab` în Play Console.
+## Play Console (după test)
+
+`play-store-assets\Diebel-V1.0.0-Play-Console.aab`
+
+| Câmp | Valoare |
+|------|---------|
+| Package | `ro.diebel.chat` |
+| Version name | `1.0.0` |
+| Version code (test APK) | `1` |
+
+Note: `RELEASE_NOTES_RO.txt` · Grafice: `app_icon_512.png`, `feature_graphic.png`
