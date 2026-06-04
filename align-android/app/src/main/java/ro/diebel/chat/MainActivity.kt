@@ -316,6 +316,11 @@ class MainActivity : AppCompatActivity() {
         CookieManager.getInstance().flush()
         if (::binding.isInitialized && !webViewDestroyed) {
             binding.webView.onResume()
+            // Reîmprospătează heartbeat + status online (visibility/focus în pagina web).
+            binding.webView.evaluateJavascript(
+                "(function(){try{window.dispatchEvent(new Event('focus'));document.dispatchEvent(new Event('visibilitychange'));}catch(e){}})();",
+                null,
+            )
         }
     }
 

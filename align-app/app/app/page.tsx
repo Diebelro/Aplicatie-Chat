@@ -29,6 +29,8 @@ import {
 } from "@/lib/feedBuilder";
 import { fetchWithAuthRetry } from "@/lib/authClient";
 import { buildDiscoverApiQuery } from "@/lib/discoverSearchParams";
+import { isDiebelAndroidShell } from "@/lib/navigateApp";
+import { useVisibleInterval } from "@/lib/useVisibleInterval";
 import { MAX_PROFILE_SEARCH_RADIUS_KM } from "@/lib/profileSearchConstants";
 import {
   getSmallCardState,
@@ -326,6 +328,41 @@ export default function AppDiscoverPage() {
       });
     return () => { cancelled = true; };
   }, [filters.gender, filters.minAge, filters.maxAge, filters.maxDistanceKm, filters.country, filters.city, filters.onlineOnly, debouncedName, filters.sortBy, resetProfileUndoStack, setFilters]);
+
+  /** Actualizează online / lastActivity pe cardul curent fără să reconstruiască tot feed-ul (Discover nu avea polling — PC părea OK la refresh manual). */
+  const refreshPresenceOnFeed = useCallback(() => {
+    const queryFilters = { ...filters, name: debouncedName };
+    void fetchWithAuthRetry(`/api/profiles${buildDiscoverApiQuery(queryFilters)}`, { cache: "no-store" })
+      .then((res) => res.json())
+      .then((d: { profiles?: UserWithMeta[] }) => {
+        const fresh = d.profiles;
+        if (!fresh?.length) return;
+        const byId = new Map(fresh.map((p) => [p.id, p]));
+        setFeedItems((prev) =>
+          prev.map((item) => {
+            if (item.type !== "profile") return item;
+            const row = item as FeedItemProfile;
+            const meta = byId.get(row.data.id);
+            if (!meta) return item;
+            return {
+              ...row,
+              data: {
+                ...row.data,
+                online: meta.online,
+                lastActivityAt: meta.lastActivityAt,
+                friendStatus: meta.friendStatus ?? row.data.friendStatus,
+                match: meta.match ?? row.data.match,
+                visited: meta.visited ?? row.data.visited,
+                visitedByThem: meta.visitedByThem ?? row.data.visitedByThem,
+              },
+            };
+          })
+        );
+      })
+      .catch(() => {});
+  }, [filters, debouncedName]);
+
+  useVisibleInterval(refreshPresenceOnFeed, isDiebelAndroidShell() ? 5000 : 8000, feedItems.length > 0 && !loading);
 
   /** Trece la următorul card; reține profilul curent pentru „Revenire” (până la 7 profile). */
   const dismissCurrentFeedItem = useCallback(() => {

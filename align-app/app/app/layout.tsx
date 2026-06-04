@@ -280,16 +280,37 @@ export default function AppLayout({
     else router.push(href);
   };
 
-  // Heartbeat la ~5s → online în timp real (ca WhatsApp)
+  // Heartbeat la ~5s → online în timp real (ca WhatsApp). La revenire în app (Android WebView) — imediat.
   useEffect(() => {
     if (!user?.id) return;
     const tick = () => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
       void fetchWithAuthRetry("/api/heartbeat", { method: "POST" }).catch(() => {});
     };
-    tick();
-    heartbeatRef.current = setInterval(tick, 5000);
-    return () => {
+    const start = () => {
+      tick();
       if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+      heartbeatRef.current = setInterval(tick, 5000);
+    };
+    const stop = () => {
+      if (heartbeatRef.current) {
+        clearInterval(heartbeatRef.current);
+        heartbeatRef.current = null;
+      }
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") start();
+      else stop();
+    };
+    start();
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("pageshow", start);
+    window.addEventListener("focus", tick);
+    return () => {
+      stop();
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("pageshow", start);
+      window.removeEventListener("focus", tick);
     };
   }, [user?.id]);
 

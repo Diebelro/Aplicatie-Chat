@@ -8,6 +8,8 @@ import { QuickCallButtons } from "@/components/QuickCallButtons";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
 import { useSearchFilters, type SearchFilters } from "@/lib/useSearchFilters";
+import { useVisibleInterval } from "@/lib/useVisibleInterval";
+import { isDiebelAndroidShell } from "@/lib/navigateApp";
 import { SEARCH_CITY_HINTS } from "@/lib/localeSearchDefaults";
 import { DiebelAppPromoCarousel } from "@/components/diebel/DiebelAppPromoCarousel";
 import { SilhouetteAvatar } from "@/components/SilhouetteAvatar";
@@ -116,17 +118,20 @@ export default function ProfilesPage() {
     return () => { cancelled = true; };
   }, [filters.gender, filters.minAge, filters.maxAge, filters.maxDistanceKm, filters.country, filters.city, filters.onlineOnly, filters.name, filters.sortBy]);
 
-  useEffect(() => {
-    if (profiles.length === 0) return;
-    const t = setInterval(() => {
-      fetchWithAuthRetry(`/api/profiles${buildDiscoverApiQuery(filters)}`, { cache: "no-store" })
-        .then((res) => res.json())
-        .then((d) => {
-          if (d.profiles) setProfiles(d.profiles);
-        });
-    }, 10000);
-    return () => clearInterval(t);
-  }, [profiles.length, filters.gender, filters.minAge, filters.maxAge, filters.maxDistanceKm, filters.country, filters.city, filters.onlineOnly, filters.name, filters.sortBy]);
+  const refreshProfilesList = useCallback(() => {
+    void fetchWithAuthRetry(`/api/profiles${buildDiscoverApiQuery(filters)}`, { cache: "no-store" })
+      .then((res) => res.json())
+      .then((d) => {
+        if (d.profiles) setProfiles(d.profiles);
+      })
+      .catch(() => {});
+  }, [filters]);
+
+  useVisibleInterval(
+    refreshProfilesList,
+    isDiebelAndroidShell() ? 5000 : 10000,
+    profiles.length > 0 && !loading
+  );
 
   useEffect(() => {
     const onConversationRead = () => {
