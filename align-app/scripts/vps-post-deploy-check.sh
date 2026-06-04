@@ -17,6 +17,12 @@ done
 
 grep -qE '^RESEND_API_KEY=.+' "$ENVF" && ok "RESEND_API_KEY" || echo "  WARN RESEND_API_KEY gol (reset parola email nu merge)"
 
+if grep -qE '^GOOGLE_CLIENT_ID=.+' "$ENVF" && grep -qE '^GOOGLE_CLIENT_SECRET=.+' "$ENVF"; then
+  ok "GOOGLE OAuth"
+else
+  echo "  WARN GOOGLE_CLIENT_* lipsesc (Login cu Google ascuns; copiază din Vercel sau Google Console)"
+fi
+
 systemctl is-active nginx >/dev/null 2>&1 && ok "nginx" || fail "nginx"
 systemctl is-active call-signaling >/dev/null 2>&1 && ok "call-signaling" || echo "  WARN call-signaling inactiv"
 docker compose -f "$APP_DIR/docker-compose.yml" ps --format '{{.Name}}' 2>/dev/null | grep -q align-app-app && ok "container app" || fail "container app"
