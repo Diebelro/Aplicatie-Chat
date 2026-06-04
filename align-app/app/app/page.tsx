@@ -342,18 +342,19 @@ export default function AppDiscoverPage() {
           prev.map((item) => {
             if (item.type !== "profile") return item;
             const row = item as FeedItemProfile;
-            const meta = byId.get(row.data.id);
+            const profile = row.data as UserWithMeta;
+            const meta = byId.get(profile.id);
             if (!meta) return item;
             return {
               ...row,
               data: {
-                ...row.data,
+                ...profile,
                 online: meta.online,
                 lastActivityAt: meta.lastActivityAt,
-                friendStatus: meta.friendStatus ?? row.data.friendStatus,
-                match: meta.match ?? row.data.match,
-                visited: meta.visited ?? row.data.visited,
-                visitedByThem: meta.visitedByThem ?? row.data.visitedByThem,
+                friendStatus: meta.friendStatus ?? profile.friendStatus,
+                match: meta.match ?? profile.match,
+                visited: meta.visited ?? profile.visited,
+                visitedByThem: meta.visitedByThem ?? profile.visitedByThem,
               },
             };
           })
