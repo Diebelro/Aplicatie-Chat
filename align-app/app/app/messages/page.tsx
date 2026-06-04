@@ -217,7 +217,7 @@ export default function MessagesPage() {
   // Polling listă conversații + prieteni; pauză cât tab-ul nu e vizibil.
   useEffect(() => {
     if (loading) return;
-    const POLL_MS = 2500;
+    const POLL_MS = 1200;
     let intervalId: ReturnType<typeof setInterval> | null = null;
     const clearPoll = () => {
       if (intervalId != null) {

@@ -13,7 +13,7 @@ import {
   POST_HANGUP_INCOMING_GRACE_MS,
 } from "@/lib/callIncomingGrace";
 import { closeIncomingCallPushNotifications } from "@/lib/closeIncomingCallPushNotifications";
-import { markCallEndPosted, shouldSkipDuplicateCallEnd } from "@/lib/callEndDedup";
+import { clientHangupCall } from "@/lib/callHangupClient";
 import { CALL_POLL_429_BACKOFF_MS } from "@/lib/callOutgoingConstants";
 import { startIncomingRingtone, stopIncomingRingtone } from "@/lib/callRingtone";
 import { isBrowserPushPrimaryPath } from "@/lib/browserPushConstants";
@@ -26,7 +26,7 @@ import { resolveCallDisplayedError, type CallErrorPayload } from "@/lib/i18n/cal
  */
 
 /** Filă activă: poll mai des ca „te sună” să apară repede când celălalt sună de pe telefon. */
-const POLL_MS_VISIBLE = 800;
+const POLL_MS_VISIBLE = 600;
 /** Filă în fundal: mai rare ca să nu omoare bateria; la revenire facem fetch imediat. */
 const POLL_MS_HIDDEN = 5000;
 /**
@@ -108,12 +108,7 @@ export default function IncomingCall() {
           stopIncomingRingtone();
           setRingNeedsTap(false);
           setIncoming(null);
-          void fetch("/api/call/end", {
-            method: "POST",
-            headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
-            credentials: "same-origin",
-            body: JSON.stringify({ roomId: inc.roomId }),
-          }).catch(() => {});
+          void clientHangupCall({ roomId: inc.roomId, pendingSince: inc.pendingSince });
           return;
         }
         if (inc?.roomId && shouldIgnorePolledIncoming(inc.roomId, inc.pendingSince)) {
@@ -122,12 +117,7 @@ export default function IncomingCall() {
           stopIncomingRingtone();
           setRingNeedsTap(false);
           setIncoming(null);
-          void fetch("/api/call/end", {
-            method: "POST",
-            headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
-            credentials: "same-origin",
-            body: JSON.stringify({ roomId: inc.roomId }),
-          }).catch(() => {});
+          void clientHangupCall({ roomId: inc.roomId, pendingSince: inc.pendingSince });
           return;
         }
         if (inc) {
@@ -239,12 +229,7 @@ export default function IncomingCall() {
         stopIncomingRingtone();
         setRingNeedsTap(false);
         setIncoming(null);
-        void fetch("/api/call/end", {
-          method: "POST",
-          headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
-          credentials: "same-origin",
-          body: JSON.stringify({ roomId: cur.roomId }),
-        }).catch(() => {});
+        void clientHangupCall({ roomId: cur.roomId, pendingSince: cur.pendingSince });
       }
       fetchIncoming();
     };
@@ -267,12 +252,7 @@ export default function IncomingCall() {
     if (isIncomingGraced(incoming.roomId, incoming.pendingSince)) {
       stopIncomingRingtone();
       setRingNeedsTap(false);
-      void fetch("/api/call/end", {
-        method: "POST",
-        headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify({ roomId: incoming.roomId }),
-      }).catch(() => {});
+      void clientHangupCall({ roomId: incoming.roomId, pendingSince: incoming.pendingSince });
       setIncoming(null);
       return;
     }
@@ -303,13 +283,7 @@ export default function IncomingCall() {
       cancelScheduledClearIncoming();
       markIncomingCallDismissed(cur.roomId, cur.pendingSince);
       markIncomingGrace(cur.roomId, cur.pendingSince, 12000);
-      void fetch("/api/call/end", {
-        method: "POST",
-        headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
-        credentials: "same-origin",
-        keepalive: true,
-        body: JSON.stringify({ roomId: cur.roomId }),
-      }).catch(() => {});
+      void clientHangupCall({ roomId: cur.roomId, pendingSince: cur.pendingSince });
       setIncoming(null);
     };
     window.addEventListener("popstate", onPopState);
@@ -377,14 +351,7 @@ export default function IncomingCall() {
     })
       .then(async (r) => {
         if (!r.ok) return;
-        if (shouldSkipDuplicateCallEnd(roomId)) return;
-        markCallEndPosted(roomId);
-        void fetch("/api/call/end", {
-          method: "POST",
-          headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
-          credentials: "same-origin",
-          body: JSON.stringify({ roomId }),
-        }).catch(() => {});
+        void clientHangupCall({ roomId });
       })
       .finally(() => {
         declineInFlightRef.current = false;

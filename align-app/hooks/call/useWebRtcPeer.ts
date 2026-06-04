@@ -8,7 +8,7 @@ import type { GlareMetrics } from "@/lib/webrtc/negotiationMutex";
  */
 
 /** Heartbeat client 15–30s (server TTL ~75s implicit). — copie fidelă din useWebRtcCall. */
-export const CALL_SIGNALING_HEARTBEAT_MS = 25_000;
+export const CALL_SIGNALING_HEARTBEAT_MS = 18_000;
 
 export type PeerBundle = {
   pc: RTCPeerConnection;

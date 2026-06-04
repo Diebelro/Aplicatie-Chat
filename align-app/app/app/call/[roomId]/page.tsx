@@ -14,7 +14,7 @@ import CallUI from "@/components/CallUI";
 import { useI18n } from "@/lib/i18n/context";
 import { useCallRoomTranslate } from "@/lib/i18n/callTranslateSafe";
 import { resolveCallDisplayedError, type CallErrorPayload } from "@/lib/i18n/callApiErrorMap";
-import { shouldSkipDuplicateCallEnd } from "@/lib/callEndDedup";
+import { clientHangupCall } from "@/lib/callHangupClient";
 import { markIncomingGrace, POST_HANGUP_INCOMING_GRACE_MS } from "@/lib/callIncomingGrace";
 import { RING_PUSH_HINT_SESSION_KEY, isRingNotifyHintKey } from "@/lib/callRingNotifySnapshot";
 
@@ -187,23 +187,7 @@ export default function CallPage() {
     return () => {
       window.clearTimeout(tid);
       if (!armed) return;
-      if (shouldSkipDuplicateCallEnd(roomId)) return;
-      markIncomingGrace(roomId, undefined, POST_HANGUP_INCOMING_GRACE_MS);
-      if (!callSessionStartedRef.current) {
-        void fetchWithAuthRetry("/api/call/end", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          keepalive: true,
-          body: JSON.stringify({ roomId }),
-        }).catch(() => {});
-        return;
-      }
-      void fetchWithAuthRetry("/api/call/end", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ roomId }),
-        keepalive: true,
-      }).catch(() => {});
+      void clientHangupCall({ roomId });
     };
   }, [roomId]);
 
@@ -213,41 +197,8 @@ export default function CallPage() {
    * (Nu folosim visibilitychange — la schimbare tab s-ar încheia apelul greșit.)
    */
   useEffect(() => {
-    const body = JSON.stringify({ roomId });
     const flush = () => {
-      if (shouldSkipDuplicateCallEnd(roomId)) return;
-      markIncomingGrace(roomId, undefined, POST_HANGUP_INCOMING_GRACE_MS);
-      if (!callSessionStartedRef.current) {
-        try {
-          void fetchWithAuthRetry("/api/call/end", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            keepalive: true,
-            body: JSON.stringify({ roomId }),
-          });
-        } catch {
-          /* ignore */
-        }
-        return;
-      }
-      try {
-        if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
-          const blob = new Blob([body], { type: "application/json" });
-          if (navigator.sendBeacon("/api/call/end", blob)) return;
-        }
-      } catch {
-        /* fall through */
-      }
-      try {
-        void fetchWithAuthRetry("/api/call/end", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body,
-          keepalive: true,
-        });
-      } catch {
-        /* ignore */
-      }
+      void clientHangupCall({ roomId });
     };
     const onPageHide = (e: PageTransitionEvent) => {
       /** Pagina intră în bfcache (Back rapid) — nu încheiem apelul. */

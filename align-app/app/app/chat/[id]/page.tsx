@@ -12,8 +12,7 @@ import { RING_PUSH_HINT_DELAY_MS, getRingNotifyHintKey } from "@/lib/callRingNot
 import { track } from "@/lib/tracking";
 import { displayName } from "@/lib/displayName";
 import { getAuthHeaders, fetchWithAuthRetry } from "@/lib/authClient";
-import { markCallEndPosted } from "@/lib/callEndDedup";
-import { markIncomingGrace, POST_HANGUP_INCOMING_GRACE_MS } from "@/lib/callIncomingGrace";
+import { clientHangupCall } from "@/lib/callHangupClient";
 import { messageAttachmentProxyPath, shouldProxyChatAttachment } from "@/lib/chatAttachmentProxy";
 import {
   ALIGN_LOCATION_CONTENT_TYPE,
@@ -959,13 +958,7 @@ export default function ChatPage() {
         chatPageLiveRef.current && ringSessionOtherIdRef.current === sessionOtherId;
 
       const retractRingIfAbandoned = () => {
-        markCallEndPosted(roomIdForRing);
-        markIncomingGrace(roomIdForRing, undefined, POST_HANGUP_INCOMING_GRACE_MS);
-        void fetchWithAuthRetry("/api/call/end", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ roomId: roomIdForRing }),
-        }).catch(() => {});
+        void clientHangupCall({ roomId: roomIdForRing });
       };
 
       setSendError(null);

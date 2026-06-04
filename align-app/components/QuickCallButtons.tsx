@@ -5,10 +5,9 @@ import { useRouter } from "next/navigation";
 import { Video, Phone } from "lucide-react";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
-import { fetchWithAuthRetry, getAuthHeaders } from "@/lib/authClient";
+import { fetchWithAuthRetry } from "@/lib/authClient";
 import { getVideoRoomId } from "@/lib/videoCall";
-import { markCallEndPosted } from "@/lib/callEndDedup";
-import { markIncomingGrace, POST_HANGUP_INCOMING_GRACE_MS } from "@/lib/callIncomingGrace";
+import { clientHangupCall } from "@/lib/callHangupClient";
 import type { RingNotifySnapshot } from "@/lib/callRingNotifySnapshot";
 import { RING_PUSH_HINT_SESSION_KEY, getRingNotifyHintKey } from "@/lib/callRingNotifySnapshot";
 import { useCallRoomTranslate } from "@/lib/i18n/callTranslateSafe";
@@ -63,14 +62,7 @@ export function QuickCallButtons({ toUserId, size = "md", className = "" }: Quic
   }, []);
 
   const retractRing = (roomId: string) => {
-    markCallEndPosted(roomId);
-    markIncomingGrace(roomId, undefined, POST_HANGUP_INCOMING_GRACE_MS);
-    void fetch("/api/call/end", {
-      method: "POST",
-      headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
-      credentials: "same-origin",
-      body: JSON.stringify({ roomId }),
-    }).catch(() => {});
+    void clientHangupCall({ roomId });
   };
 
   const start = async (audioOnly: boolean) => {

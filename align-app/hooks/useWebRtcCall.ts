@@ -386,7 +386,7 @@ export function useWebRtcCall({
       const ws = wsRef.current;
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ t: "call-end" }));
-        leaveFlushTimerRef.current = setTimeout(applyLeftState, 120);
+        leaveFlushTimerRef.current = setTimeout(applyLeftState, 45);
         return;
       }
     } catch {

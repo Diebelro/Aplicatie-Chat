@@ -388,10 +388,21 @@ wss.on("connection", (ws, req) => {
     if (!currentRoom || !safeRoomId(currentRoom)) return;
 
     if (msg.t === "call-end") {
-      for (const [uid, c] of rooms.get(roomKey(currentRoom))?.entries() ?? []) {
-        if (uid === userId) continue;
-        if (c.ws.readyState === 1) {
-          c.ws.send(JSON.stringify({ ...msg, from: userId }));
+      const r = rooms.get(roomKey(currentRoom));
+      if (r) {
+        for (const [uid, c] of r.entries()) {
+          if (uid === userId) continue;
+          if (c.ws.readyState === 1) {
+            c.ws.send(JSON.stringify({ t: "call-end", from: userId }));
+          }
+        }
+        r.delete(userId);
+        if (r.size === 0) {
+          rooms.delete(roomKey(currentRoom));
+        } else {
+          const conf = isConferenceRoomId(currentRoom);
+          if (conf) broadcastConferencePeers(currentRoom);
+          else broadcastSession(currentRoom);
         }
       }
       return;

@@ -58,8 +58,7 @@ import {
   attachCursorSender,
   setCursorEnabled,
 } from "@/lib/webrtc/cursorOverlay";
-import { markCallEndPosted, shouldSkipDuplicateCallEnd } from "@/lib/callEndDedup";
-import { markIncomingGrace, POST_HANGUP_INCOMING_GRACE_MS } from "@/lib/callIncomingGrace";
+import { clientHangupCall } from "@/lib/callHangupClient";
 import { stopIncomingRingtone } from "@/lib/callRingtone";
 import { useVideoRenderable } from "@/hooks/useVideoRenderable";
 import { useOutgoingCallerPoll } from "@/hooks/useOutgoingCallerPoll";
@@ -527,14 +526,7 @@ export default function CallUI({
     isConference,
     callTranslate,
     onAutoEnded: () => {
-      markCallEndPosted(roomId);
-      markIncomingGrace(roomId, undefined, POST_HANGUP_INCOMING_GRACE_MS);
-      void fetch("/api/call/end", {
-        method: "POST",
-        headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify({ roomId }),
-      }).catch(() => {});
+      void clientHangupCall({ roomId });
       router.replace("/app/messages");
     },
   });
@@ -837,16 +829,10 @@ export default function CallUI({
    */
   useEffect(() => {
     if (outgoingTerminal !== "rejected" || !isCaller) return;
-    leave();
-    if (shouldSkipDuplicateCallEnd(roomId)) return;
-    markCallEndPosted(roomId);
-    markIncomingGrace(roomId, undefined, POST_HANGUP_INCOMING_GRACE_MS);
-    void fetch("/api/call/end", {
-      method: "POST",
-      headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
-      credentials: "same-origin",
-      body: JSON.stringify({ roomId }),
-    }).catch(() => {});
+    void (async () => {
+      await clientHangupCall({ roomId });
+      leave();
+    })();
   }, [outgoingTerminal, isCaller, leave, roomId]);
 
   const handleLeave = () => {
@@ -854,19 +840,14 @@ export default function CallUI({
     leavingCallRef.current = true;
     setLeavingCall(true);
     stopIncomingRingtone();
-    markCallEndPosted(roomId);
-    markIncomingGrace(roomId, undefined, POST_HANGUP_INCOMING_GRACE_MS);
-    leave();
-    void fetch("/api/call/end", {
-      method: "POST",
-      headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
-      credentials: "same-origin",
-      body: JSON.stringify({
+    void (async () => {
+      await clientHangupCall({
         roomId,
-        ...(isCaller && callState !== "connected" ? { recordMissedForCallee: true } : {}),
-      }),
-    }).catch(() => {});
-    router.replace("/app/messages");
+        recordMissedForCallee: isCaller && callState !== "connected",
+      });
+      leave();
+      router.replace("/app/messages");
+    })();
   };
 
   const remote = remoteParticipants[0];
@@ -1742,7 +1723,14 @@ export default function CallUI({
     <RemotePlaybackContext.Provider value={remotePlayback}>
     <div className="fixed inset-0 z-[200] flex flex-col bg-night-950 text-night-100 overflow-hidden">
       <div className="flex items-center justify-between border-b border-night-600 py-2 px-3 sm:px-4 shrink-0">
-        <Link replace href="/app/messages" onClick={() => leave()} className="text-night-500 hover:text-white text-sm">
+        <Link
+          replace
+          href="/app/messages"
+          onClick={() => {
+            void clientHangupCall({ roomId }).then(() => leave());
+          }}
+          className="text-night-500 hover:text-white text-sm"
+        >
           {ui("confBarMessagesLink")}
         </Link>
         <span className="text-night-500 text-sm">
