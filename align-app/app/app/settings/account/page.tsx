@@ -10,7 +10,6 @@ import { formatTpl } from "@/lib/i18n/formatTpl";
 import { translateApiErrorMessage } from "@/lib/i18n/translateApiError";
 import { requestOpenLogoutDialog } from "@/lib/logoutDialogEvent";
 import { AppProLoading } from "@/components/AppProLoading";
-import { DiebelCopyrightStrip } from "@/components/DiebelAuthorCredit";
 
 export default function AccountSettingsPage() {
   const { tStr } = useI18n();
@@ -581,7 +580,6 @@ export default function AccountSettingsPage() {
         </div>
       )}
 
-      <DiebelCopyrightStrip className="mt-8 mb-4 opacity-80" />
     </div>
   );
 }
