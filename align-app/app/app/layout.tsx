@@ -70,7 +70,7 @@ function desktopNavItemClass(active: boolean, tone: DesktopNavTone = "default"):
 function mobileTabClass(active: boolean): string {
   return (
     "relative flex flex-col items-center justify-center gap-0.5 min-h-[50px] min-w-[58px] py-1.5 px-2.5 rounded-2xl " +
-    "transition-colors duration-200 touch-manipulation active:scale-[0.97] text-dark-400 border-b " +
+    "transition-colors duration-100 touch-manipulation active:scale-[0.98] text-dark-400 border-b " +
     (active ? "border-brand-500 text-brand-600 font-semibold" : "border-transparent hover:text-dark-900")
   );
 }
@@ -253,6 +253,14 @@ export default function AppLayout({
     return () => { cancelled = true; };
   }, [user?.id, user?.photos?.length]);
 
+  /** Prefetch rute frecvente — navigare instant la Mesaje / Matches / Descoperă. */
+  useEffect(() => {
+    if (!user?.id || loading) return;
+    router.prefetch("/app");
+    router.prefetch("/app/messages");
+    router.prefetch("/app/matches");
+  }, [user?.id, loading, router]);
+
   // La mesaj nou: necititul crește → puls pe badge (match rămâne pe toast brand; mesaj = sky)
   useEffect(() => {
     if (prevUnreadRef.current === null) {
@@ -261,7 +269,7 @@ export default function AppLayout({
     }
     if (totalUnread > prevUnreadRef.current) {
       setMessageBadgePing(true);
-      const t = window.setTimeout(() => setMessageBadgePing(false), 2600);
+      const t = window.setTimeout(() => setMessageBadgePing(false), 1200);
       prevUnreadRef.current = totalUnread;
       return () => window.clearTimeout(t);
     }

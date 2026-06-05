@@ -121,7 +121,7 @@ export default function AppDiscoverPage() {
   const [filters, setFilters] = useSearchFilters(locale);
   const [debouncedName, setDebouncedName] = useState(filters.name);
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedName(filters.name), 600);
+    const t = setTimeout(() => setDebouncedName(filters.name), 280);
     return () => clearTimeout(t);
   }, [filters.name]);
   const lastViewedId = useRef<string | null>(null);
@@ -746,7 +746,7 @@ export default function AppDiscoverPage() {
                   className={`w-full aspect-[3/4] rounded-2xl overflow-hidden bg-dark-800 relative card-hover will-change-transform ${cardChrome.borderClassName}`}
                   style={{
                     transform: `translateX(${dragOffset}px) rotate(${dragOffset * 0.06}deg)`,
-                    transition: isDragging ? "none" : "transform 0.18s cubic-bezier(0.34, 1.2, 0.64, 1)",
+                    transition: isDragging ? "none" : "transform 0.1s cubic-bezier(0.34, 1.2, 0.64, 1)",
                     ...cardChrome.frameStyle,
                   }}
                 >

@@ -263,7 +263,6 @@ function LoginContent() {
         const { ensureSessionCookieForNavigation } = await import("@/lib/authClient");
         await ensureSessionCookieForNavigation();
       }
-      await new Promise((r) => setTimeout(r, 300));
       window.location.href = target;
     } catch (err) {
       setError(err instanceof Error ? err.message : tStr("pages.login.errGeneric"));

@@ -15,7 +15,7 @@ export function useMarkConversationReadWhenVisible(
   const doneRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const threshold = opts?.threshold ?? 0.14;
-  const dwellMs = opts?.dwellMs ?? 900;
+  const dwellMs = opts?.dwellMs ?? 350;
 
   const clearTimer = useCallback(() => {
     if (timerRef.current != null) {

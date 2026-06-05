@@ -43,7 +43,7 @@ export async function fetchWithAuthRetry(input: RequestInfo | URL, init: Request
   };
   let res = await fetch(input, buildInit());
   if (typeof window !== "undefined" && res.status === 401) {
-    await new Promise((r) => setTimeout(r, 400));
+    await new Promise((r) => setTimeout(r, 120));
     res = await fetch(input, buildInit());
   }
   return res;
@@ -65,7 +65,7 @@ export async function ensureSessionCookieForNavigation(): Promise<boolean> {
     } catch {
       /* retry */
     }
-    await new Promise((r) => setTimeout(r, 200 * (attempt + 1)));
+    await new Promise((r) => setTimeout(r, 80 * (attempt + 1)));
   }
   return false;
 }

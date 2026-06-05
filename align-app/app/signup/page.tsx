@@ -64,7 +64,7 @@ function SignUpContent() {
         .then((r) => r.json())
         .then((d) => setUsernameCheck(d.available ? "available" : "taken"))
         .catch(() => setUsernameCheck("idle"));
-    }, 400);
+    }, 280);
     return () => clearTimeout(t);
   }, [username]);
 
@@ -80,7 +80,7 @@ function SignUpContent() {
         .then((r) => r.json())
         .then((d) => setEmailCheck(d.available ? "available" : "taken"))
         .catch(() => setEmailCheck("idle"));
-    }, 400);
+    }, 280);
     return () => clearTimeout(t);
   }, [email]);
 
@@ -255,7 +255,6 @@ function SignUpContent() {
       other.removeItem("align_device_fingerprint");
       const { persistFullSiteConsent } = await import("@/lib/onboardingConsent");
       persistFullSiteConsent();
-      await new Promise((r) => setTimeout(r, 100));
       window.location.href = "/onboarding/location";
     } catch (err) {
       setError(err instanceof Error ? err.message : tStr("pages.signup.errGeneric"));

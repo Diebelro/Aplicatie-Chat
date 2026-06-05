@@ -14,7 +14,7 @@ import { track } from "@/lib/tracking";
 import { displayName } from "@/lib/displayName";
 import { getAuthHeaders, fetchWithAuthRetry } from "@/lib/authClient";
 import { clientHangupCall } from "@/lib/callHangupClient";
-import { VPS_CHAT_MESSAGES_POLL_MS } from "@/lib/vpsRealtimeConstants";
+import { VPS_CHAT_MESSAGES_POLL_MS, VPS_CHAT_READ_RESEND_MS } from "@/lib/vpsRealtimeConstants";
 import { messageAttachmentProxyPath, shouldProxyChatAttachment } from "@/lib/chatAttachmentProxy";
 import {
   ALIGN_LOCATION_CONTENT_TYPE,
@@ -420,7 +420,7 @@ export default function ChatPage() {
     const t = window.setTimeout(() => {
       if (chatOtherIdRef.current !== convId) return;
       writeChatDraft(convId, chatTextRef.current);
-    }, 450);
+    }, 200);
     return () => clearTimeout(t);
   }, [text, otherId]);
 
@@ -476,7 +476,7 @@ export default function ChatPage() {
     const tick = () => {
       void fetchMessages({ markConversationRead: false });
       otherPollTickRef.current += 1;
-      if (otherPollTickRef.current % 3 === 0) void fetchOther();
+      if (otherPollTickRef.current % 2 === 0) void fetchOther();
     };
     const startPoll = () => {
       clearPoll();
@@ -544,7 +544,7 @@ export default function ChatPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ otherId }),
       }).catch(() => {});
-    }, 12_000);
+    }, VPS_CHAT_READ_RESEND_MS);
     return () => clearInterval(id);
   }, [otherId, loading]);
 
@@ -566,7 +566,7 @@ export default function ChatPage() {
 
     const run = () => scrollMessagesToBottom("auto");
     run();
-    const timeouts = [40, 120, 300, 700, 1200, 2200, 3500].map((ms) => setTimeout(run, ms));
+    const timeouts = [16, 48, 120, 280, 600].map((ms) => setTimeout(run, ms));
     const raf1 = requestAnimationFrame(() => {
       run();
       requestAnimationFrame(run);

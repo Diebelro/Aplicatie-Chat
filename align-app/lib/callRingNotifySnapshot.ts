@@ -8,7 +8,7 @@ export type RingNotifySnapshot = {
 };
 
 /** Folosit în alte ecrane (ex. chat) care încă afișează hint înainte de navigare. */
-export const RING_PUSH_HINT_DELAY_MS = 250;
+export const RING_PUSH_HINT_DELAY_MS = 80;
 
 /** Hint scurt despre push salvat înainte de navigare spre camera de apel (fără pauză pe lista de mesaje). */
 export const RING_PUSH_HINT_SESSION_KEY = "align_ring_push_hint";
