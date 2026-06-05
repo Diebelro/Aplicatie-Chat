@@ -11,6 +11,7 @@ import { clearLoginEmailDraft, readLoginEmailDraft, writeLoginEmailDraft } from 
 import { useI18n } from "@/lib/i18n/context";
 import { DiebelWordmark } from "@/components/DiebelWordmark";
 import { LegalDocLinks } from "@/components/LegalDocLinks";
+import { DiebelCopyrightStrip } from "@/components/DiebelAuthorCredit";
 import { formatTpl } from "@/lib/i18n/formatTpl";
 import { translateApiErrorMessage } from "@/lib/i18n/translateApiError";
 
@@ -382,6 +383,7 @@ function LoginContent() {
             </Link>
           </p>
           <LegalDocLinks className="pt-2 text-dark-500" />
+          <DiebelCopyrightStrip className="pt-3 opacity-80" />
         </div>
       </div>
     </div>

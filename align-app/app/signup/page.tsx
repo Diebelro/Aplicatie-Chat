@@ -11,6 +11,7 @@ import { validateUsername } from "@/lib/usernameFormat";
 import { useI18n } from "@/lib/i18n/context";
 import { formatTpl } from "@/lib/i18n/formatTpl";
 import { translateApiErrorMessage } from "@/lib/i18n/translateApiError";
+import { DiebelCopyrightStrip } from "@/components/DiebelAuthorCredit";
 
 const RECAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY ?? "";
 
@@ -516,6 +517,7 @@ function SignUpContent() {
             {tStr("pages.signup.loginLink")}
           </Link>
         </p>
+        <DiebelCopyrightStrip className="mt-6 opacity-80" />
       </div>
     </div>
   );

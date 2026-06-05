@@ -467,8 +467,12 @@ export default function AppLayout({
   const path = pathname ?? "";
   /** Listă conversații (nu chat deschis): footer mai compact pe ecran mic. */
   const isMessagesListRoute = path === "/app/messages";
-  /** După accept la înregistrare / age gate: fără bandă legală repetată în zona app. */
-  const showInAppLegalFooter = !path.startsWith("/app");
+  /**
+   * © Diebel: în app pe Descoperă, Profil, Setări etc. — NU în chat/listă mesaje (spațiu conversație).
+   * Legal + limbă: meniu mobil + Setări cont; credit scurt și aici pe rutele „calme”.
+   */
+  const showInAppDiebelCredit =
+    path.startsWith("/app") && !isChatRoute && !isMessagesListRoute;
   const navDiscoverActive = path === "/app" || path.startsWith("/app/profiles");
   const navMessagesActive = path.startsWith("/app/messages") || path.startsWith("/app/chat/");
   const navMatchesActive = path.startsWith("/app/matches");
@@ -840,6 +844,7 @@ export default function AppLayout({
               <div className="mt-2 border-t border-dark-600/80 px-3 py-3 flex flex-col items-center gap-2">
                 <LanguageSwitcher compact />
                 <LegalDocLinks className="text-dark-500 text-[10px] opacity-80" />
+                <DiebelCopyrightStrip className="text-[10px] opacity-75 px-1" />
               </div>
             </nav>
           </aside>
