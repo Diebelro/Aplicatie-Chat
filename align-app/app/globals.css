@@ -122,7 +122,35 @@ body {
 
   /** Buton icon rotund/pătrat — săgeți, ⋯, apeluri. */
   .app-icon-btn {
-    @apply app-touch-target flex items-center justify-center rounded-xl transition;
+    @apply app-touch-target flex items-center justify-center rounded-xl transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/45;
+  }
+
+  /** Rând listă (Mesaje, Matches) — cadru uniform + stare activă la focus/tap. */
+  .app-list-row {
+    @apply flex items-stretch rounded-xl border border-dark-600 bg-dark-800 shadow-sm overflow-hidden touch-manipulation transition-colors;
+  }
+  .app-list-row--unread {
+    @apply border-brand-500/40 bg-brand-500/[0.07];
+  }
+  .app-list-row-btn {
+    @apply flex flex-1 items-center gap-3 sm:gap-4 min-h-[56px] min-w-0 py-3 pl-3 pr-2 sm:py-4 sm:pl-4 sm:pr-3 text-left transition cursor-pointer hover:bg-dark-700/50 active:bg-dark-700/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:ring-inset;
+  }
+
+  /** Bule conversație — text încadrat, fără overflow la poze/linkuri lungi. */
+  .chat-bubble {
+    @apply max-w-[min(88%,20rem)] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed shadow-sm overflow-hidden;
+  }
+  .chat-bubble-out {
+    @apply chat-bubble bg-brand-500 text-white;
+  }
+  .chat-bubble-in {
+    @apply chat-bubble bg-white border border-zinc-200/90 text-zinc-900;
+  }
+  .chat-bubble-text {
+    @apply whitespace-pre-wrap break-words [overflow-wrap:anywhere];
+  }
+  .chat-compose-status {
+    @apply text-xs leading-snug px-3 py-2 rounded-xl border mx-0.5;
   }
 
   /** Avatar rotund: badge-ul nu se taie (outer visible, inner clip). */

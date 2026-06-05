@@ -1345,7 +1345,7 @@ export default function ChatPage() {
 
       <div
         ref={messagesScrollRef}
-        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pt-2 pb-3 space-y-2.5 overscroll-contain"
+        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-1.5 sm:px-2 pt-2 pb-3 space-y-3 overscroll-contain scrollbar-app"
       >
         {fetchError && (
           <p className="text-amber-400 text-sm px-2 py-1 rounded bg-amber-500/10" role="alert">
@@ -1405,13 +1405,7 @@ export default function ChatPage() {
               key={m.id}
               className={`flex ${isMe ? "justify-end" : "justify-start"}`}
             >
-              <div
-                className={`max-w-[80%] rounded-2xl px-4 py-2 ${
-                  isMe
-                    ? "bg-brand-500 text-white shadow-sm"
-                    : "bg-white border border-zinc-200 text-zinc-900 shadow-sm"
-                }`}
-              >
+              <div className={isMe ? "chat-bubble-out" : "chat-bubble-in"}>
                 {m.attachmentUrl && (
                   <div className="mb-2">
                     {(() => {
@@ -1494,7 +1488,7 @@ export default function ChatPage() {
                   </div>
                 )}
                 {(m.text?.trim() ?? "") && (
-                  <p className="text-sm whitespace-pre-wrap break-words">
+                  <p className="chat-bubble-text">
                     {m.text}
                   </p>
                 )}
@@ -1531,37 +1525,31 @@ export default function ChatPage() {
 
       <form
         onSubmit={sendMessage}
-        className="chat-compose-form flex flex-col gap-1.5 pt-2 shrink-0 w-full min-w-0 max-w-full pb-[max(0.25rem,env(safe-area-inset-bottom,0))]"
+        className="chat-compose-form flex flex-col gap-2 pt-2 shrink-0 w-full min-w-0 max-w-full px-1 sm:px-0 pb-[max(0.25rem,var(--safe-area-inset-bottom))] border-t border-dark-600/50 bg-dark-900/50"
       >
-        {sendError && (
-          <div className="flex flex-col gap-2">
-            <p className="text-red-400 text-sm break-words" role="alert">
-              {sendError}
-            </p>
-            {isPaywallError && (
-              <Link href="/app/premium" className="text-sm text-brand-400 hover:text-brand-300 font-medium">
+        {sendError ? (
+          <div className="chat-compose-status border-red-500/35 bg-red-500/10 text-red-400" role="alert">
+            <p className="break-words">{sendError}</p>
+            {isPaywallError ? (
+              <Link href="/app/premium" className="inline-block mt-1.5 text-brand-400 hover:text-brand-300 font-medium underline underline-offset-2">
                 {tStr("pages.chat.paywallLink")}
               </Link>
-            )}
+            ) : null}
           </div>
-        )}
-        {otherUser && !callerId && (
-          <p className="text-xs text-amber-400/90" role="status">
+        ) : otherUser && !callerId ? (
+          <p className="chat-compose-status border-amber-500/35 bg-amber-500/10 text-amber-200/95" role="status">
             {tStr("pages.chat.loadingAccountId")}
           </p>
-        )}
-        {otherUser && callerId && calling ? (
-          <p className="text-xs text-dark-500" role="status" aria-live="polite">
+        ) : otherUser && callerId && calling ? (
+          <p className="chat-compose-status border-dark-600 bg-dark-800/80 text-dark-400" role="status" aria-live="polite">
             {tStr("pages.chat.callingInProgress")}
           </p>
-        ) : null}
-        {otherUser && callerId && ringPushHint ? (
-          <p className="text-xs text-amber-400/95 leading-snug" role="status">
+        ) : otherUser && callerId && ringPushHint ? (
+          <p className="chat-compose-status border-amber-500/35 bg-amber-500/10 text-amber-200/95" role="status">
             {ringPushHint}
           </p>
-        ) : null}
-        {chatInfoMessage ? (
-          <p className="text-emerald-600/95 text-sm px-1" role="status">
+        ) : chatInfoMessage ? (
+          <p className="chat-compose-status border-emerald-500/35 bg-emerald-500/10 text-emerald-700" role="status">
             {chatInfoMessage}
           </p>
         ) : null}
@@ -1696,7 +1684,7 @@ export default function ChatPage() {
                 uploadingAttachment ||
                 sendingLocation
               }
-              className="min-h-[44px] min-w-[48px] sm:min-w-[44px] flex items-center justify-center rounded-xl bg-brand-500 hover:bg-brand-400 active:bg-brand-400 text-dark-900 disabled:opacity-50 transition shrink-0 touch-manipulation px-3 sm:px-0"
+              className="min-h-[44px] min-w-[48px] sm:min-w-[44px] flex items-center justify-center rounded-xl bg-brand-500 hover:bg-brand-400 active:bg-brand-400 text-dark-900 disabled:opacity-50 transition shrink-0 touch-manipulation px-3 sm:px-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-dark-900"
               aria-label={tStr("pages.chat.sendAria")}
             >
               <Send className="w-5 h-5 shrink-0" />

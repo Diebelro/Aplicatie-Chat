@@ -71,7 +71,7 @@ function mobileTabClass(active: boolean): string {
   return (
     "relative flex flex-col items-center justify-center gap-0.5 min-h-[50px] min-w-[58px] py-1.5 px-2.5 rounded-2xl " +
     "transition-colors duration-200 touch-manipulation active:scale-[0.97] text-dark-400 border-b " +
-    (active ? "border-brand-500" : "border-transparent hover:text-dark-900")
+    (active ? "border-brand-500 text-brand-600 font-semibold" : "border-transparent hover:text-dark-900")
   );
 }
 

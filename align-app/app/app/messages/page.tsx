@@ -71,13 +71,13 @@ function MessagesConversationRow({
   return (
     <li
       ref={rowRef as Ref<HTMLLIElement>}
-      className="flex items-stretch rounded-xl bg-dark-800 border border-dark-600 shadow-sm hover:border-dark-500 active:bg-dark-700/80 transition overflow-hidden touch-manipulation"
+      className={`app-list-row hover:border-dark-500 active:bg-dark-700/80 ${unreadCount > 0 ? "app-list-row--unread" : ""}`}
     >
       <button
         type="button"
         onClick={openChat}
         aria-label={formatTpl(tStr("pages.messages.openChatAria"), { name: otherLabel })}
-        className="flex flex-1 items-center gap-3 sm:gap-4 min-h-[56px] min-w-0 py-3 pl-3 pr-2 sm:py-4 sm:pl-4 sm:pr-3 text-left hover:bg-dark-700/50 active:bg-dark-700/70 transition cursor-pointer"
+        className="app-list-row-btn"
       >
         <div className="app-avatar-wrap w-12 h-12">
           <div className="app-avatar-media">
@@ -105,7 +105,7 @@ function MessagesConversationRow({
               <span className="shrink-0 w-2 h-2 rounded-full bg-green-400" title={tStr("pages.messages.online")} />
             )}
           </div>
-          <p className="text-sm text-dark-500 truncate mt-0.5">{preview}</p>
+          <p className={`text-sm truncate mt-0.5 ${unreadCount > 0 ? "text-zinc-200 font-medium" : "text-dark-500"}`}>{preview}</p>
           <p className="text-xs text-dark-400 mt-1 hidden sm:flex flex-wrap gap-x-1 gap-y-0 items-center">
             {unreadCount > 0 && (
               <span className="text-brand-400">
@@ -311,10 +311,10 @@ export default function MessagesPage() {
           </h3>
           <ul className="flex flex-wrap gap-2">
             {friends.map((f) => (
-              <li key={f.id} className="flex items-stretch gap-0 rounded-xl border border-dark-600 bg-dark-800 shadow-sm hover:border-[#4DA6FF]/50 transition overflow-hidden">
+              <li key={f.id} className="app-list-row hover:border-[#4DA6FF]/50">
                 <Link
                   href={`/app/chat/${f.id}`}
-                  className="flex flex-1 items-center gap-2 px-3 py-2 min-w-0 touch-manipulation"
+                  className="flex flex-1 items-center gap-2 px-3 py-2 min-h-[44px] min-w-0 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:ring-inset rounded-xl"
                 >
                   <span
                     className="flex shrink-0 items-center justify-center w-8 h-8 min-w-[32px] min-h-[32px] rounded-lg bg-brand-500/15 text-brand-400 border border-brand-500/35"
