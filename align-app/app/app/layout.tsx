@@ -654,7 +654,7 @@ export default function AppLayout({
         className={
           "flex-1 flex flex-col min-h-0 min-w-0 max-w-4xl w-full mx-auto " +
           (isChatRoute ? "py-0 " : isMessagesListRoute ? "py-1 sm:py-2 " : "py-2 sm:py-4 lg:py-7 ") +
-          "pb-[calc(4.75rem+env(safe-area-inset-bottom,0px))] lg:pb-7 " +
+          "pb-app-nav lg:pb-7 " +
           "pl-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))] " +
           (isChatRoute
             ? "overflow-hidden"
@@ -672,8 +672,8 @@ export default function AppLayout({
       </main>
       {/* Bottom nav: doar pe mobile */}
       <nav
-        className="lg:hidden fixed bottom-0 left-0 right-0 z-30 flex items-center justify-around border-t border-dark-600/60 bg-dark-900/95 backdrop-blur-xl shadow-[0_-8px_32px_-8px_rgba(0,0,0,0.18)] safe-area-inset-bottom"
-        style={{ paddingBottom: "max(0.35rem, env(safe-area-inset-bottom, 0px))", paddingTop: "0.35rem" }}
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-30 flex items-center justify-around border-t border-dark-600/60 bg-dark-900/95 backdrop-blur-xl shadow-[0_-8px_32px_-8px_rgba(0,0,0,0.18)]"
+        style={{ paddingBottom: "max(0.35rem, var(--safe-area-inset-bottom))", paddingTop: "0.35rem" }}
         aria-label="Navigare principală"
       >
         <a
@@ -698,9 +698,9 @@ export default function AppLayout({
           {totalUnread > 0 && (
             <span
               className={
-                "absolute top-1.5 right-2 min-w-[1.25rem] h-5 px-1 rounded-full text-white text-xs font-semibold flex items-center justify-center bg-sky-500 shadow-md " +
+                "app-badge-count bg-sky-500 text-white shadow-md max-w-[2.5rem] " +
                 (messageBadgePing
-                  ? "animate-pulse ring-2 ring-sky-300 ring-offset-2 ring-offset-dark-900 shadow-[0_0_16px_rgba(56,189,248,0.65)]"
+                  ? "animate-pulse ring-1 ring-sky-300 shadow-[0_0_12px_rgba(56,189,248,0.55)]"
                   : "")
               }
             >
@@ -955,7 +955,7 @@ function MatchToast({
   return (
     <div
       role="alert"
-      className="fixed bottom-24 lg:bottom-6 left-4 right-4 max-w-md mx-auto z-[105] rounded-xl bg-brand-500 text-dark-900 shadow-lg border border-brand-400 p-4 flex items-center justify-between gap-3"
+      className="fixed left-4 right-4 max-w-md mx-auto z-[105] rounded-xl bg-brand-500 text-dark-900 shadow-lg border border-brand-400 p-4 flex items-center justify-between gap-3 bottom-[calc(var(--app-bottom-nav-offset)+0.75rem+var(--safe-area-inset-bottom))] lg:bottom-6"
     >
       <p className="font-medium">
         {tStr("appNav.matchWithBefore")}

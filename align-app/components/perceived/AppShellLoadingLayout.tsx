@@ -34,7 +34,7 @@ export function AppShellLoadingLayout({ label }: { label: string }) {
           </div>
         </div>
       </header>
-      <main className="flex-1 flex flex-col min-h-0 min-w-0 max-w-4xl w-full mx-auto py-4 sm:py-6 px-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))] pb-[calc(4.75rem+env(safe-area-inset-bottom,0px))] lg:pb-7">
+      <main className="flex-1 flex flex-col min-h-0 min-w-0 max-w-4xl w-full mx-auto py-4 sm:py-6 px-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))] pb-app-nav lg:pb-7">
         <div className="space-y-4 flex-1">
           <div className="h-8 w-48 rounded-lg bg-dark-700/70 animate-pulse" />
           <div className="h-4 w-full max-w-md rounded bg-dark-700/50 animate-pulse" />

@@ -32,6 +32,7 @@ import { translateApiErrorMessage } from "@/lib/i18n/translateApiError";
 import type { Locale } from "@/lib/i18n/types";
 import { isAllowedAttachmentType, isVideoContentType } from "@/lib/chatAttachments";
 import { AppProLoading } from "@/components/AppProLoading";
+import { SilhouetteAvatar } from "@/components/SilhouetteAvatar";
 
 const ALLOWED_ATTACH_ACCEPT =
   "image/jpeg,image/png,image/webp,application/pdf,video/mp4,video/webm,video/quicktime";
@@ -1075,14 +1076,27 @@ export default function ChatPage() {
           </div>
         </div>
       )}
-      <div className="flex items-center gap-2 py-2 border-b border-dark-600 shrink-0 min-w-0 w-full">
+      <div className="flex items-center gap-2.5 py-2 border-b border-dark-600 shrink-0 min-w-0 w-full">
         <Link
           href="/app/messages"
-          className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-xl text-dark-500 hover:text-zinc-900 hover:bg-dark-800/80 active:bg-dark-800 transition shrink-0 touch-manipulation"
+          className="app-icon-btn text-dark-500 hover:text-zinc-900 hover:bg-dark-800/80 active:bg-dark-800"
           aria-label={tStr("pages.chat.backAria")}
         >
           ←
         </Link>
+        {otherUser ? (
+          <div className="app-avatar-wrap w-9 h-9 shrink-0">
+            <div className="app-avatar-media">
+              <SilhouetteAvatar
+                photoUrl={otherUser.photos?.[0]}
+                gender={otherUser.gender}
+                name={otherUser.name}
+                className="w-full h-full text-brand-400"
+                imgClassName="w-full h-full object-cover"
+              />
+            </div>
+          </div>
+        ) : null}
         <div className="min-w-0 flex-1">
           <h2 className="text-base font-semibold truncate leading-tight">{displayNameStr}</h2>
           <p className="text-[11px] text-dark-500 truncate">
@@ -1110,7 +1124,7 @@ export default function ChatPage() {
             type="button"
             disabled={actionBusy}
             onClick={() => setChatOverflowOpen((v) => !v)}
-            className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-xl text-dark-400 hover:text-zinc-900 hover:bg-dark-800/80 border border-dark-600 transition disabled:opacity-50 touch-manipulation shrink-0"
+            className="app-icon-btn text-dark-400 hover:text-zinc-900 hover:bg-dark-800/80 border border-dark-600 disabled:opacity-50"
             aria-expanded={chatOverflowOpen}
             aria-haspopup="dialog"
             aria-label={tStr("pages.chat.overflowMenuAria")}
@@ -1131,7 +1145,7 @@ export default function ChatPage() {
               />
               <div
                 ref={overflowMenuRef}
-                className="fixed inset-x-0 bottom-0 z-[250] max-h-[min(85dvh,520px)] overflow-y-auto overscroll-contain rounded-t-2xl border-t border-dark-600 bg-night-950 shadow-2xl py-2 text-sm text-zinc-100 pb-[calc(3.75rem+env(safe-area-inset-bottom,0px))] sm:pb-4 lg:inset-x-auto lg:right-4 lg:bottom-4 lg:left-auto lg:w-[min(100vw-2rem,22rem)] lg:max-h-[min(70dvh,480px)] lg:rounded-2xl lg:border"
+                className="fixed inset-x-0 bottom-0 z-[250] max-h-[min(85dvh,520px)] overflow-y-auto overscroll-contain rounded-t-2xl border-t border-dark-600 bg-night-950 shadow-2xl py-2 text-sm text-zinc-100 pb-app-nav sm:pb-4 lg:inset-x-auto lg:right-4 lg:bottom-4 lg:left-auto lg:w-[min(100vw-2rem,22rem)] lg:max-h-[min(70dvh,480px)] lg:rounded-2xl lg:border lg:pb-4"
                 role="dialog"
                 aria-modal="true"
                 aria-label={tStr("pages.chat.overflowMenuAria")}
@@ -1595,7 +1609,7 @@ export default function ChatPage() {
             className="hidden"
           />
           {/* Pe mobil: unelte pe un rând (centrat, wrap); pe sm+: stânga, compact */}
-          <div className="flex w-full min-w-0 flex-wrap items-center justify-center gap-1.5 sm:w-auto sm:flex-nowrap sm:justify-start sm:shrink-0 sm:gap-2">
+          <div className="flex w-full min-w-0 flex-nowrap items-center justify-start gap-1.5 overflow-x-auto scrollbar-app sm:w-auto sm:justify-start sm:shrink-0 sm:gap-2">
             <button
               type="button"
               onClick={() => {

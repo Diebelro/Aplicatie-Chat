@@ -624,7 +624,7 @@ export default function ProfilePage() {
 
   return (
     <div>
-      <h2 className="app-pro-page-title mt-4">{tStr("pages.profile.title")}</h2>
+      <h2 className="app-pro-page-title">{tStr("pages.profile.title")}</h2>
 
       {!serverHasUser && (
         <div className="mt-4 p-4 rounded-xl bg-amber-500/10 border border-amber-500/40 text-amber-950 text-sm">
@@ -755,7 +755,7 @@ export default function ProfilePage() {
                 <p className="text-red-400 text-xs mt-1">{tStr("pages.profile.errNameField")}</p>
               )}
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className={labelClass}>{tStr("pages.profile.lblGenderReq")}</label>
                 <select value={gender} onChange={(e) => setGender(e.target.value)} required className={inputClass}>
@@ -817,7 +817,7 @@ export default function ProfilePage() {
                 </div>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className={labelClass}>{tStr("pages.profile.lblCityOpt")}</label>
                 <input type="text" placeholder={tStr("pages.profile.phCity")} value={city} onChange={(e) => setCity(e.target.value)} className={inputClass} />
@@ -871,7 +871,7 @@ export default function ProfilePage() {
         <section className="p-5 rounded-2xl bg-dark-800/50 border border-dark-600">
           <h3 className="text-base font-semibold text-zinc-900 mb-4">{tStr("pages.profile.secPhysical")}</h3>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className={labelClass}>{tStr("pages.profile.lblHeightOpt")}</label>
                 <input type="number" min={100} max={250} placeholder="170" value={height} onChange={(e) => setHeight(e.target.value)} className={inputClass} />

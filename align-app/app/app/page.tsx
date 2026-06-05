@@ -781,8 +781,9 @@ export default function AppDiscoverPage() {
                   imageSizes="(max-width: 480px) 100vw, (max-width: 640px) 90vw, 384px"
                 />
                 </div>
-                <div className="absolute inset-0 px-5 pt-5 pb-36 sm:pb-32 flex flex-col justify-end bg-gradient-to-t from-black/90 via-black/65 to-black/20 pointer-events-none [&>_*]:pointer-events-auto">
-                  <h3 className="text-2xl font-bold text-white mb-1 pr-14 sm:pr-16 line-clamp-2 [text-shadow:0_1px_3px_rgba(0,0,0,0.95),0_0_20px_rgba(0,0,0,0.55)]">
+                <div className="absolute inset-0 px-5 pt-5 pb-44 sm:pb-40 flex flex-col justify-end bg-gradient-to-t from-black/90 via-black/65 to-black/20 pointer-events-none [&>_*]:pointer-events-auto">
+                  <div className="max-h-[52%] overflow-y-auto overscroll-contain scrollbar-app pr-0.5">
+                  <h3 className="text-2xl font-bold text-white mb-1 line-clamp-2 [text-shadow:0_1px_3px_rgba(0,0,0,0.95),0_0_20px_rgba(0,0,0,0.55)]">
                     {displayName(current.username ?? current.name)}
                   </h3>
                   <div className="flex flex-wrap items-center gap-2 mb-2">
@@ -890,9 +891,10 @@ export default function AppDiscoverPage() {
                       <span className="text-white/90">{formatLastActive(current.lastActivityAt)}</span>
                     )}
                   </div>
+                  </div>
                 </div>
 
-                <div className="absolute bottom-3 left-0 right-0 z-20 flex flex-wrap justify-center items-center gap-2 sm:gap-3 px-1 pb-1 max-w-full">
+                <div className="absolute bottom-3 left-0 right-0 z-20 flex flex-nowrap justify-center items-center gap-2 sm:gap-3 px-2 pb-1 max-w-full overflow-x-auto scrollbar-app">
                   <button
                     type="button"
                     onClick={() => onButtonSwipe(false)}
@@ -904,16 +906,16 @@ export default function AppDiscoverPage() {
                   <button
                     type="button"
                     onClick={() => router.push(`/app/chat/${current.id}`)}
-                    className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-dark-600 hover:bg-brand-500/25 active:scale-90 flex items-center justify-center text-brand-400 border-2 border-brand-500/50 transition-[transform,background-color] duration-75 touch-none shrink-0"
+                    className="w-12 h-12 sm:w-14 sm:h-14 min-h-[48px] min-w-[48px] rounded-full bg-dark-600 hover:bg-brand-500/25 active:scale-90 flex items-center justify-center text-brand-400 border-2 border-brand-500/50 transition-[transform,background-color] duration-75 touch-manipulation shrink-0"
                     title={tStr("pages.discover.messagesTitle")}
                   >
                     <MessageCircle className="w-6 h-6 sm:w-7 sm:h-7" />
                   </button>
-                  <QuickCallButtons toUserId={current.id} size="discover" className="touch-none" />
+                  <QuickCallButtons toUserId={current.id} size="discover" className="touch-manipulation shrink-0" />
                   <button
                     type="button"
                     onClick={() => onButtonSwipe(true)}
-                    className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-brand-500 hover:bg-brand-400 active:scale-90 flex items-center justify-center text-dark-900 border-2 border-brand-400/50 transition-[transform,background-color] duration-75 touch-none shrink-0"
+                    className="w-12 h-12 sm:w-14 sm:h-14 min-h-[48px] min-w-[48px] rounded-full bg-brand-500 hover:bg-brand-400 active:scale-90 flex items-center justify-center text-dark-900 border-2 border-brand-400/50 transition-[transform,background-color] duration-75 touch-manipulation shrink-0"
                     title={tStr("pages.discover.likeTitle")}
                   >
                     <Heart className="w-6 h-6 sm:w-7 sm:h-7" />

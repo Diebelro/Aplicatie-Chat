@@ -45,23 +45,23 @@ export function ProfilePhotosGallery({
     <div id={sectionId}>
       <label className={labelClass}>{formatTpl(tStr("pages.profile.photosLabel"), { max: maxPhotos })}</label>
       <p className="text-xs text-dark-500 mb-2">{tStr("pages.profile.photosHint")}</p>
-      <div className="flex flex-wrap gap-3 items-start">
+      <div className="flex flex-wrap gap-4 items-start">
         {photos.map((src, i) => (
           <div key={i} className="relative group flex flex-col items-center">
-            <div className="relative">
+            <div className="relative h-28 w-28 sm:h-32 sm:w-32 rounded-xl overflow-hidden border border-dark-600 ring-1 ring-dark-600/60">
               <OptimizedImage
                 src={src}
                 alt=""
                 width={128}
                 height={128}
-                className="h-28 w-28 sm:h-32 sm:w-32 object-cover object-[center_12%] rounded-xl border border-dark-600"
+                className="h-full w-full object-cover object-[center_12%]"
                 sizes="(max-width: 640px) 112px, 128px"
                 quality={86}
               />
               <button
                 type="button"
                 onClick={() => onRemove(i)}
-                className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center opacity-90 hover:opacity-100"
+                className="absolute top-1.5 right-1.5 app-touch-target w-8 h-8 min-h-8 min-w-8 rounded-full bg-red-500/95 text-white flex items-center justify-center shadow-md hover:bg-red-500"
                 aria-label={tStr("pages.profile.delPhotoAria")}
               >
                 <X className="w-3.5 h-3.5" />

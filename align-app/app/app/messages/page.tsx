@@ -79,17 +79,19 @@ function MessagesConversationRow({
         aria-label={formatTpl(tStr("pages.messages.openChatAria"), { name: otherLabel })}
         className="flex flex-1 items-center gap-3 sm:gap-4 min-h-[56px] min-w-0 py-3 pl-3 pr-2 sm:py-4 sm:pl-4 sm:pr-3 text-left hover:bg-dark-700/50 active:bg-dark-700/70 transition cursor-pointer"
       >
-        <div className="relative w-12 h-12 shrink-0 rounded-full overflow-hidden bg-brand-500/20">
-          <SilhouetteAvatar
-            photoUrl={otherUser.photos?.[0]}
-            gender={otherUser.gender}
-            name={otherUser.name}
-            className="w-full h-full text-brand-400"
-            imgClassName="w-full h-full object-cover"
-          />
+        <div className="app-avatar-wrap w-12 h-12">
+          <div className="app-avatar-media">
+            <SilhouetteAvatar
+              photoUrl={otherUser.photos?.[0]}
+              gender={otherUser.gender}
+              name={otherUser.name}
+              className="w-full h-full text-brand-400"
+              imgClassName="w-full h-full object-cover"
+            />
+          </div>
           {unreadCount > 0 && (
             <span
-              className="absolute -top-1 -right-1 min-w-[1.25rem] h-5 px-1.5 rounded-full bg-brand-500 text-dark-900 text-xs font-semibold flex items-center justify-center pointer-events-none"
+              className="app-badge-count bg-brand-500 text-dark-900 shadow-sm"
               title={formatTpl(tStr("pages.messages.unreadTitle"), { n: unreadCount })}
             >
               {unreadCount > 99 ? "99+" : unreadCount}
@@ -104,7 +106,7 @@ function MessagesConversationRow({
             )}
           </div>
           <p className="text-sm text-dark-500 truncate mt-0.5">{preview}</p>
-          <p className="text-xs text-dark-400 mt-1 flex flex-wrap gap-x-1 gap-y-0 items-center">
+          <p className="text-xs text-dark-400 mt-1 hidden sm:flex flex-wrap gap-x-1 gap-y-0 items-center">
             {unreadCount > 0 && (
               <span className="text-brand-400">
                 {unreadCount}{" "}
@@ -320,16 +322,18 @@ export default function MessagesPage() {
                   >
                     <MessageCircle className="w-4 h-4" />
                   </span>
-                  <div className="relative w-8 h-8 rounded-full overflow-hidden bg-[#4DA6FF]/20 shrink-0">
-                    <SilhouetteAvatar
-                      photoUrl={f.photos?.[0]}
-                      gender={f.gender}
-                      name={f.name}
-                      className="w-full h-full text-[#4DA6FF]"
-                      imgClassName="w-full h-full object-cover"
-                    />
+                  <div className="app-avatar-wrap w-8 h-8">
+                    <div className="app-avatar-media bg-[#4DA6FF]/20">
+                      <SilhouetteAvatar
+                        photoUrl={f.photos?.[0]}
+                        gender={f.gender}
+                        name={f.name}
+                        className="w-full h-full text-[#4DA6FF]"
+                        imgClassName="w-full h-full object-cover"
+                      />
+                    </div>
                     {f.online && (
-                      <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-green-400 border-2 border-dark-800" />
+                      <span className="absolute bottom-0 right-0 z-[2] w-2.5 h-2.5 rounded-full bg-green-400 border-2 border-dark-800" />
                     )}
                   </div>
                   <span className="font-medium text-zinc-100 text-sm truncate max-w-[100px]">{f.username ?? f.name}</span>

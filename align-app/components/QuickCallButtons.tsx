@@ -130,9 +130,14 @@ export function QuickCallButtons({ toUserId, size = "md", className = "" }: Quic
 
   if (size === "discover") {
     return (
-      <div className={`flex flex-col items-end gap-1 shrink-0 ${className}`}>
+      <div className={`flex flex-col items-center gap-0.5 shrink-0 ${className}`}>
+        {callHint ? (
+          <p className="sr-only" role="status">
+            {callHint}
+          </p>
+        ) : null}
         <div
-          className="flex items-center gap-2 sm:gap-3"
+          className="flex items-center gap-2 sm:gap-3 shrink-0"
           onClick={stopEvt}
           onPointerDown={(e) => e.stopPropagation()}
           onTouchStart={(e) => e.stopPropagation()}
@@ -144,7 +149,7 @@ export function QuickCallButtons({ toUserId, size = "md", className = "" }: Quic
             type="button"
             disabled={busy}
             onClick={() => void start(false)}
-            className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-dark-600 hover:bg-brand-500/20 active:scale-90 flex items-center justify-center text-brand-400 border-2 border-brand-500/40 transition-[transform,background-color] duration-75 touch-none shrink-0 disabled:opacity-50"
+            className="w-12 h-12 sm:w-14 sm:h-14 min-h-[48px] min-w-[48px] rounded-full bg-dark-600 hover:bg-brand-500/20 active:scale-90 flex items-center justify-center text-brand-400 border-2 border-brand-500/40 transition-[transform,background-color] duration-75 touch-manipulation shrink-0 disabled:opacity-50"
             title={callT.tStr("pages.callRoom.quickCall.titleVideo")}
           >
             <Video className="w-6 h-6 sm:w-7 sm:h-7" />
@@ -153,22 +158,21 @@ export function QuickCallButtons({ toUserId, size = "md", className = "" }: Quic
             type="button"
             disabled={busy}
             onClick={() => void start(true)}
-            className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-sky-500/15 hover:bg-sky-500/25 active:scale-90 flex items-center justify-center text-sky-600 border-2 border-sky-500/40 transition-[transform,background-color] duration-75 touch-none shrink-0 disabled:opacity-50"
+            className="w-12 h-12 sm:w-14 sm:h-14 min-h-[48px] min-w-[48px] rounded-full bg-sky-500/15 hover:bg-sky-500/25 active:scale-90 flex items-center justify-center text-sky-600 border-2 border-sky-500/40 transition-[transform,background-color] duration-75 touch-manipulation shrink-0 disabled:opacity-50"
             title={callT.tStr("pages.callRoom.quickCall.titleAudio")}
           >
             <Phone className="w-6 h-6 sm:w-7 sm:h-7" />
           </button>
         </div>
-        {hintEl}
       </div>
     );
   }
 
-  const wrap = size === "sm" ? "gap-0.5" : "gap-1";
+  const wrap = size === "sm" ? "gap-1" : "gap-1";
   const btn =
     size === "sm"
-      ? "w-9 h-9 min-w-[36px] min-h-[36px] rounded-lg"
-      : "min-h-[44px] min-w-[44px] rounded-lg";
+      ? "app-touch-target rounded-lg"
+      : "app-touch-target rounded-lg";
   const icon = size === "sm" ? "w-4 h-4" : "w-5 h-5";
 
   return (
