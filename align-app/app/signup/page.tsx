@@ -11,7 +11,8 @@ import { validateUsername } from "@/lib/usernameFormat";
 import { useI18n } from "@/lib/i18n/context";
 import { formatTpl } from "@/lib/i18n/formatTpl";
 import { translateApiErrorMessage } from "@/lib/i18n/translateApiError";
-import { DiebelCopyrightStrip } from "@/components/DiebelAuthorCredit";
+import { PublicAuthPageLayout } from "@/components/PublicAuthPageLayout";
+import { LegalAcceptCheckbox } from "@/components/LegalAcceptCheckbox";
 
 const RECAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY ?? "";
 
@@ -264,12 +265,9 @@ function SignUpContent() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-8 pb-[max(7rem,env(safe-area-inset-bottom,0px))] bg-dark-900">
-      <div className="max-w-sm mx-auto px-4 flex flex-col w-full">
-        <Link href="/" className="inline-block text-brand-400 font-bold mt-4">
-          {tStr("pages.signup.backBrand")}
-        </Link>
-        <h1 className="ui-page-title text-2xl mt-4">{tStr("pages.signup.title")}</h1>
+    <PublicAuthPageLayout backLabel={tStr("pages.signup.backBrand")}>
+      <div className="max-w-sm mx-auto w-full flex flex-col py-4 pb-8">
+        <h1 className="ui-page-title text-2xl">{tStr("pages.signup.title")}</h1>
         <p className="ui-subtitle text-sm mt-2">
           {searchParams?.get("email") ? (
             <>
@@ -460,33 +458,19 @@ function SignUpContent() {
           {retryAfterSeconds > 0 && (
             <p className="text-dark-500 text-sm">{formatTpl(tStr("pages.signup.retryIn"), { n: retryAfterSeconds })}</p>
           )}
-          <label className="flex items-start gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={acceptLegal}
-              onChange={(e) => setAcceptLegal(e.target.checked)}
-              className="w-4 h-4 mt-0.5 rounded border-dark-600 bg-dark-800 text-brand-500 focus:ring-brand-500 shrink-0"
-            />
-            <span className="text-dark-500 text-xs leading-relaxed">
-              {tStr("pages.signup.legalAcceptLead")}
-              <Link href="/community-rules" className="text-brand-400 hover:underline">
-                {tStr("pages.signup.legalAcceptRules")}
-              </Link>
-              {tStr("pages.signup.legalAcceptMid")}
-              <Link href="/terms" className="text-brand-400 hover:underline">
-                {tStr("pages.signup.termsLink")}
-              </Link>
-              {tStr("pages.signup.termsBetween")}
-              <Link href="/privacy" className="text-brand-400 hover:underline">
-                {tStr("pages.signup.privacyLink")}
-              </Link>
-              {tStr("pages.signup.termsAnd")}
-              <Link href="/cookies" className="text-brand-400 hover:underline">
-                {tStr("pages.signup.cookiesLink")}
-              </Link>
-              {tStr("pages.signup.legalAcceptEnd")}
-            </span>
-          </label>
+          <LegalAcceptCheckbox
+            checked={acceptLegal}
+            onChange={setAcceptLegal}
+            lead={tStr("pages.signup.legalAcceptLead")}
+            rulesLabel={tStr("pages.signup.legalAcceptRules")}
+            mid={tStr("pages.signup.legalAcceptMid")}
+            termsLabel={tStr("pages.signup.termsLink")}
+            between={tStr("pages.signup.termsBetween")}
+            privacyLabel={tStr("pages.signup.privacyLink")}
+            andLabel={tStr("pages.signup.termsAnd")}
+            cookiesLabel={tStr("pages.signup.cookiesLink")}
+            end={tStr("pages.signup.legalAcceptEnd")}
+          />
           <div className="mt-2 pt-2 border-t border-dark-600/60">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
@@ -517,9 +501,8 @@ function SignUpContent() {
             {tStr("pages.signup.loginLink")}
           </Link>
         </p>
-        <DiebelCopyrightStrip className="mt-6 opacity-80" />
       </div>
-    </div>
+    </PublicAuthPageLayout>
   );
 }
 

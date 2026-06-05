@@ -51,7 +51,7 @@ export const metadata: Metadata = {
     title: defaultTitle,
     description: defaultDescription,
   },
-  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Diebel" },
+  appleWebApp: { capable: true, statusBarStyle: "black", title: "Diebel" },
 };
 
 export const viewport: Viewport = {
@@ -70,11 +70,10 @@ export default function RootLayout({
   return (
     <html lang="ro" suppressHydrationWarning>
       <body
-        className="antialiased min-h-screen font-sans bg-dark-900 text-zinc-900"
+        className="antialiased min-h-screen font-sans bg-dark-900 text-zinc-900 safe-area-x"
         style={{
-          // Fallback când CSS-ul Tailwind nu se încarcă (preview iframe, CDN blocat, etc.)
-          backgroundColor: "var(--bg, #f6f6f7)",
-          color: "var(--text, #18181b)",
+          backgroundColor: "#0f1419",
+          color: "#f4f4f5",
         }}
       >
         <PwaServiceWorkerRegister />

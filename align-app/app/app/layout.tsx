@@ -664,9 +664,8 @@ export default function AppLayout({
         }
       >
         {children}
-        {showInAppLegalFooter ? (
+        {showInAppDiebelCredit ? (
           <div className="mt-6 sm:mt-10 pt-3 sm:pt-4 border-t border-dark-700/80 shrink-0 flex flex-col items-center gap-1 sm:gap-2 bg-dark-900 relative z-[1]">
-            <LegalDocLinks className="text-dark-600 scale-[0.85] sm:scale-100 opacity-60" />
             <DiebelCopyrightStrip className="px-2" />
           </div>
         ) : null}

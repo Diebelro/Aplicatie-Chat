@@ -9,8 +9,8 @@
   "scope": "/",
   "display": "standalone",
   "categories": ["social", "lifestyle"],
-  "background_color": "#0FB9B1",
-  "theme_color": "#0FB9B1",
+  "background_color": "#0f1419",
+  "theme_color": "#0f1419",
   "icons": [
     {
       "src": "/brand/app-icon-v7-192.png?v=11",

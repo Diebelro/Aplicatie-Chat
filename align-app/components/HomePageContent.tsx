@@ -6,12 +6,18 @@ import { useI18n } from "@/lib/i18n/context";
 import { getStoredUserRaw } from "@/lib/store";
 import { DiebelWordmark } from "@/components/DiebelWordmark";
 import { DiebelCopyrightStrip } from "@/components/DiebelAuthorCredit";
+import { useCookieConsent } from "@/contexts/CookieConsentContext";
 
 /** Landing: aceleași secțiuni ca în app/page.tsx, texte din mesaje (ro / en / de). */
 export function HomePageContent() {
   const { t } = useI18n();
   const s = (key: string) => t(key) as string;
   const [ctaHref, setCtaHref] = useState("/signup");
+  const { hasConsented, consentHydrated } = useCookieConsent();
+  const reserveCookieBanner =
+    consentHydrated && !hasConsented
+      ? "pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))]"
+      : "";
 
   useEffect(() => {
     let cancelled = false;
@@ -32,8 +38,8 @@ export function HomePageContent() {
   }, []);
 
   return (
-    <div className="min-h-dvh flex flex-col bg-dark-900 text-zinc-900 pb-[max(5rem,env(safe-area-inset-bottom,0px))]">
-      <header className="border-b border-dark-600 bg-dark-900/95 backdrop-blur-sm sticky top-0 z-10 supports-[backdrop-filter]:bg-dark-900/80">
+    <div className={`min-h-dvh flex flex-col bg-dark-900 text-zinc-900 overflow-x-hidden safe-area-x ${reserveCookieBanner}`}>
+      <header className="border-b border-dark-600 bg-dark-900/95 backdrop-blur-sm sticky top-0 z-10 supports-[backdrop-filter]:bg-dark-900/80 safe-area-inset-top shrink-0">
         <div className="max-w-6xl mx-auto px-4 py-3 sm:py-4 flex items-center justify-between gap-3">
           <Link
             href="/"
@@ -56,22 +62,24 @@ export function HomePageContent() {
         </div>
       </header>
 
-      <main className="flex-1 flex flex-col items-center justify-center px-4 py-16">
-        <h1 className="text-4xl md:text-6xl font-bold text-center max-w-3xl mb-6 text-zinc-900 tracking-tight">
-          {s("home.headlineBefore")}
-          <span className="gradient-text">{s("home.headlineAccent")}</span>
-        </h1>
-        <p className="text-lg sm:text-xl text-dark-500 text-center max-w-xl mb-12 leading-relaxed">{s("home.subhead")}</p>
+      <main className="flex-1 flex flex-col items-center justify-center px-4 py-10 sm:py-16 min-h-0 w-full">
+        <div className="flex flex-col items-center w-full max-w-3xl gap-6 sm:gap-8">
+          <h1 className="text-4xl md:text-6xl font-bold text-center text-zinc-900 tracking-tight">
+            {s("home.headlineBefore")}
+            <span className="gradient-text">{s("home.headlineAccent")}</span>
+          </h1>
+          <p className="text-lg sm:text-xl text-dark-500 text-center max-w-xl leading-relaxed">{s("home.subhead")}</p>
 
-        <Link
-          href={ctaHref}
-          className="bg-brand-500 hover:bg-brand-400 text-zinc-900 font-semibold px-8 py-4 rounded-xl text-lg border border-teal-600/25 shadow-sm transition"
-        >
-          {s("home.cta")}
-        </Link>
+          <Link
+            href={ctaHref}
+            className="bg-brand-500 hover:bg-brand-400 text-zinc-900 font-semibold px-8 py-4 rounded-xl text-lg border border-teal-600/25 shadow-sm transition min-h-[48px] inline-flex items-center justify-center touch-manipulation"
+          >
+            {s("home.cta")}
+          </Link>
+        </div>
       </main>
 
-      <footer className="shrink-0 border-t border-dark-600/70 bg-dark-900/95 px-4 py-4 safe-area-inset-bottom">
+      <footer className="shrink-0 mt-auto border-t border-dark-600/70 bg-dark-900/95 px-4 py-3 sm:py-4 safe-area-inset-bottom">
         <DiebelCopyrightStrip />
       </footer>
     </div>

@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.AudioManager
 import android.graphics.Bitmap
+import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
@@ -27,7 +28,9 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.isVisible
 import ro.diebel.chat.ads.ConsentAndMobileAds
@@ -38,6 +41,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private var homeUrl: String = ""
     private var webViewDestroyed = false
+    private var insetTop = 0
+    private var insetBottom = 0
+    private var insetLeft = 0
+    private var insetRight = 0
 
     private var fileUploadCallback: ValueCallback<Array<Uri>>? = null
     private val fileChooserLauncher = registerForActivityResult(
@@ -62,6 +69,7 @@ class MainActivity : AppCompatActivity() {
             homeUrl = chatEntryUrl()
             enableCookies(binding.webView)
             configureWebView(binding.webView)
+            applyWindowInsetsToWebView()
             binding.webView.clearCache(true)
             binding.btnRetry.setOnClickListener { loadHome() }
 
@@ -108,16 +116,46 @@ class MainActivity : AppCompatActivity() {
         return "$base/app"
     }
 
-    /** Aceeași culoare ca app-ul (#0f1419); fără padding extra web care făcea „linii” mari sus/jos. */
+    /**
+     * Android 15+ edge-to-edge: WebView sub bara de status fără insets = ora/bateria invizibile.
+     * Padding nativ pe WebView + iconițe deschise pe fundal închis (#0f1419).
+     */
     private fun configureSystemBars() {
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
-        WindowCompat.setDecorFitsSystemWindows(window, true)
-        window.statusBarColor = ContextCompat.getColor(this, R.color.align_bg)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = Color.TRANSPARENT
         window.navigationBarColor = ContextCompat.getColor(this, R.color.align_bg)
         WindowInsetsControllerCompat(window, window.decorView).apply {
             isAppearanceLightStatusBars = false
             isAppearanceLightNavigationBars = false
         }
+    }
+
+    private fun applyWindowInsetsToWebView() {
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, windowInsets ->
+            val bars = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
+            insetTop = bars.top
+            insetBottom = bars.bottom
+            insetLeft = bars.left
+            insetRight = bars.right
+            binding.webView.setPadding(insetLeft, insetTop, insetRight, insetBottom)
+            injectSafeAreaCss()
+            windowInsets
+        }
+        ViewCompat.requestApplyInsets(binding.root)
+    }
+
+    /** CSS vars 0 în web — insets fizice sunt pe WebView; evită dublarea spațiului. */
+    private fun injectSafeAreaCss() {
+        if (!::binding.isInitialized || webViewDestroyed) return
+        val js =
+            "(function(){try{var r=document.documentElement;" +
+                "r.style.setProperty('--safe-area-inset-top','0px');" +
+                "r.style.setProperty('--safe-area-inset-bottom','0px');" +
+                "r.style.setProperty('--safe-area-inset-left','0px');" +
+                "r.style.setProperty('--safe-area-inset-right','0px');" +
+                "r.classList.add('diebel-native-insets');}catch(e){}})();"
+        binding.webView.evaluateJavascript(js, null)
     }
 
     private fun enableCookies(webView: WebView) {
@@ -215,6 +253,7 @@ class MainActivity : AppCompatActivity() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 if (!::binding.isInitialized) return
                 binding.progress.isVisible = false
+                injectSafeAreaCss()
                 binding.webView.evaluateJavascript(WEB_SHELL_BOOT_JS, null)
                 prepareCallAudioRouting()
             }

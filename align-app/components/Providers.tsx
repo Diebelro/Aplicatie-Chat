@@ -12,6 +12,7 @@ import { Footer } from "@/components/Footer";
 import { AppWebVitalsBeacon } from "@/components/AppWebVitalsBeacon";
 import { InLucruBanner } from "@/components/InLucruBanner";
 import { AgeGate } from "@/components/AgeGate";
+import { SafeAreaBoot } from "@/components/SafeAreaBoot";
 
 function SiteFooter() {
   const pathname = usePathname();
@@ -43,6 +44,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <SessionProvider basePath="/api/auth" refetchOnWindowFocus={false} refetchInterval={0}>
           {process.env.NEXT_PUBLIC_SHOW_WIP_BANNER === "true" ? <InLucruBanner /> : null}
           <AppWebVitalsBeacon />
+          <SafeAreaBoot />
           {children}
           <AgeGate />
           <CookieConsentBanner />

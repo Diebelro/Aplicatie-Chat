@@ -11,7 +11,7 @@ import { clearLoginEmailDraft, readLoginEmailDraft, writeLoginEmailDraft } from 
 import { useI18n } from "@/lib/i18n/context";
 import { DiebelWordmark } from "@/components/DiebelWordmark";
 import { LegalDocLinks } from "@/components/LegalDocLinks";
-import { DiebelCopyrightStrip } from "@/components/DiebelAuthorCredit";
+import { PublicAuthPageLayout } from "@/components/PublicAuthPageLayout";
 import { formatTpl } from "@/lib/i18n/formatTpl";
 import { translateApiErrorMessage } from "@/lib/i18n/translateApiError";
 
@@ -273,19 +273,9 @@ function LoginContent() {
   };
 
   return (
-    <div className="flex min-h-dvh flex-col bg-dark-900 pb-[max(7rem,env(safe-area-inset-bottom,0px))]">
-      <div className="shrink-0 pl-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))] pt-[max(0.75rem,env(safe-area-inset-top,0px))]">
-        <Link
-          href="/"
-          className="inline-flex text-sm font-semibold text-brand-400 hover:text-brand-300 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded"
-        >
-          {tStr("pages.login.backBrand")}
-        </Link>
-      </div>
-
-      <div className="flex flex-1 flex-col items-center justify-center px-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))] pb-[max(1rem,env(safe-area-inset-bottom,0px))] min-h-0 min-w-0">
-        <div className="w-full max-w-[min(100%,24rem)] mx-auto flex flex-col gap-4 sm:gap-5 min-w-0">
-          <header className="text-center space-y-2">
+    <PublicAuthPageLayout backLabel={tStr("pages.login.backBrand")}>
+      <div className="w-full max-w-[min(100%,24rem)] mx-auto flex flex-col gap-4 sm:gap-5 min-w-0 py-6 sm:py-10">
+        <header className="text-center space-y-2">
             <DiebelWordmark variant="kicker" withMark className="block text-center" />
             <h1 className="ui-page-title text-2xl tracking-tight">{tStr("pages.login.title")}</h1>
             <p className="ui-subtitle text-sm leading-relaxed">{tStr("pages.login.introHero")}</p>
@@ -382,11 +372,9 @@ function LoginContent() {
               {tStr("pages.login.forgotPassword")}
             </Link>
           </p>
-          <LegalDocLinks className="pt-2 text-dark-500" />
-          <DiebelCopyrightStrip className="pt-3 opacity-80" />
-        </div>
+        <LegalDocLinks className="pt-2 text-dark-500" />
       </div>
-    </div>
+    </PublicAuthPageLayout>
   );
 }
 

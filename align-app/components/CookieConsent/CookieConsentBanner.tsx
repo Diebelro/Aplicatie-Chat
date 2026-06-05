@@ -14,7 +14,7 @@ export function CookieConsentBanner() {
   const cookieBottomClass =
     pathname?.startsWith("/app") === true
       ? "bottom-[calc(0.5rem+56px+max(0.5rem,env(safe-area-inset-bottom,0px)))] md:bottom-0"
-      : "bottom-0";
+      : "bottom-0 pb-[max(0.25rem,env(safe-area-inset-bottom,0px))]";
   const bannerText = t("cookieConsent.bannerText") as string;
   const acceptLabel = t("cookieConsent.accept") as string;
   const refuseLabel = t("cookieConsent.refuse") as string;
