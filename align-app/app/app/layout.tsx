@@ -467,6 +467,8 @@ export default function AppLayout({
   const path = pathname ?? "";
   /** Listă conversații (nu chat deschis): footer mai compact pe ecran mic. */
   const isMessagesListRoute = path === "/app/messages";
+  /** După accept la înregistrare / age gate: fără bandă legală repetată în zona app. */
+  const showInAppLegalFooter = !path.startsWith("/app");
   const navDiscoverActive = path === "/app" || path.startsWith("/app/profiles");
   const navMessagesActive = path.startsWith("/app/messages") || path.startsWith("/app/chat/");
   const navMatchesActive = path.startsWith("/app/matches");
@@ -612,6 +614,7 @@ export default function AppLayout({
             >
               {displayName(user.username ?? user.name)}
             </Link>
+            <LanguageSwitcher compact />
             <button
               type="button"
               onClick={requestOpenLogoutDialog}
@@ -645,7 +648,8 @@ export default function AppLayout({
       </header>
       <main
         className={
-          "flex-1 flex flex-col min-h-0 min-w-0 max-w-4xl w-full mx-auto py-2 sm:py-4 lg:py-7 " +
+          "flex-1 flex flex-col min-h-0 min-w-0 max-w-4xl w-full mx-auto " +
+          (isChatRoute ? "py-0 " : isMessagesListRoute ? "py-1 sm:py-2 " : "py-2 sm:py-4 lg:py-7 ") +
           "pb-[calc(4.75rem+env(safe-area-inset-bottom,0px))] lg:pb-7 " +
           "pl-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))] " +
           (isChatRoute
@@ -656,25 +660,12 @@ export default function AppLayout({
         }
       >
         {children}
-        {isChatRoute ? (
-          <div className="shrink-0 flex flex-col items-center gap-2 pt-3 pb-1 border-t border-dark-700/70 mt-auto">
-            <LegalDocLinks className="text-dark-600 scale-[0.85] opacity-60" />
-            <LanguageSwitcher compact />
-            <DiebelCopyrightStrip className="mt-1 px-2" />
-          </div>
-        ) : (
-          <div
-            className={
-              (isMessagesListRoute
-                ? "mt-3 pt-2 border-t border-dark-700/70 shrink-0 flex flex-col items-center gap-1 sm:gap-2 lg:mt-10 lg:pt-4 lg:gap-3"
-                : "mt-6 sm:mt-10 pt-3 sm:pt-4 border-t border-dark-700/80 shrink-0 flex flex-col items-center gap-1 sm:gap-2") +
-              " bg-dark-900 relative z-[1]"
-            }
-          >
+        {showInAppLegalFooter ? (
+          <div className="mt-6 sm:mt-10 pt-3 sm:pt-4 border-t border-dark-700/80 shrink-0 flex flex-col items-center gap-1 sm:gap-2 bg-dark-900 relative z-[1]">
             <LegalDocLinks className="text-dark-600 scale-[0.85] sm:scale-100 opacity-60" />
             <DiebelCopyrightStrip className="px-2" />
           </div>
-        )}
+        ) : null}
       </main>
       {/* Bottom nav: doar pe mobile */}
       <nav
@@ -846,6 +837,10 @@ export default function AppLayout({
                   {tStr("appNav.logout")}
                 </MobileNavButton>
               </MobileMenuSection>
+              <div className="mt-2 border-t border-dark-600/80 px-3 py-3 flex flex-col items-center gap-2">
+                <LanguageSwitcher compact />
+                <LegalDocLinks className="text-dark-500 text-[10px] opacity-80" />
+              </div>
             </nav>
           </aside>
         </div>

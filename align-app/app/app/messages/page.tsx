@@ -284,8 +284,8 @@ export default function MessagesPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-2 sm:mb-4 shrink-0">
-        <h2 className="app-pro-page-title">{tStr("pages.messages.title")}</h2>
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-1 sm:mb-3 shrink-0">
+        <h2 className="text-lg sm:text-xl font-semibold text-zinc-100">{tStr("pages.messages.title")}</h2>
         <Link
           href="/app/missed-calls"
           className="inline-flex items-center gap-1.5 text-sm text-brand-400 hover:text-brand-300 hover:underline touch-manipulation"
@@ -302,7 +302,7 @@ export default function MessagesPage() {
       </p>
 
       {friends.length > 0 && (
-        <div className="mb-3 sm:mb-6 shrink-0">
+        <div className="mb-2 sm:mb-4 shrink-0 max-sm:overflow-x-auto max-sm:pb-1">
           <h3 className="text-sm font-medium text-dark-400 mb-2 flex items-center gap-2">
             <Users className="w-4 h-4 text-[#4DA6FF]" />
             {tStr("pages.messages.friends")}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback, useLayoutEffect } from "react";
+import { createPortal } from "react-dom";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Send, Video, Phone, Check, Loader2, Paperclip, X, FileText, MapPin, MoreHorizontal } from "lucide-react";
@@ -1074,57 +1075,70 @@ export default function ChatPage() {
           </div>
         </div>
       )}
-      <div className="flex flex-col gap-3 pb-4 border-b border-dark-600 shrink-0 min-w-0 w-full">
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <Link
-            href="/app/profiles"
-            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-dark-500 hover:text-zinc-900 hover:bg-dark-800/80 active:bg-dark-800 transition shrink-0 touch-manipulation"
-            aria-label={tStr("pages.chat.backAria")}
-          >
-            ←
-          </Link>
-          <div className="min-w-0 flex-1">
-            <h2 className="text-lg font-semibold truncate">{displayNameStr}</h2>
-            <p className="text-xs text-dark-500 flex items-center gap-2 mt-0.5">
-              {distanceStr != null && <span>{distanceStr}</span>}
-              {areFriends && (
-                <>
-                  {distanceStr != null && <span>·</span>}
-                  {other?.online ? (
-                    <span className="text-green-400">{tStr("pages.messages.online")}</span>
-                  ) : other?.lastActivityAt != null ? (
-                    <span>
-                      {formatTpl(tStr("pages.chat.lastActiveMin"), {
-                        n: Math.floor((Date.now() - other.lastActivityAt) / 60000),
-                      })}
-                    </span>
-                  ) : (
-                    <span>{tStr("pages.messages.offline")}</span>
-                  )}
-                </>
-              )}
-            </p>
-          </div>
+      <div className="flex items-center gap-2 py-2 border-b border-dark-600 shrink-0 min-w-0 w-full">
+        <Link
+          href="/app/messages"
+          className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-xl text-dark-500 hover:text-zinc-900 hover:bg-dark-800/80 active:bg-dark-800 transition shrink-0 touch-manipulation"
+          aria-label={tStr("pages.chat.backAria")}
+        >
+          ←
+        </Link>
+        <div className="min-w-0 flex-1">
+          <h2 className="text-base font-semibold truncate leading-tight">{displayNameStr}</h2>
+          <p className="text-[11px] text-dark-500 truncate">
+            {distanceStr != null && <span>{distanceStr}</span>}
+            {areFriends && (
+              <>
+                {distanceStr != null && <span> · </span>}
+                {other?.online ? (
+                  <span className="text-green-400">{tStr("pages.messages.online")}</span>
+                ) : other?.lastActivityAt != null ? (
+                  <span>
+                    {formatTpl(tStr("pages.chat.lastActiveMin"), {
+                      n: Math.floor((Date.now() - other.lastActivityAt) / 60000),
+                    })}
+                  </span>
+                ) : (
+                  <span>{tStr("pages.messages.offline")}</span>
+                )}
+              </>
+            )}
+          </p>
         </div>
-        {callerId && (
-          <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-dark-600 mt-2">
-            <div className="relative" ref={overflowMenuRef}>
+        {callerId ? (
+          <button
+            type="button"
+            disabled={actionBusy}
+            onClick={() => setChatOverflowOpen((v) => !v)}
+            className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-xl text-dark-400 hover:text-zinc-900 hover:bg-dark-800/80 border border-dark-600 transition disabled:opacity-50 touch-manipulation shrink-0"
+            aria-expanded={chatOverflowOpen}
+            aria-haspopup="dialog"
+            aria-label={tStr("pages.chat.overflowMenuAria")}
+          >
+            <MoreHorizontal className="w-5 h-5" aria-hidden />
+          </button>
+        ) : null}
+      </div>
+
+      {chatOverflowOpen && typeof document !== "undefined"
+        ? createPortal(
+            <>
               <button
                 type="button"
-                disabled={actionBusy}
-                onClick={() => setChatOverflowOpen((v) => !v)}
-                className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-xl text-dark-400 hover:text-zinc-900 hover:bg-dark-800/80 border border-dark-600 transition disabled:opacity-50 touch-manipulation"
-                aria-expanded={chatOverflowOpen}
-                aria-haspopup="true"
+                className="fixed inset-0 z-[240] bg-black/50 backdrop-blur-[1px]"
+                aria-label={tStr("pages.chat.cancel")}
+                onClick={() => setChatOverflowOpen(false)}
+              />
+              <div
+                ref={overflowMenuRef}
+                className="fixed inset-x-0 bottom-0 z-[250] max-h-[min(85dvh,520px)] overflow-y-auto overscroll-contain rounded-t-2xl border-t border-dark-600 bg-night-950 shadow-2xl py-2 text-sm text-zinc-100 pb-[calc(3.75rem+env(safe-area-inset-bottom,0px))] sm:pb-4 lg:inset-x-auto lg:right-4 lg:bottom-4 lg:left-auto lg:w-[min(100vw-2rem,22rem)] lg:max-h-[min(70dvh,480px)] lg:rounded-2xl lg:border"
+                role="dialog"
+                aria-modal="true"
                 aria-label={tStr("pages.chat.overflowMenuAria")}
               >
-                <MoreHorizontal className="w-5 h-5" aria-hidden />
-              </button>
-              {chatOverflowOpen ? (
-                <div
-                  className="absolute right-0 top-full z-[130] mt-1 min-w-[min(92vw,280px)] max-w-[min(92vw,320px)] max-h-[min(72dvh,440px)] overflow-y-auto rounded-xl border border-dark-600 bg-night-950 shadow-2xl py-1 text-sm text-zinc-100"
-                  role="menu"
-                >
+                <div className="flex justify-center pt-1 pb-2 lg:hidden" aria-hidden>
+                  <span className="h-1 w-10 rounded-full bg-dark-600" />
+                </div>
                   {otherUser ? (
                     <button
                       type="button"
@@ -1159,8 +1173,8 @@ export default function ChatPage() {
                       {tStr("pages.chat.overflowBlockUser")}
                     </button>
                   ) : null}
-                  <div className="border-t border-dark-600 px-2 py-2" role="presentation">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-dark-500 px-1 pb-1.5">
+                  <div className="border-t border-dark-600 px-2 py-2 max-h-36 overflow-y-auto overscroll-contain" role="presentation">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-dark-500 px-1 pb-1.5 sticky top-0 bg-night-950">
                       {tStr("pages.chat.blockedUsersHeading")}
                     </p>
                     {blockedListLoading ? (
@@ -1278,42 +1292,46 @@ export default function ChatPage() {
                       {tStr("pages.chat.overflowUnmatch")}
                     </button>
                   ) : null}
-                </div>
-              ) : null}
-            </div>
-            <button
-              type="button"
-              disabled={actionBusy}
-              onClick={async () => {
-                if (!confirm(tStr("pages.chat.deleteConversationConfirm"))) return;
-                setActionBusy(true);
-                try {
-                  const res = await fetchWithAuthRetry("/api/conversations/delete", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ conversationId: otherId }),
-                  });
-                  if (res.ok) router.replace("/app/profiles");
-                  else {
-                    const j = await res.json();
-                    const raw = String(j.error ?? "").trim();
-                    setSendError(translateApiErrorMessage(raw, tStr) || raw || tStr("pages.chat.errGeneric"));
-                  }
-                } finally {
-                  setActionBusy(false);
-                }
-              }}
-              className="text-sm text-dark-400 hover:text-red-400 transition disabled:opacity-50"
-            >
-              {tStr("pages.chat.deleteConversation")}
-            </button>
-          </div>
-        )}
-      </div>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    disabled={actionBusy}
+                    className="w-full px-3 py-3 text-left hover:bg-red-950/40 border-t border-dark-600 text-red-400 font-medium"
+                    onClick={async () => {
+                      if (!confirm(tStr("pages.chat.deleteConversationConfirm"))) return;
+                      setActionBusy(true);
+                      try {
+                        const res = await fetchWithAuthRetry("/api/conversations/delete", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ conversationId: otherId }),
+                        });
+                        if (res.ok) {
+                          setChatOverflowOpen(false);
+                          router.replace("/app/messages");
+                        } else {
+                          const j = await res.json();
+                          const raw = String(j.error ?? "").trim();
+                          setSendError(
+                            translateApiErrorMessage(raw, tStr) || raw || tStr("pages.chat.errGeneric")
+                          );
+                        }
+                      } finally {
+                        setActionBusy(false);
+                      }
+                    }}
+                  >
+                    {tStr("pages.chat.deleteConversation")}
+                  </button>
+              </div>
+            </>,
+            document.body
+          )
+        : null}
 
       <div
         ref={messagesScrollRef}
-        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pt-4 pb-10 space-y-3 overscroll-contain"
+        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pt-2 pb-3 space-y-2.5 overscroll-contain"
       >
         {fetchError && (
           <p className="text-amber-400 text-sm px-2 py-1 rounded bg-amber-500/10" role="alert">
@@ -1499,7 +1517,7 @@ export default function ChatPage() {
 
       <form
         onSubmit={sendMessage}
-        className="chat-compose-form flex flex-col gap-2 pt-4 shrink-0 w-full min-w-0 max-w-full pb-[max(0.5rem,env(safe-area-inset-bottom,0))]"
+        className="chat-compose-form flex flex-col gap-1.5 pt-2 shrink-0 w-full min-w-0 max-w-full pb-[max(0.25rem,env(safe-area-inset-bottom,0))]"
       >
         {sendError && (
           <div className="flex flex-col gap-2">
