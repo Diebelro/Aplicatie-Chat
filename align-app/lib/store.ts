@@ -1,5 +1,6 @@
 import { RING_PENDING_MAX_MS } from "./callRingConstants";
-import { cityMatchesFilter, nameMatchesFilter, normalizeStrict as normalizeStrictMatch } from "@/lib/discoverMatchUtils";
+import { cityMatchesFilter, nameMatchesFilter, gendersMatch, isNameLookupQuery } from "@/lib/discoverMatchUtils";
+import { canonicalCountryKey } from "@/lib/countrySoftRegion";
 import { displayName } from "./displayName";
 
 /** În browser: citește user din localStorage sau sessionStorage („Ține-mă minte”). */
@@ -106,6 +107,8 @@ export interface User {
   isBanned?: boolean;
   /** Suspendare temporară — ISO; acces blocat până la acest moment */
   banUntil?: string | null;
+  /** Admin a cerut schimbare username (contul nu e șters) */
+  mustChangeUsername?: boolean;
 }
 
 export interface Match {
@@ -480,22 +483,25 @@ export function filterUsers(
   filters: ProfileFilters
 ): User[] {
   return list.filter((u) => {
+    if (isNameLookupQuery(filters.name)) {
+      return nameMatchesFilter(u.name, u.username, filters.name ?? "");
+    }
     const g = filters.gender;
-    if (g != null && g !== "" && u.gender !== g)
+    if (g != null && g !== "" && !gendersMatch(u.gender, g))
       return false;
     if (filters.minAge != null && u.age != null && u.age < filters.minAge) return false;
     if (filters.maxAge != null && u.age != null && u.age > filters.maxAge) return false;
     if (filters.country && filters.country.trim() !== "") {
       const c = (u.country ?? "").trim();
-      if (!c) {
-        /* Profil fără țară: rămâne în feed (filtru implicit pe regiune nu îi ascunde). */
-      } else if (normalizeStrictMatch(c) !== normalizeStrictMatch(filters.country)) {
-        return false;
-      }
+      if (!c) return false;
+      const wantKey = canonicalCountryKey(filters.country);
+      const gotKey = canonicalCountryKey(c);
+      if ((wantKey || "") !== (gotKey || "")) return false;
     }
     if (filters.city && filters.city.trim() !== "") {
       const raw = (u.city ?? "").trim();
-      if (raw && !cityMatchesFilter(u.city, filters.city)) return false;
+      if (!raw) return false;
+      if (!cityMatchesFilter(raw, filters.city)) return false;
     }
     if (filters.maxDistanceKm != null && filters.maxDistanceKm > 0) {
       const km = getDistanceKm(myId, u.id);
@@ -978,6 +984,44 @@ export function addFriendRequest(fromId: string, toId: string): FriendRow | null
   };
   friends.push(row);
   return row;
+}
+
+export type ScanConnectResult =
+  | { ok: true; status: "connected" | "already_friends"; user: User }
+  | { ok: false; error: "self" | "not_found" | "blocked" | "banned" };
+
+/** Conectare rapidă QR — prietenie acceptată imediat (fallback in-memory). */
+export function scanConnect(meId: string, otherId: string): ScanConnectResult {
+  if (meId === otherId) return { ok: false, error: "self" };
+  const other = findUserById(otherId);
+  if (!other) return { ok: false, error: "not_found" };
+  const settings = getUserPrivacySettings(otherId);
+  if (!settings.allowFriendRequests) return { ok: false, error: "blocked" };
+
+  const existing = friends.find(
+    (f) =>
+      (f.user_id === meId && f.friend_id === otherId) ||
+      (f.user_id === otherId && f.friend_id === meId)
+  );
+  if (existing?.status === "accepted") {
+    return { ok: true, status: "already_friends", user: other };
+  }
+  if (existing) {
+    existing.user_id = meId;
+    existing.friend_id = otherId;
+    existing.status = "accepted";
+    existing.updated_at = new Date().toISOString();
+  } else {
+    friends.push({
+      id: generateId(),
+      user_id: meId,
+      friend_id: otherId,
+      status: "accepted",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+  }
+  return { ok: true, status: "connected", user: other };
 }
 
 export function acceptFriendRequest(userId: string, friendId: string): boolean {

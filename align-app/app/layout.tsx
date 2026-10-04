@@ -16,9 +16,9 @@ if (!metadataBaseUrl.trim() || !/^https?:\/\//i.test(metadataBaseUrl.trim())) {
   metadataBaseUrl = CHAT_PRODUCTION_URL;
 }
 
-const defaultTitle = "Diebel — Chat și apeluri pentru adulți (18+)";
+const defaultTitle = "Diebel — Free Chat, Video Calls & Dating App for Adults";
 const defaultDescription =
-  "Conexiuni cu intenție clară: mesaje, apeluri audio și video. Pentru adulți. Comunicarea cu serverele folosește criptare în tranzit (HTTPS/TLS); mesajele nu sunt criptate end-to-end între dispozitive.";
+  "Meet people, chat and make free video or audio calls on Diebel. Dating and messaging app for adults 18+. Available on Android and web. Secure connections, no ads.";
 
 export const metadata: Metadata = {
   manifest: "/manifest.json?v=11",
@@ -39,12 +39,43 @@ export const metadata: Metadata = {
     template: "%s | Diebel",
   },
   description: defaultDescription,
+  keywords: [
+    "dating app", "video chat", "free chat app", "meet people online",
+    "audio video calls", "messaging app", "adults dating", "chat app android",
+    "dating app Romania", "dating Germany", "dating Switzerland",
+    "Diebel", "chat gratuit", "aplicatie dating", "intalniri online",
+    "kostenlose Chat App", "Dating App Deutschland", "Video Anrufe App",
+    "application de rencontre", "chat vidéo gratuit", "app di incontri",
+    "chat video gratis", "aplicación de citas", "videollamadas gratis",
+  ],
+  alternates: {
+    canonical: `${metadataBaseUrl}/`,
+    languages: {
+      "en": `${metadataBaseUrl}/`,
+      "ro": `${metadataBaseUrl}/`,
+      "de": `${metadataBaseUrl}/`,
+      "fr": `${metadataBaseUrl}/`,
+      "it": `${metadataBaseUrl}/`,
+      "es": `${metadataBaseUrl}/`,
+      "x-default": `${metadataBaseUrl}/`,
+    },
+  },
   openGraph: {
     type: "website",
-    locale: "ro_RO",
+    locale: "en_US",
+    alternateLocale: ["ro_RO", "de_DE", "de_CH", "de_AT", "fr_FR", "fr_CH", "it_IT", "it_CH", "es_ES"],
     siteName: "Diebel",
     title: defaultTitle,
     description: defaultDescription,
+    url: `${metadataBaseUrl}/`,
+    images: [
+      {
+        url: "/brand/app-icon-v7-512.png?v=11",
+        width: 512,
+        height: 512,
+        alt: "Diebel Chat App",
+      },
+    ],
   },
   twitter: {
     card: "summary",
@@ -59,7 +90,30 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5,
   userScalable: true,
-  themeColor: "#0f1419",
+  viewportFit: "cover",
+  themeColor: "#f6f6f7",
+  interactiveWidget: "resizes-content",
+};
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "Diebel Chat",
+  operatingSystem: "Android, Web",
+  applicationCategory: "CommunicationApplication",
+  offers: {
+    "@type": "Offer",
+    price: "0",
+    priceCurrency: "USD",
+  },
+  description: defaultDescription,
+  url: `${metadataBaseUrl}/`,
+  downloadUrl: "https://play.google.com/store/apps/details?id=ro.diebel.chatapp",
+  aggregateRating: {
+    "@type": "AggregateRating",
+    ratingValue: "4.5",
+    ratingCount: "10",
+  },
 };
 
 export default function RootLayout({
@@ -68,12 +122,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ro" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      </head>
       <body
         className="antialiased min-h-screen font-sans bg-dark-900 text-zinc-900 safe-area-x"
         style={{
-          backgroundColor: "#0f1419",
-          color: "#f4f4f5",
+          backgroundColor: "#f6f6f7",
+          color: "#18181b",
         }}
       >
         <PwaServiceWorkerRegister />

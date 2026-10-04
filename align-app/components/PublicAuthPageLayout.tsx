@@ -21,7 +21,7 @@ export function PublicAuthPageLayout({
   showCopyright = true,
 }: PublicAuthPageLayoutProps) {
   return (
-    <div className="flex min-h-dvh flex-col bg-dark-900 safe-area-x">
+    <div className="min-h-dvh flex flex-col bg-dark-900 safe-area-x">
       <div className="shrink-0 px-4 safe-area-inset-top pt-3">
         <Link
           href={backHref}
@@ -31,7 +31,7 @@ export function PublicAuthPageLayout({
         </Link>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain px-4">
+      <div className="flex-1 px-4">
         {children}
       </div>
 

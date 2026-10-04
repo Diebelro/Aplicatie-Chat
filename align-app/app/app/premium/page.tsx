@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Crown, Check } from "lucide-react";
 import { RewardedPremiumCTA } from "@/components/RewardedPremiumCTA";
@@ -11,6 +11,7 @@ import { fetchWithAuthRetry } from "@/lib/authClient";
 import { useI18n } from "@/lib/i18n/context";
 import { formatTpl } from "@/lib/i18n/formatTpl";
 import { SkeletonPremiumPlans } from "@/components/perceived/AppShellLoadingLayout";
+import { formatPremiumPlanPrice, resolvePremiumMarket } from "@/lib/premiumPricing";
 
 interface Plan {
   id: string;
@@ -22,19 +23,41 @@ interface Plan {
 }
 
 export default function PremiumPage() {
-  const { tStr, tArray } = useI18n();
+  const { tStr, tArray, locale } = useI18n();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [plansLoading, setPlansLoading] = useState(true);
   const [subscribing, setSubscribing] = useState<string | null>(null);
   const [subscription, setSubscription] = useState<{ planId: string | null; premiumPermanent: boolean } | null>(null);
+  const [profileCountry, setProfileCountry] = useState<string | null>(null);
+
+  const [plansError, setPlansError] = useState(false);
 
   useEffect(() => {
+    try {
+      const raw = getStoredUserRaw();
+      if (!raw) return;
+      const u = JSON.parse(raw) as User & { country?: string | null };
+      setProfileCountry((u.country ?? "").trim() || null);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const pricingMarket = resolvePremiumMarket(locale, profileCountry);
+
+  const loadPlans = useCallback(() => {
+    setPlansError(false);
+    setPlansLoading(true);
     fetchWithAuthRetry("/api/subscription/plans", { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => setPlans(d.plans ?? []))
-      .catch(() => {})
+      .catch(() => setPlansError(true))
       .finally(() => setPlansLoading(false));
   }, []);
+
+  useEffect(() => {
+    loadPlans();
+  }, [loadPlans]);
 
   useEffect(() => {
     fetchWithAuthRetry("/api/me/subscription", { cache: "no-store" })
@@ -93,6 +116,21 @@ export default function PremiumPage() {
         <p className="app-pro-lead text-dark-400 mb-4">{tStr("pages.premium.plansIntro")}</p>
         {plansLoading ? (
           <SkeletonPremiumPlans cards={3} />
+        ) : plansError ? (
+          <div className="app-pro-panel p-6 text-center space-y-3">
+            <p className="text-dark-400 text-sm">{tStr("pages.premium.plansError")}</p>
+            <button
+              type="button"
+              onClick={loadPlans}
+              className="inline-flex min-h-[44px] items-center px-4 py-2.5 rounded-xl bg-brand-500 text-dark-900 font-medium text-sm hover:bg-brand-400 transition touch-manipulation"
+            >
+              {tStr("common.shellErrors.tryAgain")}
+            </button>
+          </div>
+        ) : plans.length === 0 ? (
+          <div className="app-pro-panel p-6 text-center">
+            <p className="text-dark-400 text-sm">{tStr("pages.premium.plansEmpty")}</p>
+          </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-3">
             {plans.map((plan) => {
@@ -105,18 +143,13 @@ export default function PremiumPage() {
             const displayDescription = localizedDesc || plan.description;
             const displayFeatures =
               localizedFeatures.length > 0 ? localizedFeatures : plan.features;
+            const priceAmount = formatPremiumPlanPrice(plan.interval, pricingMarket);
             const priceLabel =
               plan.interval === "year"
-                ? formatTpl(tStr("pages.premium.priceYear"), {
-                    amount: (plan.priceMonthly * 12).toFixed(0),
-                  })
+                ? formatTpl(tStr("pages.premium.priceYear"), { amount: priceAmount })
                 : plan.interval === "six_month"
-                  ? formatTpl(tStr("pages.premium.priceSixMonth"), {
-                      amount: (plan.priceMonthly * 6).toFixed(0),
-                    })
-                  : formatTpl(tStr("pages.premium.priceMonth"), {
-                      amount: String(plan.priceMonthly),
-                    });
+                  ? formatTpl(tStr("pages.premium.priceSixMonth"), { amount: priceAmount })
+                  : formatTpl(tStr("pages.premium.priceMonth"), { amount: priceAmount });
             return (
               <div
                 key={plan.id}
@@ -138,7 +171,7 @@ export default function PremiumPage() {
                   type="button"
                   onClick={() => subscribe(plan.id)}
                   disabled={isCurrent || subscribing !== null}
-                  className="w-full py-2.5 rounded-xl font-medium text-sm transition disabled:opacity-50 bg-brand-500 text-dark-900 hover:bg-brand-400"
+                  className="w-full min-h-[44px] py-3 rounded-xl font-medium text-sm transition disabled:opacity-50 bg-brand-500 text-dark-900 hover:bg-brand-400 touch-manipulation"
                 >
                   {isCurrent
                     ? tStr("pages.premium.active")

@@ -11,6 +11,9 @@ const ARIA_PATH: Record<Locale, string> = {
   ro: "common.labels.langPickRo",
   en: "common.labels.langPickEn",
   de: "common.labels.langPickDe",
+  fr: "common.labels.langPickFr",
+  it: "common.labels.langPickIt",
+  es: "common.labels.langPickEs",
 };
 
 /** Doar steagul — buton invizibil, fără casetă / umbră / chenar în jur. */
@@ -71,12 +74,12 @@ export function LanguageSwitcher({
       </button>
       {open && others.length > 0 && (
         <ul
-          className={`absolute ${menuPosition} z-[120] flex flex-col items-center gap-2 p-0`}
+          className={`absolute ${menuPosition} z-[120] flex flex-row flex-wrap items-center justify-center gap-2 p-1.5 max-w-[min(88vw,16rem)] rounded-lg bg-dark-900/95 shadow-lg border border-dark-600 backdrop-blur-sm`}
           role="listbox"
           aria-label={tStr("common.labels.language")}
         >
           {others.map((loc) => (
-            <li key={loc} role="none" className="list-none m-0 p-0">
+            <li key={loc} role="none" className="list-none m-0 p-0 shrink-0">
               <button
                 type="button"
                 role="option"

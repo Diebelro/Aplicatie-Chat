@@ -33,8 +33,8 @@ async function resolveMyIdForCall(): Promise<string | null> {
 
 type QuickCallButtonsProps = {
   toUserId: string;
-  /** sm = listă Mesaje; md = carduri; discover = butoane rotunde pe card Descoperă */
-  size?: "sm" | "md" | "discover";
+  /** sm = listă Mesaje (stivuite); md = rând; toolbar = compact pe card Profile; discover = rotunde */
+  size?: "sm" | "md" | "toolbar" | "discover";
   className?: string;
 };
 
@@ -129,49 +129,95 @@ export function QuickCallButtons({ toUserId, size = "md", className = "" }: Quic
   ) : null;
 
   if (size === "discover") {
+    const discoverBtn =
+      "aspect-square max-h-14 w-full rounded-full bg-dark-700 active:scale-95 flex items-center justify-center border transition touch-manipulation disabled:opacity-50";
     return (
-      <div className={`flex flex-col items-center gap-0.5 shrink-0 ${className}`}>
+      <>
         {callHint ? (
           <p className="sr-only" role="status">
             {callHint}
           </p>
         ) : null}
-        <div
-          className="flex items-center gap-2 sm:gap-3 shrink-0"
-          onClick={stopEvt}
+        <button
+          type="button"
+          disabled={busy}
+          onClick={(e) => {
+            stopEvt(e);
+            void start(false);
+          }}
           onPointerDown={(e) => e.stopPropagation()}
           onTouchStart={(e) => e.stopPropagation()}
-          onKeyDown={(e) => e.stopPropagation()}
-          role="group"
-          aria-label={callT.tStr("pages.callRoom.quickCall.ariaVideoAudio")}
+          className={`${discoverBtn} text-brand-400 border-brand-500/45 hover:bg-brand-500/20 ${className}`}
+          title={callT.tStr("pages.callRoom.quickCall.titleVideo")}
+          aria-label={callT.tStr("pages.callRoom.quickCall.titleVideo")}
         >
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void start(false)}
-            className="w-12 h-12 sm:w-14 sm:h-14 min-h-[48px] min-w-[48px] rounded-full bg-dark-600 hover:bg-brand-500/20 active:scale-90 flex items-center justify-center text-brand-400 border-2 border-brand-500/40 transition-[transform,background-color] duration-75 touch-manipulation shrink-0 disabled:opacity-50"
-            title={callT.tStr("pages.callRoom.quickCall.titleVideo")}
-          >
-            <Video className="w-6 h-6 sm:w-7 sm:h-7" />
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void start(true)}
-            className="w-12 h-12 sm:w-14 sm:h-14 min-h-[48px] min-w-[48px] rounded-full bg-sky-500/15 hover:bg-sky-500/25 active:scale-90 flex items-center justify-center text-sky-600 border-2 border-sky-500/40 transition-[transform,background-color] duration-75 touch-manipulation shrink-0 disabled:opacity-50"
-            title={callT.tStr("pages.callRoom.quickCall.titleAudio")}
-          >
-            <Phone className="w-6 h-6 sm:w-7 sm:h-7" />
-          </button>
-        </div>
-      </div>
+          <Video className="w-6 h-6" />
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={(e) => {
+            stopEvt(e);
+            void start(true);
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+          className={`${discoverBtn} text-sky-500 border-sky-500/45 hover:bg-sky-500/20`}
+          title={callT.tStr("pages.callRoom.quickCall.titleAudio")}
+          aria-label={callT.tStr("pages.callRoom.quickCall.titleAudio")}
+        >
+          <Phone className="w-6 h-6" />
+        </button>
+      </>
     );
   }
 
-  const wrap = size === "sm" ? "gap-1" : "gap-1";
+  // toolbar: butoanele intră în grid-ul părinte (display:contents) — carduri Profile.
+  if (size === "toolbar") {
+    return (
+      <>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={(e) => {
+            stopEvt(e);
+            void start(false);
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+          className={`flex h-9 w-full items-center justify-center rounded-lg bg-brand-500/15 text-brand-400 hover:bg-brand-500/25 border border-brand-500/35 transition touch-manipulation disabled:opacity-50 ${className}`}
+          title={callT.tStr("pages.callRoom.quickCall.titleVideo")}
+          aria-label={callT.tStr("pages.callRoom.quickCall.titleVideo")}
+        >
+          <Video className="w-4 h-4" />
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={(e) => {
+            stopEvt(e);
+            void start(true);
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+          className="flex h-9 w-full items-center justify-center rounded-lg bg-sky-500/15 text-sky-600 hover:bg-sky-500/25 border border-sky-500/40 transition touch-manipulation disabled:opacity-50"
+          title={callT.tStr("pages.callRoom.quickCall.titleAudio")}
+          aria-label={callT.tStr("pages.callRoom.quickCall.titleAudio")}
+        >
+          <Phone className="w-4 h-4" />
+        </button>
+        {callHint ? (
+          <p className="col-span-6 text-amber-500/95 text-[10px] leading-snug" role="status">
+            {callHint}
+          </p>
+        ) : null}
+      </>
+    );
+  }
+
+  // sm (listă Mesaje): stivuite pe verticală — lasă spațiu pentru nume/avatar pe telefon.
+  const wrap = size === "sm" ? "flex-col gap-0.5" : "flex-row gap-1";
   const btn =
     size === "sm"
-      ? "app-touch-target rounded-lg"
+      ? "h-10 w-10 min-h-[40px] min-w-[40px] rounded-lg"
       : "app-touch-target rounded-lg";
   const icon = size === "sm" ? "w-4 h-4" : "w-5 h-5";
 

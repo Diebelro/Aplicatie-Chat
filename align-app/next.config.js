@@ -105,6 +105,7 @@ const nextConfig = {
   output: "standalone",
   /** Trasează fișierele din acest folder (lockfile aici) — pachet standalone corect pentru Docker. */
   outputFileTracingRoot: path.join(__dirname),
+  serverExternalPackages: ["sharp"],
   /** Dev: permite HMR când deschizi site-ul pe 127.0.0.1 vs localhost (altfel Next blochează /_next/webpack-hmr). */
   allowedDevOrigins: ["127.0.0.1", "localhost"],
   /** Rădăcină explicită: evită avertismentul Turbopack când există alt lockfile în repo părinte. */
@@ -116,6 +117,16 @@ const nextConfig = {
       { protocol: "https", hostname: "**.public.blob.vercel-storage.com", pathname: "/**" },
       { protocol: "https", hostname: "**.blob.vercel-storage.com", pathname: "/**" },
     ],
+    minimumCacheTTL: 3600,
+    formats: ["image/avif", "image/webp"],
+    deviceSizes: [360, 640, 750, 828, 1080, 1200],
+    imageSizes: [48, 64, 96, 128, 256],
+    /**
+     * Next.js 16: valorile `quality` trebuie declarate explicit, altfel `/_next/image`
+     * răspunde 400 („q parameter ... is not allowed") și imaginile rămân goale/negre.
+     * Includem toate calitățile folosite în cod (86 default OptimizedImage, 88, 92) + 75.
+     */
+    qualities: [50, 60, 70, 75, 80, 86, 88, 90, 92, 100],
   },
   reactStrictMode: true,
   productionBrowserSourceMaps: false,
@@ -177,6 +188,14 @@ const nextConfig = {
     }
     return [
       { source: "/:path*", headers: base },
+      {
+        source: "/app",
+        headers: [{ key: "Cache-Control", value: "no-store, must-revalidate" }],
+      },
+      {
+        source: "/app/:path*",
+        headers: [{ key: "Cache-Control", value: "no-store, must-revalidate" }],
+      },
       {
         source: "/_next/static/:path*",
         headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],

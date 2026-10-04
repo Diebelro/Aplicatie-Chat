@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 export default function DeleteAccountPublicPage() {
   return (
     <div className="min-h-screen flex flex-col bg-dark-900 text-zinc-900 antialiased">
-      <header className="border-b border-dark-600 sticky top-0 z-10 bg-dark-900 pt-[env(safe-area-inset-top,0px)]">
+      <header className="border-b border-dark-600 sticky top-0 z-10 bg-dark-900 pt-[var(--safe-area-inset-top)]">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link
             href="/"
@@ -25,14 +25,14 @@ export default function DeleteAccountPublicPage() {
           </Link>
           <Link
             href="/login"
-            className="text-sm font-medium text-brand-400 hover:text-brand-300 hover:underline"
+            className="inline-flex min-h-[44px] items-center px-2 rounded-md text-sm font-medium text-brand-400 hover:text-brand-300 hover:underline outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60"
           >
             Autentificare
           </Link>
         </div>
       </header>
-      <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-8 space-y-6">
-        <h1 className="text-2xl font-semibold text-zinc-100 tracking-tight">
+      <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-8 space-y-6 pb-[max(6rem,calc(5rem+var(--safe-area-inset-bottom)))]">
+        <h1 className="text-2xl font-semibold text-zinc-900 tracking-tight">
           Ștergerea contului și a datelor personale
         </h1>
         <div className="space-y-4 text-sm text-dark-400 leading-relaxed">
@@ -41,7 +41,7 @@ export default function DeleteAccountPublicPage() {
             disponibile.
           </p>
           <section className="rounded-xl border border-dark-600/80 bg-dark-800/40 p-4 space-y-2">
-            <h2 className="text-base font-semibold text-zinc-200">1. Din aplicație (recomandat)</h2>
+            <h2 className="text-base font-semibold text-zinc-900">1. Din aplicație (recomandat)</h2>
             <p>
               După autentificare, deschide{" "}
               <strong className="text-zinc-300">Setări cont</strong> în aplicația web, apoi secțiunea pentru{" "}
@@ -61,7 +61,7 @@ export default function DeleteAccountPublicPage() {
             </p>
           </section>
           <section className="rounded-xl border border-dark-600/80 bg-dark-800/40 p-4 space-y-2">
-            <h2 className="text-base font-semibold text-zinc-200">2. Prin email</h2>
+            <h2 className="text-base font-semibold text-zinc-900">2. Prin email</h2>
             <p>
               Poți trimite o solicitare la{" "}
               <a

@@ -72,7 +72,12 @@ export default function ProfilePhotoPage() {
 
   const handlePhotoPick = (file: File) => {
     if (photos.length >= MAX_PHOTOS) return;
-    if (!file.type.startsWith("image/")) return;
+    // Pe Android WebView, file.type poate fi gol chiar dacă e o imagine validă (cameră sau galerie).
+    // Verificăm și extensia fișierului ca fallback.
+    const type = file.type || "";
+    const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+    const isImage = type.startsWith("image/") || ["jpg","jpeg","png","webp","gif","heic","heif"].includes(ext);
+    if (!isImage) return;
     void resizeImageAsDataUrl(file)
       .then(async (dataUrl) => {
         const newPhotos = [...photos.slice(0, MAX_PHOTOS - 1), dataUrl];

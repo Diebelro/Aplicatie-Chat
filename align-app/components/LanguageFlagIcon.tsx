@@ -12,10 +12,12 @@ export function LanguageFlagIcon({
 }) {
   const sz = compact ? "w-[1.2rem] h-[0.8rem]" : "w-7 h-[1.15rem]";
   const cls = `${sz} block shrink-0 overflow-hidden rounded-[2px]`;
+  /** Umple caseta uniform și taie surplusul, fără să deformeze forma steagului. */
+  const fit = "xMidYMid slice";
 
   if (locale === "ro") {
     return (
-      <svg className={cls} viewBox="0 0 9 6" aria-hidden="true" focusable="false">
+      <svg className={cls} viewBox="0 0 9 6" preserveAspectRatio={fit} aria-hidden="true" focusable="false">
         <rect width="3" height="6" fill="#002B7F" />
         <rect x="3" width="3" height="6" fill="#FCD116" />
         <rect x="6" width="3" height="6" fill="#CE1126" />
@@ -24,15 +26,41 @@ export function LanguageFlagIcon({
   }
   if (locale === "de") {
     return (
-      <svg className={cls} viewBox="0 0 9 6" aria-hidden="true" focusable="false">
+      <svg className={cls} viewBox="0 0 9 6" preserveAspectRatio={fit} aria-hidden="true" focusable="false">
         <rect width="9" height="2" fill="#000" />
         <rect y="2" width="9" height="2" fill="#DD0000" />
         <rect y="4" width="9" height="2" fill="#FFCE00" />
       </svg>
     );
   }
+  if (locale === "fr") {
+    return (
+      <svg className={cls} viewBox="0 0 9 6" preserveAspectRatio={fit} aria-hidden="true" focusable="false">
+        <rect width="3" height="6" fill="#0055A4" />
+        <rect x="3" width="3" height="6" fill="#FFF" />
+        <rect x="6" width="3" height="6" fill="#EF4135" />
+      </svg>
+    );
+  }
+  if (locale === "it") {
+    return (
+      <svg className={cls} viewBox="0 0 9 6" preserveAspectRatio={fit} aria-hidden="true" focusable="false">
+        <rect width="3" height="6" fill="#009246" />
+        <rect x="3" width="3" height="6" fill="#FFF" />
+        <rect x="6" width="3" height="6" fill="#CE2B37" />
+      </svg>
+    );
+  }
+  if (locale === "es") {
+    return (
+      <svg className={cls} viewBox="0 0 9 6" preserveAspectRatio={fit} aria-hidden="true" focusable="false">
+        <rect width="9" height="6" fill="#AA151B" />
+        <rect y="1.5" width="9" height="3" fill="#F1BF00" />
+      </svg>
+    );
+  }
   return (
-    <svg className={cls} viewBox="0 0 640 480" aria-hidden="true" focusable="false">
+    <svg className={cls} viewBox="0 0 640 480" preserveAspectRatio={fit} aria-hidden="true" focusable="false">
       <path fill="#012169" d="M0 0h640v480H0z" />
       <path
         fill="#FFF"

@@ -66,7 +66,8 @@ export default function MapView({
     }
 
     const points: L.LatLngExpression[] = [];
-    const map = L.map(el).setView([46.8, 24.9], 6);
+    // Scroll pe hartă = zoom direct (ce așteaptă utilizatorul). Scroll în afara hărții mută pagina.
+    const map = L.map(el, { scrollWheelZoom: true }).setView([46.8, 24.9], 6);
     mapRef.current = map;
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',

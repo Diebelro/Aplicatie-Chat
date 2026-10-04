@@ -15,6 +15,8 @@ type OptimizedImageProps = {
   priority?: boolean;
   /** Calitate decodificare next/image (implicit mai mare ca default-ul 75). */
   quality?: number;
+  /** Fallback când imaginea nu se încarcă (URL stricat / optimizator indisponibil). */
+  onError?: () => void;
 };
 
 /** URL-uri care trec prin `next.config` `images.remotePatterns` (ex. Vercel Blob). */
@@ -44,6 +46,7 @@ export function OptimizedImage({
   sizes,
   priority = false,
   quality = 86,
+  onError,
 }: OptimizedImageProps) {
   const isDataUrl = src.startsWith("data:");
   const isRelative = src.startsWith("/");
@@ -58,6 +61,7 @@ export function OptimizedImage({
         loading={priority ? "eager" : "lazy"}
         decoding="async"
         className={imgClass}
+        onError={onError}
       />
     );
   }
@@ -75,6 +79,7 @@ export function OptimizedImage({
         className={`${fit}${className}`.trim()}
         loading={priority ? "eager" : "lazy"}
         priority={priority}
+        onError={onError}
       />
     );
   }
@@ -92,6 +97,7 @@ export function OptimizedImage({
       className={className}
       loading={priority ? "eager" : "lazy"}
       priority={priority}
+      onError={onError}
     />
   );
 }

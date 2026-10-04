@@ -8,10 +8,14 @@ import { useI18n } from "@/lib/i18n/context";
 import { formatTpl } from "@/lib/i18n/formatTpl";
 import { translateApiErrorMessage } from "@/lib/i18n/translateApiError";
 import type { Locale } from "@/lib/i18n/types";
+import { parseStoredBanReason, isBanReasonCode } from "@/lib/banReasons";
 
 function intlLocaleTag(locale: Locale): string {
   if (locale === "en") return "en-US";
   if (locale === "de") return "de-DE";
+  if (locale === "fr") return "fr-FR";
+  if (locale === "it") return "it-IT";
+  if (locale === "es") return "es-ES";
   return "ro-RO";
 }
 
@@ -20,6 +24,9 @@ function ContBlocatForm() {
   const searchParams = useSearchParams();
   const prefEmail = searchParams?.get("email") ?? "";
   const untilIso = searchParams?.get("until");
+  const banReasonParam = searchParams?.get("banReason") ?? "";
+  const reasonCodeParam = searchParams?.get("reason") ?? "";
+  const reasonNoteParam = searchParams?.get("note") ?? "";
   const [email, setEmail] = useState(prefEmail);
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
@@ -66,6 +73,19 @@ function ContBlocatForm() {
       ? new Date(untilIso).toLocaleString(intlLocaleTag(locale), { dateStyle: "medium", timeStyle: "short" })
       : null;
 
+  const parsedReason =
+    parseStoredBanReason(banReasonParam) ??
+    (isBanReasonCode(reasonCodeParam)
+      ? { code: reasonCodeParam, note: reasonNoteParam.trim() }
+      : reasonNoteParam.trim()
+        ? { code: "other" as const, note: reasonNoteParam.trim() }
+        : null);
+  const reasonText = parsedReason
+    ? parsedReason.code === "other" && parsedReason.note
+      ? parsedReason.note
+      : tStr(`pages.banAppeal.reasonCodes.${parsedReason.code}`)
+    : null;
+
   return (
     <form onSubmit={submit} className="w-full max-w-md space-y-4">
       {untilHuman && (
@@ -73,6 +93,14 @@ function ContBlocatForm() {
           {formatTpl(tStr("pages.banAppeal.untilBanner"), { until: untilHuman })}
         </div>
       )}
+      {reasonText ? (
+        <div className="rounded-lg border border-amber-600/50 bg-amber-950/35 px-3 py-2.5 text-amber-100 text-sm text-center">
+          <p className="text-[11px] uppercase tracking-wide text-amber-300/90 mb-1">
+            {tStr("pages.banAppeal.reasonHeading")}
+          </p>
+          <p>{reasonText}</p>
+        </div>
+      ) : null}
       <p className="text-dark-400 text-sm text-center">
         {tStr("pages.banAppeal.formIntroBefore")}
         <strong className="text-dark-200">{tStr("pages.banAppeal.formIntroBold")}</strong>

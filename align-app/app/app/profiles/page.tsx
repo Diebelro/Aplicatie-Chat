@@ -1,27 +1,43 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useLayoutEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { Trash2, MessageCircle, Users, Clock, UserPlus, Eye, MessageSquare, CheckCheck, Heart, ShieldOff, Flag, Circle, Sparkles, EyeOff } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { QuickCallButtons } from "@/components/QuickCallButtons";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
-import { useSearchFilters, type SearchFilters } from "@/lib/useSearchFilters";
+import {
+  useSearchFilters,
+  hasActiveSearchFilters,
+  broadenSearchFilters,
+} from "@/lib/useSearchFilters";
 import { useVisibleInterval } from "@/lib/useVisibleInterval";
 import { getPresencePollMs } from "@/lib/presencePollMs";
-import { SEARCH_CITY_HINTS } from "@/lib/localeSearchDefaults";
 import { DiebelAppPromoCarousel } from "@/components/diebel/DiebelAppPromoCarousel";
+import AdSlot from "@/components/AdSlot";
+import { SharedSearchFiltersPanel } from "@/components/SharedSearchFiltersPanel";
 import { SilhouetteAvatar } from "@/components/SilhouetteAvatar";
+import { ProfilePhotoCountBars } from "@/components/ProfilePhotoCountBars";
+import { getFirstUsableProfilePhotoUrl, getUsableProfilePhotoUrls } from "@/lib/profileImage";
 import { AddFriendButton } from "@/components/AddFriendButton";
 import { getSmallCardState, FRIEND_CARD_COLORS } from "@/lib/friendCardStates";
 import { displayName } from "@/lib/displayName";
 import { fetchWithAuthRetry } from "@/lib/authClient";
 import { buildDiscoverApiQuery } from "@/lib/discoverSearchParams";
-import { MAX_PROFILE_SEARCH_RADIUS_KM } from "@/lib/profileSearchConstants";
+import { passesSharedSearchFilters } from "@/lib/applySearchFiltersLocal";
 import { useI18n } from "@/lib/i18n/context";
 import { formatTpl } from "@/lib/i18n/formatTpl";
 import { AppProLoading } from "@/components/AppProLoading";
+import {
+  clearListScroll,
+  hasListPlace,
+  listItemDomId,
+  restoreListScroll,
+  saveListPlace,
+  saveListScroll,
+  saveProfileReturnPath,
+} from "@/lib/listScrollSession";
 
 /** Culori pentru cele 3 stări pe profil – fără suprapuneri, un singur state per card. */
 const PROFILE_STATE_COLORS = {
@@ -60,6 +76,34 @@ type ProfileWithOnline = User & {
   match?: boolean;
 };
 
+const PROFILES_CACHE_KEY = "align_profiles_list_v3";
+const PROFILES_CACHE_QUERY_KEY = "align_profiles_list_query_v3";
+const SCROLL_KEY = "profiles";
+
+function readProfilesCache(): { query: string; profiles: ProfileWithOnline[] } | null {
+  if (typeof sessionStorage === "undefined") return null;
+  try {
+    const query = sessionStorage.getItem(PROFILES_CACHE_QUERY_KEY) ?? "";
+    const raw = sessionStorage.getItem(PROFILES_CACHE_KEY);
+    if (!raw) return null;
+    const profiles = JSON.parse(raw) as ProfileWithOnline[];
+    if (!Array.isArray(profiles) || profiles.length === 0) return null;
+    return { query, profiles };
+  } catch {
+    return null;
+  }
+}
+
+function writeProfilesCache(query: string, profiles: ProfileWithOnline[]): void {
+  if (typeof sessionStorage === "undefined") return;
+  try {
+    sessionStorage.setItem(PROFILES_CACHE_QUERY_KEY, query);
+    sessionStorage.setItem(PROFILES_CACHE_KEY, JSON.stringify(profiles));
+  } catch {
+    /* ignore quota */
+  }
+}
+
 const STATUS_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   friends: Users,
   pendingSent: Clock,
@@ -94,46 +138,145 @@ export default function ProfilesPage() {
   );
   const searchParams = useSearchParams();
   const previewMe = searchParams?.get("preview") === "me";
-  const [profiles, setProfiles] = useState<ProfileWithOnline[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useSearchFilters(locale);
+  const [profiles, setProfiles] = useState<ProfileWithOnline[]>(() => {
+    if (typeof window === "undefined") return [];
+    if (!hasListPlace(SCROLL_KEY)) return [];
+    return readProfilesCache()?.profiles ?? [];
+  });
+  const [loading, setLoading] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return !(hasListPlace(SCROLL_KEY) && (readProfilesCache()?.profiles.length ?? 0) > 0);
+  });
+  const restorePendingRef = useRef(typeof window !== "undefined" && hasListPlace(SCROLL_KEY));
+  const [filters, setFilters, filtersReady] = useSearchFilters(locale);
+  const filtersActive = hasActiveSearchFilters(filters);
+  const filtersKeyRef = useRef("");
+  const profilesRef = useRef(profiles);
+  profilesRef.current = profiles;
+  const profilesSeqRef = useRef(0);
+  const profilesAbortRef = useRef<AbortController | null>(null);
+
+  // Păstrează sortarea aleasă: e preferință de afișare, nu criteriu de căutare.
+  const resetFilters = useCallback(() => {
+    restorePendingRef.current = false;
+    clearListScroll(SCROLL_KEY);
+    setFilters((f) => broadenSearchFilters(f));
+  }, [setFilters]);
+
+  const onFilterPending = useCallback(() => {
+    restorePendingRef.current = false;
+    clearListScroll(SCROLL_KEY);
+    profilesAbortRef.current?.abort();
+    profilesSeqRef.current += 1;
+    setProfiles((prev) => prev.filter((u) => passesSharedSearchFilters(u, filters)));
+    setLoading(true);
+  }, [filters]);
+
+  const rememberPlaceBeforeProfile = useCallback((userId: string) => {
+    saveListPlace(SCROLL_KEY, userId);
+    saveProfileReturnPath("/app/profiles");
+    const q = filtersKeyRef.current || buildDiscoverApiQuery(filters);
+    if (profilesRef.current.length > 0) writeProfilesCache(q, profilesRef.current);
+  }, [filters]);
 
   const meRaw = typeof window !== "undefined" ? getStoredUserRaw() : null;
   const me: User | null = meRaw ? (() => { try { return JSON.parse(meRaw); } catch { return null; } })() : null;
 
   useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    fetchWithAuthRetry(`/api/profiles${buildDiscoverApiQuery(filters)}`, { cache: "no-store" })
+    if (!filtersReady) return;
+    profilesAbortRef.current?.abort();
+    const ac = new AbortController();
+    profilesAbortRef.current = ac;
+    const seq = ++profilesSeqRef.current;
+    const key = buildDiscoverApiQuery(filters);
+    filtersKeyRef.current = key;
+
+    const cache = readProfilesCache();
+    const cacheMatches = cache != null && cache.query === key && cache.profiles.length > 0;
+
+    if (cacheMatches) {
+      setProfiles(cache.profiles);
+      setLoading(false);
+    } else {
+      setProfiles((prev) => prev.filter((u) => passesSharedSearchFilters(u, filters)));
+      setLoading(true);
+    }
+
+    fetchWithAuthRetry(`/api/profiles${key}`, { cache: "no-store", signal: ac.signal })
       .then(async (res) => {
         const data = await res.json();
         if (!res.ok) return { profiles: [] as ProfileWithOnline[] };
         return { profiles: (data.profiles ?? []) as ProfileWithOnline[] };
       })
       .then(({ profiles: list }) => {
-        if (cancelled) return;
+        if (seq !== profilesSeqRef.current) return;
         setProfiles(list);
+        writeProfilesCache(key, list);
+        setLoading(false);
+        if (restorePendingRef.current) {
+          restoreListScroll(SCROLL_KEY);
+          window.setTimeout(() => {
+            restorePendingRef.current = false;
+          }, 800);
+        }
+      })
+      .catch((err: unknown) => {
+        if (seq !== profilesSeqRef.current) return;
+        if (err instanceof DOMException && err.name === "AbortError") return;
         setLoading(false);
       });
-    return () => { cancelled = true; };
-  }, [filters.gender, filters.minAge, filters.maxAge, filters.maxDistanceKm, filters.country, filters.city, filters.onlineOnly, filters.name, filters.sortBy]);
+    return () => {
+      ac.abort();
+      saveListScroll(SCROLL_KEY);
+    };
+  }, [filtersReady, filters.gender, filters.minAge, filters.maxAge, filters.maxDistanceKm, filters.country, filters.city, filters.onlineOnly, filters.name, filters.sortBy]);
+
+  // Cache + loc înainte de paint, doar dacă revenim din profil și query-ul e același.
+  useLayoutEffect(() => {
+    if (!filtersReady) return;
+    const key = buildDiscoverApiQuery(filters);
+    const cache = readProfilesCache();
+    if (cache?.profiles.length && cache.query === key && profilesRef.current.length === 0) {
+      setProfiles(cache.profiles);
+      setLoading(false);
+    }
+    if (restorePendingRef.current) restoreListScroll(SCROLL_KEY);
+  }, [filtersReady]);
+
+  useLayoutEffect(() => {
+    if (!restorePendingRef.current || profiles.length === 0) return;
+    restoreListScroll(SCROLL_KEY);
+  }, [profiles.length, loading]);
 
   const refreshProfilesList = useCallback(() => {
-    void fetchWithAuthRetry(`/api/profiles${buildDiscoverApiQuery(filters)}`, { cache: "no-store" })
+    if (!filtersReady) return;
+    const key = buildDiscoverApiQuery(filters);
+    void fetchWithAuthRetry(`/api/profiles${key}`, { cache: "no-store" })
       .then((res) => res.json())
       .then((d) => {
-        if (d.profiles) setProfiles(d.profiles);
+        if (key !== filtersKeyRef.current) return;
+        if (d.profiles) {
+          setProfiles(d.profiles);
+          writeProfilesCache(key, d.profiles);
+        }
       })
       .catch(() => {});
-  }, [filters]);
+  }, [filters, filtersReady]);
 
-  useVisibleInterval(refreshProfilesList, getPresencePollMs(), profiles.length > 0 && !loading);
+  useVisibleInterval(refreshProfilesList, getPresencePollMs(), profiles.length > 0);
 
   useEffect(() => {
     const onConversationRead = () => {
-      fetchWithAuthRetry(`/api/profiles${buildDiscoverApiQuery(filters)}`, { cache: "no-store" })
+      const key = buildDiscoverApiQuery(filters);
+      fetchWithAuthRetry(`/api/profiles${key}`, { cache: "no-store" })
         .then((res) => res.json())
-        .then((d) => { if (d.profiles) setProfiles(d.profiles); });
+        .then((d) => {
+          if (key !== filtersKeyRef.current) return;
+          if (d.profiles) {
+            setProfiles(d.profiles);
+            writeProfilesCache(key, d.profiles);
+          }
+        });
     };
     window.addEventListener("align:conversation-read", onConversationRead);
     return () => window.removeEventListener("align:conversation-read", onConversationRead);
@@ -176,147 +319,20 @@ export default function ProfilesPage() {
     <div>
       <h2 className="app-pro-page-title mb-4">{tStr("pages.profiles.title")}</h2>
 
-      <div className="app-pro-panel mb-6 p-4 sm:p-5">
-        <p className="app-pro-lead mb-3">{tStr("pages.profiles.filterHint")}</p>
-        <div className="flex flex-wrap gap-3 items-end">
-          <div>
-            <label className="block text-xs text-dark-500 mb-1">{tStr("pages.discover.nameLabel")}</label>
-            <input
-              type="text"
-              placeholder={tStr("pages.discover.searchPlaceholder")}
-              value={filters.name}
-              onChange={(e) => setFilters((f) => ({ ...f, name: e.target.value }))}
-              className="w-40 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 text-sm placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
-            />
-          </div>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={filters.onlineOnly}
-              onChange={(e) => setFilters((f) => ({ ...f, onlineOnly: e.target.checked }))}
-              className="rounded border-dark-600 bg-dark-700 text-brand-500 focus:ring-brand-500"
-            />
-            <span className="text-sm text-dark-400">{tStr("pages.discover.onlineOnly")}</span>
-          </label>
-          <div>
-            <label className="block text-xs text-dark-500 mb-1">{tStr("pages.discover.genderLabel")}</label>
-            <select
-              value={filters.gender}
-              onChange={(e) => setFilters((f) => ({ ...f, gender: e.target.value }))}
-              className="bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-            >
-              <option value="">{tStr("pages.discover.genderAll")}</option>
-              <option value="male">{tStr("pages.discover.genderMale")}</option>
-              <option value="female">{tStr("pages.discover.genderFemale")}</option>
-              <option value="other">{tStr("pages.discover.genderOther")}</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-dark-500 mb-1">{tStr("pages.discover.minAge")}</label>
-            <input
-              type="number"
-              min={18}
-              max={filters.maxAge ? Math.min(100, Number(filters.maxAge)) : 100}
-              placeholder="18"
-              value={filters.minAge}
-              onChange={(e) => {
-                const v = e.target.value;
-                setFilters((f) => {
-                  const minNum = v === "" ? 18 : Math.max(18, Math.min(100, Number(v) || 18));
-                  const maxNum = f.maxAge ? Number(f.maxAge) : 100;
-                  const minAge = v;
-                  const maxAge = f.maxAge && minNum > maxNum ? String(minNum) : f.maxAge;
-                  return { ...f, minAge, maxAge };
-                });
-              }}
-              className="w-20 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-dark-500 mb-1">{tStr("pages.discover.maxAge")}</label>
-            <input
-              type="number"
-              min={filters.minAge ? Math.max(18, Number(filters.minAge)) : 18}
-              max={100}
-              placeholder="100"
-              value={filters.maxAge}
-              onChange={(e) => {
-                const v = e.target.value;
-                setFilters((f) => {
-                  const maxNum = v === "" ? 100 : Math.max(18, Math.min(100, Number(v) || 100));
-                  const minNum = f.minAge ? Number(f.minAge) : 18;
-                  const maxAge = v;
-                  const minAge = f.minAge && maxNum < minNum ? String(maxNum) : f.minAge;
-                  return { ...f, minAge, maxAge };
-                });
-              }}
-              className="w-20 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-            />
-          </div>
-          <div className="w-full max-w-xs">
-            <label className="block text-xs text-dark-500 mb-1">{tStr("pages.discover.maxDistKm")}</label>
-            <p className="text-xs text-dark-400 mb-1.5 tabular-nums">
-              {(Number(filters.maxDistanceKm) || 0) <= 0
-                ? tStr("pages.discover.distanceFilterOff")
-                : formatTpl(tStr("pages.discover.distanceFilterActiveKm"), {
-                    n: Math.min(MAX_PROFILE_SEARCH_RADIUS_KM, Number(filters.maxDistanceKm) || 0),
-                  })}
-            </p>
-            <input
-              type="range"
-              min={0}
-              max={MAX_PROFILE_SEARCH_RADIUS_KM}
-              step={MAX_PROFILE_SEARCH_RADIUS_KM > 250 ? 5 : 1}
-              value={Math.min(
-                MAX_PROFILE_SEARCH_RADIUS_KM,
-                Math.max(0, Number(filters.maxDistanceKm) || 0)
-              )}
-              onChange={(e) => setFilters((f) => ({ ...f, maxDistanceKm: e.target.value }))}
-              className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-dark-600 accent-brand-500"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-dark-500 mb-1">{tStr("pages.profiles.sortLabel")}</label>
-            <select
-              value={filters.sortBy}
-              onChange={(e) => setFilters((f) => ({ ...f, sortBy: e.target.value }))}
-              className="bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-            >
-              <option value="online">{tStr("pages.profiles.sortOnline")}</option>
-              <option value="recommended">{tStr("pages.profiles.sortRecommended")}</option>
-              <option value="distance">{tStr("pages.profiles.sortDistance")}</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-dark-500 mb-1">{tStr("pages.discover.countryLabel")}</label>
-            <input
-              type="text"
-              placeholder={tStr("pages.discover.countryPlaceholder")}
-              value={filters.country}
-              onChange={(e) => setFilters((f) => ({ ...f, country: e.target.value }))}
-              className="w-28 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 text-sm placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-dark-500 mb-1">{tStr("pages.discover.cityLabel")}</label>
-            <input
-              type="text"
-              list={`search-city-hints-${locale}`}
-              placeholder={tStr("pages.discover.cityPlaceholder")}
-              value={filters.city}
-              onChange={(e) => setFilters((f) => ({ ...f, city: e.target.value }))}
-              className="w-36 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 text-sm placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
-            />
-            <datalist id={`search-city-hints-${locale}`}>
-              {SEARCH_CITY_HINTS[locale].map((c) => (
-                <option key={c} value={c} />
-              ))}
-            </datalist>
-          </div>
-        </div>
-      </div>
+      {filtersReady ? (
+      <SharedSearchFiltersPanel
+        filters={filters}
+        onApply={setFilters}
+        locale={locale}
+        tStr={tStr}
+        showSortBy
+        onReset={resetFilters}
+        onFilterPending={onFilterPending}
+      />
+      ) : null}
 
       <DiebelAppPromoCarousel />
+      <AdSlot variant="strip" />
       <div className="flex flex-wrap gap-4 mb-6 text-xs text-dark-500">
         {LEGEND_KEYS.map((key) => {
           const color = FRIEND_CARD_COLORS[key as keyof typeof FRIEND_CARD_COLORS];
@@ -330,11 +346,20 @@ export default function ProfilesPage() {
         <span>{tStr("pages.discover.distanceNote")}</span>
       </div>
 
-      {loading ? (
+      {loading && profiles.length === 0 ? (
         <AppProLoading variant="profiles" label={tStr("pages.profiles.loading")} className="py-16" />
       ) : profiles.length === 0 ? (
         <div className="app-pro-empty">
           <p className="app-pro-lead">{tStr("pages.profiles.empty")}</p>
+          {filtersActive ? (
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="mt-3 h-11 rounded-lg border border-dark-600 bg-dark-700 px-4 text-sm text-dark-400 hover:bg-dark-600 hover:text-brand-400 transition touch-manipulation"
+            >
+              {tStr("pages.discover.showAllUsers")}
+            </button>
+          ) : null}
         </div>
       ) : (
         <>
@@ -343,14 +368,18 @@ export default function ProfilesPage() {
           <h3 className="text-sm font-semibold text-dark-300 mb-3">{tStr("pages.profiles.previewTitle")}</h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 max-w-md">
             <div className="border rounded-2xl overflow-hidden flex flex-col bg-dark-800 border-dark-600">
-              <div className="w-full h-32 bg-dark-700 overflow-hidden">
+              <div className="relative w-full aspect-[4/5] bg-dark-700 overflow-hidden">
                 <SilhouetteAvatar
-                  photoUrl={me.photos?.[0]}
+                  photoUrl={getFirstUsableProfilePhotoUrl(me.photos)}
                   gender={me.gender}
                   name={me.name}
                   shape="rectangle"
-                  className="w-full h-32"
-                  imgClassName="w-full h-32 object-cover"
+                  className="w-full h-full"
+                  imgClassName="w-full h-full object-cover object-[center_18%]"
+                />
+                <ProfilePhotoCountBars
+                  count={getUsableProfilePhotoUrls(me.photos).length}
+                  compact
                 />
               </div>
               <div className="flex-1 min-w-0 p-4">
@@ -409,48 +438,63 @@ export default function ProfilesPage() {
           return (
           <div
             key={u.id}
+            id={listItemDomId(SCROLL_KEY, u.id)}
+            data-list-item={u.id}
             className={`rounded-2xl overflow-hidden card-hover flex flex-col ${!border ? "bg-dark-800 border border-dark-600" : "border"}`}
             style={borderStyle}
           >
             <Link
               href={`/app/user/${u.id}`}
+              scroll={false}
+              onClick={() => rememberPlaceBeforeProfile(u.id)}
               className="block flex-1 min-w-0 cursor-pointer text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-dark-900 rounded-t-2xl group"
               aria-label={formatTpl(tStr("pages.profiles.viewProfileAria"), {
                 name: displayName(u.username ?? u.name),
               })}
             >
               <div
-                className={`w-full h-32 bg-dark-700 overflow-hidden transition-[filter] group-hover:brightness-110 ${
+                className={`relative w-full aspect-[4/5] bg-dark-700 overflow-hidden transition-[filter] group-hover:brightness-110 ${
                   statusKey === "notVisited" ? "brightness-[0.9] saturate-[0.95]" : ""
                 }`}
               >
                 <SilhouetteAvatar
-                  photoUrl={u.photos?.[0]}
+                  photoUrl={getFirstUsableProfilePhotoUrl(u.photos)}
                   gender={u.gender}
                   name={u.name}
                   shape="rectangle"
-                  className="w-full h-32"
-                  imgClassName="w-full h-32 object-cover"
+                  className="w-full h-full"
+                  imgClassName="w-full h-full object-cover object-[center_18%]"
+                />
+                <ProfilePhotoCountBars
+                  count={getUsableProfilePhotoUrls(u.photos).length}
+                  compact
                 />
               </div>
-              <div className="flex-1 min-w-0 p-4">
-                <p className="font-semibold text-zinc-900 truncate group-hover:text-brand-600 transition-colors">{displayName(u.username ?? u.name)}</p>
+              <div className="flex-1 min-w-0 px-3 pt-2.5 pb-2">
+                <div className="flex items-start justify-between gap-2 min-w-0">
+                  <p className="font-semibold text-zinc-900 truncate group-hover:text-brand-600 transition-colors leading-tight">
+                    {displayName(u.username ?? u.name)}
+                  </p>
+                  {u.online ? (
+                    <span
+                      className="shrink-0 inline-block w-2 h-2 rounded-full mt-1.5"
+                      style={{ backgroundColor: PROFILE_STATE_COLORS.online }}
+                      title={tStr("pages.messages.online")}
+                      aria-label={tStr("pages.messages.online")}
+                    />
+                  ) : null}
+                </div>
                 {statusLabel && (
-                  <p className="text-xs mt-0.5 flex items-center gap-1 font-medium" style={{ color: stateColor || border || undefined }}>
+                  <p className="text-[11px] mt-0.5 flex items-center gap-1 font-medium truncate" style={{ color: stateColor || border || undefined }}>
                     {IconComp && (
                       <span className="shrink-0" style={{ color: stateColor || border || undefined }}>
-                        <IconComp className="w-3.5 h-3.5" />
+                        <IconComp className="w-3 h-3" />
                       </span>
                     )}
                     {statusLabel}
                   </p>
                 )}
-                {u.bio?.trim() && (
-                  <p className="text-sm text-dark-500 mt-1 line-clamp-2">
-                    {u.bio.trim()}
-                  </p>
-                )}
-                <p className="text-xs text-dark-400 mt-1 flex flex-wrap gap-x-2 gap-y-0">
+                <p className="text-[11px] text-dark-400 mt-1 flex flex-wrap gap-x-1.5 gap-y-0 leading-snug">
                   {u.age != null && (
                     <span>{formatTpl(tStr("pages.profiles.ageYears"), { n: u.age })}</span>
                   )}
@@ -463,73 +507,59 @@ export default function ProfilesPage() {
                           : tStr("pages.discover.genderOther")}
                     </span>
                   )}
-                  {u.height != null && <span>{u.height} cm</span>}
-                  {u.eyeColor && (
-                    <span>{formatTpl(tStr("pages.discover.eyePrefix"), { v: u.eyeColor })}</span>
-                  )}
-                  {u.hairColor && (
-                    <span>{formatTpl(tStr("pages.discover.hairPrefix"), { v: u.hairColor })}</span>
-                  )}
                   {u.city && <span>{u.city}</span>}
                   <span title={tStr("pages.profiles.distanceTitle")}>{getDistanceDisplay(u)}</span>
                 </p>
               </div>
             </Link>
-            <div className="flex flex-wrap items-center justify-between gap-2 px-4 pb-4 pt-3 border-t border-dark-600">
-              <div className="flex items-center gap-2 shrink-0">
-                <AddFriendButton
-                  userId={u.id}
-                  friendStatus={u.friendStatus ?? null}
-                  onStatusChange={() => {
-                    fetchWithAuthRetry(`/api/profiles${buildDiscoverApiQuery(filters)}`, { cache: "no-store" })
-                      .then(async (res) => res.ok && (await res.json()).profiles)
-                      .then((list) => list && setProfiles(list));
-                  }}
-                  variant="small"
-                />
-                <span
-                  className="text-xs"
-                  style={{ color: u.online ? PROFILE_STATE_COLORS.online : PROFILE_STATE_COLORS.notVisited }}
-                  title={u.online ? tStr("pages.messages.online") : tStr("pages.messages.offline")}
-                >
-                  <span
-                    className="inline-block w-2 h-2 rounded-full mr-1 align-middle"
-                    style={{ backgroundColor: u.online ? PROFILE_STATE_COLORS.online : PROFILE_STATE_COLORS.notVisited }}
-                  />
-                  {u.online ? tStr("pages.messages.online") : tStr("pages.messages.offline")}
-                </span>
-              </div>
-              <div className="flex items-center gap-1">
-                <QuickCallButtons toUserId={u.id} size="sm" />
-                <button
-                  onClick={() => handleDelete(u.id)}
-                  className="p-2 rounded-lg text-red-400 hover:bg-red-500/20 transition"
-                  title={tStr("pages.profiles.deleteFromList")}
-                >
-                  <Trash2 className="w-5 h-5" />
-                </button>
+            <div className="px-2.5 pb-2.5 pt-2 border-t border-dark-600/80 flex flex-col gap-1.5">
+              <AddFriendButton
+                userId={u.id}
+                friendStatus={u.friendStatus ?? null}
+                onStatusChange={() => {
+                  fetchWithAuthRetry(`/api/profiles${buildDiscoverApiQuery(filters)}`, { cache: "no-store" })
+                    .then(async (res) => res.ok && (await res.json()).profiles)
+                    .then((list) => list && setProfiles(list));
+                }}
+                variant="small"
+                className="w-full justify-center"
+              />
+              <div className="grid grid-cols-6 gap-1">
+                <QuickCallButtons toUserId={u.id} size="toolbar" />
                 <Link
                   href={`/app/chat/${u.id}`}
-                  className="p-2 rounded-lg text-brand-400 hover:bg-brand-500/20 transition"
+                  className="flex h-9 w-full items-center justify-center rounded-lg text-brand-400 bg-brand-500/10 hover:bg-brand-500/20 border border-brand-500/25 transition touch-manipulation"
                   title={tStr("pages.profiles.sendMessageTitle")}
+                  aria-label={tStr("pages.profiles.sendMessageTitle")}
                 >
-                  <MessageCircle className="w-5 h-5" />
+                  <MessageCircle className="w-4 h-4" />
                 </Link>
                 <button
                   type="button"
                   onClick={() => handleBlock(u.id)}
-                  className="p-2 rounded-lg text-amber-400 hover:bg-amber-500/20 transition"
+                  className="flex h-9 w-full items-center justify-center rounded-lg text-amber-500 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/25 transition touch-manipulation"
                   title={tStr("pages.profiles.blockUserTitle")}
+                  aria-label={tStr("pages.profiles.blockUserTitle")}
                 >
-                  <ShieldOff className="w-5 h-5" />
+                  <ShieldOff className="w-4 h-4" />
                 </button>
                 <button
                   type="button"
                   onClick={() => handleReport(u.id)}
-                  className="p-2 rounded-lg text-dark-400 hover:bg-dark-600 transition"
+                  className="flex h-9 w-full items-center justify-center rounded-lg text-dark-400 bg-dark-700/80 hover:bg-dark-600 border border-dark-600 transition touch-manipulation"
                   title={tStr("pages.profiles.reportTitle")}
+                  aria-label={tStr("pages.profiles.reportTitle")}
                 >
-                  <Flag className="w-5 h-5" />
+                  <Flag className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDelete(u.id)}
+                  className="flex h-9 w-full items-center justify-center rounded-lg text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/25 transition touch-manipulation"
+                  title={tStr("pages.profiles.deleteFromList")}
+                  aria-label={tStr("pages.profiles.deleteFromList")}
+                >
+                  <Trash2 className="w-4 h-4" />
                 </button>
               </div>
             </div>

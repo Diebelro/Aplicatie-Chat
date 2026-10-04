@@ -29,8 +29,13 @@ import { clearChatDraft, readChatDraft, writeChatDraft } from "@/lib/formDrafts"
 import { useI18n } from "@/lib/i18n/context";
 import { formatTpl } from "@/lib/i18n/formatTpl";
 import { translateApiErrorMessage } from "@/lib/i18n/translateApiError";
+import { presenceKind } from "@/lib/presenceLabel";
 import type { Locale } from "@/lib/i18n/types";
-import { isAllowedAttachmentType, isVideoContentType } from "@/lib/chatAttachments";
+import {
+  isAllowedAttachmentType,
+  isVideoContentType,
+  resolveAttachmentContentType,
+} from "@/lib/chatAttachments";
 import { AppProLoading } from "@/components/AppProLoading";
 import { SilhouetteAvatar } from "@/components/SilhouetteAvatar";
 
@@ -41,6 +46,9 @@ const MAX_ATTACH_MB = 25;
 function intlTagForLocale(locale: Locale): string {
   if (locale === "en") return "en-US";
   if (locale === "de") return "de-DE";
+  if (locale === "fr") return "fr-FR";
+  if (locale === "it") return "it-IT";
+  if (locale === "es") return "es-ES";
   return "ro-RO";
 }
 
@@ -228,6 +236,7 @@ export default function ChatPage() {
   const locationSharePendingRef = useRef<{ backupText: string; fromId: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textInputRef = useRef<HTMLInputElement>(null);
+  const composeBarRef = useRef<HTMLFormElement>(null);
   /** Doar zona listei de mesaje — evită scrollIntoView care poate derula tot viewport-ul și ascunde câmpul de scris. */
   const messagesScrollRef = useRef<HTMLDivElement>(null);
   const initialScrollDoneRef = useRef(false);
@@ -255,6 +264,89 @@ export default function ChatPage() {
       chatPageLiveRef.current = false;
     };
   }, []);
+
+  /** Tastatură mobil / WebView: ridică compozitorul deasupra barei de jos. */
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    const vv = window.visualViewport;
+    const sync = () => {
+      if (!vv) {
+        root.style.removeProperty("--keyboard-inset");
+        root.classList.remove("chat-keyboard-open");
+        return;
+      }
+      let inset = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+      if (inset < 24 && vv.offsetTop > 12) {
+        inset = Math.round(vv.offsetTop);
+      }
+      if (inset > 20) {
+        root.style.setProperty("--keyboard-inset", `${inset}px`);
+        root.classList.add("chat-keyboard-open");
+      } else {
+        root.style.removeProperty("--keyboard-inset");
+        root.classList.remove("chat-keyboard-open");
+      }
+    };
+    sync();
+    vv?.addEventListener("resize", sync);
+    vv?.addEventListener("scroll", sync);
+    window.addEventListener("focusin", sync);
+    window.addEventListener("orientationchange", sync);
+    return () => {
+      vv?.removeEventListener("resize", sync);
+      vv?.removeEventListener("scroll", sync);
+      window.removeEventListener("focusin", sync);
+      window.removeEventListener("orientationchange", sync);
+      root.style.removeProperty("--keyboard-inset");
+      root.classList.remove("chat-keyboard-open");
+    };
+  }, []);
+
+  /** Înălțime bară compozitor — padding la lista de mesaje ca ultimul mesaj să rămână vizibil. */
+  useLayoutEffect(() => {
+    const bar = composeBarRef.current;
+    if (!bar) return;
+    const apply = () => {
+      document.documentElement.style.setProperty("--chat-compose-height", `${bar.offsetHeight}px`);
+    };
+    apply();
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(apply) : null;
+    ro?.observe(bar);
+    window.addEventListener("resize", apply);
+    return () => {
+      ro?.disconnect();
+      window.removeEventListener("resize", apply);
+    };
+  }, [otherId]);
+
+  /** Tastatură: menține lista de mesaje vizibilă deasupra inputului. */
+  useEffect(() => {
+    const input = textInputRef.current;
+    const list = messagesScrollRef.current;
+    if (!input || !list) return;
+    const pinBottom = () => {
+      requestAnimationFrame(() => {
+        list.scrollTop = list.scrollHeight;
+      });
+    };
+    const onFocus = () => {
+      pinBottom();
+      window.setTimeout(() => {
+        try {
+          input.scrollIntoView({ block: "end", behavior: "instant" in document.documentElement.style ? "instant" : "auto" });
+        } catch {
+          input.scrollIntoView({ block: "end" });
+        }
+        pinBottom();
+      }, 280);
+    };
+    input.addEventListener("focus", onFocus);
+    window.visualViewport?.addEventListener("resize", pinBottom);
+    return () => {
+      input.removeEventListener("focus", onFocus);
+      window.visualViewport?.removeEventListener("resize", pinBottom);
+    };
+  }, [otherId]);
 
   const meRaw = typeof window !== "undefined" ? getStoredUserRaw() : null;
   const me: User | null = meRaw ? (() => { try { return JSON.parse(meRaw); } catch { return null; } })() : null;
@@ -496,9 +588,14 @@ export default function ChatPage() {
       startPoll();
     }
     document.addEventListener("visibilitychange", onVisibility);
+    const onPollSync = () => {
+      tick();
+    };
+    window.addEventListener("align:poll-sync", onPollSync);
     return () => {
       clearPoll();
       document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("align:poll-sync", onPollSync);
     };
   }, [otherId, loading, fetchMessages]);
 
@@ -769,7 +866,8 @@ export default function ChatPage() {
       setSendError(formatTpl(tStr("pages.chat.fileTooBig"), { mb: MAX_ATTACH_MB }));
       return;
     }
-    if (!isAllowedAttachmentType(file.type)) {
+    const resolvedType = resolveAttachmentContentType(file);
+    if (!isAllowedAttachmentType(resolvedType)) {
       setIsPaywallError(false);
       setSendError(tStr("pages.chat.fileTypeNotAllowed"));
       return;
@@ -787,12 +885,16 @@ export default function ChatPage() {
       const data = await res.json();
       if (res.ok && data.url && data.contentType) {
         const previewUrl =
-          file.type.startsWith("image/") || file.type.startsWith("video/")
+          resolvedType.startsWith("image/") || resolvedType.startsWith("video/")
             ? URL.createObjectURL(file)
             : undefined;
         setPendingAttachment((prev) => {
           if (prev?.previewUrl) URL.revokeObjectURL(prev.previewUrl);
-          return { url: data.url as string, contentType: data.contentType as string, previewUrl };
+          return {
+            url: data.url as string,
+            contentType: (data.contentType as string) || resolvedType,
+            previewUrl,
+          };
         });
       } else {
         setIsPaywallError(false);
@@ -1023,6 +1125,7 @@ export default function ChatPage() {
   const displayNameStr = otherUser ? displayName(otherUser.username ?? otherUser.name) : tStr("pages.chat.profileFallback");
   const distanceStr =
     other && typeof other.distanceKm === "number" ? formatChatDistanceKm(other.distanceKm, locale, tStr) : null;
+  const otherPresence = presenceKind(other?.online, other?.lastActivityAt);
 
   const locShareDialogTheme = locationShareConfirmTheme(me?.gender, other?.gender);
 
@@ -1035,7 +1138,7 @@ export default function ChatPage() {
   const composerLocked = conversationBlocked;
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 w-full min-w-0 max-w-full">
+    <div className="chat-screen">
       {locationShareConfirmOpen && (
         <div
           className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/40 backdrop-blur-[2px]"
@@ -1076,49 +1179,77 @@ export default function ChatPage() {
           </div>
         </div>
       )}
-      <div className="flex items-center gap-2.5 py-2 border-b border-dark-600 shrink-0 min-w-0 w-full">
+      <div className="chat-screen-header flex items-center gap-2 py-2 pl-[max(0.5rem,var(--safe-area-inset-left))] pr-[max(0.5rem,var(--safe-area-inset-right))] pt-[max(0.5rem,var(--safe-area-inset-top))] border-b border-dark-600/70 shrink-0 min-w-0 w-full bg-dark-900 shadow-sm">
         <Link
           href="/app/messages"
-          className="app-icon-btn text-dark-500 hover:text-zinc-900 hover:bg-dark-800/80 active:bg-dark-800"
+          className="app-icon-btn text-dark-400 hover:text-zinc-900 hover:bg-dark-700/80 active:bg-dark-700 shrink-0"
           aria-label={tStr("pages.chat.backAria")}
         >
           ←
         </Link>
         {otherUser ? (
-          <div className="app-avatar-wrap w-9 h-9 shrink-0">
-            <div className="app-avatar-media">
-              <SilhouetteAvatar
-                photoUrl={otherUser.photos?.[0]}
-                gender={otherUser.gender}
-                name={otherUser.name}
-                className="w-full h-full text-brand-400"
-                imgClassName="w-full h-full object-cover"
-              />
+          <Link
+            href={`/app/user/${otherUser.id}`}
+            className="flex min-w-0 flex-1 items-center gap-2 touch-manipulation rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40"
+            aria-label={formatTpl(tStr("pages.messages.viewProfileAria"), { name: displayNameStr })}
+            title={tStr("pages.messages.viewProfileTitle")}
+          >
+            <div className="app-avatar-wrap w-10 h-10 shrink-0">
+              <div className="app-avatar-media">
+                <SilhouetteAvatar
+                  photoUrl={otherUser.photos?.[0]}
+                  gender={otherUser.gender}
+                  name={otherUser.name}
+                  className="w-full h-full text-brand-400"
+                  imgClassName="w-full h-full object-cover"
+                />
+              </div>
             </div>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-[15px] font-semibold truncate leading-tight text-zinc-900 flex items-center gap-2">
+                <span className="truncate">{displayNameStr}</span>
+                {areFriends && otherPresence === "online" ? (
+                  <span
+                    className="shrink-0 inline-block w-2 h-2 rounded-full bg-green-400"
+                    title={tStr("pages.messages.online")}
+                    aria-label={tStr("pages.messages.online")}
+                  />
+                ) : null}
+              </h2>
+              {distanceStr != null ? (
+                <p className="text-[11px] text-dark-500 truncate">{distanceStr}</p>
+              ) : null}
+            </div>
+          </Link>
+        ) : (
+          <div className="min-w-0 flex-1">
+            <h2 className="text-[15px] font-semibold truncate leading-tight text-zinc-900">{displayNameStr}</h2>
+          </div>
+        )}
+        {otherUser && callerId ? (
+          <div className="flex items-center gap-0.5 shrink-0">
+            <button
+              type="button"
+              disabled={composerLocked || !!calling || sending || uploadingAttachment || sendingLocation}
+              onClick={() => void ringAndGoCall(false)}
+              className="flex h-11 w-11 items-center justify-center rounded-lg text-brand-500 hover:bg-brand-500/15 disabled:opacity-50 touch-manipulation"
+              title={tStr("pages.chat.videoCallTitle")}
+              aria-label={tStr("pages.chat.videoCallTitle")}
+            >
+              <Video className="w-5 h-5" />
+            </button>
+            <button
+              type="button"
+              disabled={composerLocked || !!calling || sending || uploadingAttachment || sendingLocation}
+              onClick={() => void ringAndGoCall(true)}
+              className="flex h-11 w-11 items-center justify-center rounded-lg text-sky-600 hover:bg-sky-500/15 disabled:opacity-50 touch-manipulation"
+              title={tStr("pages.chat.audioCallTitle")}
+              aria-label={tStr("pages.chat.audioCallTitle")}
+            >
+              <Phone className="w-5 h-5" />
+            </button>
           </div>
         ) : null}
-        <div className="min-w-0 flex-1">
-          <h2 className="text-base font-semibold truncate leading-tight">{displayNameStr}</h2>
-          <p className="text-[11px] text-dark-500 truncate">
-            {distanceStr != null && <span>{distanceStr}</span>}
-            {areFriends && (
-              <>
-                {distanceStr != null && <span> · </span>}
-                {other?.online ? (
-                  <span className="text-green-400">{tStr("pages.messages.online")}</span>
-                ) : other?.lastActivityAt != null ? (
-                  <span>
-                    {formatTpl(tStr("pages.chat.lastActiveMin"), {
-                      n: Math.floor((Date.now() - other.lastActivityAt) / 60000),
-                    })}
-                  </span>
-                ) : (
-                  <span>{tStr("pages.messages.offline")}</span>
-                )}
-              </>
-            )}
-          </p>
-        </div>
         {callerId ? (
           <button
             type="button"
@@ -1145,7 +1276,7 @@ export default function ChatPage() {
               />
               <div
                 ref={overflowMenuRef}
-                className="fixed inset-x-0 bottom-0 z-[250] max-h-[min(85dvh,520px)] overflow-y-auto overscroll-contain rounded-t-2xl border-t border-dark-600 bg-night-950 shadow-2xl py-2 text-sm text-zinc-100 pb-app-nav sm:pb-4 lg:inset-x-auto lg:right-4 lg:bottom-4 lg:left-auto lg:w-[min(100vw-2rem,22rem)] lg:max-h-[min(70dvh,480px)] lg:rounded-2xl lg:border lg:pb-4"
+                className="fixed inset-x-0 bottom-0 z-[250] max-h-[min(85dvh,520px)] overflow-y-auto overscroll-contain rounded-t-2xl border-t border-dark-600 bg-night-950 shadow-2xl py-2 text-sm text-zinc-100 pb-[max(1rem,var(--safe-area-inset-bottom))] sm:pb-4 lg:inset-0 lg:m-auto lg:h-fit lg:bottom-auto lg:w-[min(100vw-2rem,24rem)] lg:max-h-[min(70dvh,480px)] lg:rounded-2xl lg:border lg:pb-4"
                 role="dialog"
                 aria-modal="true"
                 aria-label={tStr("pages.chat.overflowMenuAria")}
@@ -1153,6 +1284,16 @@ export default function ChatPage() {
                 <div className="flex justify-center pt-1 pb-2 lg:hidden" aria-hidden>
                   <span className="h-1 w-10 rounded-full bg-dark-600" />
                 </div>
+                  {otherUser ? (
+                    <Link
+                      href={`/app/user/${otherUser.id}`}
+                      role="menuitem"
+                      className="block w-full px-3 py-2.5 text-left hover:bg-dark-800/90"
+                      onClick={() => setChatOverflowOpen(false)}
+                    >
+                      {tStr("pages.chat.viewProfile")}
+                    </Link>
+                  ) : null}
                   {otherUser ? (
                     <button
                       type="button"
@@ -1206,7 +1347,7 @@ export default function ChatPage() {
                             <button
                               type="button"
                               disabled={actionBusy}
-                              className="shrink-0 rounded-lg border border-dark-500 px-2 py-1 text-[11px] font-medium text-amber-200/95 hover:bg-dark-700 disabled:opacity-50"
+                              className="inline-flex min-h-[44px] shrink-0 items-center rounded-lg border border-dark-500 px-3 py-2 text-xs font-medium text-amber-200/95 hover:bg-dark-700 disabled:opacity-50 touch-manipulation"
                               onClick={async () => {
                                 const name = blockedRowLabel(row);
                                 if (!confirm(formatTpl(tStr("pages.chat.unblockConfirm"), { name }))) return;
@@ -1345,8 +1486,9 @@ export default function ChatPage() {
 
       <div
         ref={messagesScrollRef}
-        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-1.5 sm:px-2 pt-2 pb-3 space-y-3 overscroll-contain scrollbar-app"
+        className="chat-messages px-1.5 sm:px-2 pt-1.5 pb-2 scrollbar-app"
       >
+        <div className="mx-auto flex w-full max-w-3xl flex-col space-y-2.5">
         {fetchError && (
           <p className="text-amber-400 text-sm px-2 py-1 rounded bg-amber-500/10" role="alert">
             {fetchError}
@@ -1368,10 +1510,12 @@ export default function ChatPage() {
         {messages.map((m) => {
           const fromId = m.fromId != null ? String(m.fromId) : "";
           const isPlatform = !!m.isPlatformNotice;
+          /** Chat 1:1: dacă nu știm încă ID-ul nostru, mesajul care NU e de la celălalt e al meu — evită afișarea pe stânga la încărcare. */
           const isMe =
             !isPlatform &&
-            myIdForTicks !== "" &&
-            sameUserId(fromId, myIdForTicks);
+            (myIdForTicks !== ""
+              ? sameUserId(fromId, myIdForTicks)
+              : fromId !== "" && !sameUserId(fromId, otherId));
           const status = String(m.status ?? "").trim().toUpperCase();
           const isRead = status === "SEEN" || !!m.seenAt;
           const showTick = isMe;
@@ -1521,11 +1665,13 @@ export default function ChatPage() {
             </div>
           );
         })}
+        </div>
       </div>
 
       <form
+        ref={composeBarRef}
         onSubmit={sendMessage}
-        className="chat-compose-form flex flex-col gap-2 pt-2 shrink-0 w-full min-w-0 max-w-full px-1 sm:px-0 pb-[max(0.25rem,var(--safe-area-inset-bottom))] border-t border-dark-600/50 bg-dark-900/50"
+        className="chat-input-bar flex flex-col gap-1 shrink-0 w-full min-w-0 max-w-full px-1 sm:px-0 border-t border-dark-600/50 bg-dark-900"
       >
         {sendError ? (
           <div className="chat-compose-status border-red-500/35 bg-red-500/10 text-red-400" role="alert">
@@ -1581,14 +1727,14 @@ export default function ChatPage() {
                   return null;
                 })
               }
-              className="p-1 rounded hover:bg-dark-600 text-dark-400"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-dark-600 text-dark-400 touch-manipulation"
               aria-label={tStr("pages.chat.removeAttachmentAria")}
             >
               <X className="w-4 h-4" />
             </button>
           </div>
         )}
-        <div className="flex w-full min-w-0 max-w-full flex-col gap-2 sm:flex-row sm:flex-nowrap sm:items-center">
+        <div className="mx-auto flex w-full min-w-0 max-w-3xl items-end gap-1.5">
           <input
             ref={fileInputRef}
             type="file"
@@ -1596,100 +1742,70 @@ export default function ChatPage() {
             onChange={handleFileSelect}
             className="hidden"
           />
-          {/* Pe mobil: unelte pe un rând (centrat, wrap); pe sm+: stânga, compact */}
-          <div className="flex w-full min-w-0 flex-nowrap items-center justify-start gap-1.5 overflow-x-auto scrollbar-app sm:w-auto sm:justify-start sm:shrink-0 sm:gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                if (!uploadConfigured) {
-                  setSendError(tStr("pages.chat.blobConfigHint"));
-                  setIsPaywallError(false);
-                  return;
-                }
-                fileInputRef.current?.click();
-              }}
-              disabled={composerLocked || uploadingAttachment || sending || sendingLocation}
-              className={`min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-dark-700 hover:bg-dark-600 active:bg-dark-600 text-dark-300 disabled:opacity-50 transition shrink-0 touch-manipulation ${!uploadConfigured ? "opacity-60" : ""}`}
-              title={
-                uploadConfigured
-                  ? formatTpl(tStr("pages.chat.attachTitleOk"), { mb: MAX_ATTACH_MB })
-                  : tStr("pages.chat.attachTitleNoBlob")
+          <button
+            type="button"
+            onClick={() => {
+              if (!uploadConfigured) {
+                setSendError(tStr("pages.chat.blobConfigHint"));
+                setIsPaywallError(false);
+                return;
               }
-              aria-label={tStr("pages.chat.attachAria")}
-            >
-              <Paperclip className="w-5 h-5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => shareCurrentLocation()}
-              disabled={composerLocked || uploadingAttachment || sending || sendingLocation}
-              className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-dark-700 hover:bg-dark-600 active:bg-dark-600 text-emerald-400 disabled:opacity-50 transition shrink-0 touch-manipulation"
-              title={tStr("pages.chat.sendLocationTitle")}
-              aria-label={tStr("pages.chat.sendLocationAria")}
-            >
-              {sendingLocation ? (
-                <Loader2 className="w-5 h-5 animate-spin" strokeWidth={2.25} aria-hidden />
-              ) : (
-                <MapPin className="w-5 h-5" aria-hidden />
-              )}
-            </button>
-            {otherUser && callerId && (
-              <>
-                <button
-                  type="button"
-                  disabled={composerLocked || !!calling || sending || uploadingAttachment || sendingLocation}
-                  onClick={() => void ringAndGoCall(false)}
-                  className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-brand-500/25 text-brand-400 hover:bg-brand-500/35 border border-brand-500/40 disabled:opacity-50 transition shrink-0 touch-manipulation"
-                  title={tStr("pages.chat.videoCallTitle")}
-                  aria-label={tStr("pages.chat.videoCallTitle")}
-                >
-                  <Video className="w-5 h-5" />
-                </button>
-                <button
-                  type="button"
-                  disabled={composerLocked || !!calling || sending || uploadingAttachment || sendingLocation}
-                  onClick={() => void ringAndGoCall(true)}
-                  className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-sky-500/15 text-sky-600 hover:bg-sky-500/25 border border-sky-500/40 disabled:opacity-50 transition shrink-0 touch-manipulation"
-                  title={tStr("pages.chat.audioCallTitle")}
-                  aria-label={tStr("pages.chat.audioCallTitle")}
-                >
-                  <Phone className="w-5 h-5" />
-                </button>
-              </>
+              fileInputRef.current?.click();
+            }}
+            disabled={composerLocked || uploadingAttachment || sending || sendingLocation}
+            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-dark-700 hover:bg-dark-600 text-dark-300 disabled:opacity-50 touch-manipulation ${!uploadConfigured ? "opacity-60" : ""}`}
+            title={
+              uploadConfigured
+                ? formatTpl(tStr("pages.chat.attachTitleOk"), { mb: MAX_ATTACH_MB })
+                : tStr("pages.chat.attachTitleNoBlob")
+            }
+            aria-label={tStr("pages.chat.attachAria")}
+          >
+            <Paperclip className="w-5 h-5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => shareCurrentLocation()}
+            disabled={composerLocked || uploadingAttachment || sending || sendingLocation}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-dark-700 hover:bg-dark-600 text-emerald-500 disabled:opacity-50 touch-manipulation"
+            title={tStr("pages.chat.sendLocationTitle")}
+            aria-label={tStr("pages.chat.sendLocationAria")}
+          >
+            {sendingLocation ? (
+              <Loader2 className="w-5 h-5 animate-spin" strokeWidth={2.25} aria-hidden />
+            ) : (
+              <MapPin className="w-5 h-5" aria-hidden />
             )}
-          </div>
-          {/* Câmp + trimite: întotdeauna un rând propriu pe mobil (lățime completă), ca Send să rămână vizibil */}
-          <div className="flex min-w-0 flex-1 gap-2 items-stretch sm:min-w-0">
-            <input
-              ref={textInputRef}
-              type="text"
-              value={text}
-              onChange={(e) => {
-                setText(e.target.value);
-                setSendError(null);
-                setChatInfoMessage(null);
-              }}
-              placeholder={tStr("pages.chat.placeholder")}
-              disabled={composerLocked}
-              className="min-w-0 flex-1 min-h-[44px] text-base bg-dark-800 border border-dark-600 rounded-xl px-3 sm:px-4 py-3 text-zinc-900 placeholder:text-dark-400 focus:outline-none focus:ring-2 focus:ring-brand-500 touch-manipulation disabled:opacity-55"
-              autoComplete="off"
-              enterKeyHint="send"
-            />
-            <button
-              type="submit"
-              disabled={
-                composerLocked ||
-                (!text.trim() && !pendingAttachment) ||
-                sending ||
-                uploadingAttachment ||
-                sendingLocation
-              }
-              className="min-h-[44px] min-w-[48px] sm:min-w-[44px] flex items-center justify-center rounded-xl bg-brand-500 hover:bg-brand-400 active:bg-brand-400 text-dark-900 disabled:opacity-50 transition shrink-0 touch-manipulation px-3 sm:px-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-dark-900"
-              aria-label={tStr("pages.chat.sendAria")}
-            >
-              <Send className="w-5 h-5 shrink-0" />
-            </button>
-          </div>
+          </button>
+          <input
+            ref={textInputRef}
+            type="text"
+            value={text}
+            onChange={(e) => {
+              setText(e.target.value);
+              setSendError(null);
+              setChatInfoMessage(null);
+            }}
+            placeholder={tStr("pages.chat.placeholder")}
+            disabled={composerLocked}
+            className="min-w-0 flex-1 min-h-[44px] max-h-28 text-base bg-dark-800 border border-dark-600 rounded-full px-4 py-2 text-zinc-900 placeholder:text-dark-400 focus:outline-none focus:ring-2 focus:ring-brand-500 touch-manipulation disabled:opacity-55"
+            autoComplete="off"
+            enterKeyHint="send"
+          />
+          <button
+            type="submit"
+            disabled={
+              composerLocked ||
+              (!text.trim() && !pendingAttachment) ||
+              sending ||
+              uploadingAttachment ||
+              sendingLocation
+            }
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-500 hover:bg-brand-400 active:bg-brand-400 text-dark-900 disabled:opacity-50 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/60"
+            aria-label={tStr("pages.chat.sendAria")}
+          >
+            <Send className="w-5 h-5 shrink-0" />
+          </button>
         </div>
       </form>
     </div>

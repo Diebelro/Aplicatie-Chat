@@ -184,7 +184,9 @@ function SignUpContent() {
             ? "pages.signup.usernameTooShort"
             : r === "too_long"
               ? "pages.signup.usernameTooLong"
-              : "pages.signup.usernameInvalid"
+              : r === "obscene"
+                ? "pages.signup.usernameObscene"
+                : "pages.signup.usernameInvalid"
         )
       );
       return;
@@ -283,19 +285,22 @@ function SignUpContent() {
         </div>
         <p className="ui-helper-text text-center mt-2">{tStr("pages.signup.socialSoon")}</p>
 
-        <form onSubmit={handleSubmit} className="space-y-4 mt-3">
+        <form onSubmit={handleSubmit} className="space-y-4 mt-3" autoComplete="off">
           <div>
             <label htmlFor="signup-email" className="ui-form-label block text-xs mb-1">
               {tStr("pages.signup.emailLabel")}
             </label>
             <input
               id="signup-email"
+              name="diebel-email-field"
               type="email"
               placeholder={tStr("pages.signup.emailPlaceholder")}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              autoComplete="email"
+              autoComplete="off"
+              data-lpignore="true"
+              data-form-type="other"
               className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-zinc-900 placeholder:text-dark-400 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
             {emailCheck === "available" && (
@@ -315,16 +320,20 @@ function SignUpContent() {
             <label htmlFor="signup-username" className="ui-form-label block text-xs mb-1">
               {tStr("pages.signup.usernameLabel")}
             </label>
+            {/* Chrome ignoră autoComplete="off" — "new-password" sau câmp cu name aleatoriu previn autofill-ul */}
             <input
               id="signup-username"
+              name="diebel-username-field"
               type="text"
               placeholder={tStr("pages.signup.usernamePlaceholder")}
               value={username}
-              onChange={(e) => setUsername(e.target.value.replace(/\s/g, ""))}
+              onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z]/g, ""))}
               required
               minLength={2}
               maxLength={30}
-              autoComplete="username"
+              autoComplete="new-password"
+              data-lpignore="true"
+              data-form-type="other"
               className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-zinc-900 placeholder:text-dark-400 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
             <p className="text-dark-500 text-xs mt-1">{tStr("pages.signup.usernameHelp")}</p>
@@ -353,7 +362,7 @@ function SignUpContent() {
             <button
               type="button"
               onClick={() => setShowPassword((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-500 hover:text-zinc-900 transition p-1 rounded"
+              className="absolute right-1 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-lg text-dark-500 hover:text-zinc-900 transition touch-manipulation outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
               aria-label={showPassword ? tStr("pages.signup.hidePassword") : tStr("pages.signup.showPassword")}
             >
               {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -373,7 +382,7 @@ function SignUpContent() {
             <button
               type="button"
               onClick={() => setShowConfirmPassword((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-500 hover:text-zinc-900 transition p-1 rounded"
+              className="absolute right-1 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-lg text-dark-500 hover:text-zinc-900 transition touch-manipulation outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
               aria-label={
                 showConfirmPassword ? tStr("pages.signup.hidePassword") : tStr("pages.signup.showPassword")
               }
@@ -393,6 +402,7 @@ function SignUpContent() {
                     const v = (e.target as HTMLSelectElement).value;
                     if (v !== "") setBirthDay(v);
                   }}
+                  autoComplete="off"
                   className="w-full bg-dark-800 border border-dark-600 rounded-xl px-3 py-3 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
                 >
                   <option value="">{tStr("common.day")}</option>
@@ -410,6 +420,7 @@ function SignUpContent() {
                     const v = (e.target as HTMLSelectElement).value;
                     if (v !== "") setBirthMonth(v);
                   }}
+                  autoComplete="off"
                   className="w-full bg-dark-800 border border-dark-600 rounded-xl px-3 py-3 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
                 >
                   <option value="">{tStr("common.month")}</option>
@@ -427,6 +438,7 @@ function SignUpContent() {
                     const v = (e.target as HTMLSelectElement).value;
                     if (v !== "") setBirthYear(v);
                   }}
+                  autoComplete="off"
                   className="w-full bg-dark-800 border border-dark-600 rounded-xl px-3 py-3 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
                 >
                   <option value="">{tStr("common.year")}</option>
@@ -439,20 +451,43 @@ function SignUpContent() {
             <p className="text-dark-500 text-xs mt-1">{tStr("pages.signup.birthdateHint")}</p>
           </div>
           <div>
-            <label className="ui-form-label block text-sm mb-1">{tStr("pages.signup.genderLabel")}</label>
-            <select
-              value={gender}
-              onChange={(e) => setGender(e.target.value)}
-              className="w-full bg-dark-800 border border-dark-600 rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+            <span className="ui-form-label block text-sm mb-1" id="signup-gender-label">
+              {tStr("pages.signup.genderLabel")}
+            </span>
+            <div
+              className="grid grid-cols-3 gap-2"
+              role="group"
+              aria-labelledby="signup-gender-label"
             >
-              <option value="">{tStr("pages.signup.genderSelect")}</option>
-              <option value="male">{tStr("pages.signup.genderMale")}</option>
-              <option value="female">{tStr("pages.signup.genderFemale")}</option>
-              <option value="other">{tStr("pages.signup.genderOther")}</option>
-            </select>
+              {(
+                [
+                  { value: "female", label: tStr("pages.signup.genderFemale") },
+                  { value: "male", label: tStr("pages.signup.genderMale") },
+                  { value: "other", label: tStr("pages.signup.genderOther") },
+                ] as const
+              ).map((opt) => {
+                const active = gender === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setGender(opt.value)}
+                    className={[
+                      "rounded-xl border px-2 py-3 text-sm font-medium touch-manipulation transition-colors",
+                      active
+                        ? "border-brand-500 bg-brand-500/15 text-brand-700 shadow-sm"
+                        : "border-dark-600 bg-dark-800 text-dark-500 hover:bg-dark-700 hover:text-zinc-900",
+                    ].join(" ")}
+                    aria-pressed={active}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
           {error && (
-            <p className="text-red-400 text-sm">{error}</p>
+            <p className="text-red-400 text-sm break-words" role="alert">{error}</p>
           )}
           {retryAfterSeconds > 0 && (
             <p className="text-dark-500 text-sm">{formatTpl(tStr("pages.signup.retryIn"), { n: retryAfterSeconds })}</p>

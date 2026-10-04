@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isUsernameTaken } from "@/lib/store";
 import { checkRateLimit, getClientIpForRateLimit } from "@/lib/rateLimit";
-
-const USERNAME_MIN = 2;
-const USERNAME_MAX = 30;
-const USERNAME_REGEX = /^[a-zA-Z0-9_.]+$/;
+import { validateUsername, usernameErrorMessage } from "@/lib/usernamePolicy";
+import { isPrismaAvailable, prismaFindUserByUsername } from "@/lib/repo-prisma";
 
 export async function GET(request: NextRequest) {
   const ip = getClientIpForRateLimit(request);
@@ -18,20 +16,18 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ available: false, error: "Lipsește username-ul." });
   }
 
-  const username = String(value).trim();
-  if (username.length < USERNAME_MIN) {
-    return NextResponse.json({ available: false, error: "Username-ul trebuie să aibă cel puțin 2 caractere." });
-  }
-  if (username.length > USERNAME_MAX) {
-    return NextResponse.json({ available: false, error: "Username-ul poate avea maximum 30 de caractere." });
-  }
-  if (!USERNAME_REGEX.test(username)) {
+  const checked = validateUsername(String(value));
+  if (!checked.ok) {
     return NextResponse.json({
       available: false,
-      error: "Doar litere, cifre, punct și liniuță jos.",
+      error: usernameErrorMessage(checked.reason),
     });
   }
 
-  const taken = isUsernameTaken(username, excludeUserId);
+  let taken = isUsernameTaken(checked.value, excludeUserId);
+  if (isPrismaAvailable()) {
+    const existing = await prismaFindUserByUsername(checked.value);
+    taken = !!(existing && existing.id !== excludeUserId);
+  }
   return NextResponse.json({ available: !taken });
 }

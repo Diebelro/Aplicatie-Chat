@@ -143,21 +143,21 @@ export function CookieConsentModal({ onClose, onSave }: CookieConsentModalProps)
             <button
               type="button"
               onClick={acceptAllAndSave}
-              className="px-4 py-2 rounded-xl bg-brand-500 hover:bg-brand-400 text-dark-900 font-medium text-sm transition"
+              className="inline-flex min-h-11 items-center px-4 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-400 text-dark-900 font-medium text-sm transition touch-manipulation outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60"
             >
               {acceptAllLabel}
             </button>
             <button
               type="button"
               onClick={handleSave}
-              className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-medium text-sm transition"
+              className="inline-flex min-h-11 items-center px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-medium text-sm transition touch-manipulation outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60"
             >
               {getCommon("save")}
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl border border-dark-600 text-zinc-600 hover:bg-dark-700 font-medium text-sm transition"
+              className="inline-flex min-h-11 items-center px-4 py-2.5 rounded-xl border border-dark-600 text-zinc-600 hover:bg-dark-700 font-medium text-sm transition touch-manipulation outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60"
             >
               {getCommon("cancel")}
             </button>

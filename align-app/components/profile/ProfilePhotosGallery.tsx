@@ -61,10 +61,10 @@ export function ProfilePhotosGallery({
               <button
                 type="button"
                 onClick={() => onRemove(i)}
-                className="absolute top-1.5 right-1.5 app-touch-target w-8 h-8 min-h-8 min-w-8 rounded-full bg-red-500/95 text-white flex items-center justify-center shadow-md hover:bg-red-500"
+                className="absolute top-1 right-1 flex h-9 w-9 min-h-[36px] min-w-[36px] items-center justify-center rounded-full bg-red-500/95 text-white shadow-md hover:bg-red-500 touch-manipulation"
                 aria-label={tStr("pages.profile.delPhotoAria")}
               >
-                <X className="w-3.5 h-3.5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
             <label className="mt-1.5 flex items-center gap-1.5 cursor-pointer text-xs text-dark-400 hover:text-brand-400 transition">
@@ -84,6 +84,7 @@ export function ProfilePhotosGallery({
             type="button"
             onClick={() => fileInputRef.current?.click()}
             className="h-28 w-28 sm:h-32 sm:w-32 min-h-[44px] min-w-[44px] rounded-xl border-2 border-dashed border-dark-600 flex items-center justify-center text-dark-500 hover:border-brand-500 hover:text-brand-400 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+            aria-label={tStr("pages.profile.addPhotoAria")}
           >
             <Plus className="w-8 h-8" />
           </button>

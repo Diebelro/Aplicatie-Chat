@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { OptimizedImage } from "@/components/OptimizedImage";
 
 const MIN_ZOOM = 1;
@@ -33,6 +33,11 @@ export function ProfilePhotoLightbox({
   scaleRef.current = scale;
   const pinchRef = useRef<{ initialDist: number; initialScale: number } | null>(null);
   const panTouchRef = useRef<{ sx: number; sy: number; px: number; py: number } | null>(null);
+  const swipeRef = useRef<{ x: number; y: number } | null>(null);
+  const indexRef = useRef(index);
+  indexRef.current = index;
+  const photosLenRef = useRef(photos.length);
+  photosLenRef.current = photos.length;
 
   const resetTransform = useCallback(() => {
     setScale(1);
@@ -43,6 +48,7 @@ export function ProfilePhotoLightbox({
     resetTransform();
     pinchRef.current = null;
     panTouchRef.current = null;
+    swipeRef.current = null;
   }, [index, resetTransform]);
 
   useEffect(() => {
@@ -66,10 +72,17 @@ export function ProfilePhotoLightbox({
       const d = touchDistance([e.touches[0], e.touches[1]]);
       pinchRef.current = { initialDist: d || 1, initialScale: scaleRef.current };
       panTouchRef.current = null;
+      swipeRef.current = null;
     } else if (e.touches.length === 1 && scale > 1.02) {
       const t = e.touches[0];
       panTouchRef.current = { sx: t.clientX, sy: t.clientY, px: pan.x, py: pan.y };
       pinchRef.current = null;
+      swipeRef.current = null;
+    } else if (e.touches.length === 1) {
+      const t = e.touches[0];
+      swipeRef.current = { x: t.clientX, y: t.clientY };
+      pinchRef.current = null;
+      panTouchRef.current = null;
     }
   };
 
@@ -89,9 +102,22 @@ export function ProfilePhotoLightbox({
     }
   };
 
-  const onTouchEnd = () => {
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const start = swipeRef.current;
     pinchRef.current = null;
     panTouchRef.current = null;
+    swipeRef.current = null;
+    if (!start || scaleRef.current > 1.02) return;
+    const t = e.changedTouches[0];
+    if (!t) return;
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+    if (Math.abs(dx) < 48 || Math.abs(dx) < Math.abs(dy) * 1.15) return;
+    const i = indexRef.current;
+    const n = photosLenRef.current;
+    if (i == null || n <= 1) return;
+    if (dx < 0 && i < n - 1) setIndex(i + 1);
+    else if (dx > 0 && i > 0) setIndex(i - 1);
   };
 
   const onMouseDownPane = (e: React.MouseEvent) => {
@@ -129,7 +155,15 @@ export function ProfilePhotoLightbox({
     document.body.style.overflow = "hidden";
     document.documentElement.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setIndex(null);
+      if (e.key === "Escape") {
+        setIndex(null);
+        return;
+      }
+      const i = indexRef.current;
+      const n = photosLenRef.current;
+      if (i == null || n <= 1 || scaleRef.current > 1.02) return;
+      if (e.key === "ArrowLeft" && i > 0) setIndex(i - 1);
+      if (e.key === "ArrowRight" && i < n - 1) setIndex(i + 1);
     };
     window.addEventListener("keydown", onKey);
     return () => {
@@ -145,15 +179,15 @@ export function ProfilePhotoLightbox({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[215] flex flex-col bg-zinc-950 max-h-[100dvh] h-[100dvh] overflow-hidden overscroll-none touch-none"
+      className="fixed-safe-screen z-[215] flex flex-col bg-zinc-950 overflow-hidden overscroll-none touch-none"
       role="dialog"
       aria-modal="true"
       aria-label={tStr("pages.userPublic.galleryAria")}
     >
       <div
         className="shrink-0 flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-white/10 bg-zinc-950/90 px-2 backdrop-blur-md supports-[backdrop-filter]:bg-zinc-950/75
-          pt-[max(0.5rem,env(safe-area-inset-top))] pb-2
-          pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))]"
+          pt-[max(0.5rem,var(--safe-area-inset-top))] pb-2
+          pl-[max(0.5rem,var(--safe-area-inset-left))] pr-[max(0.5rem,var(--safe-area-inset-right))]"
       >
         <button
           type="button"
@@ -172,42 +206,19 @@ export function ProfilePhotoLightbox({
       </div>
 
       <div className="flex-1 min-h-0 min-w-0 relative">
-        {photos.length > 1 && (
-          <>
-            <button
-              type="button"
-              className="absolute z-20 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full border border-white/15 bg-black/55 text-white shadow-lg backdrop-blur-sm transition hover:bg-black/70 disabled:opacity-25 sm:left-3
-                left-[max(0.35rem,env(safe-area-inset-left,0px))]
-                top-1/2 -translate-y-1/2"
-              aria-label={tStr("pages.userPublic.prevPhoto")}
-              disabled={index <= 0}
-              onClick={() => setIndex(index > 0 ? index - 1 : index)}
-            >
-              <ChevronLeft className="w-7 h-7 sm:w-8 sm:h-8" />
-            </button>
-            <button
-              type="button"
-              className="absolute z-20 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full border border-white/15 bg-black/55 text-white shadow-lg backdrop-blur-sm transition hover:bg-black/70 disabled:opacity-25 sm:right-3
-                right-[max(0.35rem,env(safe-area-inset-right,0px))]
-                top-1/2 -translate-y-1/2"
-              aria-label={tStr("pages.userPublic.nextPhoto")}
-              disabled={index >= photos.length - 1}
-              onClick={() => setIndex(index < photos.length - 1 ? index + 1 : index)}
-            >
-              <ChevronRight className="w-7 h-7 sm:w-8 sm:h-8" />
-            </button>
-          </>
-        )}
-
         <div
           ref={viewportRef}
-          className={`absolute inset-0 flex items-center justify-center px-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 select-none ${
+          className={`absolute inset-0 flex items-center justify-center px-[max(0.75rem,var(--safe-area-inset-left))] pr-[max(0.75rem,var(--safe-area-inset-right))] pb-[max(0.75rem,var(--safe-area-inset-bottom))] pt-2 select-none ${
             scale > 1.02 ? "cursor-grab active:cursor-grabbing" : "cursor-default"
           }`}
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
-          onTouchCancel={onTouchEnd}
+          onTouchCancel={() => {
+            pinchRef.current = null;
+            panTouchRef.current = null;
+            swipeRef.current = null;
+          }}
           onMouseDown={onMouseDownPane}
           onDoubleClick={onDoubleClickPane}
         >

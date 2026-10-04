@@ -20,6 +20,10 @@ model User {
   isBanned     Boolean  @default(false)
   /// Dacă e în viitor: suspendare temporară — la expirare, login /api/me eliberează automat accesul.
   banUntil     DateTime?
+  /// Cod motiv (nsfw, fake, …) sau other:text — îl vede utilizatorul pe /cont-blocat.
+  banReason    String?
+  /// Admin: username/bio vulgar — contul rămâne, userul trebuie să-și aleagă alt nume.
+  mustChangeUsername Boolean @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   profile      Profile?
@@ -48,6 +52,8 @@ model User {
   pushDevices UserPushDevice[]
   webPushSubscriptions WebPushSubscription[]
   missedCallsReceived MissedCall[]
+  friendsInitiated Friend[] @relation("FriendFrom")
+  friendsReceived  Friend[] @relation("FriendTo")
 }
 
 /// Push API (VAPID) — notificări apel în browser; fără WebRTC în Service Worker.
@@ -308,6 +314,21 @@ model Report {
   reported   User     @relation("Reported", fields: [reportedId], references: [id], onDelete: Cascade)
   @@index([reporterId])
   @@index([reportedId])
+}
+
+/// Cereri de prietenie persistente (status: pending | accepted | rejected).
+model Friend {
+  id        String   @id @default(cuid())
+  fromUserId String
+  toUserId   String
+  status    String   @default("pending")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  fromUser  User     @relation("FriendFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser    User     @relation("FriendTo", fields: [toUserId], references: [id], onDelete: Cascade)
+  @@unique([fromUserId, toUserId])
+  @@index([fromUserId])
+  @@index([toUserId])
 }
 
 /// Sugestii / feedback despre aplicație (nu sunt rapoarte împotriva unui user).

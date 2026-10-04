@@ -127,9 +127,12 @@ export function useVideoRenderable(
 
     waitForEl();
     const onTracksChanged = () => {
-      doneRef.current = false;
-      setReady(false);
       const el = videoRef.current;
+      const hasLiveVideo = stream.getVideoTracks().some((t) => t.readyState === "live" && !t.muted);
+      if (!hasLiveVideo) {
+        doneRef.current = false;
+        setReady(false);
+      }
       if (el) tryPixels(el);
     };
     stream.addEventListener("addtrack", onTracksChanged);

@@ -38,8 +38,8 @@ const POLL_MS_HIDDEN = VPS_INCOMING_CALL_POLL_HIDDEN_MS;
  * Cu Web Push marcat „primar”, evităm poll-ul agresiv — dar push-ul poate să nu livreze (tab deschis, permisiuni).
  * Un poll lent păstrează UX-ul „te sună” fără să depindem 100% de notificare.
  */
-const POLL_MS_PUSH_FALLBACK_VISIBLE = 10_000;
-const POLL_MS_PUSH_FALLBACK_HIDDEN = 20_000;
+const POLL_MS_PUSH_FALLBACK_VISIBLE = 3_000;
+const POLL_MS_PUSH_FALLBACK_HIDDEN = 10_000;
 
 interface IncomingCallData {
   fromId: string;
@@ -156,6 +156,8 @@ export default function IncomingCall() {
     if (onCallPage) {
       cancelScheduledClearIncoming();
       incoming429UntilRef.current = 0;
+      stopIncomingRingtone();
+      setRingNeedsTap(false);
       setIncoming(null);
       if (pollTimerRef.current) {
         clearTimeout(pollTimerRef.current);
@@ -370,13 +372,13 @@ export default function IncomingCall() {
     incoming.fromName.trim() !== "" ? incoming.fromName : callT.tStr("pages.callRoom.fallbackUserName");
 
   return (
-    <div className="fixed inset-0 z-[220] flex flex-col items-center justify-center bg-night-900 min-h-screen p-6">
+    <div className="fixed-safe-screen z-[220] flex flex-col items-center justify-center bg-night-900 p-6 safe-area-x">
       <p className="text-night-400 text-base mb-2">
         {incoming.audioOnly
           ? callT.tStr("pages.callRoom.incomingOverlay.audioCall")
           : callT.tStr("pages.callRoom.incomingOverlay.videoCall")}
       </p>
-      <p className="text-2xl md:text-3xl font-semibold text-white mb-2 text-center">{displayName}</p>
+      <p className="text-2xl md:text-3xl font-semibold text-white mb-2 text-center break-words max-w-[min(100vw-3rem,22rem)]">{displayName}</p>
       <p className="text-lg text-night-400 mb-8">{callT.tStr("pages.callRoom.incomingOverlay.ringingSubtitle")}</p>
       {ringNeedsTap && (
         <p className="text-night-500 text-sm text-center max-w-sm mb-4 px-2">

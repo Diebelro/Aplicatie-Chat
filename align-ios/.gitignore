@@ -1,3 +1,6 @@
+# Proiectul e generat din project.yml cu XcodeGen — nu se versionează.
+*.xcodeproj/
+
 xcuserdata/
 DerivedData/
 *.xcworkspace/xcuserdata/

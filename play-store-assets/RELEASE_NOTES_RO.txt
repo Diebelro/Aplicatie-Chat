@@ -1,5 +1,7 @@
-Versiune 1.0.0 — start curat Diebel pe server propriu (chat.diebel.ro).
+Diebel Chat 40.0.0
 
-- Login, Discover, mesaje, apeluri video
-- Status online și filtre îmbunătățite pe telefon
-- Backend pe VPS (fără Vercel)
+Apeluri audio și video stabile, cu sunet mai clar și proporții video corecte.
+Apelul se închide complet când închizi sau ieși din ecran.
+Revenire rapidă la un apel activ după ce schimbi ecranul.
+Mesaje, discover și profiluri pe chat.diebel.ro.
+Actualizare conformitate Play Store (fără video obligatoriu la permisiuni).

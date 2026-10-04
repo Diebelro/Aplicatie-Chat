@@ -15,6 +15,7 @@ object PhoneAccountRegistrar {
     const val ACCOUNT_ID = "align_voip"
     const val CHANNEL_INCOMING = "align_calls_incoming"
     const val CHANNEL_ONGOING = "align_calls_ongoing"
+    const val ACTION_ANSWER = "ro.diebel.chat.ACTION_ANSWER_CALL"
     const val ACTION_DECLINE = "ro.diebel.chat.ACTION_DECLINE_CALL"
     const val ACTION_END = "ro.diebel.chat.ACTION_END_CALL"
 
@@ -25,7 +26,7 @@ object PhoneAccountRegistrar {
         val tm = app.getSystemService(TelecomManager::class.java) ?: return
         val handle = handle(app)
         if (tm.getPhoneAccount(handle) != null) return
-        val account = PhoneAccount.Builder(handle, "Align")
+        val account = PhoneAccount.Builder(handle, "Diebel")
             .setCapabilities(
                 PhoneAccount.CAPABILITY_SELF_MANAGED or PhoneAccount.CAPABILITY_VIDEO_CALLING
             )

@@ -86,8 +86,18 @@ export default function AdminLayout({
             Admin
             <AdminModerationNavBadge />
           </Link>
-          <Link href="/admin/users" className="text-zinc-600 hover:text-zinc-900">
-            Useri
+          <Link
+            href="/admin/users"
+            className="rounded-md bg-brand-500/15 px-2 py-0.5 text-brand-700 font-semibold hover:bg-brand-500/25"
+          >
+            Moderare
+          </Link>
+          <Link
+            href="/admin/geo"
+            className="text-zinc-600 hover:text-zinc-900"
+            title="Țări din profil + estimare IP (RO/DE) pentru ads"
+          >
+            Țări / piețe
           </Link>
           <Link
             href="/admin/reports"

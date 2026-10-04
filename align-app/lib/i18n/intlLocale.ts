@@ -1,7 +1,9 @@
 import type { Locale } from "./types";
 import { DEFAULT_LOCALE } from "./types";
 
-/** Limba browserului → ro / en / de (primul tag suportat din `languages`). Altfel `DEFAULT_LOCALE`. */
+const SUPPORTED_CODES: ReadonlySet<string> = new Set(["en", "de", "ro", "fr", "it", "es"]);
+
+/** Limba browserului → ro / en / de / fr / it / es (primul tag suportat din `languages`). Altfel `DEFAULT_LOCALE`. */
 export function detectBrowserLocale(): Locale {
   if (typeof window === "undefined") return DEFAULT_LOCALE;
   const tags: string[] = [];
@@ -17,7 +19,7 @@ export function detectBrowserLocale(): Locale {
   for (const raw of tags) {
     if (!raw || typeof raw !== "string") continue;
     const code = raw.trim().split(/[-_]/)[0]?.toLowerCase();
-    if (code === "en" || code === "de" || code === "ro") return code as Locale;
+    if (code && SUPPORTED_CODES.has(code)) return code as Locale;
   }
   return DEFAULT_LOCALE;
 }
@@ -26,5 +28,8 @@ export function detectBrowserLocale(): Locale {
 export function intlLocaleTag(locale: Locale): string {
   if (locale === "en") return "en-GB";
   if (locale === "de") return "de-DE";
+  if (locale === "fr") return "fr-FR";
+  if (locale === "it") return "it-IT";
+  if (locale === "es") return "es-ES";
   return "ro-RO";
 }

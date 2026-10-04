@@ -5,7 +5,7 @@
  * afișate cu `object-contain` + fundal închis ca să nu arate ca „gradient gol” la crop.
  * Fără gen: gradient + inițială / icon.
  */
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { User } from "lucide-react";
 import { OptimizedImage } from "@/components/OptimizedImage";
 import type { Gender } from "@/lib/store";
@@ -19,8 +19,12 @@ const DEFAULT_SIZES_RECT = "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 2
 /** Avatar rotund în liste / header: ~64–128px CSS, 2× retina. */
 const DEFAULT_SIZES_CIRCLE = "(max-width: 768px) 30vw, 128px";
 
-/** Imaginile implicite au mult negru la margini; contain + letterbox le face lizibile în cerc. */
-const STOCK_IMG_CLASS = "absolute inset-0 w-full h-full object-contain object-center bg-zinc-950";
+/**
+ * Imaginile implicite pe gen (fotografii artistice pe fundal deschis). Le servim ca fișier
+ * static (fără optimizatorul `/_next/image`, care pica pe ele → chenar negru) și le umplem
+ * cadrul cu `object-cover` pe fundal deschis neutru.
+ */
+const STOCK_IMG_CLASS = "absolute inset-0 w-full h-full object-cover object-center bg-zinc-100";
 
 function getGradient(gender?: Gender | null): string {
   switch (gender) {
@@ -44,6 +48,8 @@ interface SilhouetteAvatarProps {
   imgClassName?: string;
   shape?: "circle" | "rectangle";
   imageSizes?: string;
+  /** Priority loading pentru prima imagine vizibilă (above the fold). */
+  priority?: boolean;
 }
 
 export function SilhouetteAvatar({
@@ -54,8 +60,13 @@ export function SilhouetteAvatar({
   imgClassName = "w-full h-full object-cover object-center",
   shape = "circle",
   imageSizes,
+  priority = false,
 }: SilhouetteAvatarProps) {
-  const usablePhoto = isUsableProfilePhotoUrl(photoUrl) ? photoUrl.trim() : null;
+  const [photoError, setPhotoError] = useState(false);
+  const [defaultError, setDefaultError] = useState(false);
+
+  const usablePhoto =
+    isUsableProfilePhotoUrl(photoUrl) && !photoError ? photoUrl.trim() : null;
   const defaultByGender =
     gender === "female" ? DEFAULT_AVATAR_FEMALE : gender === "male" ? DEFAULT_AVATAR_MALE : null;
   const radiusClass = shape === "rectangle" ? "rounded-none" : "rounded-full";
@@ -65,38 +76,55 @@ export function SilhouetteAvatar({
       imageSizes ?? (shape === "rectangle" ? DEFAULT_SIZES_RECT : DEFAULT_SIZES_CIRCLE);
     return (
       <div className={`relative w-full h-full overflow-hidden ${radiusClass} ${className}`.trim()}>
-        <OptimizedImage src={usablePhoto} alt="" fill sizes={fillSizes} className={imgClassName} />
+        <OptimizedImage
+          src={usablePhoto}
+          alt=""
+          fill
+          sizes={fillSizes}
+          className={imgClassName}
+          priority={priority}
+          onError={() => setPhotoError(true)}
+        />
       </div>
     );
   }
 
-  if (defaultByGender) {
-    const fillSizes =
-      imageSizes ?? (shape === "rectangle" ? DEFAULT_SIZES_RECT : DEFAULT_SIZES_CIRCLE);
+  // Imaginile-siluetă (fotografii pe gen) le folosim DOAR pe cardurile dreptunghiulare (grila
+  // discover). Sunt fișiere statice mari pe care optimizatorul `/_next/image` le respinge
+  // (400 → chenar negru), așa că le servim direct ca `<img>` și, la eșec, cădem pe gradient.
+  if (defaultByGender && shape === "rectangle" && !defaultError) {
     return (
       <div className={`relative w-full h-full overflow-hidden ${radiusClass} ${className}`.trim()}>
-        <OptimizedImage src={defaultByGender} alt="" fill sizes={fillSizes} className={STOCK_IMG_CLASS} />
+        <img
+          src={defaultByGender}
+          alt=""
+          loading={priority ? "eager" : "lazy"}
+          decoding="async"
+          className={STOCK_IMG_CLASS}
+          onError={() => setDefaultError(true)}
+        />
       </div>
     );
   }
 
   const initial = name?.trim()?.[0]?.toUpperCase();
   const gradient = getGradient(gender);
+  // `[container-type:size]` + unități `cqmin` = inițiala/iconul scalează cu mărimea cercului
+  // (32px în liste, 44px header, 100px+ pe profil) fără să iasă în afară.
   const fallbackBox =
     shape === "rectangle"
-      ? `flex items-center justify-center bg-gradient-to-br ${gradient} w-full h-full max-w-full max-h-full ${radiusClass}`
-      : `flex items-center justify-center bg-gradient-to-br ${gradient} aspect-square w-full h-full max-w-full max-h-full ${radiusClass}`;
+      ? `flex items-center justify-center [container-type:size] bg-gradient-to-br ${gradient} w-full h-full max-w-full max-h-full ${radiusClass}`
+      : `flex items-center justify-center [container-type:size] bg-gradient-to-br ${gradient} aspect-square w-full h-full max-w-full max-h-full ${radiusClass}`;
 
-  const iconClass = "w-[45%] h-[45%] text-white/95 shrink-0";
   let body: ReactNode;
   if (initial) {
     body = (
-      <span className="text-white font-semibold select-none drop-shadow-sm text-5xl leading-none">
+      <span className="text-white font-semibold select-none drop-shadow-sm leading-none text-[52cqmin]">
         {initial}
       </span>
     );
   } else {
-    body = <User className={iconClass} strokeWidth={2} aria-hidden />;
+    body = <User className="w-[48cqmin] h-[48cqmin] text-white/95 shrink-0" strokeWidth={2} aria-hidden />;
   }
 
   return (

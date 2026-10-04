@@ -9,6 +9,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import {
   acquireCallMediaStream,
+  getInitialVideoDegradationPreference,
   getVideoConstraints,
   isMobileDevice,
 } from "@/lib/webrtc/mediaConstraints";
@@ -142,6 +143,8 @@ export type UseWebRtcCallOptions = {
   roomId: string;
   userId: string;
   displayName: string;
+  /** Numele real al celuilalt participant (1-la-1), pentru titlu/etichetă în loc de fallback. */
+  peerName?: string | null;
   audioOnly: boolean;
   isCaller: boolean;
   isConference: boolean;
@@ -161,6 +164,7 @@ export function useWebRtcCall({
   roomId,
   userId,
   displayName: _localDisplayName,
+  peerName,
   audioOnly,
   isCaller,
   isConference,
@@ -169,6 +173,8 @@ export function useWebRtcCall({
 }: UseWebRtcCallOptions) {
   const callTrRef = useRef(callTranslate);
   callTrRef.current = callTranslate;
+  const peerNameRef = useRef(peerName);
+  peerNameRef.current = peerName;
 
   /** Reîncercare după refuz permisiuni — rerulează efectul (getUserMedia + semnalizare). */
   const [permissionRetryKey, setPermissionRetryKey] = useState(0);
@@ -938,7 +944,7 @@ export function useWebRtcCall({
         });
         void (async () => {
           await setMaxBitrate(pc, maxVideoBps);
-          await applyVideoDegradationPreference(pc, "maintain-framerate");
+          await applyVideoDegradationPreference(pc, getInitialVideoDegradationPreference());
           await applyProCallVideoSenderCaps(pc);
         })();
 
@@ -1727,7 +1733,7 @@ export function useWebRtcCall({
          *  doar imediat înainte de `createOffer` (inițiator / iceRestart). */
         void (async () => {
           await setMaxBitrate(pc, adaptiveVideoBpsRef.current);
-          await applyVideoDegradationPreference(pc, "maintain-framerate");
+          await applyVideoDegradationPreference(pc, getInitialVideoDegradationPreference());
           await applyProCallVideoSenderCaps(pc);
         })();
 
@@ -1804,7 +1810,9 @@ export function useWebRtcCall({
             remoteParticipants: [
               {
                 id: rid,
-                displayName: "Interlocutor",
+                displayName:
+                  peerNameRef.current?.trim() ||
+                  callTrRef.current.tStr("pages.callRoom.rtc.peerFallback"),
                 stream,
               },
             ],

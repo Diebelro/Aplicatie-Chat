@@ -113,7 +113,18 @@ export const authOptions: NextAuthOptions = {
         if (!email) return false;
         const row = await prismaFindUserByEmailForLogin(email);
         if (row?.isBanned) {
-          return `/cont-blocat?email=${encodeURIComponent(email)}`;
+          const q = new URLSearchParams();
+          q.set("email", email);
+          const stored = row.banReason;
+          if (stored) {
+            const { parseStoredBanReason } = await import("@/lib/banReasons");
+            const parsed = parseStoredBanReason(stored);
+            if (parsed) {
+              q.set("reason", parsed.code);
+              if (parsed.note) q.set("note", parsed.note.slice(0, 200));
+            }
+          }
+          return `/cont-blocat?${q.toString()}`;
         }
         const { id, profileComplete } = await prismaFindOrCreateOAuthUser({
           email,

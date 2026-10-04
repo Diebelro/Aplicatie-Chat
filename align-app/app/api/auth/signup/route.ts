@@ -66,19 +66,15 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
-    if (usernameStr.length < 2 || usernameStr.length > 30) {
+    const { validateUsername, usernameErrorMessage } = await import("@/lib/usernamePolicy");
+    const usernameCheck = validateUsername(usernameStr);
+    if (!usernameCheck.ok) {
       return NextResponse.json(
-        { error: "Username-ul trebuie să aibă între 2 și 30 de caractere." },
+        { error: usernameErrorMessage(usernameCheck.reason) },
         { status: 400 }
       );
     }
-    if (!/^[a-zA-Z0-9_.]+$/.test(usernameStr)) {
-      return NextResponse.json(
-        { error: "Username-ul poate conține doar litere, cifre, punct și liniuță jos." },
-        { status: 400 }
-      );
-    }
-    const usernameLower = usernameStr.toLowerCase();
+    const usernameLower = usernameCheck.value;
     let usePrisma = isPrismaAvailable();
     if (usePrisma) {
       try {
@@ -92,7 +88,7 @@ export async function POST(request: Request) {
         const existingUsername = await prismaFindUserByUsername(usernameLower);
         if (existingUsername) {
           return NextResponse.json(
-            { error: "Acest username este deja folosit. Alege un username unic (ex: ana_maria), nu adresa de email." },
+            { error: "Acest username este deja folosit. Alege un username unic (ex: anamaria), nu adresa de email." },
             { status: 409 }
           );
         }
@@ -111,7 +107,7 @@ export async function POST(request: Request) {
       const existingByUsername = findUserByUsername(usernameLower);
       if (existingByUsername) {
         return NextResponse.json(
-          { error: "Acest username este deja folosit. Alege un username unic (ex: ana_maria), nu adresa de email." },
+          { error: "Acest username este deja folosit. Alege un username unic (ex: anamaria), nu adresa de email." },
           { status: 409 }
         );
       }

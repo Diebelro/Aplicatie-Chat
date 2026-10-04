@@ -29,7 +29,7 @@ export function CookieConsentFloatingButton() {
 
   const appMobileNavClear =
     pathname?.startsWith("/app") === true
-      ? "max-md:bottom-[calc(0.75rem+0.5rem+56px+max(0.5rem,env(safe-area-inset-bottom,0px)))]"
+      ? "max-md:bottom-[calc(0.75rem+0.5rem+56px+max(0.5rem,var(--safe-area-inset-bottom)))]"
       : "";
 
   return (

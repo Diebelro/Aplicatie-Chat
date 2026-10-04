@@ -27,6 +27,8 @@ object FirebaseBootstrap {
         }
     }
 
+    fun isConfigured(context: Context): Boolean = isGoogleServicesConfigured(context)
+
     private fun isGoogleServicesConfigured(context: Context): Boolean {
         val id = context.resources.getIdentifier("google_api_key", "string", context.packageName)
         if (id == 0) return false

@@ -9,15 +9,23 @@ export function isUsableProfilePhotoUrl(url: string | null | undefined): url is 
   return false;
 }
 
+/** Toate pozele valide, în ordine. */
+export function getUsableProfilePhotoUrls(
+  photos: (string | null | undefined)[] | null | undefined
+): string[] {
+  if (!photos?.length) return [];
+  const out: string[] = [];
+  for (const p of photos) {
+    if (isUsableProfilePhotoUrl(p)) out.push(p.trim());
+  }
+  return out;
+}
+
 /** Prima poză validă din listă sau null. */
 export function getFirstUsableProfilePhotoUrl(
   photos: (string | null | undefined)[] | null | undefined
 ): string | null {
-  if (!photos?.length) return null;
-  for (const p of photos) {
-    if (isUsableProfilePhotoUrl(p)) return p.trim();
-  }
-  return null;
+  return getUsableProfilePhotoUrls(photos)[0] ?? null;
 }
 
 /** Returnează URL-ul primei poze de profil (avatar) sau null. */

@@ -8,13 +8,14 @@ import { getStoredUserRaw } from "@/lib/store";
 import { fetchWithAuthRetry } from "@/lib/authClient";
 import { clearIncomingRingDismissFilter } from "@/lib/callIncomingDismiss";
 import { closeIncomingCallPushNotifications } from "@/lib/closeIncomingCallPushNotifications";
-import { canAccessRoom, isConferenceRoomId } from "@/lib/videoCall";
+import { canAccessRoom, isConferenceRoomId, parseVideoRoomId } from "@/lib/videoCall";
 import { displayName } from "@/lib/displayName";
 import CallUI from "@/components/CallUI";
 import { useI18n } from "@/lib/i18n/context";
 import { useCallRoomTranslate } from "@/lib/i18n/callTranslateSafe";
 import { resolveCallDisplayedError, type CallErrorPayload } from "@/lib/i18n/callApiErrorMap";
 import { clientHangupCall } from "@/lib/callHangupClient";
+import { abandonCallOnLeave, markCallUserEnded, wasCallUserEnded } from "@/lib/callAbandonOnLeave";
 import { markIncomingGrace, POST_HANGUP_INCOMING_GRACE_MS } from "@/lib/callIncomingGrace";
 import { RING_PUSH_HINT_SESSION_KEY, isRingNotifyHintKey } from "@/lib/callRingNotifySnapshot";
 
@@ -47,11 +48,46 @@ export default function CallPage() {
   const [pushGateLoading, setPushGateLoading] = useState(false);
   const [incomingHint, setIncomingHint] = useState<{ fromName: string; audioOnly: boolean } | null>(null);
   const [transientRingNotify, setTransientRingNotify] = useState<string | null>(null);
+  /** Numele real al celuilalt participant (titlu apel) — din push sau dedus din roomId. */
+  const [peerName, setPeerName] = useState<string | null>(null);
   const callSessionStartedRef = useRef(!fromPush);
+  const wasConnectedRef = useRef(false);
+  const isCallerRef = useRef(fromPush ? false : isCaller);
+  const mountGenRef = useRef(0);
+
+  useEffect(() => {
+    isCallerRef.current = fromPush ? false : isCaller;
+  }, [fromPush, isCaller]);
 
   useEffect(() => {
     callSessionStartedRef.current = callStarted;
   }, [callStarted]);
+
+  /** Numele celuilalt: prioritar din notificarea push, altfel dedus din roomId (pereche). */
+  useEffect(() => {
+    if (incomingHint?.fromName) {
+      setPeerName(incomingHint.fromName);
+      return;
+    }
+    if (!user?.id || isConferenceRoomId(roomId)) return;
+    const ids = parseVideoRoomId(roomId);
+    if (!ids) return;
+    const peerId = ids[0] === String(user.id) ? ids[1] : ids[0];
+    if (!peerId || peerId === String(user.id)) return;
+    let cancelled = false;
+    void fetchWithAuthRetry(`/api/users/${peerId}`, { cache: "no-store" })
+      .then(async (r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (cancelled || !d?.user) return;
+        const u = d.user as { username?: string; name?: string };
+        const raw = u.username ?? u.name;
+        if (raw) setPeerName(displayName(raw));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, roomId, incomingHint?.fromName]);
 
   const fetchIncomingHint = useCallback(() => {
     if (!fromPush || callStarted) return;
@@ -176,18 +212,17 @@ export default function CallPage() {
 
   /**
    * Ieșire cu Back browser / navigare fără butonul din CallUI: curățăm pending pe server.
-   * Înainte de accept: `/api/call/end` cu roomId (nu `/reject`) — apelantul vede „indisponibil”, nu „respins”.
-   * După ce apelul a pornit: `/end` pentru apel activ.
+   * Apel conectat: nu trimitem /end — utilizatorul poate reveni în cameră (bara verde în shell).
    */
   useEffect(() => {
-    let armed = false;
-    const tid = window.setTimeout(() => {
-      armed = true;
-    }, 450);
+    const gen = ++mountGenRef.current;
     return () => {
-      window.clearTimeout(tid);
-      if (!armed) return;
-      void clientHangupCall({ roomId });
+      if (gen !== mountGenRef.current) return;
+      abandonCallOnLeave({
+        roomId,
+        isCaller: isCallerRef.current,
+        wasConnected: wasConnectedRef.current,
+      });
     };
   }, [roomId]);
 
@@ -198,7 +233,8 @@ export default function CallPage() {
    */
   useEffect(() => {
     const flush = () => {
-      void clientHangupCall({ roomId });
+      if (wasConnectedRef.current || wasCallUserEnded(roomId)) return;
+      void clientHangupCall({ roomId, respectDedup: false });
     };
     const onPageHide = (e: PageTransitionEvent) => {
       /** Pagina intră în bfcache (Back rapid) — nu încheiem apelul. */
@@ -212,7 +248,7 @@ export default function CallPage() {
   /** Încărcare: fullscreen negru ca la apel — fără „Se încarcă” în layout (evită clip cu mesajele de dedesubt). */
   if (allowed === null || user === null) {
     return (
-      <div className="fixed inset-0 z-[190] flex flex-col items-center justify-center bg-black text-white">
+      <div className="fixed-safe-screen z-[190] flex flex-col items-center justify-center bg-black text-white">
         <div className="h-12 w-12 border-2 border-white/20 border-t-brand-400 rounded-full animate-spin" aria-hidden />
       </div>
     );
@@ -220,7 +256,7 @@ export default function CallPage() {
 
   if (!allowed) {
     return (
-      <div className="fixed inset-0 z-[190] flex flex-col items-center justify-center bg-black px-4 text-center">
+      <div className="fixed-safe-screen z-[190] flex flex-col items-center justify-center bg-black px-4 text-center">
         <p className="text-white/70 mb-4">{tStr("pages.callRoom.noAccess")}</p>
         <Link href="/app/messages" className="text-brand-400 hover:underline">
           {tStr("pages.callRoom.backMessages")}
@@ -264,6 +300,7 @@ export default function CallPage() {
   const handlePushDecline = () => {
     setPushGateLoading(true);
     clearIncomingRingDismissFilter();
+    markCallUserEnded(roomId);
     fetchWithAuthRetry("/api/call/reject", {
       method: "POST",
     })
@@ -276,14 +313,15 @@ export default function CallPage() {
   if (fromPush && !callStarted) {
     const labelAudio = incomingHint?.audioOnly ?? audioOnly;
     return (
+      <div className="call-route-shell">
       <div
-        className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-gradient-to-b from-zinc-900 to-black px-6 text-center text-white"
+        className="call-screen-fill z-[200] flex flex-col items-center justify-center bg-gradient-to-b from-zinc-900 to-black px-6 text-center text-white"
         onPointerDown={() => closeIncomingCallPushNotifications(roomId)}
       >
         <p className="text-white/50 text-sm mb-2">
           {labelAudio ? tStr("pages.callRoom.pushIncomingAudio") : tStr("pages.callRoom.pushIncomingVideo")}
         </p>
-        <p className="text-2xl font-semibold mb-2">
+        <p className="text-2xl font-semibold mb-2 break-words max-w-[min(100vw-3rem,22rem)] text-center">
           {incomingHint?.fromName ? incomingHint.fromName : tStr("pages.callRoom.pushIncomingFallback")}
         </p>
         <p className="text-white/60 text-sm mb-8 max-w-sm">{tStr("pages.callRoom.pushBody")}</p>
@@ -314,18 +352,26 @@ export default function CallPage() {
           {tStr("pages.callRoom.backMessages")}
         </Link>
       </div>
+      </div>
     );
   }
 
   return (
-    <CallUI
+    <div className="call-route-shell">
+      <CallUI
       roomId={roomId}
       userId={String(user.id)}
       displayName={displayName((user.username ?? user.name) || tStr("pages.callRoom.fallbackUserName"))}
+      peerName={peerName}
       audioOnly={resolvedAudioOnly}
       isConference={isConferenceRoomId(roomId)}
       isCaller={fromPush ? false : isCaller}
       transientRingNotify={transientRingNotify}
+      onCallLifecycle={(phase) => {
+        if (phase === "connected") wasConnectedRef.current = true;
+        if (phase === "ended") markCallUserEnded(roomId);
+      }}
     />
+    </div>
   );
 }

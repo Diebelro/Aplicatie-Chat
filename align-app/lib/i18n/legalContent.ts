@@ -647,6 +647,10 @@ const byLocale = {
   ro: { terms: termsRO, privacy: privacyRO, cookies: cookiesRO },
   en: { terms: termsEN, privacy: privacyEN, cookies: cookiesEN },
   de: { terms: termsDE, privacy: privacyDE, cookies: cookiesDE },
+  /** fr/it/es: fallback pe engleză — text juridic tradus doar de un jurist, nu automat. */
+  fr: { terms: termsEN, privacy: privacyEN, cookies: cookiesEN },
+  it: { terms: termsEN, privacy: privacyEN, cookies: cookiesEN },
+  es: { terms: termsEN, privacy: privacyEN, cookies: cookiesEN },
 } as const;
 
 export function getTermsContent(locale: Locale): LegalSection[] {

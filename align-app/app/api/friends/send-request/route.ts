@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { findUserById, addFriendRequest, getUserPrivacySettings } from "@/lib/store";
+import { resolveRequestUserId } from "@/lib/sessionAuth";
+import { isPrismaAvailable, prismaFindUserById, prismaAddFriendRequest } from "@/lib/repo-prisma";
 
 export async function POST(request: NextRequest) {
-  const userId = request.headers.get("x-user-id");
+  const userId = (await resolveRequestUserId(request)) ?? request.headers.get("x-user-id");
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   }
@@ -11,6 +13,26 @@ export async function POST(request: NextRequest) {
   if (!friendId || typeof friendId !== "string") {
     return NextResponse.json({ error: "Lipsește friend_id." }, { status: 400 });
   }
+
+  if (isPrismaAvailable()) {
+    try {
+      const target = await prismaFindUserById(friendId);
+      if (!target) {
+        return NextResponse.json({ error: "Utilizator negăsit." }, { status: 404 });
+      }
+      const ok = await prismaAddFriendRequest(userId, friendId);
+      if (!ok) {
+        return NextResponse.json(
+          { error: "Cerere existentă sau relație deja existentă." },
+          { status: 409 }
+        );
+      }
+      return NextResponse.json({ ok: true });
+    } catch (e) {
+      console.error("[api/friends/send-request] prisma", e);
+    }
+  }
+
   if (!findUserById(friendId)) {
     return NextResponse.json({ error: "Utilizator negăsit." }, { status: 404 });
   }

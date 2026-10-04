@@ -20,8 +20,19 @@
   box-sizing: border-box;
 }
 
+/* Performanță globală: GPU rendering pe elemente interactive */
+button, a, [role="button"] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Tranzitii globale mai scurte — orice .transition rămâne snap */
+*, *::before, *::after {
+  transition-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
 html {
   scroll-behavior: auto;
+  height: 100%;
 }
 
 body {
@@ -29,6 +40,18 @@ body {
   color: var(--text);
   min-height: 100vh;
   min-height: 100dvh;
+  height: 100%;
+}
+
+/** WebView Android: fundal închis. Overflow blocat NUMAI pe app-shell, nu pe body global
+ *  (altfel scroll-ul de pe pagini publice — signup, login — nu mai funcționează). */
+html.diebel-native-insets {
+  background: #0f1419 !important;
+  height: 100%;
+}
+html.diebel-native-insets body {
+  background: #0f1419 !important;
+  height: 100%;
 }
 
 /* Zone sigure: env() iOS + --safe-area-inset-* (SafeAreaBoot / APK Diebel) */
@@ -37,8 +60,9 @@ body {
   --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
   --safe-area-inset-left: env(safe-area-inset-left, 0px);
   --safe-area-inset-right: env(safe-area-inset-right, 0px);
-  /** Înălțime rezervată deasupra bottom nav mobil (shell /app). */
-  --app-bottom-nav-offset: 4.75rem;
+  /** Înălțime bară jos mobil (flex, nu fixed). */
+  --app-bottom-nav-offset: 3.25rem;
+  --app-header-height: 3.5rem;
 }
 
 .safe-area-inset-top {
@@ -52,6 +76,15 @@ body {
   padding-right: var(--safe-area-inset-right);
 }
 
+/** Ecrane fixe fullscreen — nu acoperă ora/bateria/antena (folosește --safe-area-* din APK). */
+.fixed-safe-screen {
+  position: fixed;
+  top: var(--safe-area-inset-top);
+  right: var(--safe-area-inset-right);
+  bottom: var(--safe-area-inset-bottom);
+  left: var(--safe-area-inset-left);
+}
+
 /* Pe mobile: font minim 16px la input/textarea ca iOS să nu facă zoom la focus */
 @media (max-width: 768px) {
   input:not([type="number"]):not([type="range"]),
@@ -60,10 +93,36 @@ body {
   }
 }
 
-/* Touch: butoane și link-uri reactive la tap, fără delay */
+/* Touch: butoane reactive instant la tap */
 .touch-manipulation {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Hardware acceleration pentru scroll containers */
+.chat-messages,
+.app-shell-main,
+.scrollbar-app {
+  -webkit-overflow-scrolling: touch;
+  transform: translateZ(0);
+  will-change: scroll-position;
+}
+
+/* Card swipe: GPU complet */
+.card-hover {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* Active state instant pe toate elementele interactive */
+button:active,
+a:active,
+[role="button"]:active {
+  transform: scale(0.97);
+  transition: transform 60ms ease-out !important;
 }
 
 /**
@@ -99,11 +158,10 @@ body {
 
   /** Shell /app — titluri, panouri și stări goale coerente. */
   .app-pro-page-title {
-    /* text real închis: în temă, `dark-900` e suprafață deschisă (#f6f6f7), nu culoare de text. */
     @apply text-[1.375rem] sm:text-2xl font-semibold tracking-tight text-zinc-900;
   }
   .app-pro-panel {
-    @apply rounded-2xl border border-dark-600/75 bg-dark-800/95 shadow-[0_1px_3px_rgba(0,0,0,0.06)];
+    @apply rounded-2xl border border-dark-600/60 bg-white shadow-[0_1px_4px_rgba(0,0,0,0.08)];
   }
   .app-pro-lead {
     @apply text-dark-500 text-sm leading-relaxed;
@@ -122,29 +180,32 @@ body {
 
   /** Buton icon rotund/pătrat — săgeți, ⋯, apeluri. */
   .app-icon-btn {
-    @apply app-touch-target flex items-center justify-center rounded-xl transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/45;
+    @apply app-touch-target flex items-center justify-center rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/45;
+    transition: background-color 70ms ease, color 70ms ease;
   }
 
   /** Rând listă (Mesaje, Matches) — cadru uniform + stare activă la focus/tap. */
   .app-list-row {
-    @apply flex items-stretch rounded-xl border border-dark-600 bg-dark-800 shadow-sm overflow-hidden touch-manipulation transition-colors;
+    @apply flex items-stretch rounded-2xl border border-dark-600/80 bg-white shadow-sm overflow-hidden touch-manipulation;
+    transition: background-color 80ms ease, border-color 80ms ease;
+    contain: layout style;
   }
   .app-list-row--unread {
-    @apply border-brand-500/40 bg-brand-500/[0.07];
+    @apply border-brand-500/50 bg-brand-500/[0.05] shadow-[0_0_0_1px_rgba(20,184,166,0.18)];
   }
   .app-list-row-btn {
-    @apply flex flex-1 items-center gap-3 sm:gap-4 min-h-[56px] min-w-0 py-3 pl-3 pr-2 sm:py-4 sm:pl-4 sm:pr-3 text-left transition cursor-pointer hover:bg-dark-700/50 active:bg-dark-700/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:ring-inset;
+    @apply flex flex-1 items-center gap-3 min-h-[60px] min-w-0 py-3 pl-3 pr-2 text-left text-zinc-900 transition-colors cursor-pointer hover:bg-dark-700/30 active:bg-dark-700/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:ring-inset;
   }
 
   /** Bule conversație — text încadrat, fără overflow la poze/linkuri lungi. */
   .chat-bubble {
-    @apply max-w-[min(88%,20rem)] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed shadow-sm overflow-hidden;
+    @apply max-w-[min(82%,24rem)] rounded-2xl px-4 py-2.5 text-[15px] leading-relaxed shadow-sm overflow-hidden;
   }
   .chat-bubble-out {
     @apply chat-bubble bg-brand-500 text-white;
   }
   .chat-bubble-in {
-    @apply chat-bubble bg-white border border-zinc-200/90 text-zinc-900;
+    @apply chat-bubble bg-white border border-zinc-200 text-zinc-900;
   }
   .chat-bubble-text {
     @apply whitespace-pre-wrap break-words [overflow-wrap:anywhere];
@@ -152,13 +213,136 @@ body {
   .chat-compose-status {
     @apply text-xs leading-snug px-3 py-2 rounded-xl border mx-0.5;
   }
+  .chat-compose-form {
+    padding-bottom: max(0.5rem, var(--keyboard-inset, 0px), var(--safe-area-inset-bottom));
+  }
+
+  /** Shell /app — coloană flex 100dvh; nav jos nu mai e fixed (fără overlap). */
+  .app-shell {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+    height: -webkit-fill-available;
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    overflow: hidden;
+  }
+  .app-shell-header {
+    flex: 0 0 auto;
+    max-height: var(--app-header-height);
+  }
+  .app-shell-main {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    /* Overflow-ul (auto vs hidden) e setat pe element din layout.tsx per rută.
+       Nu forța overflow:hidden aici — altfel scrollTop pe listă e mereu 0
+       și „ține minte poziția” nu merge. */
+    overflow-x: hidden;
+  }
+  .app-shell-nav {
+    flex: 0 0 auto;
+  }
+  .bottom-nav {
+    padding-bottom: var(--safe-area-inset-bottom);
+  }
+
+  /** Chat 1-la-1 — header | mesaje scroll | input sticky (WhatsApp-style). */
+  .chat-screen {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+  }
+  .chat-screen-header {
+    flex: 0 0 auto;
+  }
+  .chat-messages {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+  .chat-input-bar {
+    flex: 0 0 auto;
+    z-index: 20;
+    padding-bottom: max(0.375rem, var(--safe-area-inset-bottom));
+  }
+
+  /** Mobil: input fix jos, deasupra tastaturii (visualViewport / --keyboard-inset). */
+  @media (max-width: 1023px) {
+    .chat-input-bar {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 40;
+      padding-left: max(0.25rem, var(--safe-area-inset-left));
+      padding-right: max(0.25rem, var(--safe-area-inset-right));
+      padding-bottom: max(0.375rem, var(--safe-area-inset-bottom));
+      will-change: transform;
+    }
+    /* Browser mobil: ridică inputul când tastatura acoperă viewport-ul. */
+    html:not(.diebel-native-insets) .chat-input-bar {
+      transform: translateY(calc(-1 * var(--keyboard-inset, 0px)));
+    }
+    html.diebel-native-insets .chat-input-bar {
+      transform: none;
+    }
+    .chat-messages {
+      padding-bottom: calc(var(--chat-compose-height, 4.5rem) + var(--keyboard-inset, 0px));
+    }
+    html.diebel-native-insets .chat-messages {
+      padding-bottom: var(--chat-compose-height, 4.5rem);
+    }
+  }
+
+  /** Apel — umple main-ul shell (fără fixed + goluri albe în WebView). */
+  .call-route-shell {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #000;
+    display: flex;
+    flex-direction: column;
+  }
+  .call-screen-fill {
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding-top: var(--safe-area-inset-top);
+    padding-bottom: var(--safe-area-inset-bottom);
+    padding-left: var(--safe-area-inset-left);
+    padding-right: var(--safe-area-inset-right);
+  }
+
+  /** Backup: ascunde header global pe chat/apel mobil (și dacă JS vechi ignoră Tailwind). */
+  @media (max-width: 1023px) {
+    html[data-diebel-route="chat"] .app-shell-header,
+    html[data-diebel-route="call"] .app-shell-header {
+      display: none !important;
+    }
+  }
 
   /** Avatar rotund: badge-ul nu se taie (outer visible, inner clip). */
   .app-avatar-wrap {
     @apply relative shrink-0 overflow-visible;
   }
   .app-avatar-media {
-    @apply relative w-full h-full overflow-hidden rounded-full bg-brand-500/15 ring-1 ring-dark-600/80;
+    @apply relative w-full h-full overflow-hidden rounded-full bg-brand-500/15 ring-2 ring-white shadow-sm;
   }
 
   /** Badge numeric (mesaje necitite) — poziționare consistentă. */
@@ -166,9 +350,15 @@ body {
     @apply absolute -top-0.5 -right-0.5 z-[2] min-w-[1.25rem] h-5 px-1 rounded-full text-xs font-semibold flex items-center justify-center pointer-events-none;
   }
 
-  /** Spațiu sub conținut când bottom nav e vizibil. */
+  /** Spațiu sub conținut când bottom nav e vizibil (legacy; prefer app-shell flex). */
   .pb-app-nav {
     padding-bottom: calc(var(--app-bottom-nav-offset) + var(--safe-area-inset-bottom));
+  }
+  .pb-call-safe {
+    padding-bottom: max(1.5rem, calc(0.75rem + var(--safe-area-inset-bottom)));
+  }
+  html.diebel-native-insets .pb-call-safe {
+    padding-bottom: max(1.75rem, calc(1rem + var(--safe-area-inset-bottom)));
   }
 }
 

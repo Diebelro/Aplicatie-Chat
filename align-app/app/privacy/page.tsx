@@ -14,7 +14,7 @@ export default function PrivacyPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-dark-900">
-      <header className="border-b border-dark-600 sticky top-0 z-10 bg-dark-900 pt-[env(safe-area-inset-top,0px)]">
+      <header className="border-b border-dark-600 sticky top-0 z-10 bg-dark-900 pt-[var(--safe-area-inset-top)]">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link
             href="/"

@@ -36,6 +36,7 @@ import {
   prismaIsPremium,
   prismaFindUserById,
   prismaLogRateLimit,
+  prismaGetFriendStatusMap,
   type FeedFilters,
 } from "@/lib/repo-prisma";
 import { prisma } from "@/lib/db";
@@ -106,17 +107,10 @@ export async function GET(request: NextRequest) {
   if (isPrismaAvailable()) {
     try {
       await prismaUpdateLastActive(userId);
+      // Filtrele venite de la client se respectă întotdeauna, inclusiv din aplicațiile mobile.
+      // Feedul gol se rezolvă prin auto-relaxare + butonul de resetare din interfață,
+      // nu prin ignorarea criteriilor alese de utilizator.
       const filters: FeedFilters = parseDiscoverSearchFilters(request.nextUrl.searchParams);
-      const ua = request.headers.get("user-agent") ?? "";
-      if (/DiebelAndroid/i.test(ua)) {
-        // Pe WebView mobil, filtre vechi persistate pot ascunde toți utilizatorii.
-        filters.gender = "";
-        filters.country = "";
-        filters.city = "";
-        filters.name = "";
-        filters.onlineOnly = false;
-        filters.maxDistanceKm = 0;
-      }
       const candidates = await prismaGetFeedCandidates(userId, filters, { includeSwiped: true });
       const me = await prismaFindUserById(userId);
       const myLoc = await prismaGetMyLocation(userId);
@@ -155,10 +149,24 @@ export async function GET(request: NextRequest) {
           sentMessage: false,
           receivedMessage: false,
           messageSeen: false,
-          friendStatus: undefined,
+          friendStatus: undefined as
+            | "pending_sent"
+            | "pending_received"
+            | "accepted"
+            | "rejected"
+            | undefined,
           match: matchPartnerIds.has(u.id),
         };
       });
+
+      try {
+        const friendMap = await prismaGetFriendStatusMap(userId, profiles.map((p) => p.id));
+        if (friendMap.size > 0) {
+          profiles = profiles.map((p) => ({ ...p, friendStatus: friendMap.get(p.id) ?? undefined }));
+        }
+      } catch (e) {
+        console.error("[api/feed] friendStatus map", e);
+      }
 
       if (isTestMode()) {
         const meta = await prismaGetFeedTestModeMeta(userId, profiles.map((p) => p.id));

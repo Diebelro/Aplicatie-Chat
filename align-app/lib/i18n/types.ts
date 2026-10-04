@@ -1,6 +1,6 @@
-export type Locale = "ro" | "en" | "de";
+export type Locale = "ro" | "en" | "de" | "fr" | "it" | "es";
 
-export const LOCALES: Locale[] = ["ro", "en", "de"];
+export const LOCALES: Locale[] = ["ro", "en", "de", "fr", "it", "es"];
 export const DEFAULT_LOCALE: Locale = "ro";
 
 export interface CookieConsentTranslations {

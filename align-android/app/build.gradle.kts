@@ -8,17 +8,17 @@ plugins {
 
 android {
     namespace = "ro.diebel.chat"
-    compileSdk = 35
+    compileSdk = 36
     val signingProps = Properties()
     val signingPropsFile = rootProject.file("keystore.properties")
     if (signingPropsFile.exists()) signingPropsFile.inputStream().use { signingProps.load(it) }
 
     defaultConfig {
-        applicationId = "ro.diebel.chat"
-        minSdk = 28
-        targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        applicationId = "ro.diebel.chatapp"
+        minSdk = 24
+        targetSdk = 36
+        versionCode = 46
+        versionName = "46.0.0"
         val props = Properties()
         val lp = rootProject.file("local.properties")
         if (lp.exists()) lp.inputStream().use { props.load(it) }
@@ -40,7 +40,7 @@ android {
                 keyAlias = signingProps.getProperty("keyAlias")
                 keyPassword = signingProps.getProperty("keyPassword")
             }
-            // v1 + v2 pentru telefoane care nu acceptă doar v3.
+            // v1 + v2 — compatibilitate instalare directă (WhatsApp); fără doar-v3.
             enableV1Signing = true
             enableV2Signing = true
             enableV3Signing = false
@@ -50,6 +50,7 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = true
+            isShrinkResources = true
             if (signingPropsFile.exists()) {
                 signingConfig = signingConfigs.getByName("release")
             }
@@ -80,6 +81,7 @@ android {
 dependencies {
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.appcompat:appcompat:1.7.0")
+    implementation("androidx.activity:activity-ktx:1.9.3")
     implementation("com.google.android.material:material:1.12.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("androidx.lifecycle:lifecycle-service:2.8.7")
@@ -98,23 +100,48 @@ dependencies {
     implementation("com.google.android.ump:user-messaging-platform:3.1.0")
 }
 
+/** APK debug pentru test direct pe telefon (semnătură debug — instalare fără keystore release). */
+tasks.register("exportDebugApk") {
+    group = "distribution"
+    description = "Diebel-Debug.apk pentru instalare directă"
+    dependsOn("assembleDebug")
+    doLast {
+        val apkIn = layout.buildDirectory.file("outputs/apk/debug/app-debug.apk").get().asFile
+        val apkOut = rootProject.layout.projectDirectory.file("Diebel-Debug.apk").asFile
+        check(apkIn.isFile) { "Lipsește ${apkIn.path}" }
+        apkIn.copyTo(apkOut, overwrite = true)
+        logger.lifecycle("OK: ${apkOut.absolutePath}")
+    }
+}
+
 /** După assembleRelease + bundleRelease, copiază la nume fixe (fără Copy tasks separate — evită conflict Gradle). */
 tasks.register("exportReleaseArtifacts") {
     group = "distribution"
-    description = "Diebel-V1.0.0-TELEFON.apk + Diebel-V1.0.0-Play-Console.aab"
+    description = "Diebel-V46-INSTALARE-TELEFON.apk + Diebel-V46-Play-Console.aab"
     dependsOn("assembleRelease", "bundleRelease")
     doLast {
         val apkIn = layout.buildDirectory.file("outputs/apk/release/app-release.apk").get().asFile
         val aabIn = layout.buildDirectory.file("outputs/bundle/release/app-release.aab").get().asFile
-        val apkOut = rootProject.layout.projectDirectory.file("Diebel-V1.0.0-TELEFON.apk").asFile
+        val apkOut = rootProject.layout.projectDirectory.file("Diebel-V46-INSTALARE-TELEFON.apk").asFile
         val aabOut =
             rootProject.layout.projectDirectory.dir("../play-store-assets")
-                .file("Diebel-V1.0.0-Play-Console.aab").asFile
+                .file("Diebel-V46-Play-Console.aab").asFile
         check(apkIn.isFile) { "Lipsește ${apkIn.path} — rulează assembleRelease" }
         check(aabIn.isFile) { "Lipsește ${aabIn.path} — rulează bundleRelease" }
+        check(rootProject.file("keystore.properties").exists()) {
+            "Lipsește keystore.properties — APK-ul trebuie semnat pentru instalare"
+        }
         apkIn.copyTo(apkOut, overwrite = true)
+        // Nume scurt alternativ — unele telefoane/WhatsApp strică fișiere cu nume lung.
+        val apkShort = rootProject.layout.projectDirectory.file("Diebel-Instalare.apk").asFile
+        apkIn.copyTo(apkShort, overwrite = true)
+        val webDir = rootProject.layout.projectDirectory.dir("../align-app/public/download").asFile
+        webDir.mkdirs()
+        apkIn.copyTo(webDir.resolve("diebel.apk"), overwrite = true)
         aabIn.copyTo(aabOut, overwrite = true)
         logger.lifecycle("OK: ${apkOut.absolutePath}")
+        logger.lifecycle("OK: ${apkShort.absolutePath}")
+        logger.lifecycle("OK: ${webDir.resolve("diebel.apk").absolutePath}")
         logger.lifecycle("OK: ${aabOut.absolutePath}")
     }
 }

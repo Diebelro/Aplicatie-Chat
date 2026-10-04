@@ -140,6 +140,7 @@ export async function POST(request: Request) {
             email: prismaUser.email,
             isBanned: prismaUser.isBanned,
             role: prismaUser.role,
+            mustChangeUsername: prismaUser.mustChangeUsername,
           };
           const hash = await prismaGetPasswordHash(prismaUser.id);
           if (!hash || !verifyPassword(String(password), hash)) {
@@ -158,6 +159,7 @@ export async function POST(request: Request) {
               email: refreshedUser.email,
               isBanned: refreshedUser.isBanned,
               role: refreshedUser.role,
+              mustChangeUsername: refreshedUser.mustChangeUsername,
             };
             if (refreshedUser.role === "ADMIN" || refreshedUser.role === "SUPERADMIN") {
               profileComplete = true;
@@ -217,16 +219,24 @@ export async function POST(request: Request) {
 
     if (user.isBanned === true) {
       let banUntilIso: string | null = null;
+      let banReasonStored: string | null = null;
       if (usePrisma) {
         const { prisma } = await import("@/lib/db");
         const u = await prisma.user.findUnique({
           where: { id: user.id },
-          select: { banUntil: true },
+          select: { banUntil: true, banReason: true },
         });
         banUntilIso = u?.banUntil?.toISOString() ?? null;
+        banReasonStored = u?.banReason ?? null;
       }
       return NextResponse.json({
-        user: { id: user.id, email: user.email ?? "", isBanned: true, banUntil: banUntilIso },
+        user: {
+          id: user.id,
+          email: user.email ?? "",
+          isBanned: true,
+          banUntil: banUntilIso,
+          banReason: banReasonStored,
+        },
         sessionType: "none",
         profileComplete: false,
       });

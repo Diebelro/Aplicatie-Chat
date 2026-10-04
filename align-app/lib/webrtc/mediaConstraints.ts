@@ -2,16 +2,24 @@
 
 export function getAudioConstraints(): MediaTrackConstraints {
   const mobile = isMobileDevice();
-  return {
-    echoCancellation: true,
-    noiseSuppression: true,
-    autoGainControl: true,
+  const base: MediaTrackConstraints & Record<string, unknown> = {
+    echoCancellation: { ideal: true },
+    noiseSuppression: { ideal: true },
+    autoGainControl: { ideal: true },
     /**
      * `channelCount: 1` (exact) pe mobil dă des OverconstrainedError cu „Permite” deja acordat —
      * browserul nu poate forța mono pe anumite headset-uri / drivere.
      */
     ...(mobile ? { channelCount: { ideal: 1 } } : { channelCount: { ideal: 2 } }),
   };
+  /** Chrome/Android WebView: AEC mai agresiv când e disponibil. */
+  if (typeof navigator !== "undefined" && /Chrome/i.test(navigator.userAgent)) {
+    base.googEchoCancellation = true;
+    base.googNoiseSuppression = true;
+    base.googAutoGainControl = true;
+    base.googHighpassFilter = true;
+  }
+  return base;
 }
 
 export function isMobileDevice(): boolean {
@@ -32,12 +40,15 @@ export function isMobileDevice(): boolean {
 export function getVideoConstraints(prefer1080: boolean): MediaTrackConstraints {
   const mobile = isMobileDevice();
   if (mobile) {
-    /** Ideal mai modest = mai puține pachete pe 4G/Wi‑Fi slab; max rămâne 720p dacă rețeaua ține. */
+    /**
+     * Preferințe, nu max strict — multe telefoane refuză 720p fix (OverconstrainedError).
+     * Start mai clar (qHD/HD) + 30fps; adaptarea la semnal slab scade automat rezoluția/bitrate-ul.
+     */
     return {
-      facingMode: "user",
-      width: { ideal: 960, max: 1280 },
-      height: { ideal: 540, max: 720 },
-      frameRate: { ideal: 24, max: 30 },
+      facingMode: { ideal: "user" },
+      width: { ideal: 1280, max: 1280 },
+      height: { ideal: 720, max: 720 },
+      frameRate: { ideal: 30, max: 30 },
     };
   }
   if (prefer1080) {
@@ -84,19 +95,8 @@ export async function acquireCallMediaStream(audioOnly: boolean): Promise<Acquir
       throw first;
     }
   }
-  const mobile = isMobileDevice();
-  const prefer1080 = !mobile && typeof window !== "undefined" && window.innerWidth >= 1200;
-  const video = getVideoConstraints(prefer1080);
-
-  /** Desktop: profil 720p@30 implicit (stabil); fallback la același obiect `video` dacă driverul e strict. */
-  if (!mobile) {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio, video });
-      return { stream, cameraUnavailable: false };
-    } catch {
-      /* continuă la profil permisiv */
-    }
-  }
+  /** Constrângeri video adaptate dispozitivului (mobil = permisiv, desktop = 720p). */
+  const video = getVideoConstraints(false);
 
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio, video });
@@ -104,27 +104,41 @@ export async function acquireCallMediaStream(audioOnly: boolean): Promise<Acquir
   } catch (first) {
     const name = first instanceof DOMException ? first.name : "";
 
-    /** Încercări mai permisive înainte de renunțarea la video — altfel apelul video nici nu pornește. */
-    if (
-      !audioOnly &&
-      (name === "OverconstrainedError" ||
-        name === "NotReadableError" ||
-        (mobile && (name === "AbortError" || name === "TypeError")))
-    ) {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio,
-          video: { facingMode: "user" },
-        });
-        return { stream, cameraUnavailable: false };
-      } catch {
-        /* continuă */
+    /**
+     * Dacă pică combinat audio+video, încercăm mai multe variante ÎNAINTE de a renunța la cameră
+     * (valabil ACUM și pe desktop/laptop, nu doar mobil — multe webcam-uri integrate refuză
+     * profilul exact dar acceptă unul simplu). Fără asta apelul cade silentios pe audio-only.
+     */
+    if (!audioOnly) {
+      const videoFallbacks: MediaStreamConstraints["video"][] = [
+        { facingMode: "user" },
+        true,
+        { width: { ideal: 640 }, height: { ideal: 480 } },
+        { facingMode: "user", width: 320, height: 240 },
+      ];
+      for (const vf of videoFallbacks) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio, video: vf });
+          return { stream, cameraUnavailable: false };
+        } catch {
+          /* continuă cu următoarea variantă */
+        }
       }
+      /**
+       * Ultima șansă pentru cameră: cere DOAR video (poate constrângerile de microfon stricau
+       * cererea combinată), apoi adaugă audio separat dacă merge. Mai bine video fără mic decât deloc.
+       */
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio, video: true });
-        return { stream, cameraUnavailable: false };
+        const vStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        try {
+          const aStream = await navigator.mediaDevices.getUserMedia({ audio });
+          aStream.getAudioTracks().forEach((t) => vStream.addTrack(t));
+        } catch {
+          /* video fără microfon — tot mai bine decât fără cameră */
+        }
+        return { stream: vStream, cameraUnavailable: false };
       } catch {
-        /* continuă */
+        /* camera chiar nu poate fi pornită (permisiune blocată / ocupată / lipsă) */
       }
     }
 
@@ -144,6 +158,11 @@ export async function acquireCallMediaStream(audioOnly: boolean): Promise<Acquir
       throw second;
     }
   }
+}
+
+/** Preferință degradare video la start apel — claritate pe mobil, fluiditate pe desktop. */
+export function getInitialVideoDegradationPreference(): RTCDegradationPreference {
+  return isMobileDevice() ? "balanced" : "maintain-framerate";
 }
 
 export function isPageLocalhostForMedia(): boolean {

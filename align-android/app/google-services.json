@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "000000000000",
-    "project_id": "align-replace-me",
-    "storage_bucket": "align-replace-me.appspot.com"
+    "project_number": "552742241265",
+    "project_id": "chat-diebel",
+    "storage_bucket": "chat-diebel.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+        "mobilesdk_app_id": "1:552742241265:android:7af6cc26aac4c692b3ba50",
         "android_client_info": {
           "package_name": "ro.diebel.chat"
         }
@@ -15,7 +15,26 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "REPLACE_WITH_FIREBASE_ANDROID_KEY"
+          "current_key": "AIzaSyCQNLXEDm0_kcSut-h1czX-ONsm62GOvdc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:552742241265:android:8be81d6f009843aeb3ba50",
+        "android_client_info": {
+          "package_name": "ro.diebel.chatapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCQNLXEDm0_kcSut-h1czX-ONsm62GOvdc"
         }
       ],
       "services": {

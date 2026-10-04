@@ -9,13 +9,13 @@ import { DiebelWordmark } from "@/components/DiebelWordmark";
 export function AppShellLoadingLayout({ label }: { label: string }) {
   return (
     <div
-      className="h-dvh min-h-0 bg-dark-900 flex flex-col overflow-hidden antialiased text-dark-900"
+      className="app-shell bg-dark-900 antialiased text-dark-900"
       role="status"
       aria-live="polite"
       aria-busy="true"
     >
-      <header className="border-b border-dark-600/80 shrink-0 sticky top-0 z-20 safe-area-inset-top bg-dark-900/92 shadow-[0_1px_0_rgba(0,0,0,0.04)] backdrop-blur-md supports-[backdrop-filter]:bg-dark-900/88">
-        <div className="w-full max-w-[min(100vw,1920px)] mx-auto py-3 md:py-3.5 flex items-center gap-2 sm:gap-3 min-w-0 pl-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))]">
+      <header className="app-shell-header border-b border-dark-600/80 shrink-0 bg-dark-800 shadow-sm z-20">
+        <div className="w-full max-w-[min(100vw,1920px)] mx-auto py-2 flex items-center gap-2 min-w-0 min-h-[3rem] pl-[max(0.75rem,var(--safe-area-inset-left))] pr-[max(0.75rem,var(--safe-area-inset-right))] pt-[max(0px,var(--safe-area-inset-top))]">
           <Link
             href="/app"
             className="group shrink-0 inline-flex items-center min-h-[44px] min-w-[7.5rem] -ml-1 pl-1 pr-2 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60"
@@ -34,7 +34,7 @@ export function AppShellLoadingLayout({ label }: { label: string }) {
           </div>
         </div>
       </header>
-      <main className="flex-1 flex flex-col min-h-0 min-w-0 max-w-4xl w-full mx-auto py-4 sm:py-6 px-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))] pb-app-nav lg:pb-7">
+      <main className="app-shell-main flex-1 flex flex-col min-h-0 min-w-0 max-w-4xl w-full mx-auto py-4 sm:py-6 px-[max(1rem,var(--safe-area-inset-left))] pr-[max(1rem,var(--safe-area-inset-right))]">
         <div className="space-y-4 flex-1">
           <div className="h-8 w-48 rounded-lg bg-dark-700/70 animate-pulse" />
           <div className="h-4 w-full max-w-md rounded bg-dark-700/50 animate-pulse" />
@@ -50,8 +50,8 @@ export function AppShellLoadingLayout({ label }: { label: string }) {
         <p className="text-center text-sm text-dark-500 mt-6">{label}</p>
       </main>
       <nav
-        className="lg:hidden fixed bottom-0 left-0 right-0 z-30 flex items-center justify-around border-t border-dark-600/60 bg-dark-900/95 backdrop-blur-xl safe-area-inset-bottom py-2"
-        style={{ paddingBottom: "max(0.35rem, env(safe-area-inset-bottom, 0px))" }}
+        className="app-shell-nav lg:hidden shrink-0 flex items-center justify-around border-t border-dark-600/60 bg-dark-800/95 backdrop-blur-xl py-2"
+        style={{ paddingBottom: "max(0.35rem, var(--safe-area-inset-bottom))" }}
         aria-hidden
       >
         {Array.from({ length: 3 }).map((_, i) => (

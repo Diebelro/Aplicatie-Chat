@@ -53,3 +53,53 @@ align-android/*.apk.idsig
 
 # TURN config with live secret (use turnserver.conf.template)
 infra/hetzner/turnserver.conf
+
+# Extra env / secrets (root + orice subfolder)
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.p8
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.mobileprovision
+id_rsa
+id_ed25519
+id_ed25519_*
+credentials.json
+*-credentials.json
+service-account*.json
+firebase-adminsdk*.json
+**/secrets/
+
+# Binare / instalatori — nu pe GitHub
+**/*.apk
+**/*.aab
+**/*.apk.idsig
+align-android/Diebel-Instalare.zip
+align-app/public/download/*.apk
+align-app/public/download/*.aab
+
+# Media ads (fișiere mari, nu e cod)
+MEDIA-DIEBEL/**
+
+# Copii locale de deploy — nu sunt sursa de adevăr
+_deploy-final/
+_deploy-patch/
+
+# Video promo / certificare (binare mari)
+play-store-assets/promo-video/*.mp4
+play-store-assets/promo-video/*.webm
+play-store-assets/dating-certification/*.mp4
+play-store-assets/dating-certification/*.webm
+play-store-assets/dating-certification/*.zip
+
+# Cache / temp
+.turbo/
+.cache/
+coverage/
+tmp/
+temp/
+*.log

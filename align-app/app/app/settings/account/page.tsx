@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
@@ -41,29 +41,30 @@ export default function AccountSettingsPage() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [subscriptionPlan, setSubscriptionPlan] = useState<string | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+
+  const loadMe = useCallback(async () => {
+    setLoadFailed(false);
+    try {
+      const r = await fetchWithAuthRetry("/api/me", { cache: "no-store" });
+      const d = (await r.json().catch(() => ({}))) as { user?: User };
+      if (!r.ok || !d.user) {
+        setLoadFailed(true);
+        return;
+      }
+      const u = d.user;
+      setUser(u);
+      setRealName(u.real_name ?? "");
+      setUsername(u.username ?? u.name ?? "");
+      setEmail(u.email ?? "");
+    } catch {
+      setLoadFailed(true);
+    }
+  }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const r = await fetchWithAuthRetry("/api/me", { cache: "no-store" });
-        const d = (await r.json().catch(() => ({}))) as { user?: User };
-        if (cancelled || !r.ok) return;
-        if (d.user) {
-          const u = d.user;
-          setUser(u);
-          setRealName(u.real_name ?? "");
-          setUsername(u.username ?? u.name ?? "");
-          setEmail(u.email ?? "");
-        }
-      } catch {
-        /* ignore */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    void loadMe();
+  }, [loadMe]);
 
   useEffect(() => {
     let cancelled = false;
@@ -291,11 +292,35 @@ export default function AccountSettingsPage() {
         : subscriptionPlan ?? "";
 
   if (!user) {
+    if (loadFailed) {
+      return (
+        <div className="max-w-xl mx-auto px-4 py-10">
+          <div className="app-pro-panel p-6 text-center space-y-3">
+            <p className="text-dark-400 text-sm">{tStr("pages.account.loadError")}</p>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => void loadMe()}
+                className="inline-flex min-h-[44px] items-center px-4 py-2.5 rounded-xl bg-brand-500 text-dark-900 font-medium text-sm hover:bg-brand-400 transition touch-manipulation"
+              >
+                {tStr("common.shellErrors.tryAgain")}
+              </button>
+              <Link
+                href="/login"
+                className="inline-flex min-h-[44px] items-center px-4 py-2.5 rounded-xl border border-dark-600 text-dark-300 font-medium text-sm hover:bg-dark-700 transition touch-manipulation"
+              >
+                {tStr("pages.account.goToLogin")}
+              </Link>
+            </div>
+          </div>
+        </div>
+      );
+    }
     return <AppProLoading variant="form" label={tStr("pages.account.loading")} />;
   }
 
   return (
-    <div className="max-w-xl mx-auto space-y-10 px-4 pb-[max(1.5rem,env(safe-area-inset-bottom,0px))]">
+    <div className="max-w-xl mx-auto space-y-10 px-4 pb-[max(1.5rem,var(--safe-area-inset-bottom))]">
       <div className="flex items-center gap-4">
         <Link href="/app/profile" className="text-dark-400 hover:text-zinc-900 transition text-sm">
           {tStr("pages.account.backToProfile")}
@@ -346,7 +371,7 @@ export default function AccountSettingsPage() {
               type="text"
               value={username}
               onChange={(e) => {
-                setUsername(e.target.value);
+                setUsername(e.target.value.replace(/[^a-zA-Z]/g, ""));
                 setUsernameCheck("idle");
               }}
               onBlur={() => checkUsername(username)}

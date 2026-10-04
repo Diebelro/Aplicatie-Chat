@@ -42,8 +42,9 @@ export async function fetchWithAuthRetry(input: RequestInfo | URL, init: Request
     return { ...init, headers: base, credentials: "include" as const };
   };
   let res = await fetch(input, buildInit());
-  if (typeof window !== "undefined" && res.status === 401) {
+  if (typeof window !== "undefined" && res.status === 401 && !init.signal?.aborted) {
     await new Promise((r) => setTimeout(r, 120));
+    if (init.signal?.aborted) throw new DOMException("Aborted", "AbortError");
     res = await fetch(input, buildInit());
   }
   return res;

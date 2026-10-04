@@ -1,5 +1,5 @@
-/** Latura lungă maximă după resize (înainte era 400px → foarte neclar pe carduri/retina). */
-export const PHOTO_MAX_SIZE = 1600;
+/** Latura lungă maximă după resize — 900px e suficient pentru carduri retina, data URL sub 200KB. */
+export const PHOTO_MAX_SIZE = 900;
 export const MAX_PHOTOS = 5;
 
 export function resizeImageAsDataUrl(file: File): Promise<string> {
@@ -27,7 +27,7 @@ export function resizeImageAsDataUrl(file: File): Promise<string> {
         return;
       }
       ctx.drawImage(img, 0, 0, width, height);
-      resolve(canvas.toDataURL("image/jpeg", 0.88));
+      resolve(canvas.toDataURL("image/jpeg", 0.82));
     };
     img.onerror = () => {
       URL.revokeObjectURL(url);

@@ -53,6 +53,9 @@ const messageLoaders: Record<Locale, () => Promise<{ default: Translations }>> =
   ro: () => import("@/messages/ro.json"),
   en: () => import("@/messages/en.json"),
   de: () => import("@/messages/de.json"),
+  fr: () => import("@/messages/fr.json"),
+  it: () => import("@/messages/it.json"),
+  es: () => import("@/messages/es.json"),
 };
 
 async function loadTranslations(locale: Locale): Promise<Translations> {

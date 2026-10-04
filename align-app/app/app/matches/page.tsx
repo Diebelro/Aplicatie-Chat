@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useLayoutEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { MessageCircle, Vote } from "lucide-react";
 import type { User } from "@/lib/store";
@@ -13,6 +13,15 @@ import { getPresencePollMs } from "@/lib/presencePollMs";
 import { useI18n } from "@/lib/i18n/context";
 import { formatTpl } from "@/lib/i18n/formatTpl";
 import { SkeletonConversationList } from "@/components/perceived/AppShellLoadingLayout";
+import {
+  listItemDomId,
+  restoreListScroll,
+  saveListPlace,
+  saveListScroll,
+  saveProfileReturnPath,
+} from "@/lib/listScrollSession";
+import { useSearchFilters, hasActiveSearchFilters } from "@/lib/useSearchFilters";
+import { passesSharedSearchFilters } from "@/lib/applySearchFiltersLocal";
 
 type MatchWithMeta = User & { online?: boolean; distanceKm?: number; distanceHidden?: boolean };
 
@@ -50,13 +59,16 @@ function sortMatchesForDisplay(list: MatchWithMeta[]): MatchWithMeta[] {
 }
 
 export default function MatchesPage() {
-  const { tStr } = useI18n();
+  const { tStr, locale } = useI18n();
+  const [filters] = useSearchFilters(locale);
+  const filtersActive = hasActiveSearchFilters(filters);
   const [matches, setMatches] = useState<MatchWithMeta[]>(() => readMatchesCache());
   const [inFlight, setInFlight] = useState(() => readMatchesCache().length === 0);
   const [loadError, setLoadError] = useState<string | null>(null);
   const mountedRef = useRef(true);
   const matchesRef = useRef<MatchWithMeta[]>([]);
   matchesRef.current = matches;
+  const visibleMatches = matches.filter((u) => passesSharedSearchFilters(u, filters));
 
   const fetchMatches = useCallback(
     async (silent: boolean) => {
@@ -97,8 +109,14 @@ export default function MatchesPage() {
     void fetchMatches(matchesRef.current.length > 0);
     return () => {
       mountedRef.current = false;
+      saveListScroll("matches");
     };
   }, [fetchMatches]);
+
+  useLayoutEffect(() => {
+    if (inFlight && matches.length === 0) return;
+    if (matches.length > 0) restoreListScroll("matches");
+  }, [inFlight, matches.length]);
 
   useVisibleInterval(
     () => void fetchMatches(true),
@@ -106,11 +124,23 @@ export default function MatchesPage() {
     !inFlight
   );
 
+  const rememberPlaceBeforeProfile = useCallback((userId: string) => {
+    saveListPlace("matches", userId);
+    saveProfileReturnPath("/app/matches");
+  }, []);
+
   const showListOverlay = inFlight && matches.length === 0;
 
   return (
     <div>
-      <h2 className="app-pro-page-title mb-6">{tStr("pages.matches.title")}</h2>
+      <h2 className="app-pro-page-title mb-4">{tStr("pages.matches.title")}</h2>
+      {filtersActive ? (
+        <p className="text-xs text-dark-500 mb-4">
+          <Link href="/app" className="text-brand-500 hover:underline">
+            {tStr("pages.matches.changeFiltersLink")}
+          </Link>
+        </p>
+      ) : null}
 
       <div className="relative min-h-[min(280px,45vh)]">
         {showListOverlay && (
@@ -140,17 +170,28 @@ export default function MatchesPage() {
           <div className="app-pro-empty">
             <p className="app-pro-lead">{tStr("pages.matches.empty")}</p>
           </div>
+        ) : visibleMatches.length === 0 ? (
+          <div className="app-pro-empty flex flex-col items-center gap-3">
+            <p className="app-pro-lead text-center">{tStr("pages.matches.emptyFiltered")}</p>
+            <Link href="/app" className="text-sm text-brand-500 hover:underline">
+              {tStr("pages.matches.changeFiltersLink")}
+            </Link>
+          </div>
         ) : (
           <ul className="space-y-4">
-            {matches.map((u) => {
+            {visibleMatches.map((u) => {
               const matchLabel = displayName(u.username ?? u.name);
               return (
                 <li
                   key={u.id}
+                  id={listItemDomId("matches", u.id)}
+                  data-list-item={u.id}
                   className="flex items-stretch rounded-xl bg-dark-800 border border-dark-600 shadow-sm hover:border-dark-500 overflow-hidden touch-manipulation"
                 >
                   <Link
                     href={`/app/user/${u.id}`}
+                    scroll={false}
+                    onClick={() => rememberPlaceBeforeProfile(u.id)}
                     className="flex flex-1 min-w-0 items-center gap-4 p-4 min-h-[56px] hover:bg-dark-700/50 active:bg-dark-700/70 transition"
                     aria-label={formatTpl(tStr("pages.matches.viewProfileAria"), { name: matchLabel })}
                   >
@@ -164,7 +205,16 @@ export default function MatchesPage() {
                       />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="font-medium text-zinc-900">{matchLabel}</p>
+                      <p className="font-medium text-zinc-900 truncate flex items-center gap-2">
+                        <span className="truncate">{matchLabel}</span>
+                        {u.online ? (
+                          <span
+                            className="shrink-0 inline-block w-2 h-2 rounded-full bg-green-400"
+                            title={tStr("pages.matches.online")}
+                            aria-label={tStr("pages.matches.online")}
+                          />
+                        ) : null}
+                      </p>
                       <p className="text-sm text-dark-500 line-clamp-1">{u.bio || "—"}</p>
                       <p className="text-xs text-dark-400 mt-1">
                         {u.distanceHidden || u.distanceKm == null
@@ -172,10 +222,6 @@ export default function MatchesPage() {
                           : u.distanceKm < 1
                             ? tStr("pages.matches.nearby")
                             : formatDistance(u.distanceKm)}
-                        <span className="mx-2">·</span>
-                        <span className={u.online ? "text-green-400" : "text-dark-500"}>
-                          {u.online ? tStr("pages.matches.online") : tStr("pages.matches.offline")}
-                        </span>
                       </p>
                     </div>
                   </Link>
@@ -188,7 +234,7 @@ export default function MatchesPage() {
                       aria-label={formatTpl(tStr("pages.matches.swipeDecisionAria"), { name: matchLabel })}
                     >
                       <Vote className="w-5 h-5 shrink-0" aria-hidden />
-                      <span className="text-[9px] sm:text-[11px] font-medium text-amber-200/95 leading-tight text-center max-w-[3.25rem] sm:max-w-[4.5rem] line-clamp-2">
+                      <span className="text-[10px] sm:text-[11px] font-medium text-amber-200/95 leading-tight text-center max-w-[3.25rem] sm:max-w-[4.5rem] line-clamp-2">
                         {tStr("pages.matches.swipeDecisionShort")}
                       </span>
                     </Link>
@@ -196,6 +242,7 @@ export default function MatchesPage() {
                       href={`/app/chat/${u.id}`}
                       className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-brand-400 hover:bg-brand-500/20 active:bg-brand-500/30 transition touch-manipulation"
                       title={tStr("pages.matches.messageTitle")}
+                      aria-label={tStr("pages.matches.messageTitle")}
                     >
                       <MessageCircle className="w-5 h-5" />
                     </Link>

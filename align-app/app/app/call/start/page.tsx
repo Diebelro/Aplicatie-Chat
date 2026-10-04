@@ -178,9 +178,9 @@ export default function StartConferencePage() {
   );
 
   return (
-    <div className="bg-night-900 text-white px-4 py-8 pb-24 sm:pb-28">
+    <div className="bg-night-900 text-white px-4 py-8 safe-area-x pt-[max(2rem,var(--safe-area-inset-top))] pb-[max(6rem,calc(6rem+var(--safe-area-inset-bottom)))]">
       <div className="max-w-lg mx-auto">
-        <Link href="/app/messages" className="text-brand-400 text-sm hover:underline inline-flex items-center gap-1">
+        <Link href="/app/messages" className="text-brand-400 text-sm hover:underline inline-flex min-h-[44px] items-center gap-1">
           ← Înapoi la mesaje
         </Link>
 
@@ -243,7 +243,7 @@ export default function StartConferencePage() {
                 return next;
               });
             }}
-            className="text-xs text-brand-400 hover:text-brand-300 underline underline-offset-2 w-full text-left"
+            className="inline-flex min-h-[44px] items-center text-sm text-brand-400 hover:text-brand-300 underline underline-offset-2 w-full text-left touch-manipulation"
           >
             {conferenceAudioOnly
               ? "Vreau video — cere din nou și camera (dezactivează modul doar audio)"
@@ -289,7 +289,7 @@ export default function StartConferencePage() {
                   key={u.id}
                   type="button"
                   onClick={() => removeInvitee(u.id)}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-brand-500/15 border border-brand-500/35 pl-3 pr-2 py-1.5 text-sm text-brand-100 hover:bg-brand-500/25 transition"
+                  className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full bg-brand-500/15 border border-brand-500/35 pl-3 pr-2.5 py-2 text-sm text-brand-100 hover:bg-brand-500/25 transition touch-manipulation"
                 >
                   <Video className="w-3.5 h-3.5 shrink-0 opacity-80" />
                   {displayName(u.username || u.name)}
@@ -313,7 +313,7 @@ export default function StartConferencePage() {
                   <button
                     type="button"
                     onClick={() => addInvitee(p)}
-                    className="shrink-0 text-xs font-medium px-3 py-1.5 rounded-lg bg-brand-500/20 text-brand-400 hover:bg-brand-500/30"
+                    className="inline-flex min-h-[44px] shrink-0 items-center text-sm font-medium px-4 py-2.5 rounded-lg bg-brand-500/20 text-brand-400 hover:bg-brand-500/30 touch-manipulation"
                   >
                     Invită
                   </button>

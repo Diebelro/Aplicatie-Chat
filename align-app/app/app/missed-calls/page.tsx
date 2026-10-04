@@ -43,13 +43,29 @@ export default function MissedCallsPage() {
   const [clearing, setClearing] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     fetchWithAuthRetry("/api/call/missed", { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => {
-        if (d.missed) setMissed(d.missed);
+        if (cancelled) return;
+        if (Array.isArray(d?.missed)) {
+          setMissed(d.missed);
+          /**
+           * Vizitarea paginii = „am văzut apelurile pierdute": golim pe server ca să dispară badge-ul
+           * din meniu imediat. Le păstrăm afișate în starea locală pentru sesiunea curentă.
+           */
+          if (d.missed.length > 0) {
+            void fetchWithAuthRetry("/api/call/missed", { method: "POST" }).catch(() => {});
+          }
+        }
       })
       .catch(() => {})
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const clearList = () => {
@@ -107,7 +123,7 @@ export default function MissedCallsPage() {
                 </div>
                 <Link
                   href={`/app/chat/${m.fromId}`}
-                  className="text-sm px-3 py-1.5 rounded-lg bg-brand-500/20 text-brand-400 hover:bg-brand-500/30 shrink-0"
+                  className="inline-flex min-h-[44px] items-center text-sm px-4 py-2.5 rounded-lg bg-brand-500/20 text-brand-400 hover:bg-brand-500/30 shrink-0 touch-manipulation"
                 >
                   {tStr("pages.missedCalls.messages")}
                 </Link>
@@ -118,7 +134,7 @@ export default function MissedCallsPage() {
             type="button"
             onClick={clearList}
             disabled={clearing}
-            className="w-full py-2.5 rounded-xl border border-dark-600 text-dark-400 hover:bg-dark-800 hover:text-zinc-900 transition disabled:opacity-50 text-sm"
+            className="w-full min-h-[44px] py-2.5 rounded-xl border border-dark-600 text-dark-400 hover:bg-dark-800 hover:text-zinc-900 transition disabled:opacity-50 text-sm touch-manipulation"
           >
             {clearing ? tStr("pages.missedCalls.clearing") : tStr("pages.missedCalls.clearList")}
           </button>
@@ -127,7 +143,7 @@ export default function MissedCallsPage() {
 
       <Link
         href="/app/messages"
-        className="inline-block mt-6 text-brand-400 hover:underline text-sm"
+        className="inline-flex min-h-[44px] items-center mt-6 text-brand-400 hover:underline text-sm"
       >
         {tStr("pages.missedCalls.backMessages")}
       </Link>

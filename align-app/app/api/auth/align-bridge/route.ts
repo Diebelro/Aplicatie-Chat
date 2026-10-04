@@ -40,8 +40,17 @@ export async function GET(request: Request) {
       trusted: true,
     });
     const { sessionId, maxAgeSeconds } = await createSessionAsync(userId, dev.id, true);
+    const { prisma } = await import("@/lib/db");
+    const row = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { mustChangeUsername: true },
+    });
     const profileComplete = await prismaProfileCompleted(userId);
-    const targetPath = profileComplete ? "/app" : "/completeaza-profilul";
+    const targetPath = row?.mustChangeUsername
+      ? "/schimba-username"
+      : profileComplete
+        ? "/app"
+        : "/completeaza-profilul";
     const res = NextResponse.redirect(new URL(targetPath, request.url));
     const opts = getSessionCookieOptions(Math.max(maxAgeSeconds, 60));
     res.cookies.set(SESSION_COOKIE, sessionId, {

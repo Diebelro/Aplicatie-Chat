@@ -1,6 +1,13 @@
-# Apeluri native iOS (PushKit VoIP + CallKit + WebRTC)
+# Apeluri primite pe iOS (PushKit VoIP + CallKit)
 
-Flux paralel cu web-ul **Align**: apelul critic nu trece prin Safari/WebKit; folosește **APNs VoIP**, **CallKit** și **WebRTC** nativ (SPM `WebRTC`).
+Aplicația iOS (`align-ios/`) este un shell **WKWebView** peste `chat.diebel.ro`, la fel ca
+aplicația Android. Apelul propriu-zis rulează în WebView, cu același stack WebRTC testat în
+producție. Nativ rămâne doar partea pe care web-ul nu o poate face: **trezirea aplicației și
+ecranul de apel al sistemului**.
+
+> Notă istorică: a existat un experiment cu WebRTC nativ (SPM `stasel/WebRTC`) și un ecran de apel
+> propriu. A fost eliminat — dubla implementare a stackului de apel nu se justifica, iar varianta
+> nativă era incompletă. Vezi `align-ios/README.md`.
 
 ## Backend (deja în repo)
 
@@ -13,39 +20,36 @@ Flux paralel cu web-ul **Align**: apelul critic nu trece prin Safari/WebKit; fol
 
 ## Variabile de mediu (server)
 
-- `APNS_KEY_ID` — Key ID din Apple Developer  
-- `APNS_TEAM_ID` — Team ID  
-- `APNS_PRIVATE_KEY` — conținut fișier `.p8` (newlines ca `\n`)  
-- `APNS_BUNDLE_ID` — trebuie să coincidă cu **CFBundleIdentifier** din Xcode (ex. `com.align.app`)  
-- `APNS_USE_SANDBOX=true` — build-uri **Development** iOS; producție App Store: `false` sau omit  
+- `APNS_KEY_ID` — Key ID din Apple Developer
+- `APNS_TEAM_ID` — Team ID
+- `APNS_PRIVATE_KEY` — conținut fișier `.p8` (newlines ca `\n`)
+- `APNS_BUNDLE_ID` — trebuie să coincidă cu **PRODUCT_BUNDLE_IDENTIFIER** din
+  `align-ios/project.yml`, adică **`ro.diebel.chatapp`**
+- `APNS_USE_SANDBOX=true` — build-uri **Development** din Xcode; producție App Store: omite
 
 Migrare DB: `npx prisma migrate deploy` (include `apnsVoipToken`).
 
-## Flux apel
+## Flux apel primit
 
-1. iOS pornește `PKPushRegistry` → primește VoIP token → `POST /api/me/push-token`.  
-2. Celălalt utilizator → `POST /api/call/ring` → server emite **VoIP push** (wake, chiar dacă app terminat).  
-3. `VoipPushManager` primește payload (`roomId`, `callerId`, `callerName`, `audioOnly`, `ts`) → `CXProvider.reportNewIncomingCall` → **ecran sistem** (lock screen, fullscreen, sonerie nativă).  
-4. **Accept** → `CXAnswerCallAction` → `WebRtcCallManager` : `ice-config` + `signaling-token` + WebSocket (același protocol ca web) + `RTCPeerConnection`.  
-5. **Închide** → cleanup + `CXEndCallAction` / tranzacție CallKit.
+1. La pornire, `VoipPushManager` cere token PushKit.
+2. Tokenul este trimis la `/api/me/push-token` **din WebView** (`WebScripts.registerVoipToken`),
+   ca să folosească automat cookie-ul de sesiune — fără duplicare a autentificării în nativ.
+3. Celălalt utilizator apelează → `POST /api/call/ring` → server emite **VoIP push**
+   (trezește aplicația chiar dacă e închisă complet).
+4. `VoipPushManager` primește payload-ul (`roomId`, `callerId`, `callerName`, `audioOnly`) →
+   `CXProvider.reportNewIncomingCall` → **ecran de apel al sistemului** (lock screen, sonerie nativă).
+5. **Răspunde** → `CXAnswerCallAction` → notificarea `.diebelOpenCall` → WebView-ul încarcă
+   `/app/call/{roomId}`.
+6. Când web-ul iese din ruta de apel, `updateCallChrome` apelează `endActiveCall()` și închide
+   și ecranul de sistem.
 
-## Proiect Xcode
-
-Folder `align-ios/`: rulezi **XcodeGen** (`brew install xcodegen && xcodegen generate`), deschizi `Align.xcodeproj`, setezi **Signing & Capabilities**:
-
-- Push Notifications  
-- Background Modes: **Voice over IP**, **Audio**, **Remote notifications**  
-
-`Align/Info.plist`: `ALIGN_API_BASE` (REST, ex. `https://chat.diebel.ro`) și `ALIGN_SIGNALING_WS_BASE` (WSS VPS, ex. `wss://ws.diebel.ro`) — **hosturi diferite**, la fel ca pe Vercel. Verificare: `curl -sS https://chat.diebel.ro/api/native-config`.
-
-`Align.entitlements`: `aps-environment` = `development` sau `production` după tipul build-ului (trebuie să corespundă cu certificatul APNs).
+**Obligatoriu (Apple):** fiecare push VoIP primit trebuie raportat la CallKit, altfel iOS oprește
+aplicația. Payload-urile invalide sunt raportate și încheiate imediat
+(`reportAndImmediatelyEnd`).
 
 ## Reguli
 
-- Fără polling ca trigger principal pe client iOS pentru incoming.  
-- Fără Web Audio / PWA pentru sirenă.  
-- Pornește pe **dispozitiv fizic**; PushKit/CallKit au suport limitat pe simulator.
-
-## SFU (opțional)
-
-P2P rămâne în `WebRtcCallManager`; pentru scalare: LiveKit / mediasoup + token scurt — înlocuiești stratul ICE/semnalizare păstrând CallKit + PushKit pentru deschiderea apelului.
+- Fără polling ca trigger principal pentru apeluri primite pe iOS.
+- `aps-environment` din `Diebel/Diebel.entitlements` trebuie să corespundă tipului de build
+  (Xcode îl comută la `production` pentru Archive/App Store).
+- Testează pe **dispozitiv fizic**; PushKit/CallKit nu funcționează complet pe simulator.

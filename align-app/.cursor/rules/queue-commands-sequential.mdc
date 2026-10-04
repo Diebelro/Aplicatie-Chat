@@ -1,0 +1,31 @@
+---
+description: Coadă de comenzi — execută secvențial 40+ taskuri, fără oprire la Enter, fără să strice ce merge
+alwaysApply: true
+---
+
+# Coadă de comenzi (secvențial)
+
+Utilizatorul poate trimite **multe comenzi deodată** (listă numerotată, mai multe rânduri, mesaje rapide la rând). Tratează-le ca **coadă FIFO**: termină una → apoi următoarea → până la capăt.
+
+## Execuție
+
+- **O comandă activă la un moment dat** pentru modificări de cod, deploy, build, migrări sau alte acțiuni cu efecte secvențiale.
+- **Nu opri** după primul task cu „gata, ce urmează?” dacă mai sunt itemi în coadă sau în același mesaj.
+- **Nu presupune** că un mesaj nou sau Enter anulează restul: finalizează taskul curent, apoi treci la următorul din coadă.
+- La **40+ comenzi**: menține mental lista (sau todo scurt), marchează progresul discret (ex. „7/42”) și continuă până la ultimul item sau până la o blocare reală.
+
+## Mesaje noi în timpul lucrului
+
+- Dacă utilizatorul trimite alt mesaj **în timp ce lucrezi**: nu abandona munca curentă; adaugă cererea la **sfârșitul cozii** (dacă nu spune explicit „stop” / „anulează”).
+- Dacă spune **stop, anulează, lasă, nu mai continua** — oprește coada după ce închizi în siguranță taskul curent (fără commit/deploy forțat).
+
+## Stabilitate — nu strica ce merge
+
+- Respectă scope-ul fiecărei comenzi; **nu refactoriza** și **nu schimba** fișiere/zone necerute doar pentru că „e următorul pas logic”.
+- După fiecare task cu risc: verificare minimă relevantă (build, lint, test) înainte de următorul.
+- La eșec: **repară sau raportează clar**, apoi continuă coada doar dacă următorul task nu depinde de fix; altfel rezolvă dependența întâi.
+
+## Claritate minimă
+
+- Întreabă **doar** când un item din coadă e imposibil de executat fără date lipsă; marchează itemul ca blocat și **continuă cu următorul** dacă e independent.
+- În paralel în **același** task: citiri/căutări independente sunt OK; nu paraleliza două taskuri din coadă care ating același cod.

@@ -25,7 +25,7 @@ export const VPS_INCOMING_CALL_POLL_VISIBLE_MS = 250;
 export const VPS_INCOMING_CALL_POLL_HIDDEN_MS = 2500;
 
 /** Debounce golire incoming după null de la server. */
-export const VPS_INCOMING_CLEAR_DEBOUNCE_MS = 500;
+export const VPS_INCOMING_CLEAR_DEBOUNCE_MS = 280;
 
 /** Retrimite „citit” în chat activ (bife rapide la destinatar). */
 export const VPS_CHAT_READ_RESEND_MS = 5000;

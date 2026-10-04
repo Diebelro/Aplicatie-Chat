@@ -25,21 +25,23 @@ class AlignConnection(
 
     override fun onShowIncomingCallUi() {
         wakeScreen(appContext)
+        // Self-managed: trebuie UI propriu (sonerie + Răspunde/Respinge).
+        IncomingCallNotifier.show(appContext, roomId, callerId, callerName, audioOnly)
     }
 
     override fun onAnswer() {
         setActive()
-        val i = Intent(appContext, CallActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra(CallActivity.EXTRA_ROOM_ID, roomId)
-            putExtra(CallActivity.EXTRA_REMOTE_USER_ID, callerId)
-            putExtra(CallActivity.EXTRA_AUDIO_ONLY, audioOnly)
-            putExtra(CallActivity.EXTRA_IS_CALLER, false)
+        IncomingCallNotifier.cancel(appContext)
+        val url = IncomingCallNotifier.buildCallUrl(roomId, audioOnly)
+        val i = Intent(appContext, ro.diebel.chat.MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra(ro.diebel.chat.MainActivity.EXTRA_DEEP_LINK_URL, url)
         }
         appContext.startActivity(i)
     }
 
     override fun onReject() {
+        IncomingCallNotifier.cancel(appContext)
         setDisconnected(DisconnectCause(DisconnectCause.REJECTED))
         destroy()
     }

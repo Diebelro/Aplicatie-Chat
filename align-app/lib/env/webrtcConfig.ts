@@ -25,8 +25,9 @@ export const webrtcPublicEnvSchema = z.object({
       return v === "true" || v === "1";
     }),
   CALL_MAX_MINUTES: z.coerce.number().min(1).max(480).default(30),
-  CALL_MAX_BITRATE_DESKTOP: z.coerce.number().min(200_000).max(8_000_000).default(2_500_000),
-  CALL_MAX_BITRATE_MOBILE: z.coerce.number().min(100_000).max(4_000_000).default(1_200_000),
+  /** Plafon bitrate video: mai sus = imagine mai clară pe rețea bună; adaptarea scade automat pe semnal slab. */
+  CALL_MAX_BITRATE_DESKTOP: z.coerce.number().min(200_000).max(8_000_000).default(3_500_000),
+  CALL_MAX_BITRATE_MOBILE: z.coerce.number().min(100_000).max(4_000_000).default(2_400_000),
   FEATURE_SCREENSHARE: z
     .string()
     .optional()

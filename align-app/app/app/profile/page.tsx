@@ -16,6 +16,11 @@ import { MAX_PHOTOS, resizeImageAsDataUrl } from "@/lib/profilePhotoUtils";
 import { ProfilePhotosGallery } from "@/components/profile/ProfilePhotosGallery";
 import { AppProLoading } from "@/components/AppProLoading";
 import { SkeletonPrivacyToggles } from "@/components/perceived/AppShellLoadingLayout";
+import {
+  PROFILE_COUNTRY_OPTIONS,
+  countrySelectValue,
+  normalizeCountryToOption,
+} from "@/lib/profileCountries";
 
 function getStoredUser(): User | null {
   if (typeof window === "undefined") return null;
@@ -183,6 +188,7 @@ export default function ProfilePage() {
   const [bio, setBio] = useState("");
   const [birthDate, setBirthDate] = useState("");
   const [gender, setGender] = useState("");
+  const [country, setCountry] = useState("");
   const [city, setCity] = useState("");
   const [postalCode, setPostalCode] = useState("");
   const [educationLevel, setEducationLevel] = useState("");
@@ -219,6 +225,7 @@ export default function ProfilePage() {
     setBio(u.bio ?? "");
     setBirthDate(u.birthDate ?? "");
     setGender(u.gender ?? "");
+    setCountry(countrySelectValue(u.country) || (u.country ?? "").trim());
     setCity(u.city ?? "");
     setPostalCode(u.postalCode ?? "");
     setEducationLevel(u.educationLevel ?? "");
@@ -264,6 +271,14 @@ export default function ProfilePage() {
       }
     })();
   }, []);
+
+  useEffect(() => {
+    if (searchParams?.get("needCountry") !== "1") return;
+    const t = requestAnimationFrame(() => {
+      document.getElementById("profile-country-field")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+    return () => cancelAnimationFrame(t);
+  }, [searchParams, loading]);
 
   useEffect(() => {
     if (searchParams?.get("focus") !== "photo") return;
@@ -318,6 +333,7 @@ export default function ProfilePage() {
     if (nameValid) setErrorDetail("");
     try {
       const photosToSend = opts?.photosOverride ?? photos;
+      const countryNorm = normalizeCountryToOption(country) || country.trim();
       const payload: Record<string, unknown> = {
         bio: bio.trim(),
         city: city.trim() || undefined,
@@ -334,6 +350,8 @@ export default function ProfilePage() {
         photos: photosToSend,
       };
       if (nameValid) payload.name = trimmedName;
+      // Țara e obligatorie pentru Descoperă — o trimitem doar când e aleasă (nu ștergem din greșeală).
+      if (countryNorm) payload.country = countryNorm;
       const computedAge = birthDate.trim() ? computeAgeFromBirthDate(birthDate.trim()) : null;
       if (computedAge != null) payload.age = computedAge;
       if (gender) payload.gender = gender || undefined;
@@ -409,7 +427,7 @@ export default function ProfilePage() {
         saveTimeoutRef.current = null;
       }
     };
-  }, [name, bio, birthDate, gender, city, postalCode, educationLevel, occupation, maritalStatus, wantsChildren, height, weight, bodyType, eyeColor, hairColor, clothingStyle, distinctiveFeatures, physicalAsset, physicalAssetDetail, photos]);
+  }, [name, bio, birthDate, gender, country, city, postalCode, educationLevel, occupation, maritalStatus, wantsChildren, height, weight, bodyType, eyeColor, hairColor, clothingStyle, distinctiveFeatures, physicalAsset, physicalAssetDetail, photos]);
 
   useEffect(() => {
     const flushSave = () => {
@@ -519,6 +537,13 @@ export default function ProfilePage() {
     });
   }
   if (city.trim()) {
+    if (country.trim()) {
+      profileSummaryRows.push({
+        key: "country",
+        label: profileLabel(tStr, "pages.profile.lblCountryReq"),
+        value: country.trim(),
+      });
+    }
     profileSummaryRows.push({ key: "city", label: profileLabel(tStr, "pages.profile.lblCity"), value: city.trim() });
   }
   if (postalCode.trim()) {
@@ -650,6 +675,7 @@ export default function ProfilePage() {
         const fields = [
           name.trim(),
           gender,
+          country.trim(),
           birthDate.trim(),
           city.trim(),
           postalCode.trim(),
@@ -816,6 +842,34 @@ export default function ProfilePage() {
                   </select>
                 </div>
               </div>
+            </div>
+            <div
+              id="profile-country-field"
+              className={
+                searchParams?.get("needCountry") === "1" && !country.trim()
+                  ? "rounded-xl ring-2 ring-amber-500/70 p-3 -mx-1 bg-amber-50/40"
+                  : undefined
+              }
+            >
+              <label className={labelClass}>{tStr("pages.profile.lblCountryReq")}</label>
+              <select
+                value={countrySelectValue(country) || (PROFILE_COUNTRY_OPTIONS.some((o) => o.value === country) ? country : "")}
+                onChange={(e) => setCountry(e.target.value)}
+                required
+                className={inputClass}
+              >
+                <option value="">{tStr("pages.profile.phCountrySelect")}</option>
+                {PROFILE_COUNTRY_OPTIONS.map((o) => (
+                  <option key={o.key} value={o.value}>
+                    {o.value}
+                  </option>
+                ))}
+              </select>
+              {!country.trim() ? (
+                <p className="text-amber-700 text-xs mt-1">{tStr("pages.profile.errCountryRequired")}</p>
+              ) : (
+                <p className="text-dark-500 text-xs mt-1">{tStr("pages.profile.countryHintOptionalCity")}</p>
+              )}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>

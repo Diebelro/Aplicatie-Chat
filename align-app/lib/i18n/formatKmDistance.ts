@@ -4,6 +4,9 @@ import { formatTpl } from "./formatTpl";
 function intlTagForLocale(locale: Locale): string {
   if (locale === "en") return "en-US";
   if (locale === "de") return "de-DE";
+  if (locale === "fr") return "fr-FR";
+  if (locale === "it") return "it-IT";
+  if (locale === "es") return "es-ES";
   return "ro-RO";
 }
 

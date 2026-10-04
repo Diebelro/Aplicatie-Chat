@@ -12,7 +12,8 @@ import { REJECTED_CALL_ROOM_TTL_MS, RING_PENDING_MAX_MS } from "@/lib/callRingCo
 import type { User, Match, Message } from "@/lib/store";
 import type { Gender } from "@/lib/store";
 import { PLATFORM_NOTICE_VISIBLE_DAYS } from "@/lib/platformModerationNotice";
-import { cityMatchesFilter, nameMatchesFilter, normalizeStrict } from "@/lib/discoverMatchUtils";
+import { cityMatchesFilter, nameMatchesFilter, gendersMatch, normalizeStrict, isNameLookupQuery } from "@/lib/discoverMatchUtils";
+import { applySoftCountryPreference, canonicalCountryKey } from "@/lib/countrySoftRegion";
 import { displayName } from "@/lib/displayName";
 
 /** Ascunde în chat notificările platformă expirate (rândul poate exista încă în DB). */
@@ -73,6 +74,7 @@ function profileToUserDTO(
       isBanned?: boolean;
       banUntil?: Date | null;
       emailVerified?: Date | null;
+      mustChangeUsername?: boolean;
     };
     photos: { url: string; order: number }[];
     userLoc?: { latitude: number; longitude: number } | null;
@@ -141,6 +143,7 @@ function profileToUserDTO(
     role: p.user.role ?? "USER",
     isBanned: accessBlocked,
     banUntil: until ? until.toISOString() : null,
+    mustChangeUsername: !!p.user.mustChangeUsername,
   };
 }
 
@@ -154,7 +157,7 @@ export async function prismaClearBanIfExpired(userId: string): Promise<void> {
     if (u?.banUntil && u.banUntil.getTime() <= Date.now()) {
       await prisma.user.update({
         where: { id: userId },
-        data: { isBanned: false, banUntil: null },
+        data: { isBanned: false, banUntil: null, banReason: null },
       });
     }
   } catch {
@@ -201,7 +204,7 @@ export async function prismaFindUserByUsername(username: string): Promise<User |
   await prismaClearBanIfExpired(profile.userId);
   const pu = await prisma.user.findUnique({
     where: { id: profile.userId },
-    select: { id: true, email: true, createdAt: true, role: true, isBanned: true, banUntil: true },
+    select: { id: true, email: true, createdAt: true, role: true, isBanned: true, banUntil: true, mustChangeUsername: true },
   });
   const loc = await prisma.location.findUnique({ where: { userId: profile.userId } });
   return profileToUserDTO({
@@ -214,6 +217,7 @@ export async function prismaFindUserByUsername(username: string): Promise<User |
       role: pu!.role,
       isBanned: pu!.isBanned,
       banUntil: pu!.banUntil,
+      mustChangeUsername: pu!.mustChangeUsername,
     },
     photos: profile.photos.map((ph) => ({ url: ph.url, order: ph.order })),
   } as Parameters<typeof profileToUserDTO>[0]);
@@ -237,6 +241,7 @@ export async function prismaFindUserById(id: string): Promise<User | null> {
       role: user.role,
       isBanned: user.isBanned,
       banUntil: user.banUntil,
+      mustChangeUsername: user.mustChangeUsername,
     },
     photos: user.profile.photos.map((ph) => ({ url: ph.url, order: ph.order })),
   } as Parameters<typeof profileToUserDTO>[0]);
@@ -303,6 +308,7 @@ export async function prismaFindUserByIdForMe(userId: string): Promise<User | nu
     role: row.role ?? "USER",
     isBanned: !!(row.isBanned || (row.banUntil && row.banUntil > new Date())),
     banUntil: row.banUntil?.toISOString() ?? null,
+    mustChangeUsername: !!row.mustChangeUsername,
   };
 }
 
@@ -326,6 +332,9 @@ export async function prismaCreateUserWithProfile(data: {
           username,
           birthDate: data.birthDate ?? null,
           gender: data.gender ?? null,
+          // Vizibil în Discover doar după Prenume + Sex + Țară (setat în /api/me).
+          completedAt: null,
+          lastActiveAt: new Date(),
         },
       },
     },
@@ -342,6 +351,7 @@ export async function prismaCreateUserWithProfile(data: {
       role: user.role,
       isBanned: user.isBanned,
       banUntil: user.banUntil,
+      mustChangeUsername: user.mustChangeUsername,
     },
     photos: user.profile!.photos.map((ph) => ({ url: ph.url, order: ph.order })),
   } as Parameters<typeof profileToUserDTO>[0]);
@@ -417,7 +427,14 @@ export async function prismaFindOrCreateOAuthUser(params: {
 /** Găsește user doar după email (pentru login). Nu cere Profile – astfel conturile existente sunt găsite mereu. */
 export async function prismaFindUserByEmailForLogin(
   email: string
-): Promise<{ id: string; email: string; isBanned: boolean; role: string } | null> {
+): Promise<{
+  id: string;
+  email: string;
+  isBanned: boolean;
+  role: string;
+  mustChangeUsername: boolean;
+  banReason: string | null;
+} | null> {
   const em = normalizeAuthEmail(email);
   if (!em) return null;
 
@@ -426,7 +443,9 @@ export async function prismaFindUserByEmailForLogin(
     email: true,
     isBanned: true,
     banUntil: true,
+    banReason: true,
     role: true,
+    mustChangeUsername: true,
   } as const;
 
   let user =
@@ -448,10 +467,17 @@ export async function prismaFindUserByEmailForLogin(
   await prismaClearBanIfExpired(user.id);
   const fresh = await prisma.user.findUnique({
     where: { id: user.id },
-    select: { isBanned: true, banUntil: true },
+    select: { isBanned: true, banUntil: true, banReason: true },
   });
   const blocked = !!(fresh?.isBanned || (fresh?.banUntil && fresh.banUntil > new Date()));
-  return { id: user.id, email: user.email, isBanned: blocked, role: user.role };
+  return {
+    id: user.id,
+    email: user.email,
+    isBanned: blocked,
+    role: user.role,
+    mustChangeUsername: !!user.mustChangeUsername,
+    banReason: blocked ? fresh?.banReason ?? user.banReason ?? null : null,
+  };
 }
 
 /**
@@ -982,33 +1008,40 @@ export function isTestMode(): boolean {
 export async function prismaGetFeedCandidates(
   userId: string,
   filters: FeedFilters,
-  _options?: { includeSwiped?: boolean }
+  options?: { includeSwiped?: boolean }
 ): Promise<User[]> {
-  const swipes = await prisma.swipe.findMany({
-    where: { fromUserId: userId },
-    select: { toUserId: true, liked: true },
-  });
   const excludeIds = new Set<string>();
   excludeIds.add(userId);
   const blockedIds = await prismaGetBlockedUserIds(userId);
   blockedIds.forEach((id) => excludeIds.add(id));
-  swipes.filter((s) => !s.liked).forEach((s) => excludeIds.add(s.toUserId));
+  // Descoperă / Profile trimit includeSwiped: true — altfel cine a dat pass dispare
+  // din listă și par „lipsă” față de numărul din Admin.
+  if (!options?.includeSwiped && !isTestMode()) {
+    const swipes = await prisma.swipe.findMany({
+      where: { fromUserId: userId },
+      select: { toUserId: true, liked: true },
+    });
+    swipes.filter((s) => !s.liked).forEach((s) => excludeIds.add(s.toUserId));
+  }
 
   const me = await prisma.user.findUnique({
     where: { id: userId },
-    include: { locations: true },
+    include: { locations: true, profile: { select: { country: true } } },
   });
   const myLat = me?.locations[0]?.latitude;
   const myLng = me?.locations[0]?.longitude;
   const hasMyLocation = myLat != null && myLng != null && Number.isFinite(myLat) && Number.isFinite(myLng);
+  const myCountryKey = canonicalCountryKey(me?.profile?.country);
 
-  const ONLINE_MS = 60 * 1000; // sub 1 min = instant ca WhatsApp
-  const onlineCutoff = new Date(Date.now() - ONLINE_MS);
+  // „Doar online” = activ recent (15 min). Punctul verde din UI rămâne pe ~1 min.
+  const ONLINE_FILTER_MS = 15 * 60 * 1000;
+  const onlineCutoff = new Date(Date.now() - ONLINE_FILTER_MS);
 
   const profiles = await prisma.profile.findMany({
     where: {
       userId: { notIn: [...excludeIds] },
       completedAt: { not: null },
+      user: { isBanned: false, mustChangeUsername: false },
     },
     include: {
       user: true,
@@ -1027,57 +1060,63 @@ export async function prismaGetFeedCandidates(
     userLoc: locByUser.get(p.userId) ?? null,
   }));
 
-  if (filters.gender && filters.gender !== "") {
-    const g = filters.gender.toLowerCase();
-    list = list.filter((p) => (p.gender ?? "").toLowerCase() === g);
+  const nameLookup = isNameLookupQuery(filters.name);
+
+  if (!nameLookup && filters.gender && filters.gender !== "") {
+    list = list.filter((p) => gendersMatch(p.gender, filters.gender));
   }
-  if (filters.minAge != null) {
+  if (!nameLookup && filters.minAge != null) {
     list = list.filter((p) => {
       const age = ageFromBirthDate(p.birthDate);
       return age == null || age >= filters.minAge!;
     });
   }
-  if (filters.maxAge != null) {
+  if (!nameLookup && filters.maxAge != null) {
     list = list.filter((p) => {
       const age = ageFromBirthDate(p.birthDate);
       return age == null || age <= filters.maxAge!;
     });
   }
-  if (filters.country && filters.country.trim() !== "") {
-    const want = normalizeStrict(filters.country);
+  // Țară / oraș: criteriu explicit → potrivire obligatorie.
+  // Profilurile fără țară/oraș NU mai rămân în listă (altfel filtrul părea că „nu face nimic”).
+  const explicitCountry = (filters.country ?? "").trim();
+  if (!nameLookup && explicitCountry) {
+    const wantKey = canonicalCountryKey(explicitCountry);
+    const wantNorm = normalizeStrict(explicitCountry);
     list = list.filter((p) => {
       const raw = (p.country ?? "").trim();
-      // Profil fără țară: rămâne vizibil (altfel filtrul implicit „România” ascunde toți utilizatorii fără țară setată).
-      if (!raw) return true;
-      return normalizeStrict(p.country ?? "") === want;
+      if (!raw) return false;
+      const key = canonicalCountryKey(raw);
+      if (wantKey && key) return key === wantKey;
+      return normalizeStrict(raw) === wantNorm;
     });
   }
-  if (filters.city && filters.city.trim() !== "") {
+  if (!nameLookup && filters.city && filters.city.trim() !== "") {
     const fc = filters.city;
     list = list.filter((p) => {
       const raw = (p.city ?? "").trim();
-      if (!raw) return true;
-      return cityMatchesFilter(p.city, fc);
+      if (!raw) return false;
+      return cityMatchesFilter(raw, fc);
     });
   }
   if (filters.name && filters.name.trim() !== "") {
     const q = filters.name;
     list = list.filter((p) => nameMatchesFilter(p.name, p.username, q));
   }
-  if (filters.onlineOnly) {
+  if (!nameLookup && filters.onlineOnly) {
     list = list.filter((p) => p.lastActiveAt != null && p.lastActiveAt >= onlineCutoff);
   }
-  // Distanța aleasă: doar profiluri cu locație în DB (Haversine față de mine). Fără estimări.
-  // Fără locația mea nu putem evalua filtrul → niciun rezultat (nu relaxăm către „toți”).
-  // Fără filtru de distanță: profilurile fără locație rămân în listă.
-  if (filters.maxDistanceKm != null && filters.maxDistanceKm > 0) {
-    if (!hasMyLocation) {
-      /* Fără locația mea: ignorăm distanța (altfel feed gol pe mobil unde lipsește GPS). */
-    } else {
+  // Distanța: excludem doar pe cei cu GPS confirmat ÎN AFARA razei.
+  // Fără locația mea, sau dacă nimeni altcineva nu are GPS → ignorăm filtrul
+  // (altfel feed-ul rămâne gol: majoritatea utilizatorilor nu au încă locație).
+  // Profilurile fără GPS rămân vizibile — distanța lor e necunoscută, nu „prea departe”.
+  if (!nameLookup && filters.maxDistanceKm != null && filters.maxDistanceKm > 0 && hasMyLocation) {
+    const othersWithLoc = list.reduce((n, p) => n + (locByUser.has(p.userId) ? 1 : 0), 0);
+    if (othersWithLoc > 0) {
       const R = 6371;
       list = list.filter((p) => {
         const loc = locByUser.get(p.userId);
-        if (!loc) return false;
+        if (!loc) return true;
         const dLat = ((loc.latitude - myLat!) * Math.PI) / 180;
         const dLng = ((loc.longitude - myLng!) * Math.PI) / 180;
         const a =
@@ -1089,6 +1128,25 @@ export async function prismaGetFeedCandidates(
         return R * c <= filters.maxDistanceKm!;
       });
     }
+  }
+
+  // Preferință lejeră pe țară (doar dacă userul NU a ales țară în filtre):
+  // DE vede DE (+ graniță), RO vede RO; nu amestecăm Berlin cu București.
+  if (!nameLookup && !explicitCountry && myCountryKey) {
+    list = applySoftCountryPreference(
+      list.map((p) => {
+        const loc = locByUser.get(p.userId);
+        return {
+          ...p,
+          country: p.country,
+          lat: loc?.latitude ?? null,
+          lng: loc?.longitude ?? null,
+        };
+      }),
+      myCountryKey,
+      hasMyLocation ? myLat : null,
+      hasMyLocation ? myLng : null
+    );
   }
 
   return list.map((p) =>
@@ -1170,6 +1228,7 @@ export async function prismaGetVisibleUsersForMap(
       userId: { not: meId },
       showDistance: true,
       completedAt: { not: null },
+      user: { isBanned: false, mustChangeUsername: false },
     },
     select: {
       userId: true,
@@ -1272,8 +1331,10 @@ export async function prismaGetFeedTestModeMeta(
 
 export async function prismaGetMutualMatches(userId: string): Promise<User[]> {
   const partnerIds = await prismaGetMutualMatchPartnerIds(userId);
+  const blockedIds = new Set(await prismaGetBlockedUserIds(userId));
   const users: User[] = [];
   for (const id of partnerIds) {
+    if (blockedIds.has(id)) continue;
     const u = await prismaFindUserById(id);
     if (u) users.push(u);
   }
@@ -1765,8 +1826,10 @@ export async function prismaGetConversationsWithMatches(userId: string): Promise
       },
     });
   }
-  combined.sort((a, b) => new Date(b.lastMessage.at).getTime() - new Date(a.lastMessage.at).getTime());
-  return combined;
+  const blockedIds = new Set(await prismaGetBlockedUserIds(userId));
+  const visible = blockedIds.size > 0 ? combined.filter((c) => !blockedIds.has(c.otherUser.id)) : combined;
+  visible.sort((a, b) => new Date(b.lastMessage.at).getTime() - new Date(a.lastMessage.at).getTime());
+  return visible;
 }
 
 export async function prismaBlockUser(blockerId: string, blockedId: string): Promise<void> {
@@ -1843,6 +1906,187 @@ export async function prismaReportUser(reporterId: string, reportedId: string, r
   });
 }
 
+// --- Friends (persistent, Prisma) ---
+export type PrismaFriendStatus = "pending_sent" | "pending_received" | "accepted" | "rejected" | null;
+
+export async function prismaAddFriendRequest(fromId: string, toId: string): Promise<boolean> {
+  if (fromId === toId) return false;
+  const existing = await prisma.friend.findFirst({
+    where: {
+      OR: [
+        { fromUserId: fromId, toUserId: toId },
+        { fromUserId: toId, toUserId: fromId },
+      ],
+    },
+  });
+  if (existing) {
+    // Permite re-trimiterea dacă a fost respinsă anterior.
+    if (existing.status === "rejected") {
+      await prisma.friend.update({
+        where: { id: existing.id },
+        data: { fromUserId: fromId, toUserId: toId, status: "pending" },
+      });
+      return true;
+    }
+    return false;
+  }
+  await prisma.friend.create({ data: { fromUserId: fromId, toUserId: toId, status: "pending" } });
+  return true;
+}
+
+export type PrismaScanConnectResult =
+  | { ok: true; status: "connected" | "already_friends"; user: User }
+  | { ok: false; error: "self" | "not_found" | "blocked" | "banned" };
+
+/**
+ * Conectare rapidă prin QR: prietenie acceptată imediat (intenție clară — sunteți față în față).
+ */
+export async function prismaScanConnect(
+  meId: string,
+  otherId: string
+): Promise<PrismaScanConnectResult> {
+  if (meId === otherId) return { ok: false, error: "self" };
+
+  const other = await prisma.user.findUnique({
+    where: { id: otherId },
+    include: { profile: { include: { photos: true } }, locations: true },
+  });
+  if (!other?.profile) return { ok: false, error: "not_found" };
+  if (other.isBanned) return { ok: false, error: "banned" };
+  if (other.profile.allowFriendRequests === false) return { ok: false, error: "blocked" };
+
+  const existing = await prisma.friend.findFirst({
+    where: {
+      OR: [
+        { fromUserId: meId, toUserId: otherId },
+        { fromUserId: otherId, toUserId: meId },
+      ],
+    },
+  });
+
+  let status: "connected" | "already_friends" = "connected";
+  if (existing?.status === "accepted") {
+    status = "already_friends";
+  } else if (existing) {
+    await prisma.friend.update({
+      where: { id: existing.id },
+      data: { fromUserId: meId, toUserId: otherId, status: "accepted" },
+    });
+  } else {
+    await prisma.friend.create({
+      data: { fromUserId: meId, toUserId: otherId, status: "accepted" },
+    });
+  }
+
+  const loc = other.locations[0];
+  const user = profileToUserDTO({
+    ...other.profile,
+    userLoc: loc ? { latitude: loc.latitude, longitude: loc.longitude } : null,
+    user: {
+      id: other.id,
+      email: other.email,
+      createdAt: other.createdAt,
+      role: other.role,
+      isBanned: other.isBanned,
+      banUntil: other.banUntil,
+    },
+    photos: other.profile.photos.map((ph) => ({ url: ph.url, order: ph.order })),
+  } as Parameters<typeof profileToUserDTO>[0]);
+
+  return { ok: true, status, user };
+}
+
+export async function prismaAcceptFriendRequest(userId: string, friendId: string): Promise<boolean> {
+  const row = await prisma.friend.findFirst({
+    where: { fromUserId: friendId, toUserId: userId, status: "pending" },
+  });
+  if (!row) return false;
+  await prisma.friend.update({ where: { id: row.id }, data: { status: "accepted" } });
+  return true;
+}
+
+export async function prismaRejectFriendRequest(userId: string, friendId: string): Promise<boolean> {
+  const row = await prisma.friend.findFirst({
+    where: { fromUserId: friendId, toUserId: userId, status: "pending" },
+  });
+  if (!row) return false;
+  await prisma.friend.update({ where: { id: row.id }, data: { status: "rejected" } });
+  return true;
+}
+
+export async function prismaRemoveFriend(userId: string, friendId: string): Promise<boolean> {
+  const res = await prisma.friend.deleteMany({
+    where: {
+      OR: [
+        { fromUserId: userId, toUserId: friendId },
+        { fromUserId: friendId, toUserId: userId },
+      ],
+    },
+  });
+  return res.count > 0;
+}
+
+export async function prismaGetFriendStatus(meId: string, otherId: string): Promise<PrismaFriendStatus> {
+  const row = await prisma.friend.findFirst({
+    where: {
+      OR: [
+        { fromUserId: meId, toUserId: otherId },
+        { fromUserId: otherId, toUserId: meId },
+      ],
+    },
+  });
+  if (!row) return null;
+  if (row.status === "accepted") return "accepted";
+  if (row.status === "rejected") return "rejected";
+  return row.fromUserId === meId ? "pending_sent" : "pending_received";
+}
+
+/** Map status pentru o listă de utilizatori (feed/profiluri) — o singură interogare. */
+export async function prismaGetFriendStatusMap(
+  meId: string,
+  otherIds: string[]
+): Promise<Map<string, PrismaFriendStatus>> {
+  const map = new Map<string, PrismaFriendStatus>();
+  if (otherIds.length === 0) return map;
+  const rows = await prisma.friend.findMany({
+    where: {
+      OR: [
+        { fromUserId: meId, toUserId: { in: otherIds } },
+        { fromUserId: { in: otherIds }, toUserId: meId },
+      ],
+    },
+    select: { fromUserId: true, toUserId: true, status: true },
+  });
+  for (const r of rows) {
+    const otherId = r.fromUserId === meId ? r.toUserId : r.fromUserId;
+    let status: PrismaFriendStatus;
+    if (r.status === "accepted") status = "accepted";
+    else if (r.status === "rejected") status = "rejected";
+    else status = r.fromUserId === meId ? "pending_sent" : "pending_received";
+    map.set(otherId, status);
+  }
+  return map;
+}
+
+export async function prismaGetFriendsList(userId: string): Promise<User[]> {
+  const rows = await prisma.friend.findMany({
+    where: {
+      status: "accepted",
+      OR: [{ fromUserId: userId }, { toUserId: userId }],
+    },
+    select: { fromUserId: true, toUserId: true },
+  });
+  const ids = rows.map((r) => (r.fromUserId === userId ? r.toUserId : r.fromUserId));
+  const blockedIds = new Set(await prismaGetBlockedUserIds(userId));
+  const users: User[] = [];
+  for (const id of ids) {
+    if (blockedIds.has(id)) continue;
+    const u = await prismaFindUserById(id);
+    if (u) users.push(u);
+  }
+  return users;
+}
+
 export async function prismaCreateAppFeedback(
   userId: string,
   message: string,
@@ -1878,21 +2122,295 @@ export async function prismaListAppFeedback(
 }
 
 export async function prismaGetReports(): Promise<
-  { id: string; reporterId: string; reportedId: string; reason: string; createdAt: Date; reporterEmail?: string; reportedEmail?: string }[]
+  {
+    id: string;
+    reporterId: string;
+    reportedId: string;
+    reason: string;
+    createdAt: Date;
+    reporterEmail?: string;
+    reportedEmail?: string;
+    /** Mesaje între raportor și raportat (0 = raport fără conversație, posibil din profil / răutate). */
+    messageCount: number;
+  }[]
 > {
   const list = await prisma.report.findMany({
     orderBy: { createdAt: "desc" },
     include: { reporter: { select: { email: true } }, reported: { select: { email: true } } },
   });
-  return list.map((r) => ({
-    id: r.id,
-    reporterId: r.reporterId,
-    reportedId: r.reportedId,
-    reason: r.reason,
-    createdAt: r.createdAt,
-    reporterEmail: r.reporter?.email,
-    reportedEmail: r.reported?.email,
-  }));
+  const withCounts = await Promise.all(
+    list.map(async (r) => {
+      const messageCount = await prisma.message.count({
+        where: {
+          OR: [
+            { fromUserId: r.reporterId, toUserId: r.reportedId },
+            { fromUserId: r.reportedId, toUserId: r.reporterId },
+          ],
+        },
+      });
+      return {
+        id: r.id,
+        reporterId: r.reporterId,
+        reportedId: r.reportedId,
+        reason: r.reason,
+        createdAt: r.createdAt,
+        reporterEmail: r.reporter?.email,
+        reportedEmail: r.reported?.email,
+        messageCount,
+      };
+    })
+  );
+  return withCounts;
+}
+
+/** Șterge un raport (închis ca nefondat / fără dovezi). */
+export async function prismaDeleteReport(reportId: string): Promise<boolean> {
+  try {
+    await prisma.report.delete({ where: { id: reportId } });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export type AdminConversationListItem = {
+  conversationId: string;
+  userA: { id: string; email?: string; name?: string; username?: string };
+  userB: { id: string; email?: string; name?: string; username?: string };
+  lastMessage: { text: string; at: string; fromId: string; hasAttachment?: boolean };
+  messageCount: number;
+  /** Poze / imagini trimise în thread (estimare pe ferestrele scanate). */
+  photoCount: number;
+  attachmentCount: number;
+  /** Categorii de risc detectate pe textele recente (keywords admin). */
+  flags: string[];
+  lastHasAttachment: boolean;
+};
+
+/**
+ * Conversații recente pentru admin — click pe rând, fără ID-uri manuale.
+ * Căutare: email / nume / username / userId / conversationId (a_b).
+ * Filtre: hasPhotos, flaggedOnly, category.
+ */
+export async function prismaAdminListRecentConversations(opts?: {
+  limit?: number;
+  search?: string;
+  forUserId?: string;
+  hasPhotos?: boolean;
+  flaggedOnly?: boolean;
+  category?: string;
+}): Promise<AdminConversationListItem[]> {
+  const { scanMessageForCategories } = await import("@/lib/moderationScan");
+  const limit = Math.min(80, Math.max(10, opts?.limit ?? 40));
+  const search = (opts?.search ?? "").trim();
+  const forUserId = (opts?.forUserId ?? "").trim();
+  const hasPhotos = opts?.hasPhotos === true;
+  const flaggedOnly = opts?.flaggedOnly === true;
+  const categoryFilter = (opts?.category ?? "").trim().toLowerCase();
+
+  let involveUserIds: string[] | null = null;
+  let forcePair: { a: string; b: string } | null = null;
+
+  // conversationId: userA_userB
+  if (!forUserId && search.includes("_")) {
+    const parts = search.split("_").filter(Boolean);
+    if (parts.length === 2 && parts[0].length >= 8 && parts[1].length >= 8) {
+      const [x, y] = parts[0] < parts[1] ? [parts[0], parts[1]] : [parts[1], parts[0]];
+      forcePair = { a: x, b: y };
+      involveUserIds = [x, y];
+    }
+  }
+
+  if (forUserId) {
+    involveUserIds = [forUserId];
+  } else if (!forcePair && search.length >= 2) {
+    const looksLikeId = /^[a-z0-9_-]{8,}$/i.test(search) && !search.includes("@");
+    const found = await prisma.user.findMany({
+      where: {
+        OR: [
+          ...(looksLikeId ? [{ id: search }, { id: { startsWith: search } }] : []),
+          { email: { contains: search, mode: "insensitive" as const } },
+          { profile: { name: { contains: search, mode: "insensitive" as const } } },
+          { profile: { username: { contains: search, mode: "insensitive" as const } } },
+        ],
+      },
+      take: 40,
+      select: { id: true },
+    });
+    if (found.length === 0) return [];
+    involveUserIds = found.map((u) => u.id);
+  }
+
+  // Când filtrăm poze/flaguri, scanăm mai adânc ca să nu ratăm
+  const needDeep = hasPhotos || flaggedOnly || !!categoryFilter;
+  const scanTake = forcePair ? 400 : involveUserIds ? (needDeep ? 1500 : 900) : needDeep ? 1200 : 700;
+  const recent = await prisma.message.findMany({
+    where: {
+      AND: [
+        prismaMessageWhereChatVisible(),
+        forcePair
+          ? {
+              OR: [
+                { fromUserId: forcePair.a, toUserId: forcePair.b },
+                { fromUserId: forcePair.b, toUserId: forcePair.a },
+              ],
+            }
+          : involveUserIds
+            ? {
+                OR: [
+                  { fromUserId: { in: involveUserIds } },
+                  { toUserId: { in: involveUserIds } },
+                ],
+              }
+            : {},
+      ],
+    },
+    orderBy: { createdAt: "desc" },
+    take: scanTake,
+    select: {
+      fromUserId: true,
+      toUserId: true,
+      text: true,
+      createdAt: true,
+      attachmentUrl: true,
+      attachmentContentType: true,
+      isPlatformNotice: true,
+    },
+  });
+
+  type PairAcc = {
+    a: string;
+    b: string;
+    lastText: string;
+    lastAt: Date;
+    lastFrom: string;
+    lastHasAttachment: boolean;
+    photoCount: number;
+    attachmentCount: number;
+    flags: Set<string>;
+    messageCountApprox: number;
+  };
+  const pairs = new Map<string, PairAcc>();
+  const isImageAtt = (ct: string | null | undefined, url: string | null | undefined) => {
+    if (!url) return false;
+    const c = (ct || "").toLowerCase();
+    if (c.startsWith("image/")) return true;
+    return /\.(jpe?g|png|gif|webp|heic)(\?|$)/i.test(url);
+  };
+
+  for (const m of recent) {
+    const [a, b] = m.fromUserId < m.toUserId ? [m.fromUserId, m.toUserId] : [m.toUserId, m.fromUserId];
+    const key = `${a}_${b}`;
+    let acc = pairs.get(key);
+    const hasAtt = !!m.attachmentUrl;
+    const isPhoto = isImageAtt(m.attachmentContentType, m.attachmentUrl);
+    const cats = scanMessageForCategories(m.text || "");
+    if (!acc) {
+      const preview =
+        (m.text || "").trim() ||
+        (hasAtt ? (isPhoto ? "[poză]" : "[atașament]") : m.isPlatformNotice ? "[notificare]" : "[mesaj]");
+      acc = {
+        a,
+        b,
+        lastText: preview.slice(0, 160),
+        lastAt: m.createdAt,
+        lastFrom: m.fromUserId,
+        lastHasAttachment: hasAtt,
+        photoCount: isPhoto ? 1 : 0,
+        attachmentCount: hasAtt ? 1 : 0,
+        flags: new Set(cats),
+        messageCountApprox: 1,
+      };
+      pairs.set(key, acc);
+    } else {
+      acc.messageCountApprox += 1;
+      if (hasAtt) acc.attachmentCount += 1;
+      if (isPhoto) acc.photoCount += 1;
+      for (const c of cats) acc.flags.add(c);
+    }
+  }
+
+  // Filtre post-agregare
+  let pairList = [...pairs.entries()];
+  if (hasPhotos) {
+    pairList = pairList.filter(([, p]) => p.photoCount > 0);
+  }
+  if (flaggedOnly || categoryFilter) {
+    pairList = pairList.filter(([, p]) => {
+      if (categoryFilter) return p.flags.has(categoryFilter);
+      return p.flags.size > 0;
+    });
+  }
+  // Sortare: întâi cele cu flag-uri, apoi cu poze, apoi recente
+  pairList.sort(([, x], [, y]) => {
+    const score = (p: PairAcc) =>
+      (p.flags.has("minors") ? 1000 : 0) +
+      (p.flags.has("threats") ? 500 : 0) +
+      (p.flags.has("sexual") ? 200 : 0) +
+      (p.flags.size > 0 ? 50 : 0) +
+      (p.photoCount > 0 ? 20 : 0);
+    const ds = score(y) - score(x);
+    if (ds !== 0) return ds;
+    return y.lastAt.getTime() - x.lastAt.getTime();
+  });
+  pairList = pairList.slice(0, limit);
+
+  const ids = new Set<string>();
+  for (const [, p] of pairList) {
+    ids.add(p.a);
+    ids.add(p.b);
+  }
+  const users = await prisma.user.findMany({
+    where: { id: { in: [...ids] } },
+    select: {
+      id: true,
+      email: true,
+      profile: { select: { name: true, username: true } },
+    },
+  });
+  const byId = new Map(users.map((u) => [u.id, u]));
+
+  const out: AdminConversationListItem[] = [];
+  for (const [conversationId, p] of pairList) {
+    const messageCount = await prisma.message.count({
+      where: {
+        AND: [
+          {
+            OR: [
+              { fromUserId: p.a, toUserId: p.b },
+              { fromUserId: p.b, toUserId: p.a },
+            ],
+          },
+          prismaMessageWhereChatVisible(),
+        ],
+      },
+    });
+    const ua = byId.get(p.a);
+    const ub = byId.get(p.b);
+    const brief = (u: (typeof users)[number] | undefined) => ({
+      id: u?.id ?? "",
+      email: u?.email,
+      name: u?.profile?.name?.trim() || undefined,
+      username: u?.profile?.username?.trim() || undefined,
+    });
+    out.push({
+      conversationId,
+      userA: { ...brief(ua), id: p.a },
+      userB: { ...brief(ub), id: p.b },
+      lastMessage: {
+        text: p.lastText,
+        at: p.lastAt.toISOString(),
+        fromId: p.lastFrom,
+        hasAttachment: p.lastHasAttachment,
+      },
+      messageCount,
+      photoCount: p.photoCount,
+      attachmentCount: p.attachmentCount,
+      flags: [...p.flags],
+      lastHasAttachment: p.lastHasAttachment,
+    });
+  }
+  return out;
 }
 
 /** Rapoarte unde acest utilizator este cel raportat (moderare). */
@@ -2038,7 +2556,10 @@ export async function prismaResolveBanAppealAsAdmin(
   }
   if (action === "UNBAN") {
     await prisma.$transaction([
-      prisma.user.update({ where: { id: appeal.userId }, data: { isBanned: false, banUntil: null } }),
+      prisma.user.update({
+        where: { id: appeal.userId },
+        data: { isBanned: false, banUntil: null, banReason: null },
+      }),
       prisma.banAppeal.update({
         where: { id: appealId },
         data: { status: "RESOLVED", resolvedAt: new Date() },
@@ -2113,6 +2634,12 @@ export type AdminModerationSummary = {
   totalUsers: number;
   bannedUsers: number;
   totalReports: number;
+  /** Conturi cu profil gender = female (case-insensitive). */
+  femaleUsers: number;
+  /** Conturi cu profil gender = male (case-insensitive). */
+  maleUsers: number;
+  /** Conturi cu alt gen / fără gen setat pe profil. */
+  otherGenderUsers: number;
   signupsLast24Hours: number;
   signupsLast7Days: number;
   signupsLast15Days: number;
@@ -2143,6 +2670,8 @@ export async function prismaGetAdminModerationSummary(since: AdminModerationSinc
     totalUsers,
     bannedUsers,
     totalReports,
+    femaleUsers,
+    maleUsers,
     signupsLast24Hours,
     signupsLast7Days,
     signupsLast15Days,
@@ -2158,6 +2687,8 @@ export async function prismaGetAdminModerationSummary(since: AdminModerationSinc
     prisma.user.count(),
     prisma.user.count({ where: { isBanned: true } }),
     prisma.report.count(),
+    prisma.profile.count({ where: { gender: { equals: "female", mode: "insensitive" } } }),
+    prisma.profile.count({ where: { gender: { equals: "male", mode: "insensitive" } } }),
     prisma.user.count({ where: { createdAt: { gte: twentyFourHoursAgo } } }),
     prisma.user.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
     prisma.user.count({ where: { createdAt: { gte: fifteenDaysAgo } } }),
@@ -2170,10 +2701,14 @@ export async function prismaGetAdminModerationSummary(since: AdminModerationSinc
     prisma.report.count({ where: { createdAt: { gte: since.reports } } }),
     prisma.appFeedback.count({ where: { createdAt: { gte: since.feedback } } }),
   ]);
+  const otherGenderUsers = Math.max(0, totalUsers - femaleUsers - maleUsers);
   return {
     totalUsers,
     bannedUsers,
     totalReports,
+    femaleUsers,
+    maleUsers,
+    otherGenderUsers,
     signupsLast24Hours,
     signupsLast7Days,
     signupsLast15Days,
@@ -2191,7 +2726,9 @@ export async function prismaGetAdminModerationSummary(since: AdminModerationSinc
 export async function prismaSetUserBanned(userId: string, banned: boolean): Promise<void> {
   await prisma.user.update({
     where: { id: userId },
-    data: banned ? { isBanned: true, banUntil: null } : { isBanned: false, banUntil: null },
+    data: banned
+      ? { isBanned: true, banUntil: null }
+      : { isBanned: false, banUntil: null, banReason: null },
   });
 }
 
@@ -2204,18 +2741,48 @@ export type AdminUserRow = {
   createdAt: Date;
 };
 
-export async function prismaGetUsersForAdmin(search?: string): Promise<AdminUserRow[]> {
+export type AdminUserRowWithProfile = AdminUserRow & {
+  username?: string | null;
+  name?: string | null;
+};
+
+export async function prismaGetUsersForAdmin(search?: string): Promise<AdminUserRowWithProfile[]> {
   const q = search?.trim();
   const where = q
-    ? { OR: [{ id: q }, { email: { contains: q, mode: "insensitive" as const } }] }
+    ? {
+        OR: [
+          { id: q },
+          { id: { startsWith: q } },
+          { email: { contains: q, mode: "insensitive" as const } },
+          { profile: { username: { contains: q, mode: "insensitive" as const } } },
+          { profile: { name: { contains: q, mode: "insensitive" as const } } },
+        ],
+      }
     : undefined;
   const users = await prisma.user.findMany({
     where,
-    select: { id: true, email: true, role: true, isBanned: true, banUntil: true, createdAt: true },
+    select: {
+      id: true,
+      email: true,
+      role: true,
+      isBanned: true,
+      banUntil: true,
+      createdAt: true,
+      profile: { select: { username: true, name: true } },
+    },
     orderBy: { createdAt: "desc" },
     take: 500,
   });
-  return users;
+  return users.map((u) => ({
+    id: u.id,
+    email: u.email,
+    role: u.role,
+    isBanned: u.isBanned,
+    banUntil: u.banUntil,
+    createdAt: u.createdAt,
+    username: u.profile?.username ?? null,
+    name: u.profile?.name ?? null,
+  }));
 }
 
 export type AdminModerationMessageRow = {

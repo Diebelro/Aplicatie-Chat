@@ -3,23 +3,23 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Heart, X, ChevronRight, MessageCircle, Undo2 } from "lucide-react";
+import { Heart, X, ChevronRight, MessageCircle, Undo2, ShieldOff, Flag } from "lucide-react";
 import type { User } from "@/lib/store";
 import { getStoredUserRaw } from "@/lib/store";
 import {
   useSearchFilters,
-  defaultSearchFilters,
-  discoverFiltersForShell,
-  resetDiscoverFiltersStorage,
+  broadenSearchFilters,
   type SearchFilters,
 } from "@/lib/useSearchFilters";
-import { SEARCH_CITY_HINTS } from "@/lib/localeSearchDefaults";
 import { SilhouetteAvatar } from "@/components/SilhouetteAvatar";
-import { getFirstUsableProfilePhotoUrl } from "@/lib/profileImage";
+import { SharedSearchFiltersPanel } from "@/components/SharedSearchFiltersPanel";
+import { getUsableProfilePhotoUrls } from "@/lib/profileImage";
+import { ProfilePhotoCountBars } from "@/components/ProfilePhotoCountBars";
 import { AddFriendButton } from "@/components/AddFriendButton";
 import { track } from "@/lib/tracking";
 import { displayName } from "@/lib/displayName";
 import { DiebelAppPromoCarousel } from "@/components/diebel/DiebelAppPromoCarousel";
+import AdSlot from "@/components/AdSlot";
 import { OptimizedImage } from "@/components/OptimizedImage";
 import {
   buildFeed,
@@ -29,12 +29,19 @@ import {
   type FeedItemProfile,
 } from "@/lib/feedBuilder";
 import { fetchWithAuthRetry } from "@/lib/authClient";
+import {
+  applyDiscoverResumeOrder,
+  clearDiscoverResume,
+  discoverFiltersKey,
+  peekDiscoverResume,
+  saveDiscoverResume,
+} from "@/lib/discoverResumeSession";
+import { saveProfileReturnPath } from "@/lib/listScrollSession";
 import { buildDiscoverApiQuery } from "@/lib/discoverSearchParams";
 import { useVisibleInterval } from "@/lib/useVisibleInterval";
 import { getPresencePollMs } from "@/lib/presencePollMs";
-import { MAX_PROFILE_SEARCH_RADIUS_KM } from "@/lib/profileSearchConstants";
+import { presenceKind } from "@/lib/presenceLabel";
 import {
-  getSmallCardState,
   getProfileCardChrome,
   FRIEND_CARD_COLORS,
 } from "@/lib/friendCardStates";
@@ -64,8 +71,6 @@ type UserWithMeta = User & {
 };
 
 const FAST_SWIPE_MS = 2500;
-/** Câte profile poți aduce înapoi în stivă după ce le-ai trecut (like/pass). */
-const MAX_PROFILE_UNDO = 7;
 
 const LEGEND_KEYS = [
   "friends",
@@ -92,19 +97,6 @@ export default function AppDiscoverPage() {
     },
     [tStr]
   );
-  const formatLastActive = useCallback(
-    (ts: number | undefined): string => {
-      if (!ts) return "";
-      const min = Math.floor((Date.now() - ts) / 60000);
-      if (min < 1) return tStr("pages.discover.lastNow");
-      if (min === 1) return tStr("pages.discover.last1min");
-      if (min < 60) return formatTpl(tStr("pages.discover.lastNmin"), { n: min });
-      const h = Math.floor(min / 60);
-      if (h === 1) return tStr("pages.discover.last1h");
-      return formatTpl(tStr("pages.discover.lastNh"), { n: h });
-    },
-    [tStr]
-  );
 
   const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -118,35 +110,46 @@ export default function AppDiscoverPage() {
     minCardsBeforeAds: number;
   } | null>(null);
   const router = useRouter();
-  const [filters, setFilters] = useSearchFilters(locale);
-  const [debouncedName, setDebouncedName] = useState(filters.name);
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedName(filters.name), 280);
-    return () => clearTimeout(t);
-  }, [filters.name]);
+  const [filters, setFilters, filtersReady] = useSearchFilters(locale);
   const lastViewedId = useRef<string | null>(null);
   const cardShownAtRef = useRef<number>(0);
   const [dragOffset, setDragOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const dragStartX = useRef(0);
+  const dragStartY = useRef(0);
+  /** null = nedecis; h = swipe like/pass; v = scroll pagină (nu blocăm). */
+  const swipeAxisRef = useRef<"h" | "v" | null>(null);
   const isDraggingRef = useRef(false);
   const swipeMaxAbsDeltaRef = useRef(0);
   const cardRef = useRef<HTMLDivElement>(null);
+  const photoAreaRef = useRef<HTMLDivElement>(null);
+  const [cardPhotoIndex, setCardPhotoIndex] = useState(0);
   const [matchModal, setMatchModal] = useState<{ toId: string; name: string } | null>(null);
   const profileUndoStackRef = useRef<FeedItemProfile[]>([]);
   const [undoStackLength, setUndoStackLength] = useState(0);
   const autoRelaxedFiltersRef = useRef(false);
   const [discoverHint, setDiscoverHint] = useState<string | undefined>();
+  const feedSeqRef = useRef(0);
+  const feedAbortRef = useRef<AbortController | null>(null);
 
   const resetProfileUndoStack = useCallback(() => {
     profileUndoStackRef.current = [];
     setUndoStackLength(0);
   }, []);
+
+  /** La tastare țară/oraș: scoatem imediat rezultatele vechi ca să nu apară Germania după ce ai scris România. */
+  const onFilterPending = useCallback(() => {
+    feedAbortRef.current?.abort();
+    feedSeqRef.current += 1;
+    setLoading(true);
+    setFeedItems([]);
+    resetProfileUndoStack();
+  }, [resetProfileUndoStack]);
   const SWIPE_THRESHOLD = 55;
   const SWIPE_EXIT_OFFSET = 400;
   const FLY_OUT_MS = 100;
   /** Sub această mișcare orizontală, eliberarea e tratată ca tap → deschide profilul (nu swipe). */
-  const TAP_OPEN_PROFILE_MAX_PX = 18;
+  const TAP_OPEN_PROFILE_MAX_PX = 42;
 
   const triggerHaptic = () => {
     if (typeof navigator !== "undefined" && navigator.vibrate?.(8)) return;
@@ -156,9 +159,23 @@ export default function AppDiscoverPage() {
   const isProfile = currentItem?.type === "profile";
   const current = (isProfile ? currentItem.data : null) as UserWithMeta | undefined;
 
+  const orderProfilesForResume = useCallback((profiles: UserWithMeta[], f: SearchFilters) => {
+    const resume = peekDiscoverResume(discoverFiltersKey(f));
+    if (!resume) return profiles;
+    const ordered = applyDiscoverResumeOrder(profiles, resume);
+    clearDiscoverResume();
+    return ordered;
+  }, []);
+
   const loadFeed = (f: SearchFilters, currentIntervals?: { internal: number; external: number }) => {
+    feedAbortRef.current?.abort();
+    const ac = new AbortController();
+    feedAbortRef.current = ac;
+    const seq = ++feedSeqRef.current;
     const query = buildDiscoverApiQuery(f);
-    return fetchWithAuthRetry(`/api/feed${query}`, { cache: "no-store" })
+    setLoading(true);
+    setFeedItems([]);
+    return fetchWithAuthRetry(`/api/feed${query}`, { cache: "no-store", signal: ac.signal })
       .then(async (res) => {
         const data = await res.json();
         if (!res.ok) return null;
@@ -174,6 +191,7 @@ export default function AppDiscoverPage() {
         };
       })
       .then((data) => {
+        if (seq !== feedSeqRef.current) return;
         if (!data) {
           setFeedItems([]);
           setFeedConfig(null);
@@ -197,8 +215,9 @@ export default function AppDiscoverPage() {
           data.externalAdIntervalMax
         );
         if (!currentIntervals) setIntervals({ internal: iInt, external: iExt });
+        const profiles = orderProfilesForResume(data.profiles, f);
         const items = buildFeed({
-          profiles: data.profiles,
+          profiles,
           internalAds: data.internalAds,
           isPremium: data.isPremium,
           minCardsBeforeAds: data.minCardsBeforeAds,
@@ -208,9 +227,11 @@ export default function AppDiscoverPage() {
         setFeedItems(items);
         resetProfileUndoStack();
         setLoading(false);
-        if (data.profiles.length > 0) setRetriedAfterEmpty(false);
+        if (profiles.length > 0) setRetriedAfterEmpty(false);
       })
-      .catch(() => {
+      .catch((err: unknown) => {
+        if (seq !== feedSeqRef.current) return;
+        if (err instanceof DOMException && err.name === "AbortError") return;
         setFeedItems([]);
         setFeedConfig(null);
         resetProfileUndoStack();
@@ -225,18 +246,19 @@ export default function AppDiscoverPage() {
   };
 
   const resetAllDiscoverFilters = () => {
-    resetDiscoverFiltersStorage();
+    clearDiscoverResume();
     autoRelaxedFiltersRef.current = false;
     setRetriedAfterEmpty(false);
-    const open = discoverFiltersForShell(defaultSearchFilters);
-    setFilters(open);
-    setLoading(true);
-    loadFeed(open);
+    setFilters((f) => broadenSearchFilters(f));
   };
 
   useEffect(() => {
     if (currentItem) cardShownAtRef.current = Date.now();
   }, [feedItems.length, currentItem?.type, isProfile ? current?.id : (currentItem && "data" in currentItem ? (currentItem as { data: { id?: string } }).data?.id : undefined)]);
+
+  useEffect(() => {
+    setCardPhotoIndex(0);
+  }, [current?.id]);
 
   useEffect(() => {
     if (!current?.id || current.id === lastViewedId.current) return;
@@ -251,10 +273,19 @@ export default function AppDiscoverPage() {
   }, [current?.id]);
 
   useEffect(() => {
-    let cancelled = false;
+    if (!filtersReady) return;
+    feedAbortRef.current?.abort();
+    const ac = new AbortController();
+    feedAbortRef.current = ac;
+    const seq = ++feedSeqRef.current;
     setLoading(true);
-    const queryFilters = { ...filters, name: debouncedName };
-    fetchWithAuthRetry(`/api/feed${buildDiscoverApiQuery(queryFilters)}`, { cache: "no-store" })
+    setFeedItems([]);
+    resetProfileUndoStack();
+    const queryFilters = filters;
+    fetchWithAuthRetry(`/api/feed${buildDiscoverApiQuery(queryFilters)}`, {
+      cache: "no-store",
+      signal: ac.signal,
+    })
       .then(async (res) => {
         const data = await res.json();
         if (!res.ok) return null;
@@ -271,7 +302,7 @@ export default function AppDiscoverPage() {
         };
       })
       .then((data) => {
-        if (cancelled) return;
+        if (seq !== feedSeqRef.current) return;
         if (!data) {
           setFeedItems([]);
           setDiscoverHint(undefined);
@@ -294,8 +325,9 @@ export default function AppDiscoverPage() {
           data.externalAdIntervalMax
         );
         setIntervals(initial);
+        const profiles = orderProfilesForResume(data.profiles, queryFilters);
         const items = buildFeed({
-          profiles: data.profiles,
+          profiles,
           internalAds: data.internalAds,
           isPremium: data.isPremium,
           minCardsBeforeAds: data.minCardsBeforeAds,
@@ -304,44 +336,47 @@ export default function AppDiscoverPage() {
         });
         setFeedItems(items);
         resetProfileUndoStack();
-        if (data.profiles.length > 0) {
+        if (profiles.length > 0) {
           setRetriedAfterEmpty(false);
           setLoading(false);
           return;
         }
-        const restrictive =
-          queryFilters.onlineOnly ||
-          queryFilters.city.trim() !== "" ||
-          queryFilters.country.trim() !== "" ||
-          (Number(queryFilters.maxDistanceKm) || 0) > 0;
-        if (!autoRelaxedFiltersRef.current && restrictive) {
+        // Auto-relax DOAR pentru capcane tehnice (GPS / „doar online”), NU pentru
+        // oraș/țară/gen/vârstă alese de utilizator — altfel filtrul părea că nu merge.
+        const technicalTrap =
+          queryFilters.onlineOnly || (Number(queryFilters.maxDistanceKm) || 0) > 0;
+        if (autoRelaxedFiltersRef.current === false && technicalTrap) {
           autoRelaxedFiltersRef.current = true;
           setFilters((f) => ({
             ...f,
             onlineOnly: false,
-            city: "",
-            country: "",
             maxDistanceKm: "0",
           }));
           return;
         }
         setLoading(false);
       })
-      .catch(() => {
-        if (cancelled) return;
+      .catch((err: unknown) => {
+        if (seq !== feedSeqRef.current) return;
+        if (err instanceof DOMException && err.name === "AbortError") return;
         setFeedItems([]);
         resetProfileUndoStack();
         setLoading(false);
       });
-    return () => { cancelled = true; };
-  }, [filters.gender, filters.minAge, filters.maxAge, filters.maxDistanceKm, filters.country, filters.city, filters.onlineOnly, debouncedName, filters.sortBy, resetProfileUndoStack, setFilters]);
+    return () => {
+      ac.abort();
+    };
+  }, [filtersReady, filters.gender, filters.minAge, filters.maxAge, filters.maxDistanceKm, filters.country, filters.city, filters.onlineOnly, filters.name, filters.sortBy, resetProfileUndoStack, setFilters, orderProfilesForResume]);
 
   /** Actualizează online / lastActivity pe cardul curent fără să reconstruiască tot feed-ul (Discover nu avea polling — PC părea OK la refresh manual). */
   const refreshPresenceOnFeed = useCallback(() => {
-    const queryFilters = { ...filters, name: debouncedName };
+    if (loading || !filtersReady) return;
+    const queryFilters = filters;
+    const seqAtStart = feedSeqRef.current;
     void fetchWithAuthRetry(`/api/profiles${buildDiscoverApiQuery(queryFilters)}`, { cache: "no-store" })
       .then((res) => res.json())
       .then((d: { profiles?: UserWithMeta[] }) => {
+        if (seqAtStart !== feedSeqRef.current) return;
         const fresh = d.profiles;
         if (!fresh?.length) return;
         const byId = new Map(fresh.map((p) => [p.id, p]));
@@ -368,20 +403,17 @@ export default function AppDiscoverPage() {
         );
       })
       .catch(() => {});
-  }, [filters, debouncedName]);
+  }, [filters, filtersReady, loading]);
 
   useVisibleInterval(refreshPresenceOnFeed, getPresencePollMs(), feedItems.length > 0 && !loading);
 
-  /** Trece la următorul card; reține profilul curent pentru „Revenire” (până la 7 profile). */
+  /** Trece la următorul card; reține profilul pentru „Revenire” (fără limită). */
   const dismissCurrentFeedItem = useCallback(() => {
     setFeedItems((prev) => {
       if (prev.length === 0) return prev;
       const [first, ...rest] = prev;
       if (first.type === "profile") {
-        const item = first as FeedItemProfile;
-        const arr = profileUndoStackRef.current;
-        const next = [...arr, item];
-        profileUndoStackRef.current = next.length > MAX_PROFILE_UNDO ? next.slice(1) : next;
+        profileUndoStackRef.current = [...profileUndoStackRef.current, first as FeedItemProfile];
       }
       return rest;
     });
@@ -400,8 +432,13 @@ export default function AppDiscoverPage() {
     setIsDragging(false);
   }, []);
 
-  const getClientX = (e: React.MouseEvent | React.TouchEvent): number =>
-    "touches" in e && e.touches.length ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+  const getClientPoint = (e: React.MouseEvent | React.TouchEvent): { x: number; y: number } => {
+    if ("touches" in e && e.touches.length) {
+      return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }
+    const m = e as React.MouseEvent;
+    return { x: m.clientX, y: m.clientY };
+  };
 
   const isInteractiveSwipeTarget = (target: EventTarget | null) =>
     target instanceof HTMLElement &&
@@ -410,26 +447,64 @@ export default function AppDiscoverPage() {
   const onSwipeStart = (e: React.MouseEvent | React.TouchEvent) => {
     if (isInteractiveSwipeTarget(e.target)) return;
     swipeMaxAbsDeltaRef.current = 0;
+    swipeAxisRef.current = null;
     isDraggingRef.current = true;
     setIsDragging(true);
-    dragStartX.current = getClientX(e);
+    const p = getClientPoint(e);
+    dragStartX.current = p.x;
+    dragStartY.current = p.y;
   };
 
   const onSwipeMove = (e: React.MouseEvent | React.TouchEvent) => {
     if (!isDraggingRef.current) return;
-    const x = "touches" in e && e.touches.length ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
-    const delta = Math.max(-260, Math.min(260, x - dragStartX.current));
+    const p = getClientPoint(e);
+    const dx = p.x - dragStartX.current;
+    const dy = p.y - dragStartY.current;
+    if (swipeAxisRef.current == null) {
+      if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+      swipeAxisRef.current = Math.abs(dx) >= Math.abs(dy) ? "h" : "v";
+      if (swipeAxisRef.current === "v") {
+        // Scroll vertical pe poză / pagină — nu blocăm, nu mutăm cardul.
+        isDraggingRef.current = false;
+        setIsDragging(false);
+        setDragOffset(0);
+        return;
+      }
+    }
+    if (swipeAxisRef.current !== "h") return;
+    const delta = Math.max(-260, Math.min(260, dx));
     swipeMaxAbsDeltaRef.current = Math.max(swipeMaxAbsDeltaRef.current, Math.abs(delta));
     setDragOffset(delta);
   };
 
+  const openCurrentProfile = useCallback(() => {
+    if (!current) return;
+    const order = feedItems
+      .filter((i): i is FeedItemProfile => i.type === "profile")
+      .map((i) => (i.data as UserWithMeta).id)
+      .filter(Boolean);
+    saveDiscoverResume(current.id, order, discoverFiltersKey(filters));
+    saveProfileReturnPath("/app");
+    router.push(`/app/user/${current.id}`, { scroll: false });
+  }, [current, feedItems, filters, router]);
+
   const onSwipeEnd = () => {
+    const axis = swipeAxisRef.current;
+    swipeAxisRef.current = null;
+    if (!isDraggingRef.current && axis !== "h") {
+      // Scroll vertical: nu deschide profilul.
+      return;
+    }
     if (!isDraggingRef.current) return;
     isDraggingRef.current = false;
     setIsDragging(false);
     const offset = dragOffset;
     const maxAbs = swipeMaxAbsDeltaRef.current;
     swipeMaxAbsDeltaRef.current = 0;
+    if (axis === "v") {
+      setDragOffset(0);
+      return;
+    }
     if (Math.abs(offset) >= SWIPE_THRESHOLD && current) {
       triggerHaptic();
       const liked = offset > 0;
@@ -444,7 +519,24 @@ export default function AppDiscoverPage() {
       const feelsLikeTap =
         maxAbs < TAP_OPEN_PROFILE_MAX_PX && Math.abs(offset) < SWIPE_THRESHOLD;
       if (feelsLikeTap && current) {
-        router.push(`/app/user/${current.id}`);
+        const photos = getUsableProfilePhotoUrls(current.photos);
+        const area = photoAreaRef.current;
+        if (photos.length > 1 && area) {
+          const rect = area.getBoundingClientRect();
+          const x = dragStartX.current;
+          const y = dragStartY.current;
+          const inside =
+            x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+          if (inside) {
+            const goPrev = x - rect.left < rect.width * 0.35;
+            setCardPhotoIndex((i) => {
+              if (goPrev) return Math.max(0, i - 1);
+              return Math.min(photos.length - 1, i + 1);
+            });
+            return;
+          }
+        }
+        openCurrentProfile();
       }
     }
   };
@@ -464,7 +556,8 @@ export default function AppDiscoverPage() {
     const el = cardRef.current;
     if (!el) return;
     const preventScroll = (e: TouchEvent) => {
-      if (isDraggingRef.current) e.preventDefault();
+      // Blochează scroll doar la swipe orizontal (like/pass), nu la scroll pe poză.
+      if (isDraggingRef.current && swipeAxisRef.current === "h") e.preventDefault();
     };
     el.addEventListener("touchmove", preventScroll, { passive: false });
     return () => el.removeEventListener("touchmove", preventScroll);
@@ -509,8 +602,33 @@ export default function AppDiscoverPage() {
     loadFeed(filters, intervals);
   };
 
+  const handleBlockCurrent = async () => {
+    if (!current) return;
+    if (!confirm(tStr("pages.userPublic.blockConfirm"))) return;
+    const toId = current.id;
+    const res = await fetchWithAuthRetry("/api/block", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ targetUserId: toId }),
+    });
+    if (res.ok) dismissCurrentFeedItem();
+  };
+
+  const handleReportCurrent = async () => {
+    if (!current) return;
+    const reason = window.prompt(tStr("pages.userPublic.reportPrompt"));
+    if (reason === null) return;
+    await fetchWithAuthRetry("/api/report", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        targetUserId: current.id,
+        reason: reason || tStr("pages.userPublic.reportReasonDefault"),
+      }),
+    });
+  };
+
   const hasItems = feedItems.length > 0;
-  const profilesRemaining = feedItems.filter((i) => i.type === "profile").length;
 
   return (
     <div className="flex flex-col items-center w-full min-w-0 max-w-full">
@@ -551,138 +669,18 @@ export default function AppDiscoverPage() {
       )}
       <h2 className="app-pro-page-title mb-4 w-full">{tStr("pages.discover.title")}</h2>
 
-      <div className="app-pro-panel w-full mb-6 p-4 sm:p-5">
-        <p className="app-pro-lead mb-3">{tStr("pages.discover.filterHint")}</p>
-        <div className="flex flex-wrap gap-3 items-end">
-          <div>
-            <label className="block text-xs text-dark-500 mb-1">{tStr("pages.discover.nameLabel")}</label>
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                placeholder={tStr("pages.discover.searchPlaceholder")}
-                value={filters.name}
-                onChange={(e) => setFilters((f) => ({ ...f, name: e.target.value }))}
-                className="w-40 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 text-sm placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
-              />
-              {filters.name !== debouncedName && filters.name.trim() !== "" && (
-                <span className="text-xs text-dark-500">{tStr("pages.discover.searching")}</span>
-              )}
-            </div>
-          </div>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={filters.onlineOnly}
-              onChange={(e) => setFilters((f) => ({ ...f, onlineOnly: e.target.checked }))}
-              className="rounded border-dark-600 bg-dark-700 text-brand-500 focus:ring-brand-500"
-            />
-            <span className="text-sm text-dark-400">{tStr("pages.discover.onlineOnly")}</span>
-          </label>
-          <div>
-            <label className="block text-xs text-dark-500 mb-1">{tStr("pages.discover.genderLabel")}</label>
-            <select
-              value={filters.gender}
-              onChange={(e) => setFilters((f) => ({ ...f, gender: e.target.value }))}
-              className="bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-            >
-              <option value="">{tStr("pages.discover.genderAll")}</option>
-              <option value="male">{tStr("pages.discover.genderMale")}</option>
-              <option value="female">{tStr("pages.discover.genderFemale")}</option>
-              <option value="other">{tStr("pages.discover.genderOther")}</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-dark-500 mb-1">{tStr("pages.discover.minAge")}</label>
-            <input
-              type="number"
-              min={18}
-              max={filters.maxAge ? Math.min(100, Number(filters.maxAge)) : 100}
-              placeholder="18"
-              value={filters.minAge}
-              onChange={(e) => {
-                const v = e.target.value;
-                setFilters((f) => {
-                  const minNum = v === "" ? 18 : Math.max(18, Math.min(100, Number(v) || 18));
-                  const maxNum = f.maxAge ? Number(f.maxAge) : 100;
-                  const minAge = v;
-                  const maxAge = f.maxAge && minNum > maxNum ? String(minNum) : f.maxAge;
-                  return { ...f, minAge, maxAge };
-                });
-              }}
-              className="w-20 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-dark-500 mb-1">{tStr("pages.discover.maxAge")}</label>
-            <input
-              type="number"
-              min={filters.minAge ? Math.max(18, Number(filters.minAge)) : 18}
-              max={100}
-              placeholder="100"
-              value={filters.maxAge}
-              onChange={(e) => {
-                const v = e.target.value;
-                setFilters((f) => {
-                  const maxNum = v === "" ? 100 : Math.max(18, Math.min(100, Number(v) || 100));
-                  const minNum = f.minAge ? Number(f.minAge) : 18;
-                  const maxAge = v;
-                  const minAge = f.minAge && maxNum < minNum ? String(maxNum) : f.minAge;
-                  return { ...f, minAge, maxAge };
-                });
-              }}
-              className="w-20 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-            />
-          </div>
-          <div className="w-full max-w-[220px] sm:max-w-xs">
-            <label className="block text-xs text-dark-500 mb-1">{tStr("pages.discover.maxDistKm")}</label>
-            <p className="text-xs text-dark-400 mb-1.5 tabular-nums">
-              {(Number(filters.maxDistanceKm) || 0) <= 0
-                ? tStr("pages.discover.distanceFilterOff")
-                : formatTpl(tStr("pages.discover.distanceFilterActiveKm"), {
-                    n: Math.min(MAX_PROFILE_SEARCH_RADIUS_KM, Number(filters.maxDistanceKm) || 0),
-                  })}
-            </p>
-            <input
-              type="range"
-              min={0}
-              max={MAX_PROFILE_SEARCH_RADIUS_KM}
-              step={MAX_PROFILE_SEARCH_RADIUS_KM > 250 ? 5 : 1}
-              value={Math.min(
-                MAX_PROFILE_SEARCH_RADIUS_KM,
-                Math.max(0, Number(filters.maxDistanceKm) || 0)
-              )}
-              onChange={(e) => setFilters((f) => ({ ...f, maxDistanceKm: e.target.value }))}
-              className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-dark-600 accent-brand-500"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-dark-500 mb-1">{tStr("pages.discover.countryLabel")}</label>
-            <input
-              type="text"
-              placeholder={tStr("pages.discover.countryPlaceholder")}
-              value={filters.country}
-              onChange={(e) => setFilters((f) => ({ ...f, country: e.target.value }))}
-              className="w-36 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 text-sm placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-dark-500 mb-1">{tStr("pages.discover.cityLabel")}</label>
-            <input
-              type="text"
-              list={`search-city-hints-${locale}`}
-              placeholder={tStr("pages.discover.cityPlaceholder")}
-              value={filters.city}
-              onChange={(e) => setFilters((f) => ({ ...f, city: e.target.value }))}
-              className="w-36 bg-dark-700 border border-dark-600 rounded-lg px-3 py-2 text-zinc-900 text-sm placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-brand-500"
-            />
-            <datalist id={`search-city-hints-${locale}`}>
-              {SEARCH_CITY_HINTS[locale].map((c) => (
-                <option key={c} value={c} />
-              ))}
-            </datalist>
-          </div>
-        </div>
-      </div>
+      {filtersReady ? (
+      <SharedSearchFiltersPanel
+        filters={filters}
+        onApply={setFilters}
+        locale={locale}
+        tStr={tStr}
+        onReset={resetAllDiscoverFilters}
+        onFilterPending={onFilterPending}
+      />
+      ) : null}
+
+      <AdSlot variant="strip" />
 
       <div className="flex flex-wrap gap-3 gap-x-4 mb-4 w-full text-xs text-dark-500 justify-center">
         {LEGEND_KEYS.map((key) => {
@@ -728,11 +726,17 @@ export default function AppDiscoverPage() {
                   online: current.online,
                   isNew: current.isNew,
                 });
+                const cardPhotos = getUsableProfilePhotoUrls(current.photos);
+                const safePhotoIndex =
+                  cardPhotos.length === 0
+                    ? 0
+                    : Math.min(Math.max(0, cardPhotoIndex), cardPhotos.length - 1);
+                const shownPhoto = cardPhotos[safePhotoIndex] ?? null;
                 return (
               <div
                 ref={cardRef}
-                className="w-full max-w-sm touch-none select-none"
-                style={{ touchAction: "none" }}
+                className="w-full max-w-sm select-none touch-pan-y"
+                style={{ touchAction: "pan-y" }}
                 title={tStr("pages.discover.cardSwipeTitle")}
                 onMouseDown={onSwipeStart}
                 onMouseMove={onSwipeMove}
@@ -741,187 +745,224 @@ export default function AppDiscoverPage() {
                 onTouchStart={onSwipeStart}
                 onTouchMove={onSwipeMove}
                 onTouchEnd={onSwipeEnd}
+                onTouchCancel={onSwipeEnd}
               >
                 <div
-                  className={`w-full aspect-[3/4] rounded-2xl overflow-hidden bg-dark-800 relative card-hover will-change-transform ${cardChrome.borderClassName}`}
+                  className={`w-full h-[min(58dvh,480px)] sm:h-[min(62vh,520px)] rounded-2xl overflow-hidden bg-dark-800 relative card-hover will-change-transform ${cardChrome.borderClassName}`}
                   style={{
                     transform: `translateX(${dragOffset}px) rotate(${dragOffset * 0.06}deg)`,
-                    transition: isDragging ? "none" : "transform 0.1s cubic-bezier(0.34, 1.2, 0.64, 1)",
+                    transition: isDragging ? "none" : "transform 0.08s cubic-bezier(0.22, 1, 0.36, 1)",
                     ...cardChrome.frameStyle,
                   }}
                 >
-                {Math.abs(dragOffset) > 25 && (
-                  <div
-                    className={`absolute inset-0 flex items-center justify-center pointer-events-none z-10 ${
-                      dragOffset > 0 ? "bg-brand-500/20" : "bg-red-500/20"
-                    }`}
-                    aria-hidden
-                  >
-                    <span
-                      className={`text-2xl font-black uppercase tracking-widest border-2 rounded-xl px-6 py-2 ${
-                        dragOffset > 0
-                          ? "text-brand-400 border-brand-400/80"
-                          : "text-red-400 border-red-400/80"
+                  {Math.abs(dragOffset) > 25 && (
+                    <div
+                      className={`absolute inset-0 flex items-center justify-center pointer-events-none z-10 ${
+                        dragOffset > 0 ? "bg-brand-500/20" : "bg-red-500/20"
                       }`}
+                      aria-hidden
                     >
-                      {dragOffset > 0 ? tStr("pages.discover.swipeLike") : tStr("pages.discover.swipeNope")}
-                    </span>
+                      <span
+                        className={`text-2xl font-black uppercase tracking-widest border-2 rounded-xl px-6 py-2 ${
+                          dragOffset > 0
+                            ? "text-brand-400 border-brand-400/80"
+                            : "text-red-400 border-red-400/80"
+                        }`}
+                      >
+                        {dragOffset > 0 ? tStr("pages.discover.swipeLike") : tStr("pages.discover.swipeNope")}
+                      </span>
+                    </div>
+                  )}
+                  <div
+                    className="absolute top-2 right-2 z-30 flex items-center gap-1.5 pointer-events-auto"
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onTouchStart={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void handleBlockCurrent();
+                      }}
+                      className="flex h-10 w-10 items-center justify-center rounded-full bg-black/55 text-amber-300 backdrop-blur-sm border border-white/15 active:scale-90 transition touch-manipulation"
+                      title={tStr("pages.userPublic.blockUser")}
+                      aria-label={tStr("pages.userPublic.blockUser")}
+                    >
+                      <ShieldOff className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void handleReportCurrent();
+                      }}
+                      className="flex h-10 w-10 items-center justify-center rounded-full bg-black/55 text-red-300 backdrop-blur-sm border border-white/15 active:scale-90 transition touch-manipulation"
+                      title={tStr("pages.userPublic.reportUser")}
+                      aria-label={tStr("pages.userPublic.reportUser")}
+                    >
+                      <Flag className="h-4 w-4" />
+                    </button>
                   </div>
-                )}
-                <div
-                  className={`absolute inset-0 ${cardChrome.dimPhoto ? "brightness-[0.88] saturate-[0.92]" : ""}`}
-                >
-                <SilhouetteAvatar
-                  photoUrl={getFirstUsableProfilePhotoUrl(current.photos)}
-                  gender={current.gender}
-                  name={current.name}
-                  shape="rectangle"
-                  className="absolute inset-0 w-full h-full"
-                  imgClassName="w-full h-full object-cover object-[center_16%]"
-                  imageSizes="(max-width: 480px) 100vw, (max-width: 640px) 90vw, 384px"
-                />
-                </div>
-                <div className="absolute inset-0 px-5 pt-5 pb-44 sm:pb-40 flex flex-col justify-end bg-gradient-to-t from-black/90 via-black/65 to-black/20 pointer-events-none [&>_*]:pointer-events-auto">
-                  <div className="max-h-[52%] overflow-y-auto overscroll-contain scrollbar-app pr-0.5">
-                  <h3 className="text-2xl font-bold text-white mb-1 line-clamp-2 [text-shadow:0_1px_3px_rgba(0,0,0,0.95),0_0_20px_rgba(0,0,0,0.55)]">
-                    {displayName(current.username ?? current.name)}
-                  </h3>
-                  <div className="flex flex-wrap items-center gap-2 mb-2">
-                    {current.friendStatus === "accepted" && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-[#4DA6FF]/30 text-[#4DA6FF] border border-[#4DA6FF]/50">
-                        {tStr("pages.discover.badgeFriends")}
-                      </span>
-                    )}
-                    {current.friendStatus === "pending_sent" && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-[#A0A0A0]/30 text-[#A0A0A0] border border-[#A0A0A0]/50">
-                        {tStr("pages.discover.badgePendingSent")}
-                      </span>
-                    )}
-                    {current.friendStatus === "pending_received" && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-[#C77DFF]/30 text-[#C77DFF] border border-[#C77DFF]/50">
-                        {tStr("pages.discover.badgeWantsFriend")}
-                      </span>
-                    )}
-                    {current.hasLiked && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-brand-500/30 text-brand-400 border border-brand-400/50">
-                        {tStr("pages.discover.badgeLiked")}
-                      </span>
-                    )}
-                    {current.hasDisliked && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-dark-600 text-dark-400 border border-dark-500">
-                        {tStr("pages.discover.badgeDisliked")}
-                      </span>
-                    )}
-                    {(current.match || current.isMatched) && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/30 text-green-400 border border-green-400/50">
-                        {tStr("pages.discover.badgeMatch")}
-                      </span>
-                    )}
-                    {current.hasMessages && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-[#22B8CF]/30 text-[#22B8CF] border border-[#22B8CF]/50">
-                        {tStr("pages.discover.badgeChat")}
-                      </span>
-                    )}
-                    {(() => {
-                      const { statusKey } = getSmallCardState({
-                        friendStatus: current.friendStatus ?? null,
-                        match: !!(current.match || current.isMatched),
-                        messageSeen: current.messageSeen,
-                        receivedMessage: current.receivedMessage,
-                        visitedByThem: current.visitedByThem,
-                        visited: current.visited,
-                        online: current.online,
-                        isNew: current.isNew,
-                      });
-                      if (statusKey !== "online" && statusKey !== "isNew" && statusKey !== "notVisited") return null;
-                      const color = statusKey === "online" ? FRIEND_CARD_COLORS.online : statusKey === "isNew" ? FRIEND_CARD_COLORS.isNew : FRIEND_CARD_COLORS.notVisited;
-                      const label = tStr(`pages.discover.legend.${statusKey}`);
-                      return (
-                        <span
-                          key={statusKey}
-                          className="text-xs px-2 py-0.5 rounded-full border"
-                          style={{ backgroundColor: `${color}20`, color, borderColor: `${color}80` }}
-                        >
-                          {label}
-                        </span>
-                      );
-                    })()}
-                  </div>
-                  <p className="text-white/90 text-xs mb-1 [text-shadow:0_1px_3px_rgba(0,0,0,0.95)]">
-                    {current.age != null && (
-                      <span>{formatTpl(tStr("pages.discover.ageYears"), { n: current.age })}</span>
-                    )}
-                    {current.age != null && (current.gender || current.height || current.weight || current.bodyType || current.eyeColor || current.hairColor || current.city) && " · "}
-                    {current.gender === "male" && tStr("pages.discover.genderMale")}
-                    {current.gender === "female" && tStr("pages.discover.genderFemale")}
-                    {current.gender === "other" && tStr("pages.discover.genderOther")}
-                    {current.height != null && ` · ${current.height} cm`}
-                    {current.weight != null && ` · ${current.weight} kg`}
-                    {current.bodyType && ` · ${current.bodyType}`}
-                    {current.eyeColor && ` · ${formatTpl(tStr("pages.discover.eyePrefix"), { v: current.eyeColor })}`}
-                    {current.hairColor && ` · ${formatTpl(tStr("pages.discover.hairPrefix"), { v: current.hairColor })}`}
-                    {current.city && ` · ${current.city}`}
-                    {current.distanceHidden && ` · ${tStr("pages.matches.distanceHidden")}`}
-                    {!current.distanceHidden && current.distanceKm != null && ` · ${getDistanceDisplay(current)}`}
-                  </p>
-                  <div className="mb-2 z-[1]">
-                    <AddFriendButton
-                      userId={current.id}
-                      friendStatus={current.friendStatus ?? null}
-                      onStatusChange={refreshCurrentUser}
-                      variant="big"
+                  <ProfilePhotoCountBars
+                    count={cardPhotos.length}
+                    activeIndex={safePhotoIndex}
+                    onSelect={setCardPhotoIndex}
+                    insetClassName="top-2.5 left-3 right-[5.75rem]"
+                  />
+                  <div
+                    ref={photoAreaRef}
+                    className={`absolute inset-0 ${cardChrome.dimPhoto ? "brightness-[0.88] saturate-[0.92]" : ""}`}
+                  >
+                    <SilhouetteAvatar
+                      key={`${current.id}-${safePhotoIndex}`}
+                      photoUrl={shownPhoto}
+                      gender={current.gender}
+                      name={current.name}
+                      shape="rectangle"
+                      className="absolute inset-0 w-full h-full"
+                      imgClassName="w-full h-full object-cover object-[center_16%]"
+                      imageSizes="(max-width: 480px) 100vw, (max-width: 640px) 90vw, 384px"
                     />
                   </div>
-                  <p className="text-white/95 text-sm line-clamp-2 sm:line-clamp-3 mb-2 [text-shadow:0_1px_4px_rgba(0,0,0,0.92)]">
-                    {current.bio || tStr("pages.discover.bioNone")}
-                  </p>
-                  <div className="flex flex-wrap gap-2 text-xs text-white/85 mb-0 [text-shadow:0_1px_3px_rgba(0,0,0,0.95)]">
-                    {current.visitedByThem && (
-                      <span className="text-[#e9d4ff] font-medium">{tStr("pages.discover.visitedYou")}</span>
-                    )}
-                    {current.messageSeen && (
-                      <span className="text-[#99e9f0] font-medium">{tStr("pages.discover.sawYourMessage")}</span>
-                    )}
-                    {current.online && (
-                      <span className="font-medium" style={{ color: FRIEND_CARD_COLORS.online }}>
-                        {tStr("pages.messages.online")}
-                      </span>
-                    )}
-                    {!current.online && current.lastActivityAt != null && (
-                      <span className="text-white/90">{formatLastActive(current.lastActivityAt)}</span>
-                    )}
-                  </div>
+
+                  {/* Info pe poză — compact, fără butoane de acțiune peste text */}
+                  <div className="absolute inset-x-0 bottom-0 z-20 px-3.5 pt-20 pb-3.5 bg-gradient-to-t from-black/95 via-black/70 to-transparent pointer-events-none [&>*]:pointer-events-auto">
+                    <button
+                      type="button"
+                      onClick={openCurrentProfile}
+                      className="text-left w-full touch-manipulation"
+                    >
+                      <h3 className="text-xl sm:text-2xl font-bold text-white leading-tight truncate [text-shadow:0_1px_3px_rgba(0,0,0,0.95)] flex items-center gap-2">
+                        <span className="truncate">
+                          {displayName(current.username ?? current.name)}
+                          {current.age != null ? (
+                            <span className="font-semibold text-white/90">, {current.age}</span>
+                          ) : null}
+                        </span>
+                        {presenceKind(current.online, current.lastActivityAt) === "online" ? (
+                          <span
+                            className="shrink-0 inline-block w-2.5 h-2.5 rounded-full bg-green-400"
+                            title={tStr("pages.messages.online")}
+                            aria-label={tStr("pages.messages.online")}
+                          />
+                        ) : null}
+                      </h3>
+                    </button>
+
+                    <p className="mt-1 text-sm text-white/90 truncate [text-shadow:0_1px_3px_rgba(0,0,0,0.95)]">
+                      {[
+                        current.gender === "male"
+                          ? tStr("pages.discover.genderMale")
+                          : current.gender === "female"
+                            ? tStr("pages.discover.genderFemale")
+                            : current.gender === "other"
+                              ? tStr("pages.discover.genderOther")
+                              : null,
+                        current.city || null,
+                        current.distanceHidden
+                          ? tStr("pages.matches.distanceHidden")
+                          : current.distanceKm != null
+                            ? getDistanceDisplay(current)
+                            : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
+
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                      {(current.match || current.isMatched) && (
+                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-green-500/30 text-green-300 border border-green-400/50">
+                          {tStr("pages.discover.badgeMatch")}
+                        </span>
+                      )}
+                      {current.friendStatus === "accepted" && (
+                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-[#4DA6FF]/30 text-[#4DA6FF] border border-[#4DA6FF]/50">
+                          {tStr("pages.discover.badgeFriends")}
+                        </span>
+                      )}
+                      {current.friendStatus === "pending_received" && (
+                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-[#C77DFF]/30 text-[#C77DFF] border border-[#C77DFF]/50">
+                          {tStr("pages.discover.badgeWantsFriend")}
+                        </span>
+                      )}
+                      {current.isNew && (
+                        <span
+                          className="text-[11px] px-2 py-0.5 rounded-full border"
+                          style={{
+                            backgroundColor: `${FRIEND_CARD_COLORS.isNew}22`,
+                            color: FRIEND_CARD_COLORS.isNew,
+                            borderColor: `${FRIEND_CARD_COLORS.isNew}80`,
+                          }}
+                        >
+                          {tStr("pages.discover.legend.isNew")}
+                        </span>
+                      )}
+                    </div>
+
+                    {current.bio ? (
+                      <p className="mt-1.5 text-sm text-white/90 line-clamp-2 [text-shadow:0_1px_3px_rgba(0,0,0,0.92)]">
+                        {current.bio}
+                      </p>
+                    ) : null}
+
+                    <div
+                      className="mt-2"
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onTouchStart={(e) => e.stopPropagation()}
+                    >
+                      <AddFriendButton
+                        userId={current.id}
+                        friendStatus={current.friendStatus ?? null}
+                        onStatusChange={refreshCurrentUser}
+                        variant="small"
+                        className="bg-black/35 backdrop-blur-sm"
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <div className="absolute bottom-3 left-0 right-0 z-20 flex flex-nowrap justify-center items-center gap-2 sm:gap-3 px-2 pb-1 max-w-full overflow-x-auto scrollbar-app">
+                {/* Acțiuni sub card — nu se mai calcă pe text/poză */}
+                <div
+                  className="mt-3 grid grid-cols-5 gap-1.5 sm:gap-2 w-full"
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onTouchStart={(e) => e.stopPropagation()}
+                >
                   <button
                     type="button"
                     onClick={() => onButtonSwipe(false)}
-                    className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-dark-600 hover:bg-red-500/25 active:scale-90 flex items-center justify-center text-red-400 border-2 border-red-500/50 transition-[transform,background-color] duration-75 touch-none shrink-0"
+                    className="aspect-square max-h-14 rounded-full bg-dark-700 hover:bg-red-500/20 active:scale-95 flex items-center justify-center text-red-400 border border-red-500/45 transition touch-manipulation"
                     title={tStr("pages.discover.passTitle")}
+                    aria-label={tStr("pages.discover.passTitle")}
                   >
-                    <X className="w-6 h-6 sm:w-7 sm:h-7" />
+                    <X className="w-6 h-6" />
                   </button>
                   <button
                     type="button"
                     onClick={() => router.push(`/app/chat/${current.id}`)}
-                    className="w-12 h-12 sm:w-14 sm:h-14 min-h-[48px] min-w-[48px] rounded-full bg-dark-600 hover:bg-brand-500/25 active:scale-90 flex items-center justify-center text-brand-400 border-2 border-brand-500/50 transition-[transform,background-color] duration-75 touch-manipulation shrink-0"
+                    className="aspect-square max-h-14 rounded-full bg-dark-700 hover:bg-brand-500/20 active:scale-95 flex items-center justify-center text-brand-400 border border-brand-500/45 transition touch-manipulation"
                     title={tStr("pages.discover.messagesTitle")}
+                    aria-label={tStr("pages.discover.messagesTitle")}
                   >
-                    <MessageCircle className="w-6 h-6 sm:w-7 sm:h-7" />
+                    <MessageCircle className="w-6 h-6" />
                   </button>
-                  <QuickCallButtons toUserId={current.id} size="discover" className="touch-manipulation shrink-0" />
+                  <QuickCallButtons toUserId={current.id} size="discover" />
                   <button
                     type="button"
                     onClick={() => onButtonSwipe(true)}
-                    className="w-12 h-12 sm:w-14 sm:h-14 min-h-[48px] min-w-[48px] rounded-full bg-brand-500 hover:bg-brand-400 active:scale-90 flex items-center justify-center text-dark-900 border-2 border-brand-400/50 transition-[transform,background-color] duration-75 touch-manipulation shrink-0"
+                    className="aspect-square max-h-14 rounded-full bg-brand-500 hover:bg-brand-400 active:scale-95 flex items-center justify-center text-dark-900 border border-brand-400/50 transition touch-manipulation"
                     title={tStr("pages.discover.likeTitle")}
+                    aria-label={tStr("pages.discover.likeTitle")}
                   >
-                    <Heart className="w-6 h-6 sm:w-7 sm:h-7" />
+                    <Heart className="w-6 h-6" />
                   </button>
                 </div>
-                </div>
+                <button
+                  type="button"
+                  onClick={openCurrentProfile}
+                  className="mt-2 w-full min-h-10 rounded-xl border border-dark-600 bg-dark-800/80 text-sm font-medium text-dark-200 hover:bg-dark-700 touch-manipulation"
+                >
+                  {tStr("pages.discover.viewProfileTitle")}
+                </button>
               </div>
                 );
               })()}
@@ -984,25 +1025,9 @@ export default function AppDiscoverPage() {
               className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-dark-600 bg-dark-800 text-dark-200 text-sm font-medium hover:bg-dark-700 hover:text-white disabled:opacity-40 disabled:pointer-events-none transition touch-manipulation"
             >
               <Undo2 className="w-4 h-4 shrink-0" aria-hidden />
-              <span>
-                {tStr("pages.discover.backPreviousProfile")}
-                {undoStackLength > 0
-                  ? ` (${formatTpl(tStr("pages.discover.backPreviousCount"), { n: undoStackLength })})`
-                  : ""}
-              </span>
+              <span>{tStr("pages.discover.backPreviousProfile")}</span>
             </button>
           </div>
-
-          <p className="text-dark-500 text-sm mt-4">
-            {formatTpl(
-              tStr(
-                profilesRemaining === 1
-                  ? "pages.discover.profilesLeftOne"
-                  : "pages.discover.profilesLeftMany"
-              ),
-              { n: profilesRemaining }
-            )}
-          </p>
         </>
       ) : !loading ? (
         <div className="flex flex-col items-center justify-center py-12 text-center w-full">
@@ -1028,7 +1053,7 @@ export default function AppDiscoverPage() {
               onClick={resetAllDiscoverFilters}
               className="px-4 py-2 rounded-lg border border-dark-600 bg-dark-800 text-dark-200 hover:bg-dark-700 transition-colors touch-manipulation"
             >
-              Arată toți utilizatorii
+              {tStr("pages.discover.showAllUsers")}
             </button>
           </div>
           {discoverHint === "adjust_filters_or_review" && (
@@ -1038,6 +1063,17 @@ export default function AppDiscoverPage() {
             >
               {tStr("pages.discover.reviewSwipesCta")}
             </Link>
+          )}
+          {undoStackLength > 0 && (
+            <button
+              type="button"
+              onClick={undoLastProfile}
+              title={tStr("pages.discover.backPreviousTitle")}
+              className="mt-4 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-dark-600 bg-dark-800 text-dark-200 text-sm font-medium hover:bg-dark-700 hover:text-white transition touch-manipulation"
+            >
+              <Undo2 className="w-4 h-4 shrink-0" aria-hidden />
+              <span>{tStr("pages.discover.backPreviousProfile")}</span>
+            </button>
           )}
         </div>
       ) : null}

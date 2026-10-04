@@ -27,6 +27,7 @@ import {
   prismaGetMutualMatchPartnerIds,
   prismaGetMessageFlagsForProfiles,
   prismaGetVisitFlagsForProfiles,
+  prismaGetFriendStatusMap,
   type FeedFilters,
 } from "@/lib/repo-prisma";
 import { resolveRequestUserId } from "@/lib/sessionAuth";
@@ -64,16 +65,11 @@ export async function GET(request: NextRequest) {
 
   if (isPrismaAvailable()) {
     try {
+      // Filtrele venite de la client se respectă întotdeauna, inclusiv din aplicațiile mobile.
+      // (Anterior erau șterse pentru shell-urile native, ca soluție la „feed gol pe telefon" —
+      // efectul era că criteriile alese de utilizator nu aveau niciun efect. Cauza reală era
+      // presetul automat de țară după limbă, tratat acum în `applyLocaleRegionToFilters`.)
       const filters: FeedFilters = parseDiscoverSearchFilters(request.nextUrl.searchParams);
-      const ua = request.headers.get("user-agent") ?? "";
-      if (/DiebelAndroid/i.test(ua)) {
-        filters.gender = "";
-        filters.country = "";
-        filters.city = "";
-        filters.name = "";
-        filters.onlineOnly = false;
-        filters.maxDistanceKm = 0;
-      }
       const candidates = await prismaGetFeedCandidates(userId, filters, { includeSwiped: true });
       const myLoc = await prismaGetMyLocation(userId);
       const matchPartnerIds = await prismaGetMutualMatchPartnerIds(userId);
@@ -111,10 +107,25 @@ export async function GET(request: NextRequest) {
           sentMessage: messageFlags.sentMessage.has(u.id),
           receivedMessage: messageFlags.receivedMessage.has(u.id),
           messageSeen: messageFlags.messageSeen.has(u.id),
-          friendStatus: undefined,
+          friendStatus: undefined as
+            | "pending_sent"
+            | "pending_received"
+            | "accepted"
+            | "rejected"
+            | undefined,
           match: matchPartnerIds.has(u.id),
         };
       });
+      try {
+        const friendMap = await prismaGetFriendStatusMap(userId, profilesWithOnline.map((p) => p.id));
+        if (friendMap.size > 0) {
+          for (const p of profilesWithOnline) {
+            p.friendStatus = friendMap.get(p.id) ?? undefined;
+          }
+        }
+      } catch (e) {
+        console.error("[api/profiles] friendStatus map", e);
+      }
       return apiJsonResponse({
         profiles: profilesWithOnline,
         myLocationEnabled: !!myLoc,

@@ -1,9 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Diebel</string>
+    <string name="app_name">Diebel Chat</string>
     <string name="call_channel_name">Apeluri</string>
     <string name="call_channel_desc">Apeluri vocale și video Diebel</string>
     <string name="incoming_call">Apel primit</string>
+    <string name="incoming_audio_call">Apel audio Diebel</string>
+    <string name="incoming_video_call">Apel video Diebel</string>
+    <string name="answer_call">Răspunde</string>
+    <string name="decline_call">Respinge</string>
     <string name="ongoing_call">Apel în curs</string>
     <string name="open_for_calls">Deschide pentru apeluri</string>
     <string name="hang_up">Închide</string>

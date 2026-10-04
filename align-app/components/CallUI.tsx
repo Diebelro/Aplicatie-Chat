@@ -59,6 +59,12 @@ import {
   setCursorEnabled,
 } from "@/lib/webrtc/cursorOverlay";
 import { clientHangupCall } from "@/lib/callHangupClient";
+import {
+  clearActiveConnectedCall,
+  markActiveConnectedCall,
+  markCallUserEnded,
+} from "@/lib/callAbandonOnLeave";
+import { markIncomingGrace, POST_HANGUP_INCOMING_GRACE_MS } from "@/lib/callIncomingGrace";
 import { stopIncomingRingtone } from "@/lib/callRingtone";
 import { useVideoRenderable } from "@/hooks/useVideoRenderable";
 import { useOutgoingCallerPoll } from "@/hooks/useOutgoingCallerPoll";
@@ -116,7 +122,15 @@ function RemoteAudio({ stream }: { stream: MediaStream }) {
       el.srcObject = null;
     };
   }, [stream, sinkId, remoteMuted, playbackUnlockKey, onRemotePlayBlocked]);
-  return <audio ref={ref} autoPlay playsInline className="hidden" />;
+  return (
+    <audio
+      ref={ref}
+      autoPlay
+      playsInline
+      data-diebel-remote-audio="1"
+      className="hidden"
+    />
+  );
 }
 
 function useRemoteVideoElement(ref: RefObject<HTMLVideoElement | null>, stream: MediaStream | null | undefined) {
@@ -194,14 +208,18 @@ function useRemoteVideoElement(ref: RefObject<HTMLVideoElement | null>, stream: 
  * Preview local fără oglindire — aceeași orientare ca stream-ul trimis.
  */
 function callVideoFramingClasses(): { fit: string; zoom: string } {
-  if (isMobileDevice()) {
-    return { fit: "object-cover", zoom: "" };
-  }
-  return {
-    fit: "object-contain object-center",
-    /* Încercare mai agresivă pe lat — aproape de cover dar plecând de la contain. */
-    zoom: "scale-[1.82] origin-center will-change-transform",
-  };
+  /**
+   * Ecranul principal de apel: arătăm CADRUL COMPLET (object-contain), fără crop. Înainte
+   * desktopul avea `scale-[1.15]` care tăia marginile, iar mobilul `object-cover` care tăia
+   * cadrul lat al laptopului pe ecran portret — utilizatorul nu mai vedea tot ce trimite camera.
+   * Letterbox (benzi negre) e preferabil tăierii pentru un apel video.
+   */
+  return { fit: "object-contain object-center", zoom: "" };
+}
+
+/** Preview mic (PiP) — mereu umple colțul, nu casetă mică la mijlocul ecranului. */
+function pipVideoFramingClasses(): string {
+  return "object-cover object-center";
 }
 
 /** Card mic (conferință / layout clasic). */
@@ -222,7 +240,7 @@ function RemoteVideoCard({ participant }: { participant: RemoteParticipant }) {
             autoPlay
             playsInline
             muted
-            className={`absolute inset-0 h-full w-full ${remoteFit} ${remoteZoom} transition-opacity duration-500 ease-out ${
+            className={`absolute inset-0 h-full w-full bg-black ${remoteFit} ${remoteZoom} transition-opacity duration-300 ease-out ${
               hasRenderableVideo ? "opacity-100" : "opacity-0"
             }`}
           />
@@ -283,7 +301,7 @@ function RemoteVideoStage({
             autoPlay
             playsInline
             muted
-            className={`absolute inset-0 h-full w-full ${remoteFit} ${remoteZoom} transition-opacity duration-500 ease-out ${
+            className={`absolute inset-0 h-full w-full bg-black ${remoteFit} ${remoteZoom} transition-opacity duration-300 ease-out ${
               hasRenderableVideo ? "opacity-100" : "opacity-0"
             }`}
           />
@@ -362,9 +380,9 @@ function RemoteVideoStageOptional({
 }
 
 const MINI_PREVIEW_STORAGE_KEY = "diebel.call.showMiniPreview";
-/** După conectare, ascundem bara de controale ca să nu stea peste imagine; tap / mișcare mouse reafișează. */
-/** Mai lung = mai puțin „intră/iese” bara de controale la fiecare mișcare pe video. */
-const CHROME_AUTO_HIDE_MS = 8000;
+const PIP_POS_STORAGE_KEY = "diebel.call.pipPosition";
+
+type PipDragPos = { left: number; top: number };
 
 /** Mod discret: fără căști (se confundă cu difuzor); Volume2 = sunet activ, EarOff = lângă butonul Difuzor fără dublură. */
 function PrivacyQuietIcon({
@@ -421,21 +439,27 @@ type CallUIProps = {
   roomId: string;
   userId: string;
   displayName: string;
+  /** Numele real al celuilalt participant (1-la-1), afișat în titlu. */
+  peerName?: string | null;
   audioOnly: boolean;
   isConference: boolean;
   isCaller?: boolean;
   /** Afișat o dată după sunare (ex. limitări push), fără să blocheze navigarea. */
   transientRingNotify?: string | null;
+  /** Fază apel pentru cleanup la navigare (pagina de apel). */
+  onCallLifecycle?: (phase: "connected" | "ended") => void;
 };
 
 export default function CallUI({
   roomId,
   userId,
   displayName,
+  peerName = null,
   audioOnly,
   isConference,
   isCaller: isCallerProp,
   transientRingNotify = null,
+  onCallLifecycle,
 }: CallUIProps) {
   const callTranslate = useCallRoomTranslate();
   const router = useRouter();
@@ -488,6 +512,27 @@ export default function CallUI({
     }
     return true;
   });
+  const immersiveRootRef = useRef<HTMLDivElement>(null);
+  const [pipDragPos, setPipDragPos] = useState<PipDragPos | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const raw = localStorage.getItem(PIP_POS_STORAGE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as PipDragPos;
+      if (typeof parsed?.left === "number" && typeof parsed?.top === "number") return parsed;
+    } catch {
+      /* ignore */
+    }
+    return null;
+  });
+  const pipDragSessionRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    origLeft: number;
+    origTop: number;
+    moved: boolean;
+  } | null>(null);
   /** Afișează sau ascunde video-ul interlocutorului (audio rămâne). */
   const [showRemoteParticipantVideo, setShowRemoteParticipantVideo] = useState(true);
   const isCaller = !!isCallerProp && !isConference;
@@ -521,15 +566,33 @@ export default function CallUI({
     roomId,
     userId,
     displayName,
+    peerName,
     audioOnly,
     isCaller,
     isConference,
     callTranslate,
     onAutoEnded: () => {
-      void clientHangupCall({ roomId });
+      markCallUserEnded(roomId);
+      clearActiveConnectedCall(roomId);
+      void clientHangupCall({ roomId, respectDedup: false });
       router.replace("/app/messages");
     },
   });
+
+  // Banner-ul „rețea slabă” e doar informativ → dispare singur după câteva secunde
+  // (celelalte bannere: cameră, reconectare, limită apel etc. rămân cât e nevoie).
+  const weakBannerText = callTranslate.tStr("pages.callRoom.rtc.bannerNetworkWeak");
+  const [weakBannerHidden, setWeakBannerHidden] = useState(false);
+  useEffect(() => {
+    if (banner && banner === weakBannerText) {
+      setWeakBannerHidden(false);
+      const t = window.setTimeout(() => setWeakBannerHidden(true), 5000);
+      return () => window.clearTimeout(t);
+    }
+    setWeakBannerHidden(false);
+    return;
+  }, [banner, weakBannerText]);
+  const displayBanner = banner === weakBannerText && weakBannerHidden ? null : banner;
 
   const errorBackMessagesRef = useRef<HTMLAnchorElement | null>(null);
 
@@ -597,7 +660,6 @@ export default function CallUI({
   const showCameraFlip = !audioOnly && (canSwitchCamera || isMobileDevice());
 
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
-  const localAudioRef = useRef<HTMLAudioElement | null>(null);
   /** Ref callback: la fiecare montare/demontare a `<video>` local, legăm imediat `srcObject` (useEffect singur ratează cicluri oprit/pornit cameră / PiP). */
   const bindLocalVideoRef = useCallback(
     (node: HTMLVideoElement | null) => {
@@ -616,28 +678,12 @@ export default function CallUI({
     },
     [localStream]
   );
-  const bindLocalAudioRef = useCallback(
-    (node: HTMLAudioElement | null) => {
-      const prev = localAudioRef.current;
-      if (prev && prev !== node) {
-        try {
-          prev.srcObject = null;
-        } catch {
-          /* ignore */
-        }
-      }
-      localAudioRef.current = node;
-      if (node) {
-        node.srcObject = localStream ?? null;
-      }
-    },
-    [localStream]
-  );
   useLayoutEffect(() => {
     const v = localVideoRef.current;
-    if (v) v.srcObject = localStream ?? null;
-    const a = localAudioRef.current;
-    if (a) a.srcObject = localStream ?? null;
+    if (v) {
+      v.srcObject = localStream ?? null;
+      if (localStream) void v.play().catch(() => {});
+    }
   }, [localStream]);
   /** Partajare ecran: trimitere cursor normalizat (P2P DataChannel). */
   const localCursorSendRef = useRef<HTMLDivElement>(null);
@@ -678,12 +724,93 @@ export default function CallUI({
       chromeHideTimerRef.current = null;
     }
     setChromeVisible(true);
-    if (callState !== "connected") return;
-    chromeHideTimerRef.current = window.setTimeout(() => {
-      setChromeVisible(false);
-      chromeHideTimerRef.current = null;
-    }, CHROME_AUTO_HIDE_MS);
+    /**
+     * Controalele rămân MEREU vizibile (desktop ȘI mobil). Auto-hide pe mobil făcea bara
+     * `pointer-events-none`, așa că butonul de închidere cerea două tap-uri (primul doar reafișa
+     * controalele). Pentru un apel fiabil — și pentru review Google — închiderea trebuie să meargă
+     * din prima atingere, mereu.
+     */
   }, [callState]);
+
+  const clampPipPos = useCallback((left: number, top: number, pipW: number, pipH: number) => {
+    const root = immersiveRootRef.current;
+    if (!root) return { left, top };
+    const pad = 8;
+    const toolbarReserve = 112;
+    return {
+      left: Math.max(pad, Math.min(left, root.clientWidth - pipW - pad)),
+      top: Math.max(pad + 40, Math.min(top, root.clientHeight - pipH - pad - toolbarReserve)),
+    };
+  }, []);
+
+  const onPipPointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      e.stopPropagation();
+      const el = e.currentTarget;
+      const root = immersiveRootRef.current;
+      if (!root) return;
+      const rootRect = root.getBoundingClientRect();
+      const elRect = el.getBoundingClientRect();
+      const currentLeft = pipDragPos?.left ?? elRect.left - rootRect.left;
+      const currentTop = pipDragPos?.top ?? elRect.top - rootRect.top;
+      if (!pipDragPos) setPipDragPos({ left: currentLeft, top: currentTop });
+      pipDragSessionRef.current = {
+        pointerId: e.pointerId,
+        startX: e.clientX,
+        startY: e.clientY,
+        origLeft: currentLeft,
+        origTop: currentTop,
+        moved: false,
+      };
+      el.setPointerCapture(e.pointerId);
+      scheduleChromeHide();
+    },
+    [pipDragPos, scheduleChromeHide]
+  );
+
+  const onPipPointerMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      const sess = pipDragSessionRef.current;
+      if (!sess || sess.pointerId !== e.pointerId) return;
+      const dx = e.clientX - sess.startX;
+      const dy = e.clientY - sess.startY;
+      if (Math.abs(dx) + Math.abs(dy) > 8) sess.moved = true;
+      const el = e.currentTarget;
+      setPipDragPos(clampPipPos(sess.origLeft + dx, sess.origTop + dy, el.clientWidth, el.clientHeight));
+    },
+    [clampPipPos]
+  );
+
+  const onPipPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const sess = pipDragSessionRef.current;
+    if (!sess || sess.pointerId !== e.pointerId) return;
+    pipDragSessionRef.current = null;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+    if (!sess.moved) {
+      setShowMiniPreview((v) => !v);
+      return;
+    }
+    setPipDragPos((pos) => {
+      if (pos) {
+        try {
+          localStorage.setItem(PIP_POS_STORAGE_KEY, JSON.stringify(pos));
+        } catch {
+          /* ignore */
+        }
+      }
+      return pos;
+    });
+  }, []);
+
+  const onPipPointerCancel = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (pipDragSessionRef.current?.pointerId === e.pointerId) {
+      pipDragSessionRef.current = null;
+    }
+  }, []);
 
   useEffect(() => {
     scheduleChromeHide();
@@ -785,6 +912,12 @@ export default function CallUI({
   );
 
   useEffect(() => {
+    if (callState !== "connected") return;
+    markActiveConnectedCall(roomId);
+    onCallLifecycle?.("connected");
+  }, [callState, roomId, onCallLifecycle]);
+
+  useEffect(() => {
     stopIncomingRingtone();
   }, [roomId, callState]);
 
@@ -836,18 +969,30 @@ export default function CallUI({
   }, [outgoingTerminal, isCaller, leave, roomId]);
 
   const handleLeave = () => {
+    /** Guard: un singur click execută închiderea (re-click-urile ies imediat). */
     if (leavingCallRef.current) return;
     leavingCallRef.current = true;
     setLeavingCall(true);
+
+    /** 1) Local instant: oprește sonerie + WebRTC + media (peerConnection.close + track.stop în `leave`). */
     stopIncomingRingtone();
-    void (async () => {
-      await clientHangupCall({
-        roomId,
-        recordMissedForCallee: isCaller && callState !== "connected",
-      });
-      leave();
-      router.replace("/app/messages");
-    })();
+    markCallUserEnded(roomId);
+    clearActiveConnectedCall(roomId);
+    markIncomingGrace(roomId, undefined, POST_HANGUP_INCOMING_GRACE_MS);
+    onCallLifecycle?.("ended");
+    leave();
+
+    /** 2) Ieșire instant din ecranul de apel — fără să așteptăm serverul. */
+    router.replace("/app/messages");
+
+    /** 3) Curățare server în fundal (keepalive duce POST-ul la capăt chiar după navigare). */
+    void clientHangupCall({
+      roomId,
+      recordMissedForCallee: isCaller && callState !== "connected",
+      respectDedup: false,
+    });
+
+    console.log("Call ended");
   };
 
   const remote = remoteParticipants[0];
@@ -934,7 +1079,9 @@ export default function CallUI({
     callUiPhase !== "idle" &&
     callUiPhase !== "stable" &&
     callUiPhase !== "reconnecting" &&
-    callUiPhase !== "failed";
+    callUiPhase !== "failed" &&
+    /* După permisiuni + cameră: scoatem overlay-ul — rămâne doar spinnerul „aștept interlocutor”, fără dublu ecran. */
+    !(localStream && callUiPhase === "connecting");
 
   /** Evită același text în header și în overlay-ul central (pornire apel / permisiuni). */
   const hideImmersiveHeaderStatusForStartupOverlay = showCallStartupOverlay;
@@ -995,6 +1142,7 @@ export default function CallUI({
       onClick={onClick}
       disabled={disabled}
       title={title}
+      aria-label={title}
       className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full transition-all active:scale-95 sm:h-[3.75rem] sm:w-[3.75rem] ${
         danger
           ? "bg-red-500 text-white shadow-lg shadow-red-500/30 hover:bg-red-600"
@@ -1015,7 +1163,7 @@ export default function CallUI({
   if (outgoingTerminal === "rejected") {
     return (
       <RemotePlaybackContext.Provider value={remotePlayback}>
-        <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center gap-4 bg-night-950 px-4 text-center text-white">
+        <div className="call-screen-fill z-[200] flex flex-col items-center justify-center gap-4 bg-night-950 px-4 text-center text-white">
           <p className="text-red-400 font-medium">{callTranslate.tStr("pages.callRoom.outgoingRejectedTitle")}</p>
           <p className="text-night-500 text-sm max-w-md">{callTranslate.tStr("pages.callRoom.outgoingRejectedBody")}</p>
           <Link replace href="/app/messages" className="text-brand-400 hover:underline mt-2">
@@ -1029,7 +1177,7 @@ export default function CallUI({
   if (outgoingTerminal === "unreachable") {
     return (
       <RemotePlaybackContext.Provider value={remotePlayback}>
-        <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center gap-4 bg-night-950 px-4 text-center text-white">
+        <div className="call-screen-fill z-[200] flex flex-col items-center justify-center gap-4 bg-night-950 px-4 text-center text-white">
           <p className="text-amber-400 font-medium">{callTranslate.tStr("pages.callRoom.outgoingUnreachableTitle")}</p>
           <p className="text-night-500 text-sm max-w-md">{callTranslate.tStr("pages.callRoom.outgoingUnreachableBody")}</p>
           <Link replace href="/app/messages" className="text-brand-400 hover:underline mt-2">
@@ -1043,7 +1191,7 @@ export default function CallUI({
   if (permissionHelp) {
     return (
       <RemotePlaybackContext.Provider value={remotePlayback}>
-        <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center gap-6 overflow-y-auto bg-night-950 px-5 py-10 text-center text-white">
+        <div className="call-screen-fill z-[200] flex flex-col items-center justify-center gap-6 overflow-y-auto bg-night-950 px-5 py-10 text-center text-white">
           <div className="max-w-lg rounded-2xl border border-amber-500/40 bg-amber-500/[0.12] px-6 py-6 text-left shadow-lg shadow-amber-900/20">
             <p className="text-amber-200/80 text-xs font-medium uppercase tracking-wide mb-2">
               {ui("permissionScreenTitle")}
@@ -1102,7 +1250,7 @@ export default function CallUI({
 
     return (
       <RemotePlaybackContext.Provider value={remotePlayback}>
-        <div className="fixed inset-0 z-[200] flex items-center justify-center overflow-y-auto bg-night-950 px-4 py-10 text-white">
+        <div className="call-screen-fill z-[200] flex items-center justify-center overflow-y-auto bg-night-950 px-4 py-10 text-white">
           <div
             className={`w-full max-w-lg rounded-2xl border px-6 py-8 shadow-xl ${
               negotiationFail
@@ -1139,34 +1287,7 @@ export default function CallUI({
             ) : (
               <div className="mt-6 text-left text-sm text-night-400 space-y-4 leading-relaxed border-t border-red-500/15 pt-5">
                 {infraHint ? (
-                  <>
-                    <p>{ui("errInfraIntro")}</p>
-                    <p className="text-xs text-night-500 uppercase tracking-wide">{ui("errInfraVarsTitle")}</p>
-                    <ul className="font-mono text-[11px] sm:text-xs text-brand-200/90 bg-night-900/80 rounded-lg px-3 py-3 space-y-1 border border-night-700/60">
-                      <li>NEXT_PUBLIC_SIGNALING_WS_URL</li>
-                      <li>NEXT_PUBLIC_TURN_URLS</li>
-                      <li>TURN_REALM · TURN_STATIC_SECRET · TURN_AUTH_SECRET</li>
-                    </ul>
-                    {typeof window !== "undefined" && window.location.host ? (
-                      <p className="text-xs text-night-500">
-                        {ui("errInfraCurrentEnv")}{" "}
-                        <code className="text-night-300 break-all">{window.location.host}</code>
-                        {" — "}
-                        <span className="text-night-500">{ui("errInfraPreviewNote")}</span>
-                      </p>
-                    ) : null}
-                    <p className="text-xs">
-                      <a
-                        href="/api/webrtc-env-check"
-                        className="text-brand-400 hover:text-brand-300 underline underline-offset-2"
-                      >
-                        {ui("errInfraDiagnostics")}
-                      </a>
-                      {" — "}
-                      {ui("errInfraDiagnosticsHint")}
-                    </p>
-                    <p className="text-xs text-night-500">{ui("errInfraDevHint")}</p>
-                  </>
+                  <p>{ui("errGenericProblem")}</p>
                 ) : authFail ? (
                   <p>{errorDisplay}</p>
                 ) : (
@@ -1207,11 +1328,12 @@ export default function CallUI({
     : "opacity-0 translate-y-8 pointer-events-none";
 
   const pipFrameClass =
-    "absolute z-30 overflow-hidden rounded-2xl bg-zinc-900 shadow-2xl ring-2 ring-white/20 " +
-    "right-[max(0.75rem,env(safe-area-inset-right))] " +
-    "bottom-[calc(7.25rem+env(safe-area-inset-bottom))] " +
-    "w-[min(34vw,11rem)] sm:w-44 sm:bottom-[calc(7.5rem+env(safe-area-inset-bottom))] md:w-52 aspect-video " +
-    (canSwapVideoLayout ? "cursor-pointer touch-manipulation active:scale-[0.98] transition-transform" : "");
+    "absolute z-[35] overflow-hidden rounded-2xl bg-zinc-900 shadow-2xl ring-2 ring-white/20 " +
+    "w-[min(34vw,11rem)] sm:w-44 md:w-52 aspect-video touch-none select-none cursor-grab active:cursor-grabbing " +
+    (pipDragPos
+      ? ""
+      : "right-[max(0.75rem,var(--safe-area-inset-right))] bottom-[calc(7.25rem+var(--safe-area-inset-bottom))] sm:bottom-[calc(7.5rem+var(--safe-area-inset-bottom))] ");
+  const pipFrameStyle = pipDragPos ? { left: pipDragPos.left, top: pipDragPos.top } : undefined;
 
   const remotePlaybackHintBanner = remotePlaybackBlockedHint ? (
     <div className="relative z-[240] mx-3 mt-1 rounded-xl bg-amber-500/30 border border-amber-400/50 px-3 py-2 text-xs text-amber-50 shadow-lg backdrop-blur-sm">
@@ -1224,7 +1346,8 @@ export default function CallUI({
     return (
       <RemotePlaybackContext.Provider value={remotePlayback}>
         <div
-          className="fixed inset-0 z-[200] flex flex-col bg-black text-white touch-manipulation"
+          ref={immersiveRootRef}
+          className="call-screen-fill relative z-[200] flex flex-col bg-black text-white touch-manipulation"
           onPointerDown={onImmersivePointer}
           onPointerMove={onImmersivePointer}
         >
@@ -1304,7 +1427,7 @@ export default function CallUI({
                     autoPlay
                     playsInline
                     muted
-                    className={`absolute inset-0 h-full w-full ${callVideoFraming.fit} ${callVideoFraming.zoom}`}
+                    className={`absolute inset-0 h-full w-full bg-black ${callVideoFraming.fit} ${callVideoFraming.zoom}`}
                   />
                 </div>
               ) : localStream && videoMuted ? (
@@ -1341,7 +1464,7 @@ export default function CallUI({
         />
 
         <header
-          className={`relative z-20 flex items-center justify-between px-2 pt-[max(0.5rem,env(safe-area-inset-top))] pb-1 sm:px-4 transition-opacity duration-200 ease-out ${chromeTopClass}`}
+          className={`relative z-20 flex items-center justify-between px-2 pt-1 pb-1 sm:px-4 transition-opacity duration-200 ease-out ${chromeTopClass}`}
         >
           <button
             type="button"
@@ -1372,11 +1495,11 @@ export default function CallUI({
           className={`relative z-20 mx-3 mt-1 transition-[opacity,transform] duration-200 ease-out ${chromeTopClass}`}
           bannerClassName="rounded-xl border border-sky-500/40 bg-sky-950/95 px-3 py-2 text-xs text-sky-50"
         />
-        {banner ? (
+        {displayBanner ? (
           <div
             className={`relative z-20 mx-3 mt-1 rounded-xl bg-amber-500/20 border border-amber-400/35 px-3 py-2 text-xs text-amber-50 backdrop-blur-sm transition-[opacity,transform] duration-200 ease-out ${chromeTopClass}`}
           >
-            {banner}
+            {displayBanner}
           </div>
         ) : null}
         {transientRingNotify ? (
@@ -1395,10 +1518,11 @@ export default function CallUI({
             id="localShareWrapper"
             ref={localCursorSendRef}
             className={pipFrameClass}
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowMiniPreview((v) => !v);
-            }}
+            style={pipFrameStyle}
+            onPointerDown={onPipPointerDown}
+            onPointerMove={onPipPointerMove}
+            onPointerUp={onPipPointerUp}
+            onPointerCancel={onPipPointerCancel}
             role="button"
             tabIndex={0}
             aria-label={ui("pipToggleHideAria")}
@@ -1409,17 +1533,18 @@ export default function CallUI({
               autoPlay
               playsInline
               muted
-              className={`h-full w-full ${callVideoFraming.fit} ${callVideoFraming.zoom}`}
+              className={`h-full w-full bg-black ${pipVideoFramingClasses()}`}
             />
           </div>
         )}
         {!videoLayoutSwapped && localStream && videoMuted && showMiniPreview && (
           <div
             className={`${pipFrameClass} flex flex-col items-center justify-center gap-1 bg-zinc-800/95 ring-white/15 px-1`}
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowMiniPreview((v) => !v);
-            }}
+            style={pipFrameStyle}
+            onPointerDown={onPipPointerDown}
+            onPointerMove={onPipPointerMove}
+            onPointerUp={onPipPointerUp}
+            onPointerCancel={onPipPointerCancel}
             role="button"
             tabIndex={0}
             aria-label={ui("pipToggleShowAria")}
@@ -1433,10 +1558,11 @@ export default function CallUI({
         {videoLayoutSwapped && remote && showMiniPreview && (
           <div
             className={pipFrameClass}
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowMiniPreview((v) => !v);
-            }}
+            style={pipFrameStyle}
+            onPointerDown={onPipPointerDown}
+            onPointerMove={onPipPointerMove}
+            onPointerUp={onPipPointerUp}
+            onPointerCancel={onPipPointerCancel}
             role="button"
             tabIndex={0}
             aria-label={ui("pipToggleShowAria")}
@@ -1462,11 +1588,9 @@ export default function CallUI({
             aria-hidden
           />
         )}
-        <audio ref={bindLocalAudioRef} autoPlay playsInline muted className="hidden" />
-
         <div
           className={`relative z-20 mt-auto flex flex-wrap items-center justify-center gap-2 sm:gap-3 px-3
-            pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-6 transition-[opacity,transform] duration-200 ease-out ${chromeBottomClass}`}
+            pb-5 pt-6 transition-[opacity,transform] duration-200 ease-out ${chromeBottomClass}`}
         >
           <CircleBtn
             onClick={onMicToggle}
@@ -1575,7 +1699,7 @@ export default function CallUI({
     return (
       <RemotePlaybackContext.Provider value={remotePlayback}>
         <div
-          className="fixed inset-0 z-[200] flex flex-col bg-gradient-to-b from-zinc-900 via-black to-zinc-950 text-white touch-manipulation"
+          className="call-screen-fill z-[200] flex flex-col bg-gradient-to-b from-zinc-900 via-black to-zinc-950 text-white touch-manipulation"
           onPointerDown={onImmersivePointer}
           onPointerMove={onImmersivePointer}
         >
@@ -1583,7 +1707,7 @@ export default function CallUI({
           className={`pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/60 to-transparent transition-opacity duration-200 ease-out ${chromeTopClass}`}
         />
         <header
-          className={`relative z-10 flex items-center justify-between px-2 pt-[max(0.5rem,env(safe-area-inset-top))] sm:px-4 transition-[opacity,transform] duration-200 ease-out ${chromeTopClass}`}
+          className={`relative z-10 flex items-center justify-between px-2 pt-1 sm:px-4 transition-[opacity,transform] duration-200 ease-out ${chromeTopClass}`}
         >
           <button
             type="button"
@@ -1648,13 +1772,11 @@ export default function CallUI({
           {remote?.stream ? <RemoteAudio stream={remote.stream} /> : null}
         </div>
 
-        <audio ref={bindLocalAudioRef} autoPlay playsInline muted className="hidden" />
-
-        {banner ? (
+        {displayBanner ? (
           <div
             className={`mx-4 mb-2 rounded-xl bg-amber-500/20 border border-amber-400/35 px-3 py-2 text-xs text-amber-50 transition-[opacity,transform] duration-200 ease-out ${chromeBottomClass}`}
           >
-            {banner}
+            {displayBanner}
           </div>
         ) : null}
         {remotePlaybackBlockedHint ? (
@@ -1664,7 +1786,7 @@ export default function CallUI({
         ) : null}
 
         <div
-          className={`flex flex-wrap items-center justify-center gap-2 sm:gap-3 px-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-4 transition-[opacity,transform] duration-200 ease-out ${chromeBottomClass}`}
+          className={`flex flex-wrap items-center justify-center gap-2 sm:gap-3 px-3 pb-6 pt-4 transition-[opacity,transform] duration-200 ease-out ${chromeBottomClass}`}
         >
           <CircleBtn
             onClick={onMicToggle}
@@ -1721,7 +1843,7 @@ export default function CallUI({
   /* ——— Conferință sau fallback ——— */
   return (
     <RemotePlaybackContext.Provider value={remotePlayback}>
-    <div className="fixed inset-0 z-[200] flex flex-col bg-night-950 text-night-100 overflow-hidden">
+    <div className="call-screen-fill z-[200] flex flex-col bg-night-950 text-night-100 overflow-hidden">
       <div className="flex items-center justify-between border-b border-night-600 py-2 px-3 sm:px-4 shrink-0">
         <Link
           replace
@@ -1775,9 +1897,9 @@ export default function CallUI({
         className="mx-4 mt-2"
         bannerClassName="rounded-lg border border-sky-500/40 bg-sky-950/95 px-3 py-2 text-sm text-sky-50"
       />
-      {banner ? (
+      {displayBanner ? (
         <div className="mx-4 mt-2 rounded-lg bg-amber-500/15 border border-amber-500/40 px-3 py-2 text-sm text-amber-100">
-          {banner}
+          {displayBanner}
         </div>
       ) : null}
       {transientRingNotify ? (
@@ -1820,7 +1942,6 @@ export default function CallUI({
             muted
             className={`w-full h-full ${callVideoFraming.fit} ${callVideoFraming.zoom}`}
           />
-          <audio ref={bindLocalAudioRef} autoPlay playsInline muted className="hidden" />
         </div>
 
         {remoteParticipants.map((p) => (
@@ -1835,7 +1956,7 @@ export default function CallUI({
       </div>
       </div>
 
-      <div className="flex flex-wrap shrink-0 items-center justify-center gap-2 sm:gap-3 border-t border-night-600 bg-night-950/90 py-3 px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <div className="flex flex-wrap shrink-0 items-center justify-center gap-2 sm:gap-3 border-t border-night-600 bg-night-950/90 py-3 px-2 pb-3">
         <button
           type="button"
           onClick={onMicToggle}

@@ -64,6 +64,7 @@ function MessagesConversationRow({
   const router = useRouter();
   const otherLabel = displayName(otherUser.username ?? otherUser.name);
   const chatPath = `/app/chat/${otherUser.id}`;
+  const profilePath = `/app/user/${otherUser.id}`;
   const openChat = () => {
     router.push(chatPath);
   };
@@ -71,13 +72,14 @@ function MessagesConversationRow({
   return (
     <li
       ref={rowRef as Ref<HTMLLIElement>}
-      className={`app-list-row hover:border-dark-500 active:bg-dark-700/80 ${unreadCount > 0 ? "app-list-row--unread" : ""}`}
+      className={`app-list-row hover:border-dark-500 ${unreadCount > 0 ? "app-list-row--unread" : ""}`}
     >
-      <button
-        type="button"
-        onClick={openChat}
-        aria-label={formatTpl(tStr("pages.messages.openChatAria"), { name: otherLabel })}
-        className="app-list-row-btn"
+      <Link
+        href={profilePath}
+        aria-label={formatTpl(tStr("pages.messages.viewProfileAria"), { name: otherLabel })}
+        title={tStr("pages.messages.viewProfileTitle")}
+        className="flex shrink-0 items-center self-stretch pl-3 pr-1 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:ring-inset"
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="app-avatar-wrap w-12 h-12">
           <div className="app-avatar-media">
@@ -98,42 +100,42 @@ function MessagesConversationRow({
             </span>
           )}
         </div>
+      </Link>
+      <button
+        type="button"
+        onClick={openChat}
+        aria-label={formatTpl(tStr("pages.messages.openChatAria"), { name: otherLabel })}
+        className="app-list-row-btn !pl-1.5"
+      >
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="font-medium text-zinc-100 truncate">{otherLabel}</span>
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="font-medium text-zinc-900 truncate">{otherLabel}</span>
             {otherUser.online && (
               <span className="shrink-0 w-2 h-2 rounded-full bg-green-400" title={tStr("pages.messages.online")} />
             )}
+            <span className="ml-auto shrink-0 text-[11px] tabular-nums text-dark-500">
+              {formatTime(lastMessage.at)}
+            </span>
           </div>
-          <p className={`text-sm truncate mt-0.5 ${unreadCount > 0 ? "text-zinc-200 font-medium" : "text-dark-500"}`}>{preview}</p>
-          <p className="text-xs text-dark-400 mt-1 hidden sm:flex flex-wrap gap-x-1 gap-y-0 items-center">
-            {unreadCount > 0 && (
-              <span className="text-brand-400">
-                {unreadCount}{" "}
-                {unreadCount === 1 ? tStr("pages.messages.unreadOne") : tStr("pages.messages.unreadMany")}
-              </span>
-            )}
-            {unreadCount > 0 && (receivedCount > 0 || otherUser.distanceKm != null || otherUser.online != null) && <span>·</span>}
-            {receivedCount > 0 && (
-              <span>
-                {receivedCount}{" "}
-                {receivedCount === 1 ? tStr("pages.messages.receivedOne") : tStr("pages.messages.receivedMany")}
-              </span>
-            )}
-            {(receivedCount > 0 || unreadCount > 0) && (otherUser.distanceKm != null || otherUser.online != null) && <span>·</span>}
-            {otherUser.distanceKm != null && <span>{fmtKm(otherUser.distanceKm)}</span>}
-            {otherUser.distanceKm != null && otherUser.online != null && <span>·</span>}
-            {otherUser.online != null && (
-              <span>{otherUser.online ? tStr("pages.messages.online") : tStr("pages.messages.offline")}</span>
-            )}
+          <p className={`text-sm truncate mt-0.5 ${unreadCount > 0 ? "text-zinc-800 font-medium" : "text-dark-500"}`}>
+            {preview}
+          </p>
+          <p className="text-xs text-dark-400 mt-0.5 truncate">
+            {[
+              unreadCount > 0
+                ? `${unreadCount} ${unreadCount === 1 ? tStr("pages.messages.unreadOne") : tStr("pages.messages.unreadMany")}`
+                : null,
+              receivedCount > 0
+                ? `${receivedCount} ${receivedCount === 1 ? tStr("pages.messages.receivedOne") : tStr("pages.messages.receivedMany")}`
+                : null,
+              otherUser.distanceKm != null ? fmtKm(otherUser.distanceKm) : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
           </p>
         </div>
-        <span className="flex shrink-0 items-center gap-2 self-center">
-          <MessageCircle className="w-5 h-5 text-brand-400 shrink-0" aria-hidden />
-          <span className="text-xs text-dark-500">{formatTime(lastMessage.at)}</span>
-        </span>
       </button>
-      <div className="flex items-center px-2 sm:px-2.5 border-l border-dark-600 bg-dark-800 shrink-0">
+      <div className="flex items-center px-1.5 sm:px-2 border-l border-dark-600 bg-dark-800 shrink-0">
         <QuickCallButtons toUserId={otherUser.id} size="sm" />
       </div>
     </li>
@@ -162,29 +164,21 @@ export default function MessagesPage() {
     [locale, tStr]
   );
 
-  const formatLastActive = useCallback(
-    (ts: number | undefined): string => {
-      if (!ts) return "";
-      const min = Math.floor((Date.now() - ts) / 60000);
-      if (min < 1) return tStr("pages.messages.lastOnline");
-      if (min === 1) return tStr("pages.messages.lastMinOne");
-      if (min < 60) return formatTpl(tStr("pages.messages.lastMinMany"), { n: min });
-      const h = Math.floor(min / 60);
-      if (h === 1) return tStr("pages.messages.lastHourOne");
-      return formatTpl(tStr("pages.messages.lastHourMany"), { n: h });
-    },
-    [tStr]
-  );
-
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
   const [friends, setFriends] = useState<FriendWithMeta[]>([]);
   const [loading, setLoading] = useState(true);
+  const [listError, setListError] = useState<string | null>(null);
 
   const fetchConversations = () => {
     fetchWithAuthRetry("/api/conversations", { cache: "no-store" })
       .then(async (res) => {
         const data = await res.json();
+        if (res.status === 401) {
+          setListError(tStr("pages.messages.errSession"));
+          return;
+        }
         if (res.ok && Array.isArray(data.conversations)) {
+          setListError(null);
           setConversations(data.conversations);
         }
       })
@@ -211,7 +205,12 @@ export default function MessagesPage() {
       ]);
       const convData = await convRes.json();
       const friendsData = await friendsRes.json();
-      if (convRes.ok) setConversations(convData.conversations || []);
+      if (convRes.ok) {
+        setListError(null);
+        setConversations(convData.conversations || []);
+      } else if (convRes.status === 401) {
+        setListError(tStr("pages.messages.errSession"));
+      }
       if (friendsRes.ok) setFriends(friendsData.friends || []);
       setLoading(false);
     })();
@@ -272,6 +271,15 @@ export default function MessagesPage() {
     return () => window.removeEventListener("align:conversation-read", onConversationRead);
   }, []);
 
+  useEffect(() => {
+    const onPollSync = () => {
+      fetchConversations();
+      fetchFriends();
+    };
+    window.addEventListener("align:poll-sync", onPollSync);
+    return () => window.removeEventListener("align:poll-sync", onPollSync);
+  }, []);
+
   const sortedConversations = useMemo(() => {
     return [...conversations].sort((a, b) => {
       const unreadDiff = (b.unreadCount > 0 ? 1 : 0) - (a.unreadCount > 0 ? 1 : 0);
@@ -287,7 +295,7 @@ export default function MessagesPage() {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex flex-wrap items-center justify-between gap-2 mb-1 sm:mb-3 shrink-0">
-        <h2 className="text-lg sm:text-xl font-semibold text-zinc-100">{tStr("pages.messages.title")}</h2>
+        <h2 className="app-pro-page-title text-lg sm:text-xl">{tStr("pages.messages.title")}</h2>
         <Link
           href="/app/missed-calls"
           className="inline-flex items-center gap-1.5 text-sm text-brand-400 hover:text-brand-300 hover:underline touch-manipulation"
@@ -303,26 +311,38 @@ export default function MessagesPage() {
         })}
       </p>
 
+      {listError && (
+        <div
+          className="mb-3 rounded-xl border border-red-500/35 bg-red-500/10 px-4 py-3 text-sm text-red-400"
+          role="alert"
+        >
+          {listError}{" "}
+          <Link href="/login" className="font-medium underline hover:text-red-300">
+            {tStr("pages.messages.loginNowLink")}
+          </Link>
+        </div>
+      )}
+
       {friends.length > 0 && (
-        <div className="mb-2 sm:mb-4 shrink-0 max-sm:overflow-x-auto max-sm:pb-1">
-          <h3 className="text-sm font-medium text-dark-400 mb-2 flex items-center gap-2">
+        <div className="mb-2 sm:mb-3 shrink-0">
+          <h3 className="text-sm font-medium text-dark-400 mb-1.5 flex items-center gap-2">
             <Users className="w-4 h-4 text-[#4DA6FF]" />
             {tStr("pages.messages.friends")}
           </h3>
-          <ul className="flex flex-wrap gap-2">
-            {friends.map((f) => (
-              <li key={f.id} className="app-list-row hover:border-[#4DA6FF]/50">
-                <Link
-                  href={`/app/chat/${f.id}`}
-                  className="flex flex-1 items-center gap-2 px-3 py-2 min-h-[44px] min-w-0 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:ring-inset rounded-xl"
+          <ul className="flex flex-nowrap gap-2 overflow-x-auto overscroll-x-contain pb-1 -mx-0.5 px-0.5 scrollbar-app">
+            {friends.map((f) => {
+              const friendLabel = displayName(f.username ?? f.name);
+              return (
+                <li
+                  key={f.id}
+                  className="flex shrink-0 items-center gap-1 rounded-2xl border border-dark-600/80 bg-white px-2 py-1.5 shadow-sm"
                 >
-                  <span
-                    className="flex shrink-0 items-center justify-center w-8 h-8 min-w-[32px] min-h-[32px] rounded-lg bg-brand-500/15 text-brand-400 border border-brand-500/35"
-                    aria-hidden
+                  <Link
+                    href={`/app/user/${f.id}`}
+                    aria-label={formatTpl(tStr("pages.messages.viewProfileAria"), { name: friendLabel })}
+                    title={tStr("pages.messages.viewProfileTitle")}
+                    className="app-avatar-wrap w-9 h-9 touch-manipulation"
                   >
-                    <MessageCircle className="w-4 h-4" />
-                  </span>
-                  <div className="app-avatar-wrap w-8 h-8">
                     <div className="app-avatar-media bg-[#4DA6FF]/20">
                       <SilhouetteAvatar
                         photoUrl={f.photos?.[0]}
@@ -335,35 +355,49 @@ export default function MessagesPage() {
                     {f.online && (
                       <span className="absolute bottom-0 right-0 z-[2] w-2.5 h-2.5 rounded-full bg-green-400 border-2 border-dark-800" />
                     )}
-                  </div>
-                  <span className="font-medium text-zinc-100 text-sm truncate max-w-[100px]">{f.username ?? f.name}</span>
-                  <span className="text-xs text-dark-500 shrink-0 max-sm:hidden">
-                    {f.online ? tStr("pages.messages.online") : formatLastActive(f.lastActivityAt)}
-                  </span>
-                </Link>
-                <div className="flex items-center px-2.5 border-l border-dark-600 bg-dark-800">
-                  <QuickCallButtons toUserId={f.id} size="sm" />
-                </div>
-              </li>
-            ))}
+                  </Link>
+                  <Link
+                    href={`/app/chat/${f.id}`}
+                    className="min-w-0 max-w-[5.5rem] touch-manipulation focus-visible:outline-none"
+                    aria-label={formatTpl(tStr("pages.messages.openChatAria"), { name: friendLabel })}
+                  >
+                    <span className="block font-medium text-zinc-900 text-sm truncate">{friendLabel}</span>
+                  </Link>
+                  <Link
+                    href={`/app/chat/${f.id}`}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-500/15 text-brand-400 border border-brand-500/35 touch-manipulation"
+                    aria-label={formatTpl(tStr("pages.messages.openChatAria"), { name: friendLabel })}
+                    title={tStr("pages.messages.openChatButtonTitle")}
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
 
       {conversations.length === 0 ? (
         <div className="app-pro-empty min-h-0 flex-1 flex flex-col justify-center">
-          <p className="text-dark-500 font-medium">{tStr("pages.messages.noConversations")}</p>
-          <p className="app-pro-lead mt-3">
-            {tStr("pages.messages.noConversationsHintBefore")}{" "}
-            <Link href="/app/profiles" className="text-brand-400 hover:underline">
-              {tStr("pages.messages.profilesLink")}
-            </Link>{" "}
-            {tStr("pages.messages.noConversationsHintOr")}{" "}
-            <Link href="/app/matches" className="text-brand-400 hover:underline">
-              {tStr("pages.messages.matchesLink")}
-            </Link>{" "}
-            {tStr("pages.messages.noConversationsHintAfter")}
-          </p>
+          {listError ? (
+            <p className="text-red-400 font-medium">{listError}</p>
+          ) : (
+            <>
+              <p className="text-dark-500 font-medium">{tStr("pages.messages.noConversations")}</p>
+              <p className="app-pro-lead mt-3">
+                {tStr("pages.messages.noConversationsHintBefore")}{" "}
+                <Link href="/app/profiles" className="text-brand-400 hover:underline">
+                  {tStr("pages.messages.profilesLink")}
+                </Link>{" "}
+                {tStr("pages.messages.noConversationsHintOr")}{" "}
+                <Link href="/app/matches" className="text-brand-400 hover:underline">
+                  {tStr("pages.messages.matchesLink")}
+                </Link>{" "}
+                {tStr("pages.messages.noConversationsHintAfter")}
+              </p>
+            </>
+          )}
         </div>
       ) : (
         <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-y-contain pb-2 sm:pb-3 scrollbar-app -mr-1 pr-1">

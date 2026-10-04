@@ -1,13 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Bare transparente: edge-to-edge modern (fără statusBarColor/navigationBarColor opace). -->
     <style name="Theme.Align" parent="Theme.MaterialComponents.NoActionBar">
-        <item name="android:statusBarColor">@color/align_bg</item>
-        <item name="android:windowLightStatusBar">false</item>
-        <item name="android:navigationBarColor">@color/align_bg</item>
-        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
         <item name="colorPrimary">@color/align_accent</item>
     </style>
     <style name="Theme.Align.Call" parent="Theme.Align">
         <item name="android:windowFullscreen">true</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
     </style>
 </resources>

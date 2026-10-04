@@ -19,8 +19,14 @@ export function getDiebelAudioContext(): AudioContext | null {
   return window.__diebelAudioCtx;
 }
 
-/** Reia AudioContext + redă elementele audio cu stream (apel WebRTC în WebView). */
+function isOnCallPage(): boolean {
+  if (typeof window === "undefined") return false;
+  return /\/app\/call\b/i.test(window.location.pathname || "");
+}
+
+/** Doar audio remot — NICIODATĂ monitor local (altfel ecou în cască/difuzor). */
 export async function resumeAllCallAudio(): Promise<void> {
+  if (!isOnCallPage()) return;
   const ctx = getDiebelAudioContext();
   if (ctx && ctx.state !== "closed") {
     try {
@@ -30,8 +36,10 @@ export async function resumeAllCallAudio(): Promise<void> {
     }
   }
   if (typeof document === "undefined") return;
-  document.querySelectorAll("audio").forEach((el) => {
+  document.querySelectorAll("audio[data-diebel-remote-audio]").forEach((el) => {
+    if (!(el instanceof HTMLAudioElement)) return;
     try {
+      if (el.dataset.diebelLocalMonitor === "1") return;
       el.muted = false;
       if (el.srcObject) void el.play();
     } catch {
@@ -42,7 +50,7 @@ export async function resumeAllCallAudio(): Promise<void> {
 
 /** Pe shell Android, WebView blochează adesea audio până la gest / resume repetat. */
 export function scheduleAndroidCallAudioResume(): () => void {
-  if (!isDiebelAndroidShell() || typeof window === "undefined") return () => {};
+  if (!isDiebelAndroidShell() || typeof window === "undefined" || !isOnCallPage()) return () => {};
   void resumeAllCallAudio();
   const id = window.setInterval(() => {
     void resumeAllCallAudio();

@@ -17,6 +17,9 @@ type Summary = {
   totalUsers: number;
   bannedUsers: number;
   totalReports: number;
+  femaleUsers: number;
+  maleUsers: number;
+  otherGenderUsers: number;
   signupsLast24Hours: number;
   signupsLast7Days: number;
   signupsLast15Days: number;
@@ -154,6 +157,15 @@ export default function AdminDashboardPage() {
             </button>
           </div>
 
+          <div className="mb-6">
+            <Link
+              href="/admin/geo"
+              className="inline-flex items-center gap-2 rounded-xl border border-brand-500/40 bg-brand-500/10 px-4 py-3 text-sm font-medium text-brand-700 hover:bg-brand-500/20"
+            >
+              Țări / piețe — vezi RO vs DE (profil + IP) pentru ads →
+            </Link>
+          </div>
+
           <h2 className="text-sm font-medium text-dark-300 uppercase tracking-wide mb-3">Situație generală</h2>
           <div className="grid sm:grid-cols-2 gap-3 mb-8">
             <div className="rounded-xl border border-dark-600 bg-dark-800/60 p-4">
@@ -163,6 +175,17 @@ export default function AdminDashboardPage() {
               </div>
               <p className="text-2xl font-semibold text-zinc-900">{summary.totalUsers}</p>
               <ul className="text-dark-500 text-xs mt-2 space-y-1 tabular-nums">
+                <li>
+                  Femei: <strong className="text-dark-300">{summary.femaleUsers ?? 0}</strong>
+                  {" · "}
+                  Bărbați: <strong className="text-dark-300">{summary.maleUsers ?? 0}</strong>
+                  {(summary.otherGenderUsers ?? 0) > 0 ? (
+                    <>
+                      {" · "}
+                      Alt / nesetat: <strong className="text-dark-300">{summary.otherGenderUsers}</strong>
+                    </>
+                  ) : null}
+                </li>
                 <li>
                   Ultimele 24 h: <strong className="text-dark-300">+{summary.signupsLast24Hours}</strong> înscrieri
                 </li>
@@ -218,8 +241,8 @@ export default function AdminDashboardPage() {
       <h2 className="text-sm font-medium text-dark-300 uppercase tracking-wide mb-2">Scurtături</h2>
       <ul className="space-y-2">
         <li>
-          <Link href="/admin/users" className="text-brand-400 hover:underline">
-            Gestionează useri
+          <Link href="/admin/users" className="text-brand-400 hover:underline font-semibold">
+            Moderare (poze + chat + ban pe o pagină)
           </Link>
         </li>
         <li>

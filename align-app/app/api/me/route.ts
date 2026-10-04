@@ -13,9 +13,10 @@ import {
   prismaFindUserByUsername,
   prismaUpdateLastActive,
 } from "@/lib/repo-prisma";
+import { maybeCorrectUkToUs, normalizeCountryToOption } from "@/lib/profileCountries";
 
 const VALID_GENDERS: Gender[] = ["male", "female", "other"];
-const MAX_DATA_URL_CHARS_IN_ME = 200_000;
+const MAX_DATA_URL_CHARS_IN_ME = 400_000;
 
 function sanitizeUserForMeResponse<T extends Record<string, unknown>>(user: T): T {
   const next = { ...user } as T & { image?: unknown; photos?: unknown };
@@ -116,13 +117,12 @@ export async function PATCH(request: NextRequest) {
   const nameValid = nameVal.length >= 3 && /^\p{L}+$/u.test(nameVal);
 
   if (body.username != null) {
-    const raw = String(body.username).trim().toLowerCase();
-    if (raw.length < 2 || raw.length > 30) {
-      return NextResponse.json({ error: "Username-ul trebuie să aibă între 2 și 30 de caractere." }, { status: 400 });
+    const { validateUsername, usernameErrorMessage } = await import("@/lib/usernamePolicy");
+    const checked = validateUsername(String(body.username));
+    if (!checked.ok) {
+      return NextResponse.json({ error: usernameErrorMessage(checked.reason) }, { status: 400 });
     }
-    if (!/^[a-zA-Z0-9_.]+$/.test(raw)) {
-      return NextResponse.json({ error: "Username-ul poate conține doar litere, cifre, punct și underscore." }, { status: 400 });
-    }
+    const raw = checked.value;
     if (isPrismaAvailable()) {
       const existing = await prismaFindUserByUsername(raw);
       if (existing && existing.id !== userId) {
@@ -148,14 +148,34 @@ export async function PATCH(request: NextRequest) {
       const profileData: Parameters<typeof prismaUpdateProfile>[1] = {};
       if (body.real_name !== undefined) profileData.realName = body.real_name === "" ? null : String(body.real_name).trim();
       if (body.username != null) {
-        const raw = String(body.username).trim().toLowerCase();
-        profileData.username = raw;
-        profileData.name = raw;
+        const { validateUsername } = await import("@/lib/usernamePolicy");
+        const checked = validateUsername(String(body.username));
+        if (!checked.ok) {
+          return NextResponse.json({ error: "Username invalid." }, { status: 400 });
+        }
+        profileData.username = checked.value;
+        profileData.name = checked.value;
       }
       if (body.name != null && nameValid) profileData.name = String(body.name).trim();
       if (body.bio != null) profileData.bio = String(body.bio).trim();
-      if (body.country != null) profileData.country = body.country === "" ? null : String(body.country).trim();
+      if (body.country != null) {
+        const rawCountry = String(body.country).trim();
+        if (!rawCountry) {
+          return NextResponse.json(
+            { error: "Țara este obligatorie. Alege România, Deutschland sau altă țară din listă." },
+            { status: 400 }
+          );
+        }
+        profileData.country = normalizeCountryToOption(rawCountry) || rawCountry;
+      }
       if (body.city != null) profileData.city = body.city === "" ? undefined : String(body.city).trim();
+      if (profileData.country != null || profileData.city != null) {
+        const fixed = maybeCorrectUkToUs(
+          (profileData.country as string | undefined) ?? me.country ?? undefined,
+          (profileData.city as string | undefined) ?? me.city ?? undefined
+        );
+        if (fixed) profileData.country = fixed;
+      }
       if (body.postalCode != null) profileData.postalCode = body.postalCode === "" ? undefined : String(body.postalCode).trim();
       if (body.birthDate != null) profileData.birthDate = body.birthDate === "" ? undefined : String(body.birthDate).trim();
       if (body.educationLevel != null) profileData.educationLevel = body.educationLevel === "" ? undefined : String(body.educationLevel).trim();
@@ -193,7 +213,39 @@ export async function PATCH(request: NextRequest) {
         const { prismaUpdateUserEmail } = await import("@/lib/repo-prisma");
         await prismaUpdateUserEmail(userId, String(body.email).trim().toLowerCase());
       }
+      if (me.mustChangeUsername) {
+        if (body.username == null) {
+          return NextResponse.json(
+            { error: "Trebuie să alegi un username nou, fără limbaj indecent." },
+            { status: 400 }
+          );
+        }
+        const currentName = String(me.username ?? "").trim().toLowerCase();
+        const nextName = String(profileData.username ?? "").trim().toLowerCase();
+        if (!nextName || nextName === currentName) {
+          return NextResponse.json(
+            { error: "Alege un username diferit, fără limbaj indecent." },
+            { status: 400 }
+          );
+        }
+      }
+      if (body.bio != null) {
+        const { bioLooksObscene } = await import("@/lib/usernamePolicy");
+        if (bioLooksObscene(String(body.bio))) {
+          return NextResponse.json(
+            { error: "Textul din bio nu este permis (limbaj indecent sau contact în afara aplicației)." },
+            { status: 400 }
+          );
+        }
+      }
       if (Object.keys(profileData).length > 0) await prismaUpdateProfile(userId, profileData);
+      if (me.mustChangeUsername && profileData.username) {
+        const { prisma } = await import("@/lib/db");
+        await prisma.user.update({
+          where: { id: userId },
+          data: { mustChangeUsername: false },
+        });
+      }
       if (body.photos !== undefined) {
         const rawCount = Array.isArray(body.photos) ? body.photos.length : 0;
         const photoUrls: string[] = Array.isArray(body.photos)
@@ -204,6 +256,15 @@ export async function PATCH(request: NextRequest) {
           : [];
         if (process.env.NODE_ENV === "development" && rawCount > 0 && photoUrls.length === 0) {
           console.warn("[api/me PATCH] Pozele au fost eliminate la validare (body.photos avea", rawCount, "elemente). Verifică că sunt string-uri și că nu depășesc ~2MB fiecare.");
+        }
+        // Moderează doar poze noi (data URL) — blochează nuditate / sexual
+        const toScan = photoUrls.filter((u) => u.startsWith("data:image"));
+        if (toScan.length > 0) {
+          const { moderateImageList } = await import("@/lib/imageNsfwModeration");
+          const mod = await moderateImageList(toScan);
+          if (!mod.ok) {
+            return NextResponse.json({ error: mod.message }, { status: 400 });
+          }
         }
         await prismaUpsertProfilePhotos(userId, photoUrls);
         if (process.env.NODE_ENV === "development") {
@@ -224,11 +285,12 @@ export async function PATCH(request: NextRequest) {
       const { prisma } = await import("@/lib/db");
       let profile = await prisma.profile.findUnique({ where: { userId }, include: { photos: true } });
       if (profile && !profile.username?.trim()) {
-        const base = (profile.name?.trim() || "user").toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 20) || "user";
+        const base = (profile.name?.trim() || "user").toLowerCase().replace(/[^a-z]/g, "").slice(0, 20) || "user";
         let candidate = base;
         let found = false;
-        for (let i = 0; i < 10; i++) {
-          candidate = i === 0 ? base : `${base}_${i}`;
+        const letterSuffix = "abcdefghijklmnopqrstuvwxyz";
+        for (let i = 0; i < 26; i++) {
+          candidate = i === 0 ? base : `${base}${letterSuffix[i - 1] ?? "x"}`.slice(0, 30);
           if (candidate.length < 2) continue;
           const existing = await prismaFindUserByUsername(candidate);
           if (!existing || existing.id === userId) {
@@ -248,7 +310,9 @@ export async function PATCH(request: NextRequest) {
       const hadCompleted = await prismaProfileCompleted(userId);
       const nameOk = !!(profile?.name?.trim());
       const genderOk = !!(profile?.gender?.trim());
-      const nowComplete = nameOk && genderOk;
+      const countryOk = !!(profile?.country?.trim());
+      // Țara e obligatorie ca feed-ul să rămână pe piața corectă (RO/DE/…).
+      const nowComplete = nameOk && genderOk && countryOk;
       if (nowComplete && !hadCompleted) await prismaSetProfileCompleted(userId);
 
       const user = (await prismaFindUserByIdForMe(userId)) ?? (await findUserOrPrisma(userId)) ?? me;
@@ -270,15 +334,36 @@ export async function PATCH(request: NextRequest) {
   const updates: Record<string, unknown> = {};
   if (body.real_name !== undefined) updates.real_name = body.real_name === "" ? null : String(body.real_name).trim();
   if (body.username != null) {
-    const raw = String(body.username).trim().toLowerCase();
-    updates.username = raw;
-    updates.name = raw;
+    const { validateUsername } = await import("@/lib/usernamePolicy");
+    const checked = validateUsername(String(body.username));
+    if (!checked.ok) {
+      return NextResponse.json({ error: "Username invalid." }, { status: 400 });
+    }
+    updates.username = checked.value;
+    updates.name = checked.value;
   }
   if (body.email != null) updates.email = String(body.email).trim().toLowerCase();
   if (body.name != null) updates.name = String(body.name).trim();
   if (body.bio != null) updates.bio = String(body.bio).trim();
-  if (body.country != null) updates.country = body.country === "" ? null : String(body.country).trim();
+  if (body.country != null) {
+    const rawCountry = String(body.country).trim();
+    if (!rawCountry) {
+      return NextResponse.json(
+        { error: "Țara este obligatorie. Alege România, Deutschland sau altă țară din listă." },
+        { status: 400 }
+      );
+    }
+    updates.country = normalizeCountryToOption(rawCountry) || rawCountry;
+  }
   if (body.city != null) updates.city = body.city === "" ? undefined : String(body.city).trim();
+  if (updates.country != null || updates.city != null) {
+    const existing = findUserById(userId);
+    const fixed = maybeCorrectUkToUs(
+      (updates.country as string | undefined) ?? existing?.country ?? undefined,
+      (updates.city as string | undefined) ?? existing?.city ?? undefined
+    );
+    if (fixed) updates.country = fixed;
+  }
   if (body.postalCode != null) updates.postalCode = body.postalCode === "" ? undefined : String(body.postalCode).trim();
   if (body.birthDate != null) updates.birthDate = body.birthDate === "" ? undefined : String(body.birthDate).trim();
   if (body.educationLevel != null) updates.educationLevel = body.educationLevel === "" ? undefined : String(body.educationLevel).trim();
@@ -311,9 +396,20 @@ export async function PATCH(request: NextRequest) {
   if (body.partnerLifestyle != null) updates.partnerLifestyle = body.partnerLifestyle === "" ? undefined : String(body.partnerLifestyle).trim();
   if (body.partnerDealBreakers != null) updates.partnerDealBreakers = body.partnerDealBreakers === "" ? undefined : String(body.partnerDealBreakers).trim();
   if (body.photos !== undefined) {
-    updates.photos = Array.isArray(body.photos)
-      ? body.photos.slice(0, 5).filter((p: unknown) => typeof p === "string" && p.length > 0)
+    const photoUrls: string[] = Array.isArray(body.photos)
+      ? body.photos
+          .slice(0, 5)
+          .filter((p: unknown): p is string => typeof p === "string" && p.length > 0)
       : [];
+    const toScan = photoUrls.filter((u) => u.startsWith("data:image"));
+    if (toScan.length > 0) {
+      const { moderateImageList } = await import("@/lib/imageNsfwModeration");
+      const mod = await moderateImageList(toScan);
+      if (!mod.ok) {
+        return NextResponse.json({ error: mod.message }, { status: 400 });
+      }
+    }
+    updates.photos = photoUrls;
   }
   const user = updateUser(userId, updates as Parameters<typeof updateUser>[1]);
   return NextResponse.json({

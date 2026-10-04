@@ -9,6 +9,7 @@ import {
   prismaUpsertPendingIncomingCall,
   prismaClearRejectedCallRoom,
   prismaClearAnsweredCallRoom,
+  prismaHasBlockBetween,
 } from "@/lib/repo-prisma";
 import { callApiCallerUserExists, resolveUserDtoForRing } from "@/lib/callCallerExists";
 import { isApnsVoipConfigured, sendIncomingCallVoipPush } from "@/lib/apnsVoipPush";
@@ -59,6 +60,19 @@ export async function POST(request: NextRequest) {
       callApiErrorJson("UNKNOWN", { error: "Utilizatorul sunat nu există." }),
       { status: 404 }
     );
+  }
+
+  if (isPrismaAvailable()) {
+    try {
+      if (await prismaHasBlockBetween(userId, toId)) {
+        return NextResponse.json(
+          callApiErrorJson("UNKNOWN", { error: "Nu poți apela acest utilizator." }),
+          { status: 403 }
+        );
+      }
+    } catch (e) {
+      console.error("[api/call/ring] block check", e);
+    }
   }
 
   const roomId = body.roomId ?? getVideoRoomId(me.id, toId);

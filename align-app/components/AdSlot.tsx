@@ -60,8 +60,14 @@ export default function AdSlot({
   const userPremium = useIsPremium();
   const [directAd, setDirectAd] = useState<{ imageUrl?: string; link?: string; alt?: string } | null>(null);
 
+  const clientOk =
+    GOOGLE_ADS_CLIENT.startsWith("ca-pub-") && !GOOGLE_ADS_CLIENT.includes("XXXX");
+  const slotId = AD_SLOT_IDS[variant] ?? "";
+  const marketingOk = !requireMarketingConsent || consent?.marketing === true;
+  const useAdSense = marketingOk && clientOk && !!slotId;
+
   useEffect(() => {
-    if (variant && (consent?.marketing || !requireMarketingConsent)) {
+    if (variant && marketingOk) {
       fetch(`/api/ads/direct?slot=${variant}`)
         .then((r) => r.json())
         .then((d) => {
@@ -69,20 +75,22 @@ export default function AdSlot({
         })
         .catch(() => {});
     }
-  }, [variant, consent?.marketing, requireMarketingConsent]);
+  }, [variant, marketingOk]);
 
+  useEffect(() => {
+    if (!useAdSense) return;
+    try {
+      const w = window as unknown as { adsbygoogle?: unknown[] };
+      w.adsbygoogle = w.adsbygoogle || [];
+      w.adsbygoogle.push({});
+    } catch {
+      /* AdSense încă se încarcă */
+    }
+  }, [useAdSense, variant, slotId]);
 
   if (hideIfPremium && userPremium) return null;
   if (requireMarketingConsent && consent !== null && !consent.marketing) {
-    return (
-      <div className="w-full flex justify-center py-2">
-        <div className="bg-dark-800/50 border border-dark-600 rounded-xl px-4 py-3 text-center">
-          <p className="text-dark-500 text-xs">
-            Activeaza reclamele in <a href="/cookies" className="text-brand-400 hover:underline">Setari cookies</a> pentru a vedea continut aici.
-          </p>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   const isDiscrete = variant === "discrete";
@@ -101,8 +109,7 @@ export default function AdSlot({
               ? { width: "100%", height: 400 }
               : { width: 320, height: 50 };
 
-  const slotId = AD_SLOT_IDS[variant] ?? "";
-  const useAdSense = consent?.marketing && GOOGLE_ADS_CLIENT.startsWith("ca-pub-") && slotId;
+  if (!useAdSense && !directAd?.imageUrl) return null;
 
   return (
     <div
@@ -127,11 +134,19 @@ export default function AdSlot({
         {useAdSense ? (
           <ins
             className="adsbygoogle"
-            style={{ display: "block", minHeight: size.height, width: size.width }}
+            style={{ display: "block", minHeight: size.height, width: "100%" }}
             data-ad-client={GOOGLE_ADS_CLIENT}
             data-ad-slot={slotId}
-            data-ad-format={variant === "rectangle" ? "rectangle" : variant === "strip" ? "horizontal" : variant === "native" ? "fluid" : variant === "interstitial" ? "auto" : "auto"}
-            data-full-width-responsive={variant === "strip"}
+            data-ad-format={
+              variant === "rectangle"
+                ? "rectangle"
+                : variant === "strip"
+                  ? "horizontal"
+                  : variant === "native"
+                    ? "fluid"
+                    : "auto"
+            }
+            data-full-width-responsive="true"
           />
         ) : directAd?.imageUrl ? (
           <a
@@ -148,18 +163,7 @@ export default function AdSlot({
               className="object-contain"
             />
           </a>
-        ) : isDiscrete ? (
-          <span className="text-[10px] text-dark-500 opacity-70">Reclama</span>
-        ) : (
-          <div className="text-center p-3 text-dark-500 text-xs">
-            <span className="block font-medium text-dark-400 mb-1">Spatiu publicitar</span>
-            <span className="block">
-              {variant === "strip"
-                ? "Banner full-width – Google AdSense sau reclama directa"
-                : "AdSense / reclama directa – configureaza NEXT_PUBLIC_GOOGLE_ADS_ID si slot-uri"}
-            </span>
-          </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

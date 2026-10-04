@@ -52,11 +52,22 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # Prisma client + query engine (uneori lipsesc din trasarea standalone)
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
+# Tot scope-ul @prisma: `engines` cere `debug`, `engines-version`, `fetch-engine` și
+# `get-platform`; fără ele CLI-ul de migrare cade cu MODULE_NOT_FOUND la pornire.
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+# Prisma CLI + schema (pentru migrate deploy la pornire). NU copiem `.bin/prisma`:
+# e symlink, iar COPY îl transformă în fișier real, așa că CLI-ul își caută fișierele
+# .wasm lângă `.bin/` și cade. Pornim direct din punctul de intrare real (vezi CMD).
+COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
+COPY --from=builder /app/prisma ./prisma
+# sharp (moderare imagini NSFW + Next image) — native binaries
+COPY --from=builder /app/node_modules/sharp ./node_modules/sharp
+COPY --from=builder /app/node_modules/@img ./node_modules/@img
 
 # Director pentru atașamente chat salvate pe disc (CHAT_LOCAL_UPLOAD=true)
 RUN mkdir -p /app/public/_chatDev && chown -R nextjs:nodejs /app/public
 
+# Pornire: migrate (eșecul nu blochează pornirea, dar se vede în log) + start
 USER nextjs
 EXPOSE 3000
-CMD ["node", "server.js"]
+CMD ["sh", "-c", "node node_modules/prisma/build/index.js migrate deploy 2>&1 || true && node server.js"]

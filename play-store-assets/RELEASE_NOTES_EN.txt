@@ -1,7 +1,7 @@
-Version 1.2.7
+Diebel Chat 40.0.0
 
-• Own server (chat.diebel.ro) — stable login and accounts
-• Discover: correct default profile photos (male/female)
-• Audio/video calls and messages — compatible with the new server
-• Improved call audio in the Android app
-• General stability and performance
+Stable audio and video calls with clearer sound and correct video aspect ratio.
+Calls end fully when you hang up or leave the screen.
+Quick return to an active call after you switch screens.
+Messages, discover and profiles on chat.diebel.ro.
+Play Store compliance update (no foreground service video required).

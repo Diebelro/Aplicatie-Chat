@@ -227,11 +227,18 @@ function LoginContent() {
         }
         return;
       }
-      const userObj = data.user as { isBanned?: boolean; email?: string; banUntil?: string | null } | undefined;
+      const userObj = data.user as {
+        isBanned?: boolean;
+        email?: string;
+        banUntil?: string | null;
+        banReason?: string | null;
+        mustChangeUsername?: boolean;
+      } | undefined;
       if (userObj?.isBanned) {
         const q = new URLSearchParams();
         if (trimmedEmail) q.set("email", trimmedEmail);
         if (userObj.banUntil) q.set("until", userObj.banUntil);
+        if (userObj.banReason) q.set("banReason", userObj.banReason);
         const qs = q.toString();
         router.push("/cont-blocat" + (qs ? "?" + qs : ""));
         return;
@@ -258,7 +265,9 @@ function LoginContent() {
       const profileComplete = data.profileComplete !== false;
       const redirectTo = searchParams?.get("redirect");
       const safeRedirect = redirectTo?.startsWith("/") && !redirectTo.startsWith("//") ? redirectTo : null;
-      const target = safeRedirect ?? (profileComplete ? "/app" : "/completeaza-profilul");
+      const target = userObj?.mustChangeUsername
+        ? "/schimba-username"
+        : safeRedirect ?? (profileComplete ? "/app" : "/completeaza-profilul");
       if (target.startsWith("/admin")) {
         const { ensureSessionCookieForNavigation } = await import("@/lib/authClient");
         await ensureSessionCookieForNavigation();
@@ -324,7 +333,7 @@ function LoginContent() {
             <button
               type="button"
               onClick={() => setShowPassword((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-500 hover:text-zinc-900 transition p-1 rounded"
+              className="absolute right-1 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-lg text-dark-500 hover:text-zinc-900 transition touch-manipulation outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
               aria-label={showPassword ? tStr("pages.login.hidePassword") : tStr("pages.login.showPassword")}
             >
               {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}

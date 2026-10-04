@@ -10,6 +10,7 @@ import {
   prismaDeleteAllMessagesBetweenUsers,
 } from "@/lib/repo-prisma";
 import { PLATFORM_MODERATION_NOTICE_RO } from "@/lib/platformModerationNotice";
+import { parseBanReasonFromBody } from "@/lib/banReasons";
 
 async function requireAdmin(request: NextRequest): Promise<{ userId: string } | NextResponse> {
   const userId = await getAuthenticatedUserId(request);
@@ -53,11 +54,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ ok: true });
     }
     if (action === "BAN") {
+      const parsed = parseBanReasonFromBody(body);
+      if ("error" in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 });
       await prisma.user.update({
         where: { id: targetUserId },
-        data: { isBanned: true, banUntil: null },
+        data: { isBanned: true, banUntil: null, banReason: parsed.stored },
       });
-      await prismaCreateAdminLog(auth.userId, "BAN_USER", targetUserId, `din conversație ${id}`);
+      await prismaCreateAdminLog(auth.userId, "BAN_USER", targetUserId, `${parsed.stored} · conv ${id}`);
       return NextResponse.json({ ok: true });
     }
     if (action === "SUSPEND") {
@@ -65,12 +68,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       if (!Number.isFinite(hours) || hours < 1 || hours > 168) {
         return NextResponse.json({ error: "hours trebuie să fie între 1 și 168." }, { status: 400 });
       }
+      const parsed = parseBanReasonFromBody(body);
+      if ("error" in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 });
       const until = new Date(Date.now() + hours * 60 * 60 * 1000);
       await prisma.user.update({
         where: { id: targetUserId },
-        data: { isBanned: true, banUntil: until },
+        data: { isBanned: true, banUntil: until, banReason: parsed.stored },
       });
-      const detail = `${hours}h până la ${until.toISOString()} · conv ${id}`;
+      const detail = `${hours}h până la ${until.toISOString()} · ${parsed.stored} · conv ${id}`;
       await prismaCreateAdminLog(auth.userId, "SUSPEND_USER", targetUserId, detail.slice(0, 4000));
       return NextResponse.json({ ok: true, banUntil: until.toISOString() });
     }

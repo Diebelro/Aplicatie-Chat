@@ -6,6 +6,7 @@ import {
   isImageContentType,
   isPdfContentType,
   isVideoContentType,
+  resolveAttachmentContentType,
 } from "@/lib/chatAttachments";
 import {
   canSaveChatImagesToLocalDisk,
@@ -55,7 +56,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const contentType = (file.type || "").trim().toLowerCase();
+  const contentType = resolveAttachmentContentType(file).trim().toLowerCase();
   if (!isAllowedAttachmentType(contentType)) {
     return NextResponse.json(
       {
@@ -107,6 +108,8 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // Chat: fără moderare NSFW — utilizatorii pot trimite ce vor între ei.
+  // Moderarea se aplică doar la pozele de profil (PATCH /api/me).
   if (isImage || isVideo) {
     if (tokenImages) {
       const ext =

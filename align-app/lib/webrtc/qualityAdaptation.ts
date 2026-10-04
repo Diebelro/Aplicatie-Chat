@@ -46,7 +46,8 @@ export const DEFAULT_QUALITY_OPTS: QualityAdaptationOpts = {
   degradeBitrateFactor: 0.72,
   improveBitrateFactor: 1.06,
   minBitrateBps: 120_000,
-  maxBitrateBps: 2_500_000,
+  /** Plafon „improve" — aliniat la noul cap desktop (3.5 Mbps) ca să poată reveni la calitate maximă. */
+  maxBitrateBps: 3_500_000,
 };
 
 function isBadSample(s: QualitySample, o: QualityAdaptationOpts): boolean {

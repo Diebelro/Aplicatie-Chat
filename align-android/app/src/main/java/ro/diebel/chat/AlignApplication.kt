@@ -3,6 +3,7 @@ package ro.diebel.chat
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.media.AudioAttributes
 import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
@@ -26,6 +27,11 @@ class AlignApplication : Application() {
     private fun createCallChannels() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val nm = getSystemService(NotificationManager::class.java) ?: return
+        // Recreează canalul ca să aplice soneria de tip ringtone (importanță MAX).
+        try {
+            nm.deleteNotificationChannel(PhoneAccountRegistrar.CHANNEL_INCOMING)
+        } catch (_: Exception) {
+        }
         val incoming = NotificationChannel(
             PhoneAccountRegistrar.CHANNEL_INCOMING,
             getString(R.string.call_channel_name),
@@ -33,8 +39,15 @@ class AlignApplication : Application() {
         ).apply {
             description = getString(R.string.call_channel_desc)
             val ring: Uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
-            setSound(ring, null)
+            val attrs = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build()
+            setSound(ring, attrs)
             enableVibration(true)
+            vibrationPattern = longArrayOf(0, 800, 400, 800)
+            setBypassDnd(true)
+            lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
         }
         val ongoing = NotificationChannel(
             PhoneAccountRegistrar.CHANNEL_ONGOING,

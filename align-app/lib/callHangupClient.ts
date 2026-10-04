@@ -20,7 +20,6 @@ export async function clientHangupCall(opts: ClientHangupCallOptions): Promise<b
   if (!roomId) return false;
   if (opts.respectDedup !== false && shouldSkipDuplicateCallEnd(roomId)) return false;
 
-  markCallEndPosted(roomId);
   markIncomingGrace(roomId, opts.pendingSince, POST_HANGUP_INCOMING_GRACE_MS);
 
   const body = JSON.stringify({
@@ -36,12 +35,14 @@ export async function clientHangupCall(opts: ClientHangupCallOptions): Promise<b
       keepalive: true,
       body,
     });
+    markCallEndPosted(roomId);
     return true;
   } catch {
     try {
       if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
         const blob = new Blob([body], { type: "application/json" });
         navigator.sendBeacon("/api/call/end", blob);
+        markCallEndPosted(roomId);
         return true;
       }
     } catch {

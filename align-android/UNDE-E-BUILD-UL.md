@@ -1,9 +1,10 @@
-# Diebel Android — Versiune 1.0.0 (început nou)
+# Diebel Android — Versiune 45.0.0 (versionCode 45)
 
 | Ce | Fișier |
 |----|--------|
-| **Test pe telefon** | `align-android\Diebel-V1.0.0-TELEFON.apk` |
-| **Play Console** (după test OK) | `play-store-assets\Diebel-V1.0.0-Play-Console.aab` |
+| **Test pe telefon (WhatsApp)** | `align-android\Diebel-Instalare.apk` (sau `Diebel-V45-INSTALARE-TELEFON.apk`) |
+| **Test direct (browser)** | https://chat.diebel.ro/download/diebel.apk |
+| **Play Console** (după test OK) | `play-store-assets\Diebel-V45-Play-Console.aab` |
 
 Build:
 
@@ -12,6 +13,6 @@ cd align-android
 gradlew exportReleaseArtifacts
 ```
 
-În app: **Setări → Despre** arată **1.0.0**.
+În app: **Setări → Despre** arată **45.0.0** (build **45**).
 
-**Notă Play:** dacă ai încărcat deja versiunea 27 în consolă, la publicare viitoare `versionCode` trebuie **mai mare decât 27** (nu poți reveni la 1 pe același package).
+**Apeluri în fundal (v45):** FCM → notificare tip apel + ecran full-screen + sonerie nativă (ca WhatsApp), plus Telecom self-managed când e disponibil.

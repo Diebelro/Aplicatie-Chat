@@ -124,6 +124,17 @@ class AlignApi(
         client.newCall(req).execute().close()
     }
 
+    fun declineCall(sessionToken: String, userId: String) {
+        val body = "{}".toRequestBody(JSON_MEDIA)
+        val req = Request.Builder()
+            .url("$base/api/call/decline")
+            .header("x-session-token", sessionToken)
+            .header("x-user-id", userId)
+            .post(body)
+            .build()
+        client.newCall(req).execute().close()
+    }
+
     companion object {
         private val JSON_MEDIA = "application/json; charset=utf-8".toMediaType()
     }

@@ -52,6 +52,12 @@ async function fetchDevRoomSummary(roomId: string | null): Promise<unknown> {
 }
 
 export async function GET(req: Request) {
+  /**
+   * IMPORTANT: acest endpoint trebuie să rămână PUBLIC. Clientul (`hooks/useWebRtcCall.ts`) îl
+   * folosește la runtime ca să afle `signalingWsBaseUrl` când bundle-ul nu a primit NEXT_PUBLIC_*
+   * la build (cazul nostru: Dockerfile nu injectează URL-ul WSS). Fără el, apelurile nu pornesc.
+   * Nu expune valori de secrete — doar host + flag-uri de configurare.
+   */
   const raw = process.env.NEXT_PUBLIC_SIGNALING_WS_URL?.trim() ?? "";
   const webRtcFlag = process.env.NEXT_PUBLIC_WEBRTC_ENABLED;
   let host: string | null = null;

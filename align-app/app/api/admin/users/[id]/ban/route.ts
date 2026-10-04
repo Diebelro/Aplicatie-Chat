@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUserId } from "@/lib/sessionAuth";
 import { prisma } from "@/lib/db";
 import { findUserOrPrisma, isPrismaAvailable, prismaGetUserRole, prismaCreateAdminLog } from "@/lib/repo-prisma";
+import { parseBanReasonFromBody } from "@/lib/banReasons";
 
 async function requireAdmin(request: NextRequest): Promise<{ userId: string } | NextResponse> {
   const userId = await getAuthenticatedUserId(request);
@@ -34,27 +35,31 @@ export async function POST(
       if (!Number.isFinite(hours) || hours < 1 || hours > 168) {
         return NextResponse.json({ error: "hours trebuie să fie între 1 și 168 (7 zile)." }, { status: 400 });
       }
+      const parsed = parseBanReasonFromBody(body);
+      if ("error" in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 });
       const until = new Date(Date.now() + hours * 60 * 60 * 1000);
       await prisma.user.update({
         where: { id: targetId },
-        data: { isBanned: true, banUntil: until },
+        data: { isBanned: true, banUntil: until, banReason: parsed.stored },
       });
-      const detail = `${hours}h suspendare până la ${until.toISOString()}${reason ? ` — ${reason}` : ""}`;
+      const detail = `${hours}h suspendare până la ${until.toISOString()} — ${parsed.stored}`;
       await prismaCreateAdminLog(auth.userId, "SUSPEND_USER", targetId, detail.slice(0, 4000));
       return NextResponse.json({ ok: true, banUntil: until.toISOString() });
     }
     if (action === "UNBAN") {
       await prisma.user.update({
         where: { id: targetId },
-        data: { isBanned: false, banUntil: null },
+        data: { isBanned: false, banUntil: null, banReason: null },
       });
       await prismaCreateAdminLog(auth.userId, "UNBAN_USER", targetId, reason || null);
     } else {
+      const parsed = parseBanReasonFromBody(body);
+      if ("error" in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 });
       await prisma.user.update({
         where: { id: targetId },
-        data: { isBanned: true, banUntil: null },
+        data: { isBanned: true, banUntil: null, banReason: parsed.stored },
       });
-      await prismaCreateAdminLog(auth.userId, "BAN_USER", targetId, reason || null);
+      await prismaCreateAdminLog(auth.userId, "BAN_USER", targetId, parsed.stored);
     }
     return NextResponse.json({ ok: true });
   } catch {
