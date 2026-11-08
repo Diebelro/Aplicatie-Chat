@@ -76,14 +76,14 @@ export function AgeGate() {
 
   return (
     <div
-      className="fixed inset-0 z-[1000] flex flex-col items-center justify-center bg-dark-950/98 backdrop-blur-md px-4 py-8 safe-area-inset-top safe-area-inset-bottom"
+      className="fixed inset-0 z-[1000] flex flex-col items-center justify-center bg-dark-950/90 backdrop-blur-md px-4 py-8 safe-area-inset-top safe-area-inset-bottom"
       role="dialog"
       aria-modal="true"
       aria-labelledby="age-gate-title"
       aria-describedby="age-gate-desc1 age-gate-desc2"
     >
       <div className="w-full max-w-md rounded-2xl border border-dark-600 bg-dark-900 shadow-xl p-6 sm:p-8 space-y-5">
-        <h1 id="age-gate-title" className="text-lg sm:text-xl font-semibold text-zinc-100 text-center leading-snug">
+        <h1 id="age-gate-title" className="text-lg sm:text-xl font-semibold text-zinc-900 text-center leading-snug">
           {tStr("pages.ageGate.title")}
         </h1>
         <p id="age-gate-desc1" className="text-sm text-dark-300 text-center leading-relaxed">
