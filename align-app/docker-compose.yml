@@ -22,7 +22,8 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: diebel
-      POSTGRES_PASSWORD: diebel_db_2024_secure!
+      # Parola vine din fișierul `.env` de lângă compose (gitignored): POSTGRES_PASSWORD=...
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Setează POSTGRES_PASSWORD în align-app/.env}
       POSTGRES_DB: diebel_chat
     volumes:
       - postgres_data:/var/lib/postgresql/data
