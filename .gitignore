@@ -106,3 +106,6 @@ coverage/
 tmp/
 temp/
 *.log
+
+# Chei locale (service account Firebase etc.) — NU pe GitHub
+_secrets/
