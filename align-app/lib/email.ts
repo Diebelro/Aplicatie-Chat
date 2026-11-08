@@ -1,16 +1,21 @@
 /**
- * Trimitere email prin Resend (https://resend.com).
+ * Trimitere email — standard Diebel: Zoho SMTP primar, Resend ca rezervă.
+ * Un email se trimite O SINGURĂ DATĂ: Resend intră doar dacă SMTP nu e configurat
+ * sau a eșuat înainte de a accepta mesajul.
  *
  * Variabile:
- * - RESEND_API_KEY — cheie API (începe cu re_)
- * - RESEND_FROM_EMAIL — expeditor; pentru domeniul tău: verifică diebel.ro în Resend → Domains.
- *   Format recomandat: `Diebel <contact@diebel.ro>` (adresa efectivă = contact@diebel.ro).
+ * - ZOHO_SMTP_HOST (implicit smtppro.zoho.eu), ZOHO_SMTP_PORT (587 STARTTLS; 465 = TLS direct)
+ * - ZOHO_SMTP_USER (implicit contact@diebel.ro), ZOHO_SMTP_PASSWORD — fără parolă, Zoho e dezactivat
+ * - RESEND_API_KEY — cheie API Resend (începe cu re_)
+ * - RESEND_FROM_EMAIL — expeditor pentru ambele canale; recomandat `Diebel <contact@diebel.ro>`
  */
 
 import { Resend } from "resend";
+import nodemailer from "nodemailer";
+import type { Transporter } from "nodemailer";
 import { getPublicAppUrl } from "@/lib/appUrl";
 
-/** Adresa From implicită dacă nu setezi RESEND_FROM_EMAIL (domeniul trebuie Verified în Resend). */
+/** Adresa From implicită (domeniul trebuie verificat în Zoho și în Resend). */
 export const RESEND_FROM_DEFAULT = "Diebel <contact@diebel.ro>";
 
 function trimKey(key: string | undefined): string {
@@ -24,14 +29,83 @@ export function getResendClient(): Resend | null {
   return new Resend(key);
 }
 
-/** Valoarea `from` trimisă la Resend (variabilă de mediu sau implicită). */
+/** Valoarea `from` (variabilă de mediu sau implicită) — comună pentru Zoho și Resend. */
 export function getResendFromEmail(): string {
   const raw = trimKey(process.env.RESEND_FROM_EMAIL);
   return raw || RESEND_FROM_DEFAULT;
 }
 
+export function isZohoConfigured(): boolean {
+  return trimKey(process.env.ZOHO_SMTP_PASSWORD).length > 0;
+}
+
+/** Există cel puțin un canal de email (Zoho sau Resend). Numele e păstrat pentru compatibilitate. */
 export function isResendConfigured(): boolean {
-  return getResendClient() != null;
+  return isZohoConfigured() || getResendClient() != null;
+}
+
+let zohoTransport: Transporter | null = null;
+function getZohoTransport(): Transporter | null {
+  if (!isZohoConfigured()) return null;
+  if (zohoTransport) return zohoTransport;
+  const port = Number(trimKey(process.env.ZOHO_SMTP_PORT) || 587);
+  zohoTransport = nodemailer.createTransport({
+    host: trimKey(process.env.ZOHO_SMTP_HOST) || "smtppro.zoho.eu",
+    port,
+    secure: port === 465,
+    auth: {
+      user: trimKey(process.env.ZOHO_SMTP_USER) || "contact@diebel.ro",
+      pass: trimKey(process.env.ZOHO_SMTP_PASSWORD),
+    },
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 20_000,
+  });
+  return zohoTransport;
+}
+
+export type EmailDeliveryResult = {
+  ok: boolean;
+  provider?: "zoho" | "resend";
+  id?: string;
+  error?: string;
+};
+
+function errorMessage(error: unknown): string {
+  if (typeof error === "object" && error !== null && "message" in error) {
+    return String((error as { message: unknown }).message);
+  }
+  return typeof error === "string" ? error : JSON.stringify(error);
+}
+
+/**
+ * Livrare: Zoho SMTP (dacă e configurat) → la eșec, Resend. Un singur mesaj ajunge la destinatar.
+ */
+export async function deliverEmail(input: { to: string; subject: string; html: string }): Promise<EmailDeliveryResult> {
+  const from = getResendFromEmail();
+  const to = input.to.trim();
+  const zoho = getZohoTransport();
+  let zohoError: string | undefined;
+  if (zoho) {
+    try {
+      const info = await zoho.sendMail({ from, to, subject: input.subject, html: input.html });
+      return { ok: true, provider: "zoho", id: info.messageId };
+    } catch (error) {
+      zohoError = errorMessage(error);
+      console.error("[email:zoho] eșuat, trec pe Resend:", zohoError);
+    }
+  }
+  const resend = getResendClient();
+  if (!resend) {
+    return { ok: false, error: zohoError ?? "Niciun canal de email configurat (ZOHO_SMTP_PASSWORD sau RESEND_API_KEY)." };
+  }
+  const { data, error } = await resend.emails.send({ from, to: [to], subject: input.subject, html: input.html });
+  if (error) {
+    const msg = errorMessage(error);
+    console.error("[email:resend] eșuat:", msg);
+    return { ok: false, provider: "resend", error: zohoError ? `${zohoError} | ${msg}` : msg };
+  }
+  return { ok: true, provider: "resend", id: data?.id };
 }
 
 const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME ?? "Diebel";
@@ -45,16 +119,11 @@ export interface SendPasswordResetOptions {
 
 /**
  * Trimite email cu link de resetare parolă.
- * Returnează true dacă a fost trimis, false dacă Resend nu e configurat sau a eșuat.
+ * Returnează true dacă a fost trimis, false dacă niciun canal nu e configurat sau a eșuat.
  */
-export async function sendPasswordResetEmail(
-  options: SendPasswordResetOptions
-): Promise<boolean> {
-  const resend = getResendClient();
-  if (!resend) return false;
-
+export async function sendPasswordResetEmail(options: SendPasswordResetOptions): Promise<boolean> {
+  if (!isResendConfigured()) return false;
   const { to, resetLink, expiresInMinutes = 15 } = options;
-  const from = getResendFromEmail();
 
   if (process.env.NODE_ENV === "development") {
     console.info("[email:reset] getPublicAppUrl() =", getPublicAppUrl(), "| link în mail:", resetLink);
@@ -70,29 +139,14 @@ export async function sendPasswordResetEmail(
     <p>— Echipa ${APP_NAME}</p>
   `;
 
-  const { data, error } = await resend.emails.send({
-    from,
-    to: [to],
-    subject,
-    html,
-  });
-
-  if (error) {
-    console.error("[Resend] Trimitere email eșuată:", JSON.stringify(error, null, 2));
+  const result = await deliverEmail({ to, subject, html });
+  if (!result.ok) {
+    console.error("[email:reset] Trimitere eșuată:", result.error);
     return false;
   }
-
   if (process.env.NODE_ENV === "development") {
-    console.info(
-      "[Resend] API a acceptat trimiterea. id:",
-      data?.id ?? "(lipsește)",
-      "| către:",
-      to,
-      "| de la:",
-      from
-    );
+    console.info("[email:reset] trimis prin", result.provider, "id:", result.id ?? "(lipsește)", "| către:", to);
   }
-
   return true;
 }
 
@@ -104,22 +158,12 @@ export interface SendEmailVerificationOptions {
 /**
  * Email la înregistrare: confirmă adresa.
  */
-export async function sendEmailVerificationEmail(
-  options: SendEmailVerificationOptions
-): Promise<boolean> {
-  const resend = getResendClient();
-  if (!resend) return false;
-
+export async function sendEmailVerificationEmail(options: SendEmailVerificationOptions): Promise<boolean> {
+  if (!isResendConfigured()) return false;
   const { to, verifyLink } = options;
-  const from = getResendFromEmail();
 
   if (process.env.NODE_ENV === "development") {
-    console.info(
-      "[email:verify] getPublicAppUrl() =",
-      getPublicAppUrl(),
-      "| link în mail:",
-      verifyLink
-    );
+    console.info("[email:verify] getPublicAppUrl() =", getPublicAppUrl(), "| link în mail:", verifyLink);
   }
 
   const subject = `Confirmă adresa de email – ${APP_NAME}`;
@@ -132,49 +176,31 @@ export async function sendEmailVerificationEmail(
     <p>— Echipa ${APP_NAME}</p>
   `;
 
-  const { data, error } = await resend.emails.send({
-    from,
-    to: [to],
-    subject,
-    html,
-  });
-
-  if (error) {
-    console.error("[Resend] Verificare email eșuată:", JSON.stringify(error, null, 2));
+  const result = await deliverEmail({ to, subject, html });
+  if (!result.ok) {
+    console.error("[email:verify] Trimitere eșuată:", result.error);
     return false;
   }
-
   if (process.env.NODE_ENV === "development") {
-    console.info(
-      "[Resend] Email verificare trimis. id:",
-      data?.id ?? "(lipsește)",
-      "| către:",
-      to,
-      "| de la:",
-      from
-    );
+    console.info("[email:verify] trimis prin", result.provider, "id:", result.id ?? "(lipsește)", "| către:", to);
   }
-
   return true;
 }
 
 /**
- * Email simplu de test (diagnostic Resend + domeniu).
+ * Email simplu de test (diagnostic canal + domeniu).
  */
-export async function sendTestEmail(to: string): Promise<{ ok: boolean; id?: string; error?: string }> {
-  const resend = getResendClient();
-  if (!resend) {
-    return { ok: false, error: "Lipsește RESEND_API_KEY în .env" };
+export async function sendTestEmail(to: string): Promise<{ ok: boolean; id?: string; provider?: string; error?: string }> {
+  if (!isResendConfigured()) {
+    return { ok: false, error: "Lipsește ZOHO_SMTP_PASSWORD sau RESEND_API_KEY în .env" };
   }
-
   const from = getResendFromEmail();
   const base = getPublicAppUrl();
   const sampleReset = `${base}/reset-password?token=EXEMPLU`;
   const sampleVerify = `${base}/verify-email?token=EXEMPLU`;
-  const { data, error } = await resend.emails.send({
-    from,
-    to: [to.trim()],
-    subject: `Test Resend – ${APP_NAME}`,
+  const result = await deliverEmail({
+    to,
+    subject: `Test email – ${APP_NAME}`,
     html: `
       <p>Email de test la ${new Date().toISOString()}.</p>
       <p><strong>From:</strong> <code>${from}</code></p>
@@ -183,15 +209,6 @@ export async function sendTestEmail(to: string): Promise<{ ok: boolean; id?: str
       <p><strong>Exemplu link verificare:</strong><br/><a href="${sampleVerify}">${sampleVerify}</a></p>
     `,
   });
-
-  if (error) {
-    const msg =
-      typeof error === "object" && error !== null && "message" in error
-        ? String((error as { message: unknown }).message)
-        : JSON.stringify(error);
-    console.error("[Resend] Test eșuat:", error);
-    return { ok: false, error: msg };
-  }
-
-  return { ok: true, id: data?.id };
+  if (!result.ok) return { ok: false, error: result.error };
+  return { ok: true, id: result.id, provider: result.provider };
 }

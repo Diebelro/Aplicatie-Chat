@@ -19,6 +19,7 @@ import { AddFriendButton } from "@/components/AddFriendButton";
 import { track } from "@/lib/tracking";
 import { displayName } from "@/lib/displayName";
 import { DiebelAppPromoCarousel } from "@/components/diebel/DiebelAppPromoCarousel";
+import { DiebelAdsPromoCard } from "@/components/DiebelAdsPromoCard";
 import AdSlot from "@/components/AdSlot";
 import { OptimizedImage } from "@/components/OptimizedImage";
 import {
@@ -1002,7 +1003,8 @@ export default function AppDiscoverPage() {
 
           {currentItem.type === "external_ad" && (
             <div className="w-full max-w-sm rounded-2xl overflow-hidden bg-dark-800 border border-dark-600 relative flex flex-col">
-              <div className="flex-1 min-h-[180px] w-full flex items-center justify-center px-1 py-2 sm:min-h-[200px]">
+              <div className="flex-1 min-h-[180px] w-full flex flex-col items-center justify-center gap-3 px-3 py-3 sm:min-h-[200px]">
+                <DiebelAdsPromoCard compact />
                 <DiebelAppPromoCarousel compact hideIfPremium />
               </div>
               <div className="p-3 border-t border-dark-600 flex justify-end">

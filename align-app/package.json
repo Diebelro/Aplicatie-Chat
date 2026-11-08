@@ -11,9 +11,6 @@
     "dev:auto": "next dev",
     "ports:free": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/free-next-ports.ps1",
     "signaling:dev": "npx --yes dotenv-cli@8 -e .env -e .env.local -- node server/call-signaling-server.mjs",
-    "env:pull-production": "npx --yes vercel@latest env pull .env.local --environment production",
-    "vercel:fix-direct-url": "node scripts/fix-vercel-direct-url-from-pull.mjs",
-    "deploy:chat": "npx --yes vercel@latest deploy --prod --yes --cwd ..",
     "icons:pwa": "node scripts/generate-pwa-icons.mjs",
     "icons:export": "node scripts/export-icons.mjs",
     "store:play-assets": "node scripts/generate-play-store-assets.mjs",
@@ -33,7 +30,6 @@
     "check:turn-env": "node scripts/check-turn-env.mjs",
     "check:online-env": "node scripts/check-online-env.mjs",
     "verify:calls": "node scripts/verify-call-infra-remote.mjs",
-    "vercel:assert-call-env": "node scripts/assert-vercel-call-env.mjs",
     "verify:hetzner-remote": "node scripts/hetzner-remote-smoke.mjs",
     "postinstall": "prisma generate",
     "db:generate": "prisma generate",
@@ -47,7 +43,8 @@
     "db:grant-admin": "npx --yes dotenv-cli@8 -e .env -e .env.local -- node scripts/grant-admin.mjs",
     "bootstrap": "node scripts/run-bootstrap.mjs",
     "cleanup": "node scripts/run-cleanup.mjs",
-    "cleanup:users": "node scripts/cleanup-users.mjs"
+    "cleanup:users": "node scripts/cleanup-users.mjs",
+    "deploy:hetzner": "bash scripts/deploy-hetzner.sh"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
@@ -64,6 +61,7 @@
     "next": "^16.2.1",
     "next-auth": "^4.24.10",
     "node-edge-tts": "^1.2.10",
+    "nodemailer": "^7.0.13",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "resend": "^6.9.3",
@@ -76,6 +74,7 @@
     "@types/jsonwebtoken": "^9.0.7",
     "@types/leaflet": "^1.9.8",
     "@types/node": "^20.0.0",
+    "@types/nodemailer": "^8.0.2",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "@types/web-push": "^3.6.4",

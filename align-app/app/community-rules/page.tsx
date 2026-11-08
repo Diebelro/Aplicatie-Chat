@@ -8,7 +8,7 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 export default function CommunityRulesPublicPage() {
   const { tStr } = useI18n();
   return (
-    <div className="min-h-dvh bg-dark-900 text-zinc-100 px-4 py-10 pb-16">
+    <div className="min-h-dvh bg-dark-900 text-zinc-900 px-4 py-10 pb-16">
       <div className="max-w-lg mx-auto">
         <Link href="/" className="text-brand-400 text-sm font-medium hover:underline">
           ← {tStr("pages.communityGuidelines.backHome")}

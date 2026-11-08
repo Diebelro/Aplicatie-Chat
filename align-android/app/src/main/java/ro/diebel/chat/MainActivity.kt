@@ -318,11 +318,18 @@ class MainActivity : AppCompatActivity() {
                 binding.errorPanel.isVisible = false
                 binding.progress.isVisible = true
                 val pageUrl = url?.trim().orEmpty()
-                if (pageUrl.isNotEmpty() && !isAllowedInApp(Uri.parse(pageUrl))) {
-                    Log.w(TAG, "Blocked off-chat navigation, returning home: $pageUrl")
-                    view?.stopLoading()
-                    loadHome()
+                if (pageUrl.isEmpty()) return
+                val uri = Uri.parse(pageUrl)
+                if (isAllowedInApp(uri)) return
+                view?.stopLoading()
+                if (isDiebelProductLink(uri)) {
+                    Log.i(TAG, "Opening Diebel product in browser: $pageUrl")
+                    openInExternalBrowser(uri)
+                    if (view?.canGoBack() == true) view.goBack()
+                    return
                 }
+                Log.w(TAG, "Blocked off-chat navigation, returning home: $pageUrl")
+                loadHome()
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
@@ -356,13 +363,24 @@ class MainActivity : AppCompatActivity() {
                 }
                 if (isAllowedInApp(uri)) return false
                 val scheme = uri.scheme?.lowercase()
+                // intent://…#Intent;scheme=https;… — deschis din web fără DiebelNative.openExternal
+                if (scheme == "intent") {
+                    openIntentUri(uri.toString())
+                    return true
+                }
+                // Ads / Transfer / AnunțAI / alte produse Diebel → browser extern (nu bloca click-ul).
+                if ((scheme == "http" || scheme == "https") && isDiebelProductLink(uri)) {
+                    openInExternalBrowser(uri)
+                    return true
+                }
                 if (scheme == "http" || scheme == "https") {
-                    Log.w(TAG, "Blocked external web link, staying in chat: $uri")
-                    loadHome()
+                    // Link extern din chat (YouTube, hărți etc.) → browserul telefonului; WebView-ul rămâne pe Chat.
+                    Log.i(TAG, "Opening external web link in browser: $uri")
+                    openInExternalBrowser(uri)
                     return true
                 }
                 try {
-                    startActivity(Intent(Intent.ACTION_VIEW, uri))
+                    startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                 } catch (e: Exception) {
                     Log.w(TAG, "No app to handle URL: $uri", e)
                 }
@@ -484,6 +502,49 @@ class MainActivity : AppCompatActivity() {
             || host.endsWith(".facebook.com")
             || host == "login.yahoo.com"
             || host.endsWith(".yahoo.com")
+    }
+
+    /** ads / transfer / anunțuri / play — se deschid în Chrome, nu în WebView-ul Chat. */
+    private fun isDiebelProductLink(uri: Uri): Boolean {
+        val scheme = uri.scheme?.lowercase() ?: return false
+        if (scheme != "http" && scheme != "https") return false
+        val host = uri.host?.lowercase() ?: return false
+        if (host == "chat.diebel.ro") return false
+        return host == "diebel.ro"
+            || host.endsWith(".diebel.ro")
+    }
+
+    private fun openInExternalBrowser(uri: Uri) {
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        } catch (e: Exception) {
+            Log.w(TAG, "Cannot open external browser for $uri", e)
+        }
+    }
+
+    /** Parsează intent:// din WebView (fallback când APK-ul vechi n-are openExternal). */
+    private fun openIntentUri(raw: String) {
+        try {
+            val intent = Intent.parseUri(raw, Intent.URI_INTENT_SCHEME)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            val target = intent.data
+            if (target != null && (isDiebelProductLink(target) || isAllowedInApp(target))) {
+                // Nu pornim intent-ul parsat (ar putea ținti package/component); doar ACTION_VIEW pe https.
+                openInExternalBrowser(target)
+                return
+            }
+            // Fallback: extrage https din intent
+            val browser = intent.getStringExtra("browser_fallback_url")
+            if (!browser.isNullOrBlank()) {
+                openInExternalBrowser(Uri.parse(browser))
+                return
+            }
+            if (target != null && target.scheme.equals("https", ignoreCase = true)) {
+                openInExternalBrowser(target)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Cannot open intent URI: $raw", e)
+        }
     }
 
     private fun isBlockedStoreLink(uri: Uri): Boolean {
@@ -624,6 +685,25 @@ class MainActivity : AppCompatActivity() {
         fun setCallChrome(isCall: Boolean) {
             runOnUiThread { applyCallChrome(isCall) }
         }
+
+        /** Deschide ads.diebel.ro / transfer / anunțuri în browserul telefonului. */
+        @android.webkit.JavascriptInterface
+        fun openExternal(url: String?) {
+            val raw = url?.trim().orEmpty()
+            if (raw.isEmpty()) return
+            runOnUiThread {
+                try {
+                    val uri = Uri.parse(raw)
+                    if (isDiebelProductLink(uri) || isAllowedInApp(uri)) {
+                        openInExternalBrowser(uri)
+                    } else {
+                        Log.w(TAG, "openExternal blocked: $raw")
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "openExternal failed: $raw", e)
+                }
+            }
+        }
     }
 
     companion object {
@@ -632,7 +712,7 @@ class MainActivity : AppCompatActivity() {
         private const val REQ_WEBRTC_PERM = 2001
         private const val REQ_NOTIF_PERM = 2002
         /** Trebuie să coincidă cu align-app/lib/uiBuildVersion.ts */
-        private const val UI_BUILD = "77"
+        private const val UI_BUILD = "106"
         private const val PREFS_WEB = "diebel_web"
         private const val PREF_UI_BUILD = "ui_build"
 

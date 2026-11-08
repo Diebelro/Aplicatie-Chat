@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getAuthenticatedUserId } from "@/lib/sessionAuth";
 import { findUserById, setUserLocation } from "@/lib/store";
 import { isPrismaAvailable, findUserOrPrisma, prismaUpsertLocation, prismaDeleteLocation } from "@/lib/repo-prisma";
 
 export async function POST(request: NextRequest) {
-  const userId = request.headers.get("x-user-id");
+  const userId = await getAuthenticatedUserId(request);
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   }

@@ -3,6 +3,7 @@ import { getAuthenticatedUserId } from "@/lib/sessionAuth";
 import { prisma } from "@/lib/db";
 import { findUserOrPrisma, isPrismaAvailable, prismaGetUserRole, prismaCreateAdminLog } from "@/lib/repo-prisma";
 import { parseBanReasonFromBody } from "@/lib/banReasons";
+import { deleteAllSessionsForUser } from "@/lib/sessions";
 
 async function requireAdmin(request: NextRequest): Promise<{ userId: string } | NextResponse> {
   const userId = await getAuthenticatedUserId(request);
@@ -42,6 +43,7 @@ export async function POST(
         where: { id: targetId },
         data: { isBanned: true, banUntil: until, banReason: parsed.stored },
       });
+      await deleteAllSessionsForUser(targetId);
       const detail = `${hours}h suspendare până la ${until.toISOString()} — ${parsed.stored}`;
       await prismaCreateAdminLog(auth.userId, "SUSPEND_USER", targetId, detail.slice(0, 4000));
       return NextResponse.json({ ok: true, banUntil: until.toISOString() });
@@ -59,6 +61,7 @@ export async function POST(
         where: { id: targetId },
         data: { isBanned: true, banUntil: null, banReason: parsed.stored },
       });
+      await deleteAllSessionsForUser(targetId);
       await prismaCreateAdminLog(auth.userId, "BAN_USER", targetId, parsed.stored);
     }
     return NextResponse.json({ ok: true });

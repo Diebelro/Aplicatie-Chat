@@ -46,6 +46,13 @@ export interface DiebelPromoTranslations {
   subtitle: string;
   emotional: string;
   cta: string;
+  /** CTA către Diebel Ads / Boost */
+  boostCta: string;
+  /** Card Diebel Ads (Boost) în feed / sloturi */
+  adsLabel: string;
+  adsTitle: string;
+  adsBody: string;
+  adsCta: string;
   carouselTablistAria: string;
   /** Placeholders: {{current}}, {{total}} */
   dotAria: string;

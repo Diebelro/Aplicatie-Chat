@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useCookieConsent } from "@/contexts/CookieConsentContext";
+import { useI18n } from "@/lib/i18n/context";
 import { OptimizedImage } from "@/components/OptimizedImage";
+import { DiebelAdsPromoCard } from "@/components/DiebelAdsPromoCard";
+import { openDiebelExternal, safeDiebelUrl } from "@/lib/diebelExternalLink";
 import { getStoredUserRaw } from "@/lib/store";
 import type { User } from "@/lib/store";
 
@@ -57,8 +60,10 @@ export default function AdSlot({
   requireMarketingConsent = true,
 }: AdSlotProps) {
   const { consent } = useCookieConsent();
+  const { locale, tStr } = useI18n();
   const userPremium = useIsPremium();
   const [directAd, setDirectAd] = useState<{ imageUrl?: string; link?: string; alt?: string } | null>(null);
+  const [diebelAd, setDiebelAd] = useState<{ title: string; body: string; cta: string; click: string; city: string; image?: string | null } | null>(null);
 
   const clientOk =
     GOOGLE_ADS_CLIENT.startsWith("ca-pub-") && !GOOGLE_ADS_CLIENT.includes("XXXX");
@@ -78,6 +83,47 @@ export default function AdSlot({
   }, [variant, marketingOk]);
 
   useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/ads/diebel?slot=${encodeURIComponent(variant)}&lang=${encodeURIComponent(locale)}`)
+      .then(async (r) => {
+        if (!r.ok) throw new Error("diebel ads unavailable");
+        const ct = r.headers.get("content-type") || "";
+        if (!ct.includes("application/json")) throw new Error("diebel ads not json");
+        return r.json();
+      })
+      .then((d) => {
+        if (cancelled) return;
+        if (d.ad?.title && d.ad?.click) {
+          setDiebelAd({
+            title: d.ad.title,
+            body: d.ad.body,
+            cta: d.ad.cta,
+            click: safeDiebelUrl(d.ad.click),
+            city: d.ad.city || "Diebel",
+            image: d.ad.image || null,
+          });
+        } else {
+          setDiebelAd(null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setDiebelAd({
+            title: tStr("diebelPromo.adsTitle"),
+            body: tStr("diebelPromo.adsBody"),
+            cta: tStr("diebelPromo.adsCta"),
+            click: "https://ads.diebel.ro/campanie/nou",
+            city: "Diebel",
+            image: null,
+          });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [variant, locale, tStr]);
+
+  useEffect(() => {
     if (!useAdSense) return;
     try {
       const w = window as unknown as { adsbygoogle?: unknown[] };
@@ -89,8 +135,24 @@ export default function AdSlot({
   }, [useAdSense, variant, slotId]);
 
   if (hideIfPremium && userPremium) return null;
-  if (requireMarketingConsent && consent !== null && !consent.marketing) {
+  // First-party Diebel Ads / Boost rămâne vizibil fără consent marketing.
+  if (!diebelAd && requireMarketingConsent && consent !== null && !consent.marketing && variant !== "strip") {
     return null;
+  }
+
+  if (variant === "strip") {
+    return (
+      <div className="w-full flex justify-center py-2 px-1">
+        <div className="w-full max-w-lg">
+          <DiebelAdsPromoCard
+            title={diebelAd?.title}
+            body={diebelAd?.body}
+            cta={diebelAd?.cta}
+            href={diebelAd?.click || "https://ads.diebel.ro/campanie/nou"}
+          />
+        </div>
+      </div>
+    );
   }
 
   const isDiscrete = variant === "discrete";
@@ -99,17 +161,15 @@ export default function AdSlot({
   const size =
     variant === "rectangle"
       ? { width: 300, height: 250 }
-      : variant === "strip"
-        ? { width: "100%", height: 120 }
-        : isDiscrete
-          ? { width: "100%", height: 28 }
-          : isNative
-            ? { width: "100%", height: 90 }
-            : isInterstitial
-              ? { width: "100%", height: 400 }
-              : { width: 320, height: 50 };
+      : isDiscrete
+        ? { width: "100%", height: 28 }
+        : isNative
+          ? { width: "100%", height: 90 }
+          : isInterstitial
+            ? { width: "100%", height: 400 }
+            : { width: 320, height: 50 };
 
-  if (!useAdSense && !directAd?.imageUrl) return null;
+  if (!useAdSense && !directAd?.imageUrl && !diebelAd) return null;
 
   return (
     <div
@@ -131,20 +191,46 @@ export default function AdSlot({
           minHeight: size.height,
         }}
       >
-        {useAdSense ? (
+        {diebelAd ? (
+          diebelAd.image ? (
+            <a
+              href={diebelAd.click}
+              target="_blank"
+              rel="noopener noreferrer sponsored"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                openDiebelExternal(diebelAd.click);
+              }}
+              className="block w-full cursor-pointer text-left text-white"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={diebelAd.image} alt="" className="h-36 w-full object-cover" />
+              <div className="px-4 py-3">
+                <p className="text-[10px] uppercase tracking-wider text-white/60">{diebelAd.city && diebelAd.city !== "Diebel" ? `${tStr("diebelPromo.adsLabel")} · ${diebelAd.city}` : tStr("diebelPromo.adsLabel")}</p>
+                <p className="mt-1 font-semibold">{diebelAd.title}</p>
+                <p className="mt-1 text-sm text-white/80">{diebelAd.body}</p>
+                <p className="mt-2 text-sm font-semibold text-rose-300">{diebelAd.cta}</p>
+              </div>
+            </a>
+          ) : (
+            <div className="w-full p-2">
+              <DiebelAdsPromoCard
+                title={diebelAd.title}
+                body={diebelAd.body}
+                cta={diebelAd.cta}
+                href={diebelAd.click}
+              />
+            </div>
+          )
+        ) : useAdSense ? (
           <ins
             className="adsbygoogle"
             style={{ display: "block", minHeight: size.height, width: "100%" }}
             data-ad-client={GOOGLE_ADS_CLIENT}
             data-ad-slot={slotId}
             data-ad-format={
-              variant === "rectangle"
-                ? "rectangle"
-                : variant === "strip"
-                  ? "horizontal"
-                  : variant === "native"
-                    ? "fluid"
-                    : "auto"
+              variant === "rectangle" ? "rectangle" : variant === "native" ? "fluid" : "auto"
             }
             data-full-width-responsive="true"
           />

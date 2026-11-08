@@ -1,0 +1,259 @@
+---
+description: Regulile Diebel — valabile în toate aplicațiile; departamentele doar dacă aplicația are domeniul respectiv
+alwaysApply: true
+---
+
+# REGULILE DIEBEL — valabile în TOATE aplicațiile (noi, existente, reparații)
+
+Sursă: ~6.300 de mesaje ale tale din 220 de conversații (mar–nov 2026), istoric git, reguli Cursor.
+Fiecare regulă de aici a fost cerută de tine, de obicei de mai multe ori. Numărul din paranteză = de câte ori ai cerut-o.
+
+---
+
+## 0. LEGILE DE BAZĂ (se aplică înaintea oricărui departament)
+
+1. **Nu strica ce merge.** (~120) Orice modificare păstrează tot ce funcționa. Fix minim, local, strict în zona cerută. „Nu schimba nimic din ce nu zic eu." Ce e aprobat (galerie, apeluri, culori, iconiță) e înghețat până ceri tu.
+2. **Nu șterge niciodată date reale.** Conturi, anunțuri, mesaje, poze, baza de date, variabile de mediu — doar la cererea ta explicită, cu identificarea exactă a ce se șterge și cu backup înainte. „Curățare de date de test" nu înseamnă permisiune de ștergere.
+3. **Backup înainte de orice.** Deploy, migrare, upgrade, schimbare de schemă, modificare de server: copie a bazei de date și a versiunii curente, cu revenire automată dacă pică.
+4. **Fă tu tot, cap-coadă.** (~130) Rulezi tu comenzile, build-ul, deploy-ul, testele. Nu-i ceri utilizatorului să ruleze nimic. Întrebi doar pentru decizii de produs/bani; lucrurile banale le decizi singur.
+5. **Nu spune „gata" fără dovadă.** (~80) „Merge" înseamnă testat real: în browser, pe telefon, pe site-ul live. PASS doar după verificare efectivă. Ce nu poți dovedi se marchează NECONFIRMAT, ce depinde de ceva extern se marchează BLOCAT. Nu inventa rezultate, plăți, emailuri trimise.
+6. **Codul actual e sursa de adevăr.** Nu rapoartele vechi, nu documentația, nu ce ai zis data trecută. Orice audit pornește din cod și din ce se vede pe ecran.
+7. **Coada de comenzi.** Mai multe comenzi deodată = coadă: termini una, treci la următoarea, până la capăt. Un Enter nou nu întrerupe și nu strică lucrul curent. Nu te oprești la jumătate; dacă te blochezi, spui de ce și continui cu restul.
+8. **„Doar zi" = nu faci nimic.** Când ceri părere, idei, audit: zero modificări în fișiere.
+9. **Proiectul deschis e singurul proiect.** (~25) Nu amesteci cod, poze, texte, domenii, setări între proiecte. La orice dubiu despre proiectul activ: oprește-te și întreabă.
+10. **Secrete niciodată în chat.** Nu ceri parole/chei, nu le afișezi, nu le loghezi, nu le urci pe git. Pregătești linia în `.env`, deschizi fișierul, el completează. Raportezi doar „setat: da/nu".
+11. **Standard: inginer senior + designer profesionist.** (~60) Produs comercial, nu demo. Fără greșeli „de grădiniță": butoane care nu fac nimic, text tăiat, pagină albă, 404.
+12. **Răspunsuri scurte, directe, fără scuze.** Ce s-a făcut, ce s-a testat, ce a rămas. Când trebuie să facă el ceva: pași mici, numerotați, click cu click. La final: semn clar că s-a terminat.
+13. **Ține minte.** O cerință spusă o dată se aplică și rămâne. Nu obliga utilizatorul să repete. Lecțiile unui proiect se aplică la următorul.
+14. **Doar ce are tangență cu aplicația.** Departamentele 3–11 se aplică DOAR dacă aplicația are domeniul respectiv: fără plăți → nu implementa Stripe; fără apeluri → nu atinge reguli de apeluri; fără Android → nu pregăti Play; fără conturi → nu adăuga login. Nu adăuga funcții/departamente pe care aplicația nu le are și nu le cere. Dacă e neclar dacă e nevoie, întreabă înainte, nu implementa.
+
+---
+
+## 1. DESIGN & TELEFON (cel mai des reclamat: ~300 de mesaje)
+
+**Reguli:**
+- Nimic nu iese din ecran: fără scroll orizontal, fără text tăiat, fără element pe jumătate. Testat la 320–390px.
+- Nimic nu se suprapune: butoane peste poze, meniu peste listă, logo peste bara de status, avatar peste camera telefonului.
+- **Android:** bara de status (oră, baterie) vizibilă și în culoarea temei, nu neagră; fără benzi negre sus/jos; meniul de jos deasupra butoanelor sistemului (safe-area); câmpul de scris deasupra tastaturii, mereu vizibil.
+- Un singur sistem vizual pe aplicație: aceleași butoane, colțuri, spațiere, paletă. „Să nu pară că au lucrat 5 oameni."
+- Spații compacte: fără goluri mari, fără pagini aproape goale, fără padding uriaș. Pe desktop folosește toată lățimea.
+- Temă deschisă/albă, odihnitoare (stil Cursor / TradingView / Google). Fără negru greu, fără blur, fără gradient+umbră+culoare pe același element, fără pattern pe fundal. Culori calde, pastel, clar diferite între categorii.
+- Orice buton: se vede (contrast), are stare (hover/apăsat/selectat/dezactivat), face ceva vizibil. Nimic „mort" sau „coming soon". Un singur indicator de „activ".
+- Feedback la orice acțiune: după salvare/trimitere butonul se schimbă sau dispare, apare starea nouă; eroarea apare lângă câmp, cu scroll și focus pe el; toast de succes care dispare singur.
+- Fără texte explicative, sloganuri, jargon tehnic, nume de modele AI, număr de versiune în interfață. Fără elemente decorative fără funcție. Fără `alert()` nativ.
+- Poze: umplu cadrul, fără colțuri negre/gri, fără distorsiune, subiectul întreg; click deschide poza mare; pe telefon swipe (fără săgeți) și pinch-zoom; galeria nu se deschide accidental la scroll.
+- Formulare: câmpurile obligatorii marcate; ce lipsește devine roșu cu mesaj lângă; categoria dictează câmpurile (mașină = an, combustibil, km); fără pași intermediari inutili.
+- Iconiță/logo identice peste tot (site, tab browser, PWA, Android, Play): simple, fără litere dependente de limbă, fără text/steaguri, fără colțuri negre, lizibile la 48px.
+- Admin: compact, dens, totul editabil din butoane; pe adresă separată; link „Admin" doar după login cu contul admin, niciodată în bara publică.
+- Footer standard o singură dată: „© 2026 Diebel" + la hover/click contact@diebel.ro.
+
+**Verificare obligatorie înainte de „gata":** capturi la 390px (telefon) și la 1280px (desktop) pentru fiecare pagină atinsă, inclusiv admin, cu date lungi (titluri, emailuri lungi); verificare automată că nimic nu depășește lățimea; fiecare buton apăsat în browser.
+
+---
+
+## 2. DUBLURI (~90)
+
+- Un singur element pentru o funcție: o căutare, un selector de limbă, un selector de locație, un cookie banner, un footer, un buton „Ieșire", o listă de linkuri legale.
+- Aceeași informație într-un singur loc pe ecran (nu sus și jos).
+- O singură sursă de adevăr în cod: prețuri, configurații, logică de business într-un singur fișier; fără trei implementări ale aceleiași componente.
+- Când înlocuiești ceva, scoți varianta veche. Când respingi o variantă, ștergi fișierele inutile.
+- Listele nu afișează aceeași intrare de două ori (dedupe pe ID, nu pe nume).
+
+**Verificare:** numără pe fiecare pagină elementele cu aceeași funcție; caută în tot repo-ul valorile vechi după o schimbare.
+
+---
+
+## 3. EMAIL (~80)
+
+- O singură adresă peste tot: **contact@diebel.ro** (expeditor „<Nume produs> <contact@diebel.ro>", contact în footer, admin). Nu inventa adrese (noreply@, robo@, contact@salvora.ro).
+- Configurare standard: Zoho SMTP primar (smtppro.zoho.eu:587 sau smtp.zoho.eu:465, user contact@diebel.ro), Resend fallback. Parola o pune el manual în `.env`. Un email se trimite o singură dată, indiferent de fallback.
+- Obligatoriu de la prima versiune: bun venit, resetare parolă (link doar pe email, niciodată pe ecran), confirmare schimbare parolă, notificare la mesaj nou / comandă / anunț spre aprobare.
+- Formular de contact: doar email + mesaj obligatorii; atașamente (poze, PDF) cu limite generoase; fără servicii terțe cu pagini de activare; mesajele se salvează și server-side ca să nu se piardă dacă emailul pică.
+- „Trimis cu succes" doar dacă serverul a confirmat. Emailurile de facturare doar din webhook, nu din click.
+
+**Verificare obligatorie:** un email de test real către adresa lui, confirmat că a ajuns, raportat „ZOHO: PASS/FAIL, TEST EMAIL: SENT/FAILED", fără secrete.
+
+---
+
+## 4. MESAJE, CHAT, NOTIFICĂRI (~70)
+
+- Mesajele sunt critice: nu se ating când lucrezi la altceva; după orice deploy, retest trimis/primit instant.
+- Mesajele proprii apar imediat; lista arată corect necititele; badge-ul roșu dispare singur după citire; bifele de citit merg în ambele sensuri; click pe notificare/avatar deschide exact locul relevant.
+- Chat ca WhatsApp: header mic, listă maximă, câmp fix jos, bule stânga/dreapta cu lățime max 75%, auto-scroll la ultimul mesaj.
+- Notificări push reale (nu polling, nu simulate) când aplicația e în fundal; fără push agresiv sau mesaje automate de sistem în inbox; fiecare rol primește doar ce îl privește.
+- Orice aplicație are buton de sugestii/reclamații care ajunge la contact@diebel.ro. Platformele cu conținut de la utilizatori au Raportează și Blochează; moderarea finală e umană.
+- Avertismente tehnice (TURN, codec, rețea) niciodată în interfața utilizatorului.
+
+**Verificare:** două conturi reale pe două dispozitive; mesaj trimis, primit, badge, notificare, click.
+
+---
+
+## 5. APELURI AUDIO-VIDEO (~120, 3 săptămâni blocate la Chat)
+
+- Codul de apeluri care merge e înghețat: nu se atinge la schimbări de culori, Play, login. După ORICE modificare în aplicație, retest apel.
+- TURN autentificat obligatoriu, STUN interzis; configurarea ICE vine din API; variabile separate pe fiecare mediu.
+- Închis = închis: hangup instant la prima apăsare, propagat la ambele părți, fără apel fantomă, fără re-apelare la Back, fără sonerie după răspuns; se poate suna imediat din nou.
+- Stări distincte și corecte: sună / se conectează / respins / offline / eșuat. Un singur mesaj de stare, fără cascadă.
+- Fără flicker, fără pagină albă, fără remount al `<video>`; cleanup complet la hangup (track.stop, pc.close).
+- Fără ecou (echoCancellation), video clar și adaptiv la rețea; self-view neoglindit; toggle pentru mini-preview; desktop object-contain (fără zoom agresiv).
+- Permisiune refuzată / cameră lipsă / cameră ocupată → ecran clar cu un singur buton.
+
+**Verificare obligatorie:** apel real între două dispozitive pe rețele diferite (4G ↔ WiFi), în toate combinațiile: browser↔browser, app↔browser, app↔app.
+
+---
+
+## 6. CONTURI, LOGIN, GDPR (~150)
+
+- Produs final = creare cont, login, „am uitat parola", schimbare parolă, ștergere cont — toate funcționale și testate.
+- contact@diebel.ro = admin automat, același cont pentru site și admin, buton direct spre panou. Primul cont creat devine admin; fără conturi „bootstrap misterioase", fără conturi demo în producție.
+- Nu schimba/reseta parole sau credențiale existente fără cerere. Nu elimina un provider de login care mergea; afișează doar providerii configurați.
+- Parolă cu „ochi" (arată/ascunde). Username fără pre-completare din email, fără underscore, filtru de obscenități. Țara obligatorie, orașul opțional. Nu cere câmpuri în plus față de minim.
+- Sesiunea rezistă la refresh; logout vizibil, unificat, cu opțiune „toate dispozitivele".
+- Securitate implicită: identitate doar din sesiune (nu din header-e), ownership verificat pe fiecare endpoint, rute admin pe rol, rate limiting, validare strictă, cookie flags, fără secrete în client, fără IDOR, conținut șters/nepublicat inaccesibil public.
+- GDPR în fiecare aplicație publică, în toate limbile, și în site și în aplicația Android: cookie banner (o singură dată, memorat, dispare din DOM după accept), politică de confidențialitate, termeni, Impressum pentru Germania, checkbox consimțământ la formulare, age gate unde e cazul.
+- Pagini publice `/privacy` și `/delete-account` cu 200 în producție, obligatorii pentru Google Play. Textele legale sunt 100% adevărate față de cod (fără „nu colectăm nimic" dacă nu e așa).
+- Ștergerea contului din aplicație, cu confirmare, șterge efectiv datele.
+
+**Verificare:** cont nou → email → login → refresh → reset parolă → ștergere cont, cap-coadă.
+
+---
+
+## 7. DATE, BAZA DE DATE, BACKUP (~90)
+
+- Backup automat zilnic al bazei de date și al upload-urilor, păstrat minim 14 zile, cu restore testat.
+- Upload-urile și baza de date pe stocare persistentă care supraviețuiește deploy-ului (volum / folder în afara build-ului, servit de Nginx).
+- Producție: `prisma migrate deploy`, niciodată `db push`/`reset`. DEV și PROD cu baze separate. Nu rula scripturi de seed/clear pe producție.
+- Nu pierde conturi la migrare de server. Lucrează mereu pe ultima versiune a codului.
+- Fără date fake: statistici reale (0 la început), fără anunțuri/conturi seed în producție, fără documente oficiale fabricate.
+- Un fetch eșuat nu suprascrie date valide. Procesele automate nu suprascriu date introduse manual. Operații pe stoc/sold atomice. NU DATE > DATE GREȘITE.
+- Nu urca secrete sau `.env.production` pe git; nu rescrie istoricul git fără aprobare.
+
+**Verificare:** după deploy, numărul de conturi/anunțuri/poze identic cu înainte; backup prezent și datat.
+
+---
+
+## 8. PLĂȚI (~90)
+
+- Toate pe contul Stripe al firmei Diebel; cheile din `.env`, refolosite din proiectele existente; test și live separate.
+- Prețuri întregi (5€, 15€, 30 lei), identice în interfață și în Stripe; un plan fără price_id real nu apare ca achiziționabil. Maxim 3 planuri. Nu schimba prețuri/limite/comisioane fără cerere.
+- Planul se activează DOAR din webhook verificat (nu din success URL, nu din client); webhook idempotent (fără creditare/refund dublu), logat în DB; plăți eșuate și anulări tratate cu email și stare corectă.
+- Model prepaid: nu se cheltuie mai mult decât a plătit clientul; soldul nu ajunge negativ; taxare doar la serviciu livrat.
+- Conturile plătite au limită de dispozitive (să nu fie partajate). Nivelul gratuit nu poate fi abuzat cu conturi noi. Nimic gratuit nelimitat; „gratis" doar dacă rămâne gratis.
+- Moneda = țara vânzătorului/utilizatorului. Gestionare abonament prin Stripe Customer Portal. Fără prețuri în screenshot-urile pentru store.
+- Spune din timp orice cost (API, TURN, servicii).
+
+**Verificare:** o plată reală de test pe fiecare plan + confirmare că beneficiul s-a activat și că emailul a plecat.
+
+---
+
+## 9. LIMBI (~120)
+
+- Minim RO + EN + DE (germana = limba principală de business); alte limbi după proiect.
+- O pagină e 100% într-o singură limbă: fără cuvinte rămase, inclusiv meniuri, bannere, erori, toasts, validări, empty states, pagina 404, conținut din admin, poze cu text, materiale de store.
+- Selectorul de limbă schimbă instant toată aplicația și pe paginile publice; limba persistă peste login/logout/refresh. Implicit: limba țării/browserului, altfel engleză (sau română unde e piața principală). Limba ≠ locația: schimbarea țării de căutare nu schimbă limba.
+- Selector cu steaguri (fără contur, fără text), engleza cu steag GB; fără intrări duplicate; admin poate rămâne în română.
+- Zero text hardcodat: totul prin i18n, chei identice în toate limbile (verificare automată), fără chei tehnice afișate ca fallback, fără `lang === 'ro' ? :` în cod.
+- Traduceri naturale, nu literale; numele proprii și brandul nu se traduc; placeholder-ele și cifrele comerciale rămân neschimbate; textele aprobate nu se modifică la adăugarea unei limbi.
+- Nume de produs internaționale (Diebel Market, nu AnuntAI), fără diacritice în brand.
+
+**Verificare obligatorie:** schimbă limba și parcurge fiecare pagină; script automat care raportează chei lipsă și texte în altă limbă.
+
+---
+
+## 10. ANDROID & GOOGLE PLAY (~100)
+
+- Browserul stabil înainte de orice publicare. Aplicația Android (WebView/TWA) se comportă identic cu site-ul; cookie banner și limbi și în app.
+- Edge-to-edge modern, fără API-uri depreciate; status bar vizibil; iconiță adaptivă identică cu cea din Play, fără colțuri negre.
+- Package `ro.diebel.<app>`, keystore și package name NU se ating niciodată (nici la rebranding); versionCode incrementat la fiecare build, definit într-un singur loc; targetSdk la ultimul cerut de Play.
+- Manifest curat: doar permisiuni justificate (fără cameră/microfon în foreground dacă nu e nevoie, altfel Google cere video demo), fără debug, fără cleartext.
+- Înainte de review: APK testat pe telefon real, de mai multe ori, fără crash; APK de test livrat prin link, nu prin cablu; nu trimite release nou cât timp altul e în review; respingerile repetate duc la suspendare.
+- Asset-uri la dimensiuni exacte (icon 512×512, feature 1024×500, screenshot-uri 1080×1920), capturi reale din aplicație în tema light, fără prețuri și fără reclame, în engleză (+ localizate), minim 4–8, într-un folder `google-play-assets/`.
+- Pagini obligatorii cu 200: privacy, delete-account, terms. Cont de test pentru review trecut în Play Console. Declarațiile Data Safety 1:1 cu build-ul real. Formularele Play Console: răspuns punctual, în ordine, exact ce să bifeze.
+- Spune mereu calea absolută a APK/AAB; curăță build-urile vechi. Spune clar când e nevoie de versiune nouă pe telefon și când nu.
+- Plăți prin Stripe (card), nu Google Play Billing, dacă el nu cere altfel.
+
+**Verificare:** instalare din APK pe telefon real, 5 relansări, login, flux principal, offline.
+
+---
+
+## 11. DEPLOY, SERVER, DOMENII (~150)
+
+- Totul pe serverul Hetzner existent (178.104.2.31), subdomenii `*.diebel.ro`; fără servicii noi, fără tunele temporare, fără conturi noi, fără GitHub dacă el nu cere. Domeniul îl decide el.
+- Deploy = o singură comandă rulată de asistent: backup → copiere → build → tsc/lint/teste → restart → verificare live (HTTP 200, commit corect, fără 502) → deschide pagina în browser. Rollback automat la eșec.
+- Nu atinge configurațiile celorlalte site-uri de pe server. Nginx: fiecare app pe vhost propriu, porturi interne neexpuse, SSL cu redirect HTTP→HTTPS, www și rădăcină funcționale.
+- DNS: verifică propagarea (IP complet, corect) înainte de certbot. Reutilizează configurarea de deploy din proiectele existente.
+- Fără `localhost` hardcodat în producție; env-urile verificate per mediu cu `/health` public care nu expune secrete; serviciul sub pm2/systemd cu restart; log rotation.
+- Local = online: după fiecare set de modificări, deploy și confirmare „e pe net". Comunică doar domeniul public, nu numele intern al proiectului.
+- SEO de bază la orice site public: pagini separate indexabile, sitemap, robots, meta, fără noindex, Analytics o singură dată; poze webp ≤200KB.
+- Nu porni servere/build-uri necerute; nu rula pe portul altui proiect; nu suprascrie tab-ul altui proiect.
+
+**Verificare obligatorie post-deploy:** 200 pe pagina principală și pe pagina atinsă, poză nouă încărcată se vede, email de test, număr de utilizatori neschimbat.
+
+---
+
+## 12. COMPORTAMENT ÎN LUCRU (ce te-a enervat cel mai des: ~400)
+
+- Nu promite ce nu poți livra; nu pune în interfață funcții care nu merg; nu scrie texte de marketing care afirmă ce nu e implementat.
+- Nu raporta „rezolvat" când nu e. Nu raporta „deschis în browser" fără să fie deschis. Răspunde la „merge?" cu da/nu + dovadă.
+- O cerință se aplică la toate elementele similare, nu doar la primul. „Tot" înseamnă tot (toate categoriile, toate paginile, toate butoanele).
+- Rezolvă complet, nu pe bucăți; nu lăsa mereu „încă ceva". Minimizează numărul de versiuni/build-uri; nu consuma tokeni cu explorări și build-uri inutile.
+- Nu lua decizii de produs/design singur; propune, el decide. Când ceri „cum era înainte", restaurare exactă din istoric. Redesign radical doar pe copie, arătat înainte de a înlocui.
+- Repară codul, nu testele; nu dezactiva/șterge teste; numărul de teste verzi nu scade.
+- Când cerința e repetată, înseamnă că n-ai înțeles: reformulează ce ai înțeles și spune clar dacă e imposibil tehnic.
+- Ține evidența încercărilor eșuate; nu repeta aceeași soluție. Notează ce rămâne pe altă dată.
+- Rapoarte: factuale, scurte, cu fișier+linie la defecte, cu cifre la final; „ce am modificat" separat de „ce am verificat"; ce rămâne manual listat explicit.
+- Instalează singur dependențele; deschide singur fișierele unde el trebuie să completeze ceva; dă calea completă a oricărui fișier generat.
+
+---
+
+## 13. DEPARTAMENTELE DE VERIFICARE (rulate la fiecare task, doar cele relevante)
+
+La orice modificare, înainte de „gata", treci prin departamentele atinse de task și raportezi ce ai verificat:
+
+| Departament | Ce verifică | Dovada |
+|---|---|---|
+| Mobil | nimic tăiat/suprapus la 390px, safe-area, tastatură | capturi telefon |
+| Desktop | layout la 1280px, hover, scroll | capturi desktop |
+| Butoane & stări | fiecare buton face ceva; hover/loading/empty/error | click pe fiecare |
+| Dubluri | un singur element per funcție | numărătoare pe pagină |
+| Limbi | nicio limbă amestecată, chei complete | script + parcurgere |
+| Email | trimis real, ajuns | email de test |
+| Mesaje/Notificări | trimis/primit/badge | două conturi |
+| Apeluri | 4G↔WiFi, app↔browser | apel real |
+| Conturi & securitate | login/reset/delete; ownership, rate limit | flux cap-coadă |
+| Date | backup prezent, numere neschimbate | count înainte/după |
+| Plăți | webhook → plan activ | plată test |
+| Android | APK pe telefon, fără crash | instalare reală |
+| Deploy | 200 live, versiune corectă | curl + browser |
+| Cod | tsc 0 erori, lint 0/0, teste verzi | output comenzi |
+| Product Design & Development | PENULTIMUL, automat la fiecare audit complet, ÎNAINTE de R&D: răspunde singur la „Dacă acest produs ar fi al meu și ar trebui să-l fac să crească, ce îi lipsește?” — funcții lipsă, ce împiedică adoptarea și creșterea, onboarding, conversie, retenție, monetizare, achiziție, advertiseri/publisheri, integrare terți, automatizări, UX/UI, mobil/desktop, diferențiere, canale de distribuție, oportunități între produsele Diebel, ce are un produs matur din categorie; fișă în 8 puncte per idee; recomandare ACUM / URMĂTORUL / MAI TÂRZIU / NU MERITĂ; DOAR analiză și propuneri, zero implementare fără aprobare | raport `/product` + secțiunea „PROPUNERI CARE NECESITĂ APROBAREA LUI ELVIS” |
+| R&D / Technology Radar | ULTIMUL, automat la fiecare audit complet: tehnologii/framework-uri/API-uri/standarde/AI/securitate/performanță noi față de stack-ul actual, fiecare clasificată ADOPT / TRIAL / ASSESS / HOLD; DOAR analiză și raport | raport `/rd-radar` (fișă per tehnologie) |
+
+Dacă un departament nu e relevant pentru task, nu se rulează (ca să nu consume). Dacă e relevant și nu poate fi verificat, se scrie NECONFIRMAT, nu PASS.
+
+**Product Design & Development** rulează AUTOMAT la orice **audit complet**, după departamentele QA și **înainte de R&D**; la task-uri mici nu rulează (N/A). Nu așteaptă ca Elvis să spună ce funcție lipsește: analizează proactiv produsul ca și cum ar fi responsabil de succesul lui. Întrebarea obligatorie: **„Dacă acest produs ar fi al meu și ar trebui să-l fac să crească, ce îi lipsește?”** Nu analizează doar codul și funcțiile existente, ci și piața, concurența și ce are un produs matur din aceeași categorie. Identifică singur: funcții importante care lipsesc; ce împiedică utilizatorii să adopte produsul; ce împiedică produsul să crească; onboarding; conversie; retenție; monetizare; achiziție de utilizatori; atragerea advertiserilor și publisherilor; integrarea mai simplă pentru terți; automatizări; UX/UI; mobil și desktop; diferențiere față de concurență; integrări și canale de distribuție; oportunități între produsele Diebel; orice are un produs matur din categorie și noi nu avem. Este departament de **ANALIZĂ ȘI PROPUNERI, nu de implementare**: NU adaugă, NU elimină, NU schimbă funcționalități fără aprobarea explicită a lui Elvis; nu modifică produsul doar ca să adauge funcții, întâi demonstrează că funcția aduce valoare reală. Pentru fiecare idee, fișa obligatorie în 8 puncte: 1) problema; 2) soluția; 3) beneficiul pentru utilizator; 4) beneficiul pentru business; 5) prioritatea; 6) costul/complexitatea; 7) riscul; 8) recomandarea: **ACUM / URMĂTORUL / MAI TÂRZIU / NU MERITĂ**. Raportul se încheie cu secțiunea separată **„PROPUNERI CARE NECESITĂ APROBAREA LUI ELVIS”**; nicio funcție de acolo nu se implementează până când Elvis nu spune explicit ce aprobă. După Product rulează R&D / Technology Radar, care verifică și dacă există tehnologii sau metode noi ce pot implementa mai bine recomandările Product; nici R&D nu transformă automat o propunere într-o funcție. Product + R&D DESCOPERĂ singure oportunitățile. Departamentele QA pot repara automat buguri, regresii, securitate și probleme tehnice în limitele regulilor existente. Regula principală: **DESCOPERĂ SINGUR CE LIPSEȘTE → DEMONSTREAZĂ VALOAREA → PROPUNE → ELVIS DECIDE → APOI IMPLEMENTEZI.** Se aplică tuturor proiectelor Diebel în care sunt instalate departamentele.
+
+**R&D / Technology Radar** rulează automat ca ultimul departament la orice **audit complet** (cerere de tip „audit", „verifică tot", „toate departamentele", finalizare de aplicație), după Cod; la task-uri mici/parțiale nu rulează (N/A). Reguli dure: nu instalează, nu modifică și nu implementează nimic (cod, dependențe, infra, config) — doar analizează și raportează ADOPT / TRIAL / ASSESS / HOLD cu fișa din `/rd-radar`; orice ADOPT sau TRIAL se prezintă proprietarului și se implementează DOAR după aprobarea lui explicită; nu recomandă o tehnologie doar pentru că e nouă. Raportul R&D e separat de PASS/FAIL-ul celorlalte departamente și nu le înlocuiește. Ordinea e fixă și obligatorie: 1) toate departamentele QA de mai sus; 2) Product Design & Development; 3) R&D / Technology Radar; 4) abia după raportul R&D ai voie să spui „GATA”. Un audit complet fără R&D e incomplet și nu se încheie cu „GATA”. Nu trebuie cerut separat cu `/rd-radar`.
+
+---
+
+## 14. CHECKLIST „APLICAȚIE NOUĂ" (se face la început, nu la final)
+
+1. Structura: Next.js pe serverul Hetzner, subdomeniu `*.diebel.ro`, `.env` cu toate variabilele listate, git local cu commit inițial.
+2. Design system: temă deschisă, paletă, butoane, carduri, spațiere — un singur set, mobile-first.
+3. Conturi: register/login/reset/delete, admin = contact@diebel.ro, cookie banner, privacy, terms, delete-account, Impressum.
+4. Email: Zoho + Resend fallback, contact@diebel.ro, test real trimis.
+5. Limbi: i18n de la primul text, RO/EN/DE, selector cu steaguri, script de verificare chei.
+6. Date: DB + upload-uri pe stocare persistentă, backup zilnic configurat, DEV/PROD separate.
+7. Plăți (dacă există): Stripe Diebel, prețuri întregi, webhook idempotent, portal.
+8. Mesaje/notificări (dacă există): push real, badge, sugestii către contact@diebel.ro.
+9. Deploy: script cu backup + build + verificare + rollback; Nginx + SSL; `/health`.
+10. Android (dacă există): package `ro.diebel.<app>`, keystore păstrat, edge-to-edge, asset-uri Play.
+11. SEO: pagini indexabile, sitemap, robots, meta, Analytics.
+12. Footer standard: „© 2026 Diebel" → contact@diebel.ro, o singură dată.
+13. Înainte de livrare: toate departamentele relevante, polish în 2–3 treceri, raport scurt + ghid de utilizare.
+
+---
+
+## Etaloane de calitate
+chat.diebel.ro și transfer.diebel.ro sunt cele mai reușite; aplicațiile noi se aliniază la nivelul lor (nu sub).

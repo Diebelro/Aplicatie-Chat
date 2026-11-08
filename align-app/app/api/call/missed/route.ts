@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getAuthenticatedUserId } from "@/lib/sessionAuth";
 import {
   findUserOrPrisma,
   isPrismaAvailable,
@@ -11,7 +12,7 @@ import { callApiErrorJson } from "@/lib/call/callApiJsonError";
 
 /** Lista apeluri pierdute pentru utilizatorul curent. */
 export async function GET(request: NextRequest) {
-  const userId = request.headers.get("x-user-id");
+  const userId = await getAuthenticatedUserId(request);
   if (!userId) {
     return NextResponse.json(
       callApiErrorJson("SIGNALING_TOKEN_INVALID", { error: "Neautorizat." }),
@@ -41,7 +42,7 @@ export async function GET(request: NextRequest) {
 
 /** Șterge lista de apeluri pierdute. */
 export async function POST(request: NextRequest) {
-  const userId = request.headers.get("x-user-id");
+  const userId = await getAuthenticatedUserId(request);
   if (!userId) {
     return NextResponse.json(
       callApiErrorJson("SIGNALING_TOKEN_INVALID", { error: "Neautorizat." }),

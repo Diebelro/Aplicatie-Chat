@@ -73,6 +73,11 @@
     "subtitle": "Mensajes rápidos. Conexiones reales.",
     "emotional": "Dos corazones. Una misma sintonía.",
     "cta": "Únete — chat rápido, sin complicaciones.",
+    "boostCta": "Empezar un Boost",
+    "adsLabel": "Anuncio · Diebel",
+    "adsTitle": "Diebel Ads",
+    "adsBody": "¿Tienes un negocio? Lanza un Boost desde 10 €. Se ve en la red. El dinero se ve en vivo.",
+    "adsCta": "Lanzar un Boost",
     "carouselTablistAria": "Banners promocionales de Diebel",
     "dotAria": "Banner de Diebel, diapositiva {{current}} de {{total}}"
   },
@@ -1036,6 +1041,38 @@
       "accept": "Aceptar",
       "decline": "No acepto",
       "declineHint": "Si no aceptas, cierra la pestaña o la app. Si el botón no cierra la ventana, usa el botón de atrás o ciérrala manualmente."
+    },
+    "childSafety": {
+      "pageTitle": "Normas de seguridad infantil",
+      "lastUpdated": "Última actualización: junio de 2026",
+      "sections": [
+        {
+          "title": "Restricción de edad",
+          "body": "Diebel Chat está destinado exclusivamente a usuarios mayores de 18 años. Todos los usuarios confirman al registrarse que tienen al menos 18 años. Las cuentas que pertenecen a menores se suspenden y eliminan de inmediato."
+        },
+        {
+          "title": "Tolerancia cero ante el CSAE",
+          "body": "Diebel Chat aplica una política estricta de tolerancia cero frente al abuso y la explotación sexual infantil (CSAE). Cualquier contenido, comportamiento o cuenta que implique la explotación o el abuso sexual de menores se elimina de inmediato y se denuncia a las autoridades nacionales competentes, incluso a través de la CyberTipline del National Center for Missing & Exploited Children (NCMEC) cuando corresponda."
+        },
+        {
+          "title": "Mecanismos de denuncia",
+          "body": "Los usuarios pueden denunciar cualquier sospecha relacionada con la seguridad infantil directamente desde la aplicación, mediante la función de denuncia disponible en cada perfil y mensaje. Nuestro equipo revisa las denuncias con rapidez. También puede contactarnos directamente en",
+          "contact": true
+        },
+        {
+          "title": "Bloqueo de usuarios",
+          "body": "Cualquier usuario puede bloquear a otro en cualquier momento. Los usuarios bloqueados no pueden enviar mensajes, ver el perfil ni iniciar llamadas con quien los bloqueó."
+        },
+        {
+          "title": "Cumplimiento legal",
+          "body": "Diebel Chat cumple todas las leyes y normativas aplicables en materia de seguridad infantil. Cooperamos plenamente con las fuerzas del orden y denunciamos los casos confirmados de material de abuso sexual infantil (CSAM) a las autoridades regionales y nacionales competentes."
+        },
+        {
+          "title": "Contacto",
+          "body": "Para cuestiones de seguridad infantil o denuncias de CSAM, contacte con nuestro responsable de seguridad en",
+          "contact": true
+        }
+      ]
     },
     "communityGuidelines": {
       "pageTitle": "Normas de la comunidad",

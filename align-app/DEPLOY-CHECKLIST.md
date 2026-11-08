@@ -2,14 +2,14 @@
 
 ## 1. Deploy (hosting)
 
-- [ ] **Vercel:** proiectul care servește **https://chat.diebel.ro** este **`aplicatie-chat`** (Root Directory `align-app`). Deploy CLI: din `align-app` rulează **`npm run deploy:chat`** (sau din rădăcina repo-ului `npx vercel deploy --prod` cu `.vercel` legat de `aplicatie-chat`). Nu confunda cu proiectul separat `align-app` pe Vercel.
+- [ ] **Hetzner (Docker + nginx):** chat.diebel.ro este servit de containerul `align-app-app-1` pe 178.104.2.31. Deploy: din `align-app` rulează **`npm run deploy:hetzner`** (backup → build → health check → rollback automat; vezi DEPLOY.md).
 - [ ] URL public de producție: **`https://chat.diebel.ro`** — `NEXTAUTH_URL` / `NEXT_PUBLIC_APP_URL` aliniate cu el.
 
 ---
 
-## 2. Variabile de mediu pe Vercel (obligatorii)
+## 2. Variabile de mediu în producție (obligatorii)
 
-Setate în **Vercel → Project → Settings → Environment Variables** (Production):
+Setate pe server în `/root/Aplicatie-Chat/align-app/.env.production` (citit de docker compose):
 
 | Variabilă | Obligatoriu | Exemplu / Notă |
 |-----------|------------|----------------|

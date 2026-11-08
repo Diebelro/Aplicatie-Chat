@@ -73,6 +73,11 @@
     "subtitle": "Fast messages. Real connections.",
     "emotional": "Two hearts. One vibe.",
     "cta": "Jump in — quick chat, zero hassle.",
+    "boostCta": "Start a Boost",
+    "adsLabel": "Ad · Diebel",
+    "adsTitle": "Diebel Ads",
+    "adsBody": "Have a business? Start a Boost from 10 €. It runs on the network. The money stays visible.",
+    "adsCta": "Start a Boost",
     "carouselTablistAria": "Diebel promotional banners",
     "dotAria": "Diebel banner, slide {{current}} of {{total}}"
   },
@@ -1036,6 +1041,38 @@
       "accept": "Accept",
       "decline": "I do not accept",
       "declineHint": "If you don’t accept, close the tab or app. If the button doesn’t close the window, use back or close it manually."
+    },
+    "childSafety": {
+      "pageTitle": "Child Safety Standards",
+      "lastUpdated": "Last updated: June 2026",
+      "sections": [
+        {
+          "title": "Age Restriction",
+          "body": "Diebel Chat is strictly intended for users aged 18 and older. All users are required to confirm they are at least 18 years old during registration. Accounts found to belong to minors are immediately suspended and deleted."
+        },
+        {
+          "title": "Zero Tolerance for CSAE",
+          "body": "Diebel Chat has a strict zero-tolerance policy toward child sexual abuse and exploitation (CSAE). Any content, behavior, or account that involves the sexual exploitation or abuse of minors is immediately removed and reported to the relevant national authorities, including through the National Center for Missing & Exploited Children (NCMEC) CyberTipline where applicable."
+        },
+        {
+          "title": "Reporting Mechanisms",
+          "body": "Users can report any suspected child safety concern directly within the app using the in-app report feature available on every user profile and message. Reports are reviewed promptly by our team. Users can also contact us directly at",
+          "contact": true
+        },
+        {
+          "title": "User Blocking",
+          "body": "Any user can block another user at any time. Blocked users cannot send messages, view profiles, or initiate calls with the user who blocked them."
+        },
+        {
+          "title": "Legal Compliance",
+          "body": "Diebel Chat complies with all applicable child safety laws and regulations. We cooperate fully with law enforcement agencies and report confirmed cases of child sexual abuse material (CSAM) to the appropriate regional and national authorities."
+        },
+        {
+          "title": "Contact",
+          "body": "For child safety concerns or CSAM reports, contact our designated safety officer at",
+          "contact": true
+        }
+      ]
     },
     "communityGuidelines": {
       "pageTitle": "Community rules",

@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUserId } from "@/lib/sessionAuth";
+import { checkRateLimit, getClientIpForRateLimit } from "@/lib/rateLimit";
 import { findUserOrPrisma, isPrismaAvailable, prismaReportUser } from "@/lib/repo-prisma";
 
 export async function POST(request: NextRequest) {
   const userId = await getAuthenticatedUserId(request);
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
+  }
+  if (!checkRateLimit(getClientIpForRateLimit(request), userId, "/api/report")) {
+    return NextResponse.json({ error: "Prea multe cereri. Încearcă mai târziu." }, { status: 429, headers: { "Retry-After": "60" } });
   }
   const body = await request.json().catch(() => ({}));
   const targetUserId = body?.targetUserId ?? body?.targetId;

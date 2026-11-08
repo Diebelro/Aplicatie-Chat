@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyPassword } from "@/lib/auth";
+import { enforceIpRateLimit } from "@/lib/apiRateLimitGate";
 import {
   isPrismaAvailable,
   prismaFindUserByEmail,
@@ -14,6 +15,8 @@ import {
  * Funcționează doar dacă nu există niciun user cu rol ADMIN sau SUPERADMIN.
  */
 export async function POST(request: NextRequest) {
+  const limited = enforceIpRateLimit(request, "/api/admin/setup");
+  if (limited) return limited;
   if (!isPrismaAvailable()) {
     return NextResponse.json({ error: "Baza de date nu este disponibilă." }, { status: 503 });
   }

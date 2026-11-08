@@ -4,7 +4,7 @@ import { resolveRequestUserId } from "@/lib/sessionAuth";
 import { isPrismaAvailable, prismaGetFriendStatus } from "@/lib/repo-prisma";
 
 export async function GET(request: NextRequest) {
-  const userId = (await resolveRequestUserId(request)) ?? request.headers.get("x-user-id");
+  const userId = await resolveRequestUserId(request);
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   }

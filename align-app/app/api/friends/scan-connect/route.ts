@@ -5,7 +5,7 @@ import { scanConnect, findUserById } from "@/lib/store";
 import { isPlausibleUserId } from "@/lib/scanConnectPayload";
 
 export async function POST(request: NextRequest) {
-  const userId = (await resolveRequestUserId(request)) ?? request.headers.get("x-user-id");
+  const userId = await resolveRequestUserId(request);
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
   }

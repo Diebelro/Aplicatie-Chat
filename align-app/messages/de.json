@@ -73,6 +73,11 @@
     "subtitle": "Schnelle Nachrichten. Echte Verbindungen.",
     "emotional": "Zwei Herzen. Ein Rhythmus.",
     "cta": "Jetzt rein — schneller Chat, kein Stress.",
+    "boostCta": "Boost starten",
+    "adsLabel": "Anzeige · Diebel",
+    "adsTitle": "Diebel Ads",
+    "adsBody": "Hast du ein Unternehmen? Starte einen Boost ab 10 €. Läuft im Netzwerk. Das Geld bleibt sichtbar.",
+    "adsCta": "Boost starten",
     "carouselTablistAria": "Diebel-Werbebanner",
     "dotAria": "Diebel-Banner, Folie {{current}} von {{total}}"
   },
@@ -1036,6 +1041,38 @@
       "accept": "Akzeptieren",
       "decline": "Nicht akzeptieren",
       "declineHint": "Wenn du nicht akzeptierst, schließe den Tab oder die App. Wenn der Button das Fenster nicht schließt, nutze Zurück oder schließe es manuell."
+    },
+    "childSafety": {
+      "pageTitle": "Kinderschutz-Standards",
+      "lastUpdated": "Zuletzt aktualisiert: Juni 2026",
+      "sections": [
+        {
+          "title": "Altersbeschränkung",
+          "body": "Diebel Chat ist ausschließlich für Nutzer ab 18 Jahren bestimmt. Alle Nutzer bestätigen bei der Registrierung, dass sie mindestens 18 Jahre alt sind. Konten, die Minderjährigen gehören, werden sofort gesperrt und gelöscht."
+        },
+        {
+          "title": "Null Toleranz gegenüber CSAE",
+          "body": "Diebel Chat verfolgt eine strikte Null-Toleranz-Politik gegenüber sexuellem Missbrauch und sexueller Ausbeutung von Kindern (CSAE). Jeder Inhalt, jedes Verhalten und jedes Konto, das die sexuelle Ausbeutung oder den Missbrauch Minderjähriger betrifft, wird sofort entfernt und den zuständigen nationalen Behörden gemeldet, gegebenenfalls auch über die CyberTipline des National Center for Missing & Exploited Children (NCMEC)."
+        },
+        {
+          "title": "Meldemechanismen",
+          "body": "Nutzer können jeden Verdacht auf Gefährdung von Kindern direkt in der App über die Meldefunktion melden, die auf jedem Profil und bei jeder Nachricht verfügbar ist. Meldungen werden von unserem Team umgehend geprüft. Sie können uns auch direkt kontaktieren unter",
+          "contact": true
+        },
+        {
+          "title": "Blockieren von Nutzern",
+          "body": "Jeder Nutzer kann jederzeit einen anderen Nutzer blockieren. Blockierte Nutzer können der Person, die sie blockiert hat, keine Nachrichten senden, ihr Profil nicht sehen und keine Anrufe starten."
+        },
+        {
+          "title": "Rechtliche Konformität",
+          "body": "Diebel Chat hält alle geltenden Gesetze und Vorschriften zum Kinderschutz ein. Wir arbeiten vollständig mit den Strafverfolgungsbehörden zusammen und melden bestätigte Fälle von Darstellungen sexuellen Kindesmissbrauchs (CSAM) den zuständigen regionalen und nationalen Behörden."
+        },
+        {
+          "title": "Kontakt",
+          "body": "Bei Kinderschutzanliegen oder CSAM-Meldungen wenden Sie sich an unseren Sicherheitsbeauftragten unter",
+          "contact": true
+        }
+      ]
     },
     "communityGuidelines": {
       "pageTitle": "Community-Regeln",

@@ -19,14 +19,21 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const user = await findUserOrPrisma(id);
-  if (!user) {
+  const meId = await resolveRequestUserId(request);
+  if (!meId) {
+    return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
+  }
+  const fullUser = await findUserOrPrisma(id);
+  if (!fullUser) {
     return NextResponse.json({ error: "Profil negăsit." }, { status: 404 });
   }
-  const meId = await resolveRequestUserId(request);
-  if (!meId || meId === id) {
-    return NextResponse.json({ user });
+  if (meId === id) {
+    return NextResponse.json({ user: fullUser });
   }
+  // Profil public: fără date de cont (email) pentru alți utilizatori.
+  const { email: _email, email_verified: _emailVerified, ...user } = fullUser as typeof fullUser & { email?: string; email_verified?: boolean };
+  void _email;
+  void _emailVerified;
   const theirPrivacy = getUserPrivacySettings(id);
   const visitedByThem = theirPrivacy?.allowVisitVisibility ? hasBeenVisitedBy(meId, id) : undefined;
   const online = user.last_active != null && Date.now() - user.last_active < ONLINE_MS;

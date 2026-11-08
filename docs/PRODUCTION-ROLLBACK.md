@@ -1,80 +1,34 @@
-# Production rollback (Align)
+# Production rollback (Chat Diebel pe Hetzner)
 
-Two practical ways to recover from a bad deploy. **Database changes are not rolled back** by Git or Vercel alone — handle data separately if migrations ran.
+Producția este containerul Docker `align-app-app-1` pe `178.104.2.31` (nginx → 127.0.0.1:3002). Baza de date **nu** se restaurează automat; vezi secțiunea separată.
 
----
+## 1. Rollback aplicație (imagine anterioară)
 
-## Method A — Vercel: promote a previous deployment
+Fiecare deploy (`npm run deploy:hetzner`) etichetează imaginea veche ca `diebel-app:rollback` și face rollback singur dacă health check-ul pică. Manual:
 
-1. Open [Vercel Dashboard](https://vercel.com) → your project.
-2. Go to **Deployments**.
-3. Find a deployment that worked (same Git **commit** as your checkpoint, or an older green deploy).
-4. Open the **⋯** menu on that deployment → **Promote to Production** (wording may vary; on some plans you **Instant Rollback** / promote the previous production deployment).
+```bash
+ssh root@178.104.2.31 "bash /root/Aplicatie-Chat/align-app/deploy/hetzner-rollback.sh"
+```
 
-**Pros:** Fast, no Git ceremony. **Cons:** Requires that an older deployment still exists and is promotable.
+Verificare: `curl -s https://chat.diebel.ro/api/health` → `status: "ok"` și `commit.short` al versiunii vechi.
 
----
+## 2. Restaurare bază de date (doar cu aprobare)
 
-## Method B — Git tag + redeploy
+Dump-uri: `/root/backups/chat-deploy-<TS>/diebel_chat.dump` (la fiecare deploy) și `/root/backups/db/diebel_chat-<data>.dump` (zilnic 03:15).
 
-Checkpoints created by `scripts/checkpoint.ps1` add an annotated tag `prod-baseline-YYYY-MM-DD` (and sometimes `-1`, `-2`, … the same day).
+```bash
+docker exec -i align-app-postgres-1 pg_restore -U diebel -d diebel_chat --clean --if-exists < /root/backups/chat-deploy-<TS>/diebel_chat.dump
+```
 
-### 1) List tags
+Upload-uri: `tar -C $(docker volume inspect align-app_chat_uploads --format '{{.Mountpoint}}') -xzf /root/backups/chat-deploy-<TS>/chat_uploads.tar.gz`
+
+## 3. Rollback de cod (git)
+
+Checkpoint-urile `scripts/checkpoint.ps1` creează tag-uri `prod-baseline-YYYY-MM-DD`. Pentru a reveni la un tag și a-l pune live:
 
 ```powershell
 cd "C:\Projects\Aplicatie Chat"
-git fetch --tags origin
-git tag -l "prod-baseline-*" --sort=-creatordate
+git checkout prod-baseline-2026-11-08
+cd align-app
+npm run deploy:hetzner
 ```
-
-### 2) Check out the baseline (read-only / inspection)
-
-```powershell
-.\scripts\rollback.ps1
-```
-
-Or a specific tag:
-
-```powershell
-.\scripts\rollback.ps1 -Tag prod-baseline-2026-03-29
-```
-
-### 3) See the commit SHA
-
-```powershell
-git rev-parse HEAD
-```
-
-Use that SHA in Vercel: find the deployment for that commit and promote it, **or** create a branch from this tag and merge to `main` after review:
-
-```powershell
-git switch -c hotfix/revert-to-baseline
-git push -u origin hotfix/revert-to-baseline
-```
-
-Then open a PR into `main` and merge; Vercel will build from the merged result.
-
-### 4) Match “exact tree” of the tag on `main` (force-align branch)
-
-Only if you intentionally want `main` to match the tag exactly (coordinate with the team; rewrites shared history if you force-push):
-
-```powershell
-git checkout main
-git reset --hard prod-baseline-2026-03-29
-git push origin main --force-with-lease
-```
-
-Use `--force-with-lease` only when you understand the impact on collaborators.
-
----
-
-## Creating a new checkpoint
-
-From repo root, on branch `main`:
-
-```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-.\scripts\checkpoint.ps1
-```
-
-This runs `npx tsc --noEmit`, `npm run lint`, and `npm run build` inside `align-app/`, then commits (if needed), tags, creates `release/prod-baseline-…`, and pushes `main`, the tag, and the release branch to `origin`.

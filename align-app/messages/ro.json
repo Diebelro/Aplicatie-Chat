@@ -73,6 +73,11 @@
     "subtitle": "Mesaje rapide. Conexiuni reale.",
     "emotional": "Două inimi. O singură vibrație.",
     "cta": "Intră acum — chat rapid, fără bătăi de cap.",
+    "boostCta": "Pornește un Boost",
+    "adsLabel": "Reclamă · Diebel",
+    "adsTitle": "Diebel Ads",
+    "adsBody": "Ai o firmă? Pornește un Boost de la 10 €. Se vede pe rețea. Banii se văd live.",
+    "adsCta": "Pornește un Boost",
     "carouselTablistAria": "Bannere promoționale Diebel",
     "dotAria": "Banner Diebel, diapozitiv {{current}} din {{total}}"
   },
@@ -1036,6 +1041,38 @@
       "accept": "Accept",
       "decline": "Nu accept",
       "declineHint": "Dacă nu accepți, închide fila sau aplicația. Dacă butonul nu închide fereastra, folosește înapoi sau închide manual."
+    },
+    "childSafety": {
+      "pageTitle": "Standarde de siguranță a copiilor",
+      "lastUpdated": "Ultima actualizare: iunie 2026",
+      "sections": [
+        {
+          "title": "Restricție de vârstă",
+          "body": "Diebel Chat este destinat exclusiv utilizatorilor cu vârsta de cel puțin 18 ani. Toți utilizatorii confirmă la înregistrare că au împlinit 18 ani. Conturile care aparțin minorilor sunt suspendate și șterse imediat."
+        },
+        {
+          "title": "Toleranță zero față de CSAE",
+          "body": "Diebel Chat aplică o politică strictă de toleranță zero față de abuzul și exploatarea sexuală a copiilor (CSAE). Orice conținut, comportament sau cont care implică exploatarea sau abuzul sexual al minorilor este eliminat imediat și raportat autorităților naționale competente, inclusiv prin CyberTipline al National Center for Missing & Exploited Children (NCMEC), acolo unde se aplică."
+        },
+        {
+          "title": "Mecanisme de raportare",
+          "body": "Utilizatorii pot raporta orice suspiciune privind siguranța copiilor direct din aplicație, prin funcția de raportare disponibilă pe fiecare profil și mesaj. Raportările sunt analizate prompt de echipa noastră. Ne puteți contacta și direct la",
+          "contact": true
+        },
+        {
+          "title": "Blocarea utilizatorilor",
+          "body": "Orice utilizator poate bloca oricând un alt utilizator. Utilizatorii blocați nu pot trimite mesaje, nu pot vedea profilul și nu pot iniția apeluri către cel care i-a blocat."
+        },
+        {
+          "title": "Conformitate legală",
+          "body": "Diebel Chat respectă toate legile și reglementările aplicabile privind siguranța copiilor. Cooperăm pe deplin cu autoritățile și raportăm cazurile confirmate de material de abuz sexual asupra copiilor (CSAM) autorităților regionale și naționale competente."
+        },
+        {
+          "title": "Contact",
+          "body": "Pentru probleme de siguranță a copiilor sau raportări CSAM, contactați responsabilul nostru de siguranță la",
+          "contact": true
+        }
+      ]
     },
     "communityGuidelines": {
       "pageTitle": "Regulile comunității",

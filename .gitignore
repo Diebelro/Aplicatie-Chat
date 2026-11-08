@@ -89,6 +89,9 @@ MEDIA-DIEBEL/**
 _deploy-final/
 _deploy-patch/
 
+# Pachet local pentru Mac (conține .env — NU pe GitHub)
+MAC-SETUP/
+
 # Video promo / certificare (binare mari)
 play-store-assets/promo-video/*.mp4
 play-store-assets/promo-video/*.webm

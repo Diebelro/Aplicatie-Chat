@@ -29,10 +29,7 @@ const RATE_MAX_PER_USER = 280;
  * (aceeași sursă de adevăr ca la `/api/call/ring`) ca să reducem false `unreachable` la re-sunare.
  */
 export async function GET(request: NextRequest) {
-  let userId = await getAuthenticatedUserId(request);
-  if (!userId) {
-    userId = request.headers.get("x-user-id")?.trim() || null;
-  }
+  const userId = await getAuthenticatedUserId(request);
   if (!userId) {
     return callPollErrorResponse("SIGNALING_TOKEN_INVALID", "Neautorizat.", 401);
   }

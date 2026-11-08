@@ -21,6 +21,7 @@ import {
 
 import { canSendMessage, PAYWALL_MESSAGE } from "@/lib/monetization";
 import { resolveRequestUserId } from "@/lib/sessionAuth";
+import { checkRateLimit, getClientIpForRateLimit } from "@/lib/rateLimit";
 import { toClientMessageAttachmentFields } from "@/lib/chatAttachmentProxy";
 import {
   ALIGN_LOCATION_CONTENT_TYPE,
@@ -140,10 +141,25 @@ export async function GET(request: NextRequest) {
   );
 }
 
+/** Doar atașamente urcate prin /api/chat/upload: Vercel Blob sau disc local (/_chatDev). Previne fetch server-side către URL-uri arbitrare. */
+function isAllowedAttachmentUrl(raw: string): boolean {
+  try {
+    const u = new URL(raw, "http://localhost");
+    if (u.pathname.startsWith("/_chatDev/")) return true;
+    if (u.protocol !== "https:") return false;
+    return u.hostname.toLowerCase().endsWith("vercel-storage.com");
+  } catch {
+    return false;
+  }
+}
+
 export async function POST(request: NextRequest) {
   const userId = await resolveRequestUserId(request);
   if (!userId) {
     return NextResponse.json({ error: "Neautorizat." }, { status: 401 });
+  }
+  if (!checkRateLimit(getClientIpForRateLimit(request), userId, "/api/messages")) {
+    return NextResponse.json({ error: "Prea multe mesaje. Încearcă mai târziu." }, { status: 429, headers: { "Retry-After": "60" } });
   }
   setUserActive(userId);
   let canSend = true;
@@ -192,6 +208,9 @@ export async function POST(request: NextRequest) {
         sendAttachmentUrl = serializeAlignLocation(coords.lat, coords.lng, label);
         sendAttachmentType = ALIGN_LOCATION_CONTENT_TYPE;
       } else if (hasBlobAttachment) {
+        if (!isAllowedAttachmentUrl(String(attachmentUrl))) {
+          return NextResponse.json({ error: "URL atașament invalid." }, { status: 400 });
+        }
         sendAttachmentUrl = String(attachmentUrl);
         sendAttachmentType = String(attachmentContentType);
       }
@@ -288,6 +307,9 @@ export async function POST(request: NextRequest) {
     sendAttachmentUrl = serializeAlignLocation(coords.lat, coords.lng, label);
     sendAttachmentType = ALIGN_LOCATION_CONTENT_TYPE;
   } else if (hasBlobAttachment) {
+    if (!isAllowedAttachmentUrl(String(attachmentUrl))) {
+      return NextResponse.json({ error: "URL atașament invalid." }, { status: 400 });
+    }
     sendAttachmentUrl = String(attachmentUrl);
     sendAttachmentType = String(attachmentContentType);
   }

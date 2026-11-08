@@ -30,6 +30,9 @@ const LIMITS: Record<string, number> = {
   "/api/feedback": 12,
   "/api/metrics/vitals": 45,
   "/api/visit": 40,
+  "/api/report": 20,
+  "/api/block": 30,
+  "/api/admin/setup": 10,
 };
 
 /** IP client pentru rate limit (x-forwarded-for / x-real-ip). */
