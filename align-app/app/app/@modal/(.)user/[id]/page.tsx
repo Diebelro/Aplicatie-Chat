@@ -1,9 +1,21 @@
 "use client";
 
+import { useParams, usePathname } from "next/navigation";
 import PublicUserProfilePage from "../../../user/[id]/page";
 
-/** Soft-nav: profilul e overlay; lista de sub rămâne montată. Fără wrapper aici, default.tsx e gol și nu acoperă pagina. */
+/**
+ * Soft-nav: profilul e overlay; lista de sub rămâne montată. Fără wrapper aici, default.tsx e gol și nu acoperă pagina.
+ *
+ * Slotul @modal își păstrează starea la navigarea soft (comportament Next.js): după „Mesaj” → /app/chat/<id>
+ * overlay-ul rămânea deasupra chatului și părea că butonul nu face nimic. Randăm overlay-ul DOAR cât timp
+ * URL-ul e chiar profilul interceptat.
+ */
 export default function InterceptedPublicUserProfile() {
+  const pathname = usePathname() ?? "";
+  const params = useParams<{ id: string }>();
+  const id = typeof params?.id === "string" ? params.id : "";
+  if (!id || pathname !== `/app/user/${id}`) return null;
+
   return (
     <div
       role="dialog"
